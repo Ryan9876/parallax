@@ -21,6 +21,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function listen(server, port) {
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -88,6 +92,11 @@ function apiServer() {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   }
 
+  async function sse(response, name, data, waitMs = 0) {
+    if (waitMs) await delay(waitMs);
+    response.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+
   return createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (request.method === 'OPTIONS') {
@@ -118,24 +127,46 @@ function apiServer() {
       const now = new Date().toISOString();
       conversation.title = String(payload.content ?? '').slice(0, 72) || 'New conversation';
       conversation.updated_at = now;
-      conversation.messages = [
-        ...conversation.messages,
-        { id: `u-${conversation.messages.length}`, role: 'user', content: String(payload.content ?? ''), status: 'complete', created_at: now },
-        { id: `a-${conversation.messages.length + 1}`, role: 'assistant', content: answer, status: 'complete', created_at: now },
-      ];
 
       cors(response, origin);
-      response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-      const messageId = conversation.messages.at(-1).id;
-      const events = [
-        ['state', { phase: 'THINKING' }],
-        ['state', { phase: 'RESPONDING' }],
-        ['chunk', { text: answer.slice(0, 100) }],
-        ['chunk', { text: answer.slice(100) }],
-        ['state', { phase: 'VERIFYING' }],
-        ['complete', { phase: 'COMPLETE', message_id: messageId, confidence: 0.94, trace: { spec_id: 'P2-V0.1.0' } }],
-      ];
-      for (const [name, data] of events) response.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
+      response.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      response.flushHeaders?.();
+
+      const userMessage = {
+        id: `u-${conversation.messages.length}`,
+        role: 'user',
+        content: String(payload.content ?? ''),
+        status: 'complete',
+        created_at: now,
+      };
+      const assistantMessage = {
+        id: `a-${conversation.messages.length + 1}`,
+        role: 'assistant',
+        content: answer,
+        status: 'complete',
+        created_at: now,
+      };
+      const splitA = Math.floor(answer.length * 0.34);
+      const splitB = Math.floor(answer.length * 0.68);
+
+      await sse(response, 'state', { phase: 'THINKING' });
+      await sse(response, 'state', { phase: 'RESPONDING' }, 180);
+      await sse(response, 'chunk', { text: answer.slice(0, splitA) }, 120);
+      await sse(response, 'chunk', { text: answer.slice(splitA, splitB) }, 700);
+      await sse(response, 'chunk', { text: answer.slice(splitB) }, 700);
+      await sse(response, 'state', { phase: 'VERIFYING' }, 180);
+
+      conversation.messages = [...conversation.messages, userMessage, assistantMessage];
+      await sse(response, 'complete', {
+        phase: 'COMPLETE',
+        message_id: assistantMessage.id,
+        confidence: 0.94,
+        trace: { spec_id: 'P2-V0.1.0' },
+      }, 120);
       response.end();
       return;
     }
@@ -182,19 +213,31 @@ async function inspectViewport(browser, name, width, height, report) {
   if (name === 'desktop') {
     const idleCanvasCount = geometry.canvasCount;
     await page.getByLabel('Message Parallax').fill('Show the optical printing behavior on a wrapped response.');
-    await page.getByText('↑', { exact: true }).click();
+    await page.getByLabel('Send message').click();
     await page.getByText('Optical renderer active').waitFor({ timeout: 5000 });
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-early.png` });
-    await page.waitForTimeout(1100);
+
+    const partialText = await page.locator('body').innerText();
+    assert(partialText.includes('The response is being'), 'desktop: first streamed chunk did not become visible during the open stream');
+    assert(!partialText.includes('without disturbing the calm surface behind it.'), 'desktop: full answer appeared before the mock stream finished');
+
+    await page.waitForTimeout(850);
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
     const hotGlyphCount = await page.locator('span').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).textShadow !== 'none').length);
     assert(respondingCanvasCount > idleCanvasCount, `desktop: optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
     assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
+
     await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
     await page.screenshot({ path: `${evidenceDir}/desktop-complete.png` });
-    report.opticalTypesetter = { idleCanvasCount, respondingCanvasCount, hotGlyphCount, completed: true };
+    report.opticalTypesetter = {
+      idleCanvasCount,
+      respondingCanvasCount,
+      hotGlyphCount,
+      liveChunkObservedBeforeStreamCompletion: true,
+      completed: true,
+    };
   }
 
   await page.close();
