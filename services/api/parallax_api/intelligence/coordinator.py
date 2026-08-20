@@ -26,8 +26,8 @@ class ResponseTrace:
     spec_id: str
     mode: str
     reason_program_version: str | None
-    scope_program_version: str
-    protected_scope_decision: str
+    scope_program_version: str | None
+    protected_scope_decision: str | None
     scope_override_used: bool
     scope_policy_adjustment: str | None
     context_digest: str
@@ -49,10 +49,10 @@ class ResponseTrace:
 class ResponseCoordinationFailure(RuntimeError):
     """Sanitized runtime failure carrying observable, non-reasoning trace evidence."""
 
-    error_code = "PROTECTED_REASON_FAILURE"
-
-    def __init__(self, trace: ResponseTrace):
-        super().__init__("Parallax could not produce a protected-valid response")
+    def __init__(self, *, error_code: str, public_message: str, trace: ResponseTrace):
+        super().__init__(public_message)
+        self.error_code = error_code
+        self.public_message = public_message
         self.trace = trace
 
 
@@ -130,11 +130,30 @@ class ResponseCoordinator:
         context: ReasonContext,
         explicit_test_scope_override: bool = False,
     ) -> CoordinatedResponse:
-        scope, scope_attempts = await self._scope(
-            current_user_turn=current_user_turn,
-            context=context,
-            explicit_test_scope_override=explicit_test_scope_override,
-        )
+        try:
+            scope, scope_attempts = await self._scope(
+                current_user_turn=current_user_turn,
+                context=context,
+                explicit_test_scope_override=explicit_test_scope_override,
+            )
+        except RoutingFailure as exc:
+            trace = self._trace(
+                conversation_id=conversation_id,
+                spec_id=spec_id,
+                mode=mode,
+                context=context,
+                scope=None,
+                scope_attempts=exc.attempts,
+                reason_attempts=(),
+                reason_program_version=None,
+                protected_verification_passed=False,
+                final_state="ERROR",
+            )
+            raise ResponseCoordinationFailure(
+                error_code="PROTECTED_SCOPE_FAILURE",
+                public_message="Parallax could not establish a protected scope decision.",
+                trace=trace,
+            ) from None
 
         if scope.decision is ScopeDecision.SPEC_AMENDMENT:
             trace = self._trace(
@@ -190,7 +209,11 @@ class ResponseCoordinator:
                 protected_verification_passed=False,
                 final_state="ERROR",
             )
-            raise ResponseCoordinationFailure(trace) from None
+            raise ResponseCoordinationFailure(
+                error_code="PROTECTED_REASON_FAILURE",
+                public_message="Parallax could not produce a response that passed protected verification.",
+                trace=trace,
+            ) from None
 
         result = route.value
         trace = self._trace(
@@ -221,7 +244,7 @@ class ResponseCoordinator:
         spec_id: str,
         mode: str,
         context: ReasonContext,
-        scope: ScopeResolution,
+        scope: ScopeResolution | None,
         scope_attempts: tuple[AttemptRecord, ...],
         reason_attempts: tuple[AttemptRecord, ...],
         reason_program_version: str | None,
@@ -238,10 +261,10 @@ class ResponseCoordinator:
             spec_id=spec_id,
             mode=mode,
             reason_program_version=reason_program_version,
-            scope_program_version=scope.program_version,
-            protected_scope_decision=scope.decision.value,
-            scope_override_used=scope.override_used,
-            scope_policy_adjustment=scope.policy_adjustment,
+            scope_program_version=scope.program_version if scope is not None else None,
+            protected_scope_decision=scope.decision.value if scope is not None else None,
+            scope_override_used=scope.override_used if scope is not None else False,
+            scope_policy_adjustment=scope.policy_adjustment if scope is not None else None,
             context_digest=context.digest,
             included_turn_count=context.included_turn_count,
             context_truncated=context.truncated,
