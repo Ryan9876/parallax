@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Protocol
+from typing import Any, Protocol
 
 from .protected_metrics import evaluate_reasoning_output
 
@@ -27,14 +27,7 @@ def _dspy():
 
 
 def build_lm(model: str):
-    """Build a DSPy LM without coupling programs to one provider.
-
-    Provider-backed CI can rely on normal provider environment variables. For
-    credential-free development, DSPY_API_BASE/DSPY_API_KEY let the same DSPy
-    programs run against an OpenAI-compatible or Ollama endpoint. Keeping this
-    boundary here ensures P2 is genuinely developed through the same DSPy
-    program contracts it exposes at runtime.
-    """
+    """Build a DSPy LM without coupling programs to one provider."""
 
     dspy = _dspy()
     api_base = os.getenv("DSPY_API_BASE")
@@ -49,6 +42,26 @@ def build_lm(model: str):
     if model_type:
         kwargs["model_type"] = model_type
     return dspy.LM(model, **kwargs)
+
+
+def plan_from_prediction(prediction: Any) -> dict[str, list[str]]:
+    """Normalize the typed DSPy compiler prediction into the protected plan shape.
+
+    The model proposes implementation content, but metadata and the exact
+    acceptance contract are injected later by deterministic protected code.
+    """
+
+    keys = ("architecture_decisions", "work_items", "validations", "risks")
+    plan: dict[str, list[str]] = {}
+    for key in keys:
+        raw = getattr(prediction, key, None)
+        if not isinstance(raw, list):
+            raise TypeError(f"DSPy compiler field {key} must be a list")
+        clean = [str(item).strip() for item in raw if str(item).strip()]
+        if not clean:
+            raise ValueError(f"DSPy compiler field {key} must not be empty")
+        plan[key] = clean
+    return plan
 
 
 class DspyReasoningProgram:
@@ -91,15 +104,24 @@ def build_spec_compiler(model: str):
         """Convert an approved software specification into a dependency-ordered implementation plan without changing protected requirements."""
 
         specification: str = dspy.InputField()
-        implementation_plan_json: str = dspy.OutputField(
-            desc=(
-                "Return only a JSON object with non-empty architecture_decisions, work_items, validations, and risks arrays. "
-                "Every acceptance criterion ID from the specification must appear in at least one plan item."
-            )
+        architecture_decisions: list[str] = dspy.OutputField(
+            desc="Concrete architecture decisions. Reference relevant AC IDs from the specification."
+        )
+        work_items: list[str] = dspy.OutputField(
+            desc="Dependency-ordered implementation work items. Reference relevant AC IDs."
+        )
+        validations: list[str] = dspy.OutputField(
+            desc="Executable validation and evidence checks. Reference relevant AC IDs."
+        )
+        risks: list[str] = dspy.OutputField(
+            desc="Material risks and mitigations. Reference relevant AC IDs when applicable."
         )
 
     lm = build_lm(model)
-    program = dspy.ChainOfThought(CompileSpec)
+    # Predict is deliberate here. Structured typed outputs are the contract;
+    # extra chain-of-thought text only makes small local development LMs less
+    # reliable without improving protected evaluation quality.
+    program = dspy.Predict(CompileSpec)
     return dspy, lm, program
 
 
@@ -110,8 +132,10 @@ def build_spec_critic(model: str):
         """Critique an approved software specification for contradictions, missing acceptance criteria, hidden dependencies, unsafe optimizer boundaries, and deployment risks."""
 
         specification: str = dspy.InputField()
-        critique_json: str = dspy.OutputField(desc="Return only a JSON array of material findings; use [] when there are none")
+        findings: list[str] = dspy.OutputField(
+            desc="Material findings only. Return an empty list when the approved specification has no material finding."
+        )
 
     lm = build_lm(model)
-    program = dspy.ChainOfThought(Critic)
+    program = dspy.Predict(Critic)
     return dspy, lm, program
