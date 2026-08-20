@@ -25,7 +25,6 @@ jobs:
       contents: read
     env:
       SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
-      DSPY_MODEL: openai/gpt-5.6-sol
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,44 +34,70 @@ jobs:
       - run: python scripts/validate_spec.py "$SPEC_PATH"
 
       - id: credentials
-        name: Detect provider credentials
+        name: Select DSPy development model
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo '{"executed":false,"reason":"provider-backed run started"}' > specs/compiled/dspy-run-status.json
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "model=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
           else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo '{"executed":false,"reason":"OPENAI_API_KEY secret is not configured"}' > specs/compiled/dspy-run-status.json
-            echo "DSPy provider run skipped because OPENAI_API_KEY is not configured."
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
           fi
 
-      - name: Compile spec with DSPy critic + compiler
-        if: steps.credentials.outputs.available == 'true'
+      - name: Install local Ollama development LM
+        if: steps.credentials.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+
+      - name: Compile approved spec with DSPy critic + compiler
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py "$SPEC_PATH"
 
       - name: Optimize SpecCompiler with MIPROv2
-        if: steps.credentials.outputs.available == 'true'
+        if: steps.credentials.outputs.provider == 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/optimize_spec.py "$SPEC_PATH"
 
-      - name: Record successful DSPy evidence
-        if: steps.credentials.outputs.available == 'true' && success()
+      - name: Record DSPy development evidence
+        if: success()
+        env:
+          PROVIDER: ${{ steps.credentials.outputs.provider }}
+          MODEL: ${{ steps.credentials.outputs.model }}
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
+
+          provider = os.environ['PROVIDER'] == 'true'
           path = Path('specs/compiled/dspy-run-status.json')
           path.write_text(json.dumps({
               'executed': True,
-              'model': 'openai/gpt-5.6-sol',
+              'spec_compiler_executed': True,
+              'spec_critic_executed': True,
+              'model': os.environ['MODEL'],
+              'provider_backed': provider,
+              'optimizer_executed': provider,
               'compiler_artifact': 'P2-V0.1.0.plan.json',
-              'optimizer_artifact': 'optimized-program.json',
-              'evidence_artifact': 'optimized-program-evidence.json'
+              'optimizer_artifact': 'optimized-program.json' if provider else None,
+              'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
+              'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
           }, indent=2) + '\n', encoding='utf-8')
           PY
 
@@ -85,5 +110,6 @@ jobs:
             specs/compiled/optimized-program.json
             specs/compiled/optimized-program-evidence.json
             specs/compiled/dspy-run-status.json
+            /tmp/ollama.log
           if-no-files-found: warn
           retention-days: 14
