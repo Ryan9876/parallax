@@ -45,6 +45,8 @@ export default function App() {
   const [messages, setMessages] = React.useState<MessageDto[]>(FALLBACK_MESSAGES);
   const [apiOnline, setApiOnline] = React.useState(false);
   const [activePrintId, setActivePrintId] = React.useState<string | null>(null);
+  const [streamFinished, setStreamFinished] = React.useState(true);
+  const pendingRefreshRef = React.useRef<string | null>(null);
   const motion = motionForPhase(state.phase);
 
   React.useEffect(() => {
@@ -58,16 +60,22 @@ export default function App() {
     globalThis.localStorage?.setItem('parallax:p2:draft', draft);
   }, [draft]);
 
-  const applyConversation = React.useCallback((conversation: ConversationDto) => {
-    setConversationId(conversation.id);
-    setMode(conversation.mode);
-    setMessages(conversation.messages);
-    setActivePrintId(null);
+  const updateConversationSummary = React.useCallback((conversation: ConversationDto) => {
     setConversations((current) => {
       const without = current.filter((item) => item.id !== conversation.id);
       return [conversation, ...without];
     });
   }, []);
+
+  const applyConversation = React.useCallback((conversation: ConversationDto) => {
+    setConversationId(conversation.id);
+    setMode(conversation.mode);
+    setMessages(conversation.messages);
+    setActivePrintId(null);
+    setStreamFinished(true);
+    pendingRefreshRef.current = null;
+    updateConversationSummary(conversation);
+  }, [updateConversationSummary]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -145,27 +153,71 @@ export default function App() {
         applyConversation(created);
       }
 
+      const now = Date.now();
       const optimisticUser: MessageDto = {
-        id: `local-user-${Date.now()}`,
+        id: `local-user-${now}`,
         role: 'user',
         content,
         status: 'pending',
         created_at: new Date().toISOString(),
       };
+      const assistantId = `local-assistant-${now}`;
+      let assistantStarted = false;
+      let scopeAmendment = false;
+
       setMessages((current) => [...current.filter((message) => !message.id.startsWith('fallback-')), optimisticUser]);
       setDraft('');
       setApiOnline(true);
+      setStreamFinished(false);
+      pendingRefreshRef.current = id;
       dispatch({ type: 'START_THINKING' });
 
-      let scopeAmendment = false;
+      const startAssistant = () => {
+        if (assistantStarted) return;
+        assistantStarted = true;
+        setMessages((current) => {
+          const completedUser = current.map((message) =>
+            message.id === optimisticUser.id ? { ...message, status: 'complete' } : message,
+          );
+          if (completedUser.some((message) => message.id === assistantId)) return completedUser;
+          return [
+            ...completedUser,
+            {
+              id: assistantId,
+              role: 'assistant',
+              content: '',
+              status: 'streaming',
+              created_at: new Date().toISOString(),
+            },
+          ];
+        });
+        setActivePrintId(assistantId);
+        dispatch({ type: 'START_RESPONDING' });
+      };
+
       const onEvent = (event: ResponseStreamEvent) => {
-        if (event.event === 'state' && event.data.phase === 'SPEC_AMENDMENT') {
-          scopeAmendment = true;
+        if (event.event === 'state') {
+          if (event.data.phase === 'SPEC_AMENDMENT') {
+            scopeAmendment = true;
+            return;
+          }
+          if (event.data.phase === 'RESPONDING') startAssistant();
+          return;
+        }
+
+        if (event.event === 'chunk' && typeof event.data.text === 'string') {
+          startAssistant();
+          const delta = event.data.text;
+          setMessages((current) => current.map((message) =>
+            message.id === assistantId ? { ...message, content: message.content + delta } : message,
+          ));
         }
       };
 
       const result = await api.streamResponse(id, content, onEvent);
       if (scopeAmendment) {
+        setStreamFinished(true);
+        setActivePrintId(null);
         dispatch({ type: 'FAIL', error: 'This change requires a specification amendment before substantive work continues.' });
         const fresh = await api.getConversation(id);
         applyConversation(fresh);
@@ -173,40 +225,49 @@ export default function App() {
       }
       if (!result.text.trim()) throw new Error('Parallax returned an empty response');
 
-      const assistantId = result.messageId ?? `local-assistant-${Date.now()}`;
-      const assistant: MessageDto = {
-        id: assistantId,
-        role: 'assistant',
-        content: result.text,
-        status: 'complete',
-        created_at: new Date().toISOString(),
-      };
+      startAssistant();
+      setMessages((current) => current.map((message) =>
+        message.id === assistantId ? { ...message, content: result.text, status: 'streaming' } : message,
+      ));
+      setStreamFinished(true);
 
-      setMessages((current) => {
-        const withoutOptimistic = current.filter((message) => message.id !== optimisticUser.id);
-        return [...withoutOptimistic, { ...optimisticUser, status: 'complete' }, assistant];
-      });
-      setActivePrintId(assistantId);
-      dispatch({ type: 'START_RESPONDING' });
-
-      // Refresh titles and persisted IDs without changing the active visual print.
-      void api.getConversation(id).then((fresh) => {
-        setConversations((current) => [fresh, ...current.filter((item) => item.id !== fresh.id)]);
-      }).catch(() => undefined);
+      // Refresh only the sidebar/title metadata now. Replacing active messages
+      // before the optical renderer catches up would remount the typesetter.
+      void api.getConversation(id).then(updateConversationSummary).catch(() => undefined);
     } catch (error) {
+      setStreamFinished(true);
+      setActivePrintId(null);
       setApiOnline(false);
+      setMessages((current) => current.map((message) =>
+        message.status === 'streaming' ? { ...message, status: 'error' } : message,
+      ));
       dispatch({ type: 'FAIL', error: error instanceof Error ? error.message : 'Response failed' });
     }
-  }, [applyConversation, conversationId, draft, mode, state.phase]);
+  }, [applyConversation, conversationId, draft, mode, state.phase, updateConversationSummary]);
 
   const finishPrint = React.useCallback(
     (messageId: string) => {
-      if (state.phase !== 'RESPONDING' || activePrintId !== messageId) return;
+      if (state.phase !== 'RESPONDING' || activePrintId !== messageId || !streamFinished) return;
+      setMessages((current) => current.map((message) =>
+        message.id === messageId ? { ...message, status: 'complete' } : message,
+      ));
       setActivePrintId(null);
       dispatch({ type: 'START_VERIFYING' });
-      setTimeout(() => dispatch({ type: 'COMPLETE' }), 420);
+
+      const refreshId = pendingRefreshRef.current;
+      setTimeout(() => {
+        dispatch({ type: 'COMPLETE' });
+        if (!refreshId) return;
+        void api.getConversation(refreshId).then((fresh) => {
+          setConversationId(fresh.id);
+          setMode(fresh.mode);
+          setMessages(fresh.messages);
+          updateConversationSummary(fresh);
+          pendingRefreshRef.current = null;
+        }).catch(() => undefined);
+      }, 420);
     },
-    [activePrintId, state.phase],
+    [activePrintId, state.phase, streamFinished, updateConversationSummary],
   );
 
   return (
@@ -301,6 +362,7 @@ export default function App() {
                         <LaserTypesetter
                           text={message.content}
                           active
+                          streamComplete={streamFinished}
                           onComplete={() => finishPrint(message.id)}
                         />
                       ) : (
@@ -309,7 +371,7 @@ export default function App() {
                       {message.id === activePrintId && (
                         <View style={styles.statusRow}>
                           <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
-                          <Text style={styles.statusText}>Optical renderer active</Text>
+                          <Text style={styles.statusText}>{streamFinished ? 'Finishing optical inscription' : 'Optical renderer active'}</Text>
                         </View>
                       )}
                     </View>
@@ -344,7 +406,7 @@ export default function App() {
                   onSubmitEditing={() => void respond()}
                   multiline
                 />
-                <TouchableOpacity accessibilityRole="button" onPress={() => void respond()} style={styles.send}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void respond()} style={styles.send}>
                   <Text style={styles.sendText}>↑</Text>
                 </TouchableOpacity>
               </View>
