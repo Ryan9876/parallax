@@ -36,6 +36,29 @@ def parse_json_payload(raw: str, expected: type[list] | type[dict]) -> Any:
     return payload
 
 
+def protected_acceptance_map(specification: str) -> list[dict[str, str]]:
+    """Extract the approved acceptance contract deterministically.
+
+    DSPy is allowed to propose how to satisfy the contract, but it never owns
+    the criterion set itself. This map is injected after model execution and is
+    therefore outside optimizer control.
+    """
+
+    pattern = re.compile(
+        r"^###\s+(AC-\d+)\s+([^\n]+)\n(.*?)(?=^###\s+AC-\d+\b|^##\s+12\.|\Z)",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    contract: list[dict[str, str]] = []
+    for acceptance_id, title, body in pattern.findall(specification):
+        requirement = " ".join(line.strip() for line in body.strip().splitlines() if line.strip())
+        contract.append({
+            "id": acceptance_id,
+            "title": title.strip(),
+            "protected_requirement": requirement,
+        })
+    return contract
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: compile_spec.py <spec.md>", file=sys.stderr)
@@ -55,6 +78,11 @@ def main() -> int:
     metric = evaluate_spec_contract(spec)
     if not metric.passed:
         print(f"Protected spec metric failed: {metric.failures}", file=sys.stderr)
+        return 1
+
+    acceptance_contract = protected_acceptance_map(spec)
+    if len(acceptance_contract) < 8:
+        print("Protected acceptance map extraction failed", file=sys.stderr)
         return 1
 
     model = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
@@ -80,6 +108,7 @@ def main() -> int:
 
     spec_id = extract_spec_id(spec)
     plan["spec_id"] = spec_id
+    plan["protected_acceptance_map"] = acceptance_contract
     plan["critique"] = critique
     plan["dspy_run"] = {
         "executed": True,
