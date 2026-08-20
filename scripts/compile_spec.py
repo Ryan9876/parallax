@@ -26,40 +26,66 @@ def ensure_acceptance_coverage(plan: dict[str, list[str]], acceptance_contract: 
         execution_projection += acceptance_id
 
 
-def section(specification: str, heading: str) -> str:
+def numbered_section(specification: str, title: str) -> str:
+    """Extract a numbered level-two section by semantic title, independent of section number."""
+
     pattern = re.compile(
-        rf"^{re.escape(heading)}\s*\n(.*?)(?=^##\s+\d+\.|\Z)",
-        flags=re.MULTILINE | re.DOTALL,
+        rf"^##\s+\d+\.\s+{re.escape(title)}\b\s*\n(.*?)(?=^##\s+\d+\.|\Z)",
+        flags=re.MULTILINE | re.DOTALL | re.IGNORECASE,
     )
     match = pattern.search(specification)
     return match.group(1).strip() if match else ""
 
 
+def _compact(text: str, limit: int) -> str:
+    normalized = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    if len(normalized) <= limit:
+        return normalized
+    clipped = normalized[:limit].rsplit(" ", 1)[0].rstrip(" ,;:-")
+    return f"{clipped}…"
+
+
 def development_spec_view(specification: str, acceptance_contract: list[dict[str, str]]) -> str:
     """Create a compact, loss-controlled spec view for CPU-only local DSPy CI.
 
-    The full approved specification still drives protected metrics and release
-    gating. Only the credential-free development LM receives this condensed
-    view so mandatory DSPy execution remains practical on GitHub CPU runners.
+    The full approved specification remains the sole source for protected
+    validation, the exact acceptance map, and release gating. The local proof
+    model receives a deliberately small engineering brief so mandatory DSPy
+    execution cannot fail simply by echoing a long specification. Provider-
+    backed compilation still receives the complete approved specification.
     """
 
     if os.getenv("DSPY_LOCAL_DEVELOPMENT") != "1":
         return specification
 
-    parts = [
-        "# Parallax 2.0 protected development specification",
-        section(specification, "## 1. Objective"),
-        "## Fixed product decisions",
-        section(specification, "## 3. Fixed product decisions"),
-        "## Architecture requirements",
-        section(specification, "## 6. Architecture requirements"),
-        "## Protected acceptance contract",
-    ]
+    objective = _compact(numbered_section(specification, "Objective"), 900)
+    fixed = numbered_section(specification, "Fixed decisions") or numbered_section(
+        specification, "Fixed product decisions"
+    )
+    fixed = _compact(fixed, 1200)
+    architecture = _compact(numbered_section(specification, "Architecture requirements"), 1000)
+
+    acceptance_lines = []
     for criterion in acceptance_contract:
-        parts.append(
-            f"{criterion['id']} {criterion['title']}: {criterion['protected_requirement']}"
+        # IDs/titles preserve coverage anchors. The first sentence gives the
+        # local compiler enough semantics to propose work without copying the
+        # entire protected contract into its output.
+        requirement = criterion["protected_requirement"].split(". ", 1)[0]
+        acceptance_lines.append(
+            f"- {criterion['id']} {criterion['title']}: {_compact(requirement, 150)}"
         )
-    return "\n\n".join(part for part in parts if part)
+
+    return "\n\n".join(
+        part
+        for part in (
+            "# Compact Parallax implementation brief\nDo not copy this brief. Propose only the bounded output fields requested by the signature.",
+            f"## Objective\n{objective}",
+            f"## Fixed decisions\n{fixed}",
+            f"## Architecture\n{architecture}",
+            "## Acceptance anchors\n" + "\n".join(acceptance_lines),
+        )
+        if part.strip()
+    )
 
 
 def main() -> int:
