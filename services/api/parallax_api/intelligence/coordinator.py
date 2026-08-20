@@ -2,11 +2,21 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
+from typing import Callable
 from uuid import uuid4
 
-from .dspy_programs import DspyReasoningProgram, ReasoningResult
-from .protected_metrics import evaluate_reasoning_output
+from .context import ReasonContext
+from .protected_metrics import evaluate_reason_result, evaluate_scope_output
+from .reason import DspyReasonProgram, ReasonProgram, ReasonResult
 from .router import AttemptRecord, ModelRouter
+from .scope import (
+    DspyScopeProgram,
+    ProtectedScopePolicy,
+    ScopeDecision,
+    ScopeProgram,
+    ScopeProposal,
+    ScopeResolution,
+)
 
 
 @dataclass(frozen=True)
@@ -15,28 +25,89 @@ class ResponseTrace:
     conversation_id: str
     spec_id: str
     mode: str
-    program_version: str
+    reason_program_version: str | None
+    scope_program_version: str
+    protected_scope_decision: str
+    scope_override_used: bool
+    scope_policy_adjustment: str | None
+    context_digest: str
+    included_turn_count: int
+    context_truncated: bool
     attempted_models: tuple[str, ...]
-    attempts: tuple[AttemptRecord, ...]
-    validation_passed: bool
+    scope_attempts: tuple[AttemptRecord, ...]
+    reason_attempts: tuple[AttemptRecord, ...]
+    protected_verification_passed: bool
     final_state: str
 
     def as_public_dict(self) -> dict:
         data = asdict(self)
-        data["attempts"] = [asdict(attempt) for attempt in self.attempts]
+        data["scope_attempts"] = [asdict(attempt) for attempt in self.scope_attempts]
+        data["reason_attempts"] = [asdict(attempt) for attempt in self.reason_attempts]
         return data
 
 
 @dataclass(frozen=True)
 class CoordinatedResponse:
-    answer: str
+    answer: str | None
     confidence: float
+    scope: ScopeResolution
+    material_uncertainties: tuple[str, ...]
+    assumptions: tuple[str, ...]
     trace: ResponseTrace
 
 
+ScopeFactory = Callable[[str], ScopeProgram]
+ReasonFactory = Callable[[str], ReasonProgram]
+
+
 class ResponseCoordinator:
-    def __init__(self, router: ModelRouter[ReasoningResult] | None = None):
-        self.router = router or ModelRouter[ReasoningResult]()
+    def __init__(
+        self,
+        *,
+        scope_router: ModelRouter[ScopeProposal] | None = None,
+        reason_router: ModelRouter[ReasonResult] | None = None,
+        scope_factory: ScopeFactory | None = None,
+        reason_factory: ReasonFactory | None = None,
+        scope_policy: ProtectedScopePolicy | None = None,
+    ):
+        self.scope_router = scope_router or ModelRouter[ScopeProposal]()
+        self.reason_router = reason_router or ModelRouter[ReasonResult]()
+        self.scope_factory = scope_factory or DspyScopeProgram
+        self.reason_factory = reason_factory or DspyReasonProgram
+        self.scope_policy = scope_policy or ProtectedScopePolicy()
+
+    async def _scope(
+        self,
+        *,
+        current_user_turn: str,
+        context: ReasonContext,
+        explicit_test_scope_override: bool,
+    ) -> tuple[ScopeResolution, tuple[AttemptRecord, ...]]:
+        if explicit_test_scope_override:
+            override_proposal = ScopeProposal(
+                decision=ScopeDecision.CONTINUE,
+                confidence=1.0,
+                material_factors=["Explicit test/developer override requested."],
+                program_version="scope-override-v0.3.0",
+            )
+            return (
+                self.scope_policy.resolve(override_proposal, explicit_test_override=True),
+                (),
+            )
+
+        async def attempt(model: str) -> ScopeProposal:
+            program = self.scope_factory(model)
+            return await asyncio.to_thread(
+                program.run,
+                current_user_turn=current_user_turn,
+                context=context.text,
+            )
+
+        route = await self.scope_router.route(
+            attempt,
+            lambda result: evaluate_scope_output(result).passed,
+        )
+        return self.scope_policy.resolve(route.value), route.attempts
 
     async def respond(
         self,
@@ -45,31 +116,112 @@ class ResponseCoordinator:
         spec_id: str,
         mode: str,
         objective: str,
-        context: str,
+        current_user_turn: str,
+        context: ReasonContext,
+        explicit_test_scope_override: bool = False,
     ) -> CoordinatedResponse:
-        async def attempt(model: str) -> ReasoningResult:
-            program = DspyReasoningProgram(model)
+        scope, scope_attempts = await self._scope(
+            current_user_turn=current_user_turn,
+            context=context,
+            explicit_test_scope_override=explicit_test_scope_override,
+        )
+
+        if scope.decision is ScopeDecision.SPEC_AMENDMENT:
+            trace = self._trace(
+                conversation_id=conversation_id,
+                spec_id=spec_id,
+                mode=mode,
+                context=context,
+                scope=scope,
+                scope_attempts=scope_attempts,
+                reason_attempts=(),
+                reason_program_version=None,
+                protected_verification_passed=True,
+                final_state="SPEC_AMENDMENT",
+            )
+            return CoordinatedResponse(
+                answer=None,
+                confidence=scope.confidence,
+                scope=scope,
+                material_uncertainties=(),
+                assumptions=(),
+                trace=trace,
+            )
+
+        async def reason_attempt(model: str) -> ReasonResult:
+            program = self.reason_factory(model)
             return await asyncio.to_thread(
                 program.run,
                 objective=objective,
-                context=context,
+                context=context.text,
                 mode=mode,
+                spec_id=spec_id,
+                scope_decision=scope.decision,
             )
 
-        route = await self.router.route(
-            attempt,
-            lambda result: evaluate_reasoning_output(result.answer).passed,
+        route = await self.reason_router.route(
+            reason_attempt,
+            lambda result: evaluate_reason_result(
+                result,
+                scope_decision=scope.decision.value,
+            ).passed,
         )
         result = route.value
-        trace = ResponseTrace(
+        trace = self._trace(
+            conversation_id=conversation_id,
+            spec_id=spec_id,
+            mode=mode,
+            context=context,
+            scope=scope,
+            scope_attempts=scope_attempts,
+            reason_attempts=route.attempts,
+            reason_program_version=result.program_version,
+            protected_verification_passed=True,
+            final_state="COMPLETE",
+        )
+        return CoordinatedResponse(
+            answer=result.answer,
+            confidence=result.confidence,
+            scope=scope,
+            material_uncertainties=tuple(result.material_uncertainties),
+            assumptions=tuple(result.assumptions),
+            trace=trace,
+        )
+
+    def _trace(
+        self,
+        *,
+        conversation_id: str,
+        spec_id: str,
+        mode: str,
+        context: ReasonContext,
+        scope: ScopeResolution,
+        scope_attempts: tuple[AttemptRecord, ...],
+        reason_attempts: tuple[AttemptRecord, ...],
+        reason_program_version: str | None,
+        protected_verification_passed: bool,
+        final_state: str,
+    ) -> ResponseTrace:
+        attempted = tuple(
+            attempt.model
+            for attempt in (*scope_attempts, *reason_attempts)
+        )
+        return ResponseTrace(
             response_id=str(uuid4()),
             conversation_id=conversation_id,
             spec_id=spec_id,
             mode=mode,
-            program_version=result.program_version,
-            attempted_models=tuple(record.model for record in route.attempts),
-            attempts=route.attempts,
-            validation_passed=True,
-            final_state="COMPLETE",
+            reason_program_version=reason_program_version,
+            scope_program_version=scope.program_version,
+            protected_scope_decision=scope.decision.value,
+            scope_override_used=scope.override_used,
+            scope_policy_adjustment=scope.policy_adjustment,
+            context_digest=context.digest,
+            included_turn_count=context.included_turn_count,
+            context_truncated=context.truncated,
+            attempted_models=attempted,
+            scope_attempts=scope_attempts,
+            reason_attempts=reason_attempts,
+            protected_verification_passed=protected_verification_passed,
+            final_state=final_state,
         )
-        return CoordinatedResponse(answer=result.answer, confidence=result.confidence, trace=trace)
