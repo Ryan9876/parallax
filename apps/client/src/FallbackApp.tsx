@@ -44,7 +44,9 @@ export default function FallbackApp() {
         setConversation(current);
         setMode(current.mode);
         setMessages(current.messages);
-        setStatus('Reduced graphics mode · persistent context online');
+        setStatus(current.status === 'SPEC_AMENDMENT'
+          ? 'Reduced graphics mode · specification amendment required'
+          : 'Reduced graphics mode · persistent context online');
       } catch {
         if (!cancelled) setStatus('Reduced graphics mode · API offline');
       }
@@ -75,7 +77,9 @@ export default function FallbackApp() {
       setConversation(fresh);
       setMessages(fresh.messages);
       setMode(fresh.mode);
-      setStatus('Reduced graphics mode · persistent context online');
+      setStatus(fresh.status === 'SPEC_AMENDMENT'
+        ? 'Reduced graphics mode · specification amendment required'
+        : 'Reduced graphics mode · persistent context online');
     } catch {
       setStatus('Reduced graphics mode · API offline');
     }
@@ -114,7 +118,9 @@ export default function FallbackApp() {
         setConversation(fresh);
         setRecent((value) => [fresh, ...value.filter((item) => item.id !== fresh.id)]);
       }
-      setStatus('Reduced graphics mode · complete');
+      setStatus(result.phase === 'SPEC_AMENDMENT'
+        ? 'Reduced graphics mode · specification amendment required'
+        : 'Reduced graphics mode · complete');
     } catch (error) {
       setStatus(`Reduced graphics mode · ${error instanceof Error ? error.message : 'response failed'}`);
     }
