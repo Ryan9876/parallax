@@ -53,6 +53,21 @@ def test_typed_dspy_plan_normalization_requires_all_nonempty_lists():
     assert set(plan) == {"architecture_decisions", "work_items", "validations", "risks"}
 
 
+def test_local_dspy_plan_is_bounded_after_successful_structured_parse(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DSPY_LOCAL_DEVELOPMENT", "1")
+    prediction = SimpleNamespace(
+        architecture_decisions=[f"architecture-{index}" for index in range(8)],
+        work_items=[f"work-{index}" for index in range(8)],
+        validations=[f"validation-{index}" for index in range(8)],
+        risks=[f"risk-{index}" for index in range(8)],
+    )
+    plan = plan_from_prediction(prediction)
+    assert len(plan["architecture_decisions"]) == 3
+    assert len(plan["work_items"]) == 4
+    assert len(plan["validations"]) == 3
+    assert len(plan["risks"]) == 2
+
+
 def test_compiled_plan_must_map_every_acceptance_criterion():
     spec = FOUNDATION_SPEC.read_text(encoding="utf-8")
     plan = {
