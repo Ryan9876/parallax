@@ -10,8 +10,8 @@ class ConversationRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, mode: str = "reason") -> Conversation:
-        conversation = Conversation(mode=mode)
+    def create(self, mode: str = "reason", *, spec_id: str) -> Conversation:
+        conversation = Conversation(mode=mode, spec_id=spec_id)
         self.session.add(conversation)
         self.session.commit()
         self.session.refresh(conversation)
