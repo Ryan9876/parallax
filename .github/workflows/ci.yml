@@ -35,19 +35,21 @@ jobs:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
 
-      - name: Validate development and promotion benchmark suites
+      - name: Validate engineering and Reason benchmark suites
         run: |
           python scripts/validate_benchmark.py benchmarks/parallax-engineering/development-v0.1.json
           python scripts/validate_benchmark.py benchmarks/parallax-engineering/promotion-v0.1.json
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-development-v0.1.json
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-promotion-v0.1.json
 
-      - name: Evaluate recorded development fixture
+      - name: Evaluate recorded engineering development fixture
         run: |
           python scripts/evaluate_recorded.py \
             benchmarks/parallax-engineering/development-v0.1.json \
             benchmarks/parallax-engineering/fixtures/development-good.json \
             --evidence-dir evaluation-evidence/development
 
-      - name: Evaluate protected promotion baseline and equivalent challenger
+      - name: Evaluate protected engineering promotion baseline and equivalent challenger
         run: |
           python scripts/evaluate_recorded.py \
             benchmarks/parallax-engineering/promotion-v0.1.json \
@@ -62,7 +64,7 @@ jobs:
           python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
             --evidence-dir evaluation-evidence/promotion-decision
 
-      - name: Prove a protected regression is rejected
+      - name: Prove an inherited engineering protected regression is rejected
         run: |
           set +e
           python scripts/evaluate_recorded.py \
@@ -72,10 +74,72 @@ jobs:
           RC=$?
           set -e
           if [ "$RC" -eq 0 ]; then
-            echo 'FAIL: known protected regression unexpectedly passed'
+            echo 'FAIL: known engineering protected regression unexpectedly passed'
             exit 1
           fi
-          echo "PASS: known protected regression rejected with rc=$RC"
+          echo "PASS: known engineering protected regression rejected with rc=$RC"
+
+      - name: Evaluate recorded Reason development fixture
+        run: |
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/reason-development-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/reason-development-good.json \
+            --evidence-dir evaluation-evidence/reason-development
+
+      - name: Evaluate protected Reason baseline and equivalent challenger
+        run: |
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/reason-promotion-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/reason-baseline.json \
+            --evidence-dir evaluation-evidence/reason-promotion-baseline
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/reason-promotion-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/reason-equivalent.json \
+            --evidence-dir evaluation-evidence/reason-promotion-challenger
+          BASELINE=$(find evaluation-evidence/reason-promotion-baseline -type f -name 'eval-*.json' | head -1)
+          CHALLENGER=$(find evaluation-evidence/reason-promotion-challenger -type f -name 'eval-*.json' | head -1)
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
+            --evidence-dir evaluation-evidence/reason-promotion-decision
+
+      - name: Prove Reason continuity, status, and scope regressions are rejected
+        run: |
+          BASELINE=$(find evaluation-evidence/reason-promotion-baseline -type f -name 'eval-*.json' | head -1)
+          if [ -z "$BASELINE" ]; then
+            echo 'FAIL: Reason baseline evidence was not produced'
+            exit 1
+          fi
+
+          for regression in continuity status scope; do
+            case "$regression" in
+              continuity) FIXTURE="reason-continuity-regression.json" ;;
+              status) FIXTURE="reason-status-regression.json" ;;
+              scope) FIXTURE="reason-scope-regression.json" ;;
+            esac
+            OUT="evaluation-evidence/reason-rejected-${regression}"
+            DECISION="evaluation-evidence/reason-rejected-${regression}-decision"
+
+            set +e
+            python scripts/evaluate_recorded.py \
+              benchmarks/parallax-engineering/reason-promotion-v0.1.json \
+              "benchmarks/parallax-engineering/fixtures/${FIXTURE}" \
+              --evidence-dir "$OUT"
+            EVAL_RC=$?
+            REGRESSION_EVIDENCE=$(find "$OUT" -type f -name 'eval-*.json' | head -1)
+            if [ -z "$REGRESSION_EVIDENCE" ]; then
+              echo "FAIL: $regression regression produced no evaluation evidence"
+              exit 1
+            fi
+            python scripts/compare_evaluations.py "$BASELINE" "$REGRESSION_EVIDENCE" \
+              --evidence-dir "$DECISION"
+            COMPARE_RC=$?
+            set -e
+
+            if [ "$EVAL_RC" -eq 0 ] || [ "$COMPARE_RC" -eq 0 ]; then
+              echo "FAIL: Reason $regression regression was not rejected by both protected evaluation and promotion comparison"
+              exit 1
+            fi
+            echo "PASS: Reason $regression regression rejected; evaluate=$EVAL_RC compare=$COMPARE_RC"
+          done
 
       - uses: actions/upload-artifact@v4
         if: always()
