@@ -17,6 +17,8 @@ const mime = {
   '.svg': 'image/svg+xml',
 };
 
+const amendmentMessage = 'This request materially changes the approved objective. An approved specification amendment is required before I continue against the new objective.';
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -59,6 +61,7 @@ const mockStreamState = {
   open: false,
   chunksSent: 0,
   completed: false,
+  amendment: false,
 };
 
 function apiServer() {
@@ -131,12 +134,14 @@ function apiServer() {
       const payload = await requestJson(request);
       if (!conversation) conversation = baseConversation('reason');
       const now = new Date().toISOString();
-      conversation.title = String(payload.content ?? '').slice(0, 72) || 'New conversation';
+      const content = String(payload.content ?? '');
+      conversation.title = content.slice(0, 72) || 'New conversation';
       conversation.updated_at = now;
 
       mockStreamState.open = true;
       mockStreamState.chunksSent = 0;
       mockStreamState.completed = false;
+      mockStreamState.amendment = false;
 
       cors(response, origin);
       response.writeHead(200, {
@@ -149,10 +154,38 @@ function apiServer() {
       const userMessage = {
         id: `u-${conversation.messages.length}`,
         role: 'user',
-        content: String(payload.content ?? ''),
+        content,
         status: 'complete',
         created_at: now,
       };
+
+      if (content.includes('Replace the approved objective entirely')) {
+        const assistantMessage = {
+          id: `a-${conversation.messages.length + 1}`,
+          role: 'assistant',
+          content: amendmentMessage,
+          status: 'complete',
+          created_at: now,
+        };
+        conversation.status = 'SPEC_AMENDMENT';
+        conversation.messages = [...conversation.messages, userMessage, assistantMessage];
+        await sse(response, 'state', { phase: 'THINKING' });
+        await sse(response, 'state', { phase: 'SPEC_AMENDMENT' }, 100);
+        await sse(response, 'amendment', {
+          phase: 'SPEC_AMENDMENT',
+          message_id: assistantMessage.id,
+          text: amendmentMessage,
+          confidence: 0.96,
+          scope_decision: 'SPEC_AMENDMENT',
+          trace: { spec_id: 'P2-V0.3.0', final_state: 'SPEC_AMENDMENT' },
+        }, 80);
+        mockStreamState.amendment = true;
+        mockStreamState.completed = true;
+        response.end();
+        mockStreamState.open = false;
+        return;
+      }
+
       const assistantMessage = {
         id: `a-${conversation.messages.length + 1}`,
         role: 'assistant',
@@ -173,11 +206,13 @@ function apiServer() {
       mockStreamState.chunksSent = 3;
       await sse(response, 'state', { phase: 'VERIFYING' }, 180);
 
+      conversation.status = 'ACTIVE';
       conversation.messages = [...conversation.messages, userMessage, assistantMessage];
       await sse(response, 'complete', {
         phase: 'COMPLETE',
         message_id: assistantMessage.id,
         confidence: 0.94,
+        scope_decision: 'CONTINUE',
         trace: { spec_id: 'P2-V0.3.0' },
       }, 120);
       mockStreamState.completed = true;
@@ -277,11 +312,17 @@ async function inspectFallback(browser, report) {
   await page.getByText(/The response is being inscribed line by line/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
-  // AC-10 has two distinct claims: normal text is usable without Skia, and the
-  // request lifecycle still completes. Wait for the reduced-graphics product
-  // state before asserting transport closure instead of racing the stream.
   await page.getByText(/Reduced graphics mode · complete/i).waitFor({ timeout: 10000 });
   assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
+
+  await page.getByLabel('Message Parallax').fill('Replace the approved objective entirely.');
+  await page.getByLabel('Send message').click();
+  await page.getByText(amendmentMessage).first().waitFor({ timeout: 10000 });
+  await page.getByText(/Reduced graphics mode · specification amendment required/i).waitFor({ timeout: 10000 });
+  const amendmentCanvasCount = await page.locator('canvas').count();
+  assert(amendmentCanvasCount === 0, `fallback amendment: expected zero Skia canvases, found ${amendmentCanvasCount}`);
+  assert(mockStreamState.amendment && mockStreamState.completed && !mockStreamState.open, 'fallback amendment: amendment stream did not complete cleanly');
+  await page.screenshot({ path: `${evidenceDir}/fallback-amendment.png` });
 
   const expectedSkiaFailure = (entry) => [
     'Skia failed to initialize',
@@ -298,6 +339,7 @@ async function inspectFallback(browser, report) {
   report.fallback = {
     canvasCount,
     functionalConversation: true,
+    amendmentStatePreservedWithoutSkia: true,
     expectedSkiaInitializationErrorObserved: true,
     observedExpectedErrorCount: errors.filter(expectedSkiaFailure).length,
   };
