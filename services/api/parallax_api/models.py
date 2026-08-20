@@ -62,7 +62,11 @@ class EngineeringRun(Base):
     attempts: Mapped[list["EngineeringAttempt"]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
-        order_by="EngineeringAttempt.id",
+        order_by=lambda: (
+            EngineeringAttempt.started_at,
+            EngineeringAttempt.attempt_number,
+            EngineeringAttempt.id,
+        ),
     )
 
 
