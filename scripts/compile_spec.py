@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import sys
 
 
@@ -23,6 +24,42 @@ def ensure_acceptance_coverage(plan: dict[str, list[str]], acceptance_contract: 
             f"{acceptance_id}: validate protected requirement — {criterion['protected_requirement']}"
         )
         execution_projection += acceptance_id
+
+
+def section(specification: str, heading: str) -> str:
+    pattern = re.compile(
+        rf"^{re.escape(heading)}\s*\n(.*?)(?=^##\s+\d+\.|\Z)",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(specification)
+    return match.group(1).strip() if match else ""
+
+
+def development_spec_view(specification: str, acceptance_contract: list[dict[str, str]]) -> str:
+    """Create a compact, loss-controlled spec view for CPU-only local DSPy CI.
+
+    The full approved specification still drives protected metrics and release
+    gating. Only the credential-free development LM receives this condensed
+    view so mandatory DSPy execution remains practical on GitHub CPU runners.
+    """
+
+    if os.getenv("DSPY_LOCAL_DEVELOPMENT") != "1":
+        return specification
+
+    parts = [
+        "# Parallax 2.0 protected development specification",
+        section(specification, "## 1. Objective"),
+        "## Fixed product decisions",
+        section(specification, "## 3. Fixed product decisions"),
+        "## Architecture requirements",
+        section(specification, "## 6. Architecture requirements"),
+        "## Protected acceptance contract",
+    ]
+    for criterion in acceptance_contract:
+        parts.append(
+            f"{criterion['id']} {criterion['title']}: {criterion['protected_requirement']}"
+        )
+    return "\n\n".join(part for part in parts if part)
 
 
 def main() -> int:
@@ -70,10 +107,11 @@ def main() -> int:
         return 1
 
     model = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
+    program_spec = development_spec_view(spec, acceptance_contract)
 
     critic_dspy, critic_lm, critic_program = build_spec_critic(model)
     with critic_dspy.context(lm=critic_lm):
-        critique_prediction = critic_program(specification=spec)
+        critique_prediction = critic_program(specification=program_spec)
     critique = getattr(critique_prediction, "findings", None)
     if not isinstance(critique, list):
         print("DSPy critic findings must be a typed list", file=sys.stderr)
@@ -82,7 +120,7 @@ def main() -> int:
 
     compiler_dspy, compiler_lm, compiler_program = build_spec_compiler(model)
     with compiler_dspy.context(lm=compiler_lm):
-        prediction = compiler_program(specification=spec)
+        prediction = compiler_program(specification=program_spec)
 
     try:
         plan = plan_from_prediction(prediction)
@@ -101,6 +139,7 @@ def main() -> int:
         "executed": True,
         "model": model,
         "api_base": os.getenv("DSPY_API_BASE") or "provider-default",
+        "local_development_view": os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1",
     }
 
     protected = evaluate_compiled_plan(spec, artifact)
