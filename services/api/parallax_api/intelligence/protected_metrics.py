@@ -47,6 +47,30 @@ def extract_acceptance_ids(spec_text: str) -> tuple[str, ...]:
     return tuple(re.findall(r"^###\s+(AC-\d+)\b", spec_text, flags=re.MULTILINE))
 
 
+def extract_acceptance_contract(spec_text: str) -> tuple[dict[str, str], ...]:
+    """Return the exact approved acceptance contract from the specification.
+
+    This representation is deterministic and intentionally lives with the
+    protected evaluator rather than in DSPy-controlled program code.
+    """
+
+    pattern = re.compile(
+        r"^###\s+(AC-\d+)\s+([^\n]+)\n(.*?)(?=^###\s+AC-\d+\b|^##\s+12\.|\Z)",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    contract: list[dict[str, str]] = []
+    for acceptance_id, title, body in pattern.findall(spec_text):
+        requirement = " ".join(line.strip() for line in body.strip().splitlines() if line.strip())
+        contract.append(
+            {
+                "id": acceptance_id,
+                "title": title.strip(),
+                "protected_requirement": requirement,
+            }
+        )
+    return tuple(contract)
+
+
 def evaluate_spec_contract(spec_text: str) -> MetricResult:
     failures: list[str] = []
     for heading in REQUIRED_SPEC_HEADINGS:
@@ -61,12 +85,15 @@ def evaluate_spec_contract(spec_text: str) -> MetricResult:
         failures.append("invalid_spec_id")
 
     acceptance_ids = extract_acceptance_ids(spec_text)
+    acceptance_contract = extract_acceptance_contract(spec_text)
     if len(acceptance_ids) < 8:
         failures.append(f"insufficient_acceptance_criteria:{len(acceptance_ids)}")
     if len(set(acceptance_ids)) != len(acceptance_ids):
         failures.append("duplicate_acceptance_ids")
+    if tuple(item["id"] for item in acceptance_contract) != acceptance_ids:
+        failures.append("acceptance_contract_extraction_mismatch")
 
-    checks = len(REQUIRED_SPEC_HEADINGS) + 4
+    checks = len(REQUIRED_SPEC_HEADINGS) + 5
     return MetricResult(passed=not failures, score=_score(failures, checks), failures=tuple(failures))
 
 
@@ -83,13 +110,13 @@ def evaluate_compiled_plan(
             plan_object = json.loads(plan)
         except json.JSONDecodeError:
             failures.append("plan_invalid_json")
-            return MetricResult(False, _score(failures, 24), tuple(failures))
+            return MetricResult(False, _score(failures, 26), tuple(failures))
     else:
         plan_object = plan
 
     if not isinstance(plan_object, dict):
         failures.append("plan_not_object")
-        return MetricResult(False, _score(failures, 24), tuple(failures))
+        return MetricResult(False, _score(failures, 26), tuple(failures))
 
     for key in REQUIRED_PLAN_KEYS:
         value = plan_object.get(key)
@@ -104,6 +131,10 @@ def evaluate_compiled_plan(
         if not isinstance(dspy_run, dict) or dspy_run.get("executed") is not True:
             failures.append("dspy_execution_not_recorded")
 
+        expected_contract = [dict(item) for item in extract_acceptance_contract(spec_text)]
+        if plan_object.get("protected_acceptance_map") != expected_contract:
+            failures.append("protected_acceptance_map_mismatch")
+
     serialized = json.dumps(plan_object, sort_keys=True)
     for acceptance_id in extract_acceptance_ids(spec_text):
         if acceptance_id not in serialized:
@@ -112,7 +143,7 @@ def evaluate_compiled_plan(
     if any(pattern.search(serialized) for pattern in SECRET_PATTERNS):
         failures.append("possible_secret_in_artifact")
 
-    return MetricResult(passed=not failures, score=_score(failures, 24), failures=tuple(failures))
+    return MetricResult(passed=not failures, score=_score(failures, 26), failures=tuple(failures))
 
 
 def evaluate_reasoning_output(answer: str) -> MetricResult:
