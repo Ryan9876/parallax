@@ -4,6 +4,13 @@ from dataclasses import dataclass
 import os
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     environment: str = os.getenv("PARALLAX_ENV", "development")
@@ -18,6 +25,7 @@ class Settings:
     )
     cors_origin_regex: str | None = os.getenv("PARALLAX_CORS_ORIGIN_REGEX") or None
     dspy_model: str = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
+    allow_scope_override: bool = _env_bool("PARALLAX_ALLOW_SCOPE_OVERRIDE", False)
 
 
 settings = Settings()
