@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 1.2
+Version: 1.3
 Status: Authoritative
 
 ## System shape
@@ -23,6 +23,12 @@ FastAPI intelligence service
   ├─ protected evaluators
   └─ observable execution traces
           │
+          ├───────────────► protected evaluation spine
+          │                  ├─ development suites
+          │                  ├─ promotion suites
+          │                  ├─ deterministic scorer
+          │                  ├─ evidence artifacts
+          │                  └─ baseline/challenger gate
           ▼
 SQLite (development) / dedicated Supabase PostgreSQL (P2 preview target)
 ```
@@ -95,9 +101,48 @@ The development plane must execute even when commercial provider credentials are
 - provider-backed model when an approved provider secret is configured;
 - credential-free local Ollama model for required SpecCritic + SpecCompiler execution.
 
-The local path exists to prove and exercise the DSPy build methodology, not to establish the final quality ceiling. MIPROv2 promotion remains provider-backed in the v0.1.0 foundation because optimization quality is model-sensitive and every optimized artifact must still pass protected metrics before promotion.
+The local path exists to prove and exercise the DSPy build methodology, not to establish the final quality ceiling. MIPROv2 promotion remains provider-backed in the foundation because optimization quality is model-sensitive and every optimized artifact must still pass protected metrics before promotion.
 
 Optimizer-controlled code cannot alter the protected acceptance/evaluation functions used to promote a compiled or optimized program.
+
+## Protected evaluation spine
+
+P2-V0.2.0 establishes evaluation as a first-class subsystem outside runtime DSPy program implementations.
+
+### Suite separation
+
+Benchmark suites are versioned and have exactly one purpose:
+
+- `development` — examples and metric feedback may be consumed by DSPy optimizers;
+- `promotion` — protected evidence used only after a challenger is produced.
+
+Promotion-suite expected contracts, thresholds, and protected decision rules are not optimizer inputs. A development-suite artifact is structurally incapable of authorizing promotion.
+
+The initial repository-safe Parallax Engineering Benchmark covers eight categories: specification fidelity, conversation continuity, implementation-plan completeness, protected-boundary preservation, failure/degradation handling, evidence/status honesty, secret handling, and concise engineering communication.
+
+### Deterministic scoring
+
+`services/api/parallax_api/evaluation/` owns typed schemas, safe loading, deterministic protected scoring, evidence construction, and promotion comparison. Scoring is limited to explicitly declared contract behavior such as required coverage, forbidden behavior, exact protected assertions, case/category floors, and weighted aggregate scores. It does not silently award subjective quality points.
+
+A higher aggregate score cannot compensate for a failed critical protected assertion or a protected category regression beyond the configured tolerance.
+
+### Evidence contract
+
+Evaluation artifacts are machine-readable evidence. They record suite/evaluator/program/model identity, input identity/digest, per-case results, failure reasons, category summaries, aggregate score, protected pass/fail, and an explicit no-chain-of-thought marker.
+
+Candidate output is treated as untrusted text. Evidence and benchmark loaders reject secret-bearing content and hidden-reasoning fields such as chain-of-thought or scratchpad payloads. Protected evidence stores only the observable information required to explain the result.
+
+### Promotion gate
+
+The baseline/challenger comparison gate accepts only compatible promotion-suite artifacts. A challenger is rejected when it introduces a critical protected failure, misses a protected floor, exceeds aggregate/category regression tolerances, uses an incompatible evaluator version, or attempts to use development evidence for promotion.
+
+Promotion remains an explicit engineering/release decision. Passing evaluation never automatically merges, deploys, changes protected thresholds, or rewrites the authoritative state records.
+
+### CI evaluation path
+
+The protected evaluation smoke gate is credential-free and runs independently of provider availability. CI validates both benchmark suites, scores recorded known-good fixtures, proves an equivalent challenger passes, proves a known regression is rejected, and retains the generated evidence as a workflow artifact.
+
+Provider-backed live-model evaluation is supplemental future evidence; it is not required to prove the v0.2.0 evaluation subsystem itself.
 
 ## Preview deployment topology
 
@@ -142,6 +187,7 @@ The browser acceptance gate verifies the Skia runtime and responsive layout at 3
 - All providers fail: preserve user message and return a recoverable error state.
 - Database failure: `/ready` returns a sanitized 503 and the system must not claim deployment verification or persisted conversation state.
 - Commercial DSPy provider credentials unavailable during development: use the local DSPy compiler/critic path; do not claim provider-backed optimization.
+- Evaluation challenger regresses a protected case/category: reject promotion and retain machine-readable reasons; do not compensate with a higher unrelated aggregate score.
 - P2 preview regression: roll back the isolated P2 Vercel preview deployment without changing the P1 production project.
 
 ## Security
@@ -149,3 +195,5 @@ The browser acceptance gate verifies the Skia runtime and responsive layout at 3
 No model/provider secret is shipped to the client. Provider configuration is server-side environment only. CORS origins are configured explicitly or by a narrowly scoped preview-host regex. ORM-backed SQL is parameterized. Execution traces exclude hidden chain-of-thought.
 
 P2 preview infrastructure must remain isolated from unrelated application databases and from the P1 production Vercel project. Protected preview access is required while application-level authentication is absent and durable data or provider credentials are attached.
+
+The protected evaluation subsystem is also a trust boundary: optimizer code cannot import promotion authority as a writable configuration surface, benchmark/evidence artifacts must not contain secrets or hidden reasoning, and promotion claims must be traceable to versioned evidence.
