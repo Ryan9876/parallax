@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from math import isfinite
 from typing import Any
 
 REQUIRED_SPEC_SECTIONS = (
@@ -29,6 +30,25 @@ SECRET_PATTERNS = (
     re.compile(r"sk-[A-Za-z0-9]{20,}"),
 )
 
+HIDDEN_REASONING_KEYS = {
+    "chain_of_thought",
+    "chain-of-thought",
+    "scratchpad",
+    "hidden_reasoning",
+    "internal_reasoning",
+    "rationale_trace",
+}
+
+HIDDEN_REASONING_TERMS = (
+    "chain of thought",
+    "chain-of-thought",
+    "scratchpad:",
+    "hidden reasoning:",
+    "internal reasoning:",
+)
+
+SCOPE_DECISIONS = {"CONTINUE", "CLARIFY", "SPEC_AMENDMENT"}
+
 
 @dataclass(frozen=True)
 class MetricResult:
@@ -39,6 +59,35 @@ class MetricResult:
 
 def _score(failures: list[str], checks: int) -> float:
     return max(0.0, 1.0 - (len(failures) / max(1, checks)))
+
+
+def _plain(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    return value
+
+
+def _has_secret(value: Any) -> bool:
+    serialized = json.dumps(_plain(value), sort_keys=True, default=str)
+    return any(pattern.search(serialized) for pattern in SECRET_PATTERNS)
+
+
+def _hidden_reasoning_present(value: Any) -> bool:
+    plain = _plain(value)
+    if isinstance(plain, dict):
+        lowered_keys = {str(key).strip().lower() for key in plain}
+        if lowered_keys & HIDDEN_REASONING_KEYS:
+            return True
+        if any(_hidden_reasoning_present(item) for item in plain.values()):
+            return True
+    elif isinstance(plain, list):
+        if any(_hidden_reasoning_present(item) for item in plain):
+            return True
+    elif isinstance(plain, str):
+        lowered = plain.lower()
+        if any(term in lowered for term in HIDDEN_REASONING_TERMS):
+            return True
+    return False
 
 
 def extract_spec_id(spec_text: str) -> str | None:
@@ -148,14 +197,99 @@ def evaluate_compiled_plan(
         if acceptance_id not in executable_serialized:
             failures.append(f"acceptance_not_mapped:{acceptance_id}")
 
-    serialized = json.dumps(plan_object, sort_keys=True)
-    if any(pattern.search(serialized) for pattern in SECRET_PATTERNS):
+    if _has_secret(plan_object):
         failures.append("possible_secret_in_artifact")
 
     return MetricResult(passed=not failures, score=_score(failures, 28), failures=tuple(failures))
 
 
+def evaluate_scope_output(value: Any) -> MetricResult:
+    failures: list[str] = []
+    plain = _plain(value)
+    if not isinstance(plain, dict):
+        return MetricResult(False, 0.0, ("scope_not_object",))
+
+    decision = plain.get("decision")
+    if decision not in SCOPE_DECISIONS:
+        failures.append("scope_invalid_decision")
+
+    confidence = plain.get("confidence")
+    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
+        failures.append("scope_invalid_confidence")
+    elif not isfinite(float(confidence)) or not 0.0 <= float(confidence) <= 1.0:
+        failures.append("scope_confidence_out_of_bounds")
+
+    factors = plain.get("material_factors")
+    if not isinstance(factors, list) or not 1 <= len(factors) <= 4:
+        failures.append("scope_invalid_material_factors")
+    else:
+        for factor in factors:
+            if not isinstance(factor, str) or not factor.strip() or len(factor.strip()) > 240:
+                failures.append("scope_invalid_material_factor")
+                break
+
+    version = plain.get("program_version")
+    if not isinstance(version, str) or not version.strip() or len(version) > 100:
+        failures.append("scope_invalid_program_version")
+
+    if _has_secret(plain):
+        failures.append("scope_possible_secret_leak")
+    if _hidden_reasoning_present(plain):
+        failures.append("scope_hidden_reasoning_exposed")
+
+    return MetricResult(passed=not failures, score=_score(failures, 6), failures=tuple(failures))
+
+
+def evaluate_reason_result(value: Any, *, scope_decision: str) -> MetricResult:
+    failures: list[str] = []
+    plain = _plain(value)
+    if not isinstance(plain, dict):
+        return MetricResult(False, 0.0, ("reason_not_object",))
+
+    if scope_decision not in {"CONTINUE", "CLARIFY"}:
+        failures.append("reason_invalid_scope_path")
+
+    answer = plain.get("answer")
+    if not isinstance(answer, str) or len(answer.strip()) < 24:
+        failures.append("reason_answer_too_short")
+    elif len(answer) > 40_000:
+        failures.append("reason_answer_too_long")
+
+    confidence = plain.get("confidence")
+    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
+        failures.append("reason_invalid_confidence")
+    elif not isfinite(float(confidence)) or not 0.0 <= float(confidence) <= 1.0:
+        failures.append("reason_confidence_out_of_bounds")
+
+    for key in ("material_uncertainties", "assumptions"):
+        items = plain.get(key)
+        if not isinstance(items, list) or len(items) > 4:
+            failures.append(f"reason_invalid_{key}")
+            continue
+        for item in items:
+            if not isinstance(item, str) or not item.strip() or len(item.strip()) > 300:
+                failures.append(f"reason_invalid_{key}_item")
+                break
+
+    version = plain.get("program_version")
+    if not isinstance(version, str) or not version.strip() or len(version) > 100:
+        failures.append("reason_invalid_program_version")
+
+    if scope_decision == "CLARIFY" and isinstance(answer, str):
+        if answer.count("?") != 1 or len(answer.strip()) > 1_000:
+            failures.append("reason_clarification_not_focused")
+
+    if _has_secret(plain):
+        failures.append("reason_possible_secret_leak")
+    if _hidden_reasoning_present(plain):
+        failures.append("reason_hidden_reasoning_exposed")
+
+    return MetricResult(passed=not failures, score=_score(failures, 8), failures=tuple(failures))
+
+
 def evaluate_reasoning_output(answer: str) -> MetricResult:
+    """Legacy foundation check retained for inherited regression compatibility."""
+
     failures: list[str] = []
     clean = answer.strip()
     if len(clean) < 24:
