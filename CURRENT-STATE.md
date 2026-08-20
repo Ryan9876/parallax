@@ -1,14 +1,27 @@
 # Parallax 2.0 Current State
 
-Version: 0.4.0-code
+Version: 0.5.0-production-candidate
 Date: 2026-08-20
-Status: VALIDATED CODE 2.0 EXECUTION KERNEL ON VALIDATED REASON 2.0 FOUNDATION — NOT DEPLOYED
-Active spec: `P2-V0.4.0`
-Branch: `p2/code-v0.4.0`
-Validated implementation head: `b8ea12dc7ed26e862b545d3efea52f6efa749c01`
-Validation workflow: GitHub Actions `Parallax P2 CI` run `32391263226`
+Status: VALIDATED PRIVATE-PRODUCTION CANDIDATE — DATABASE MIGRATED, APPLICATION NOT YET DEPLOYED
+Active spec: `P2-V0.5.0`
+Branch: `p2/production-v0.5.0`
+Validated implementation head: `823bcc90fd73c0681855d95aafb480b61356f609`
+Validation workflow: GitHub Actions `Parallax P2 CI` run `32395508710`
 
-The implementation head and workflow above are exact-head GitHub evidence for Code 2.0 and its inherited Reason/evaluation/client foundation. All required jobs completed successfully.
+The implementation head and workflow above are exact-head GitHub evidence for the private-production candidate and its inherited Code/Reason/evaluation/client foundation. All required jobs completed successfully.
+
+## Validated v0.5.0 production readiness
+
+- A dedicated Supabase project, `Parallax 2.0` (`kjyenifnfjqnzfgshpwg`), is active in `us-east-2`.
+- Explicit production migrations created the complete durable schema, enabled RLS on all exposed public tables, and revoked direct `anon` and `authenticated` table access.
+- Supabase security advisor reports no remaining error-level findings; informational no-policy notices reflect the intentional deny-all direct API posture.
+- All conversation, Reason, and Code routes share a constant-time bearer access boundary. Health and readiness probes remain public and secret-free.
+- Production fails closed without a credential of at least 32 characters and performs no startup DDL.
+- The client provides an accessible private entry surface, keeps the credential in session storage only, sends it only in the Authorization header, and embeds no credential in the web artifact.
+- Local validation passed 53 backend tests, client typecheck, response-state tests, and Expo web export.
+- Exact-head CI run `32395508710` passed API/tests, all protected evaluations, client browser/Skia checks, and mandatory DSPy compilation.
+- DSPy development evidence for the initial spec gate: artifact `9416172871`, SHA-256 `f8d180b9a6ca7da3cf286021be490c5b7de9de0b577a042177079712e9da57fc`.
+- Application deployed: **NO**. Deployment-verified: **NO**. Dedicated Vercel production projects: **NOT YET CREATED**.
 
 Published Code implementation commit: `ef8812f251268d67af0c4295629ec7db99344373`. Record-only head `b8ea12dc7ed26e862b545d3efea52f6efa749c01` contains the validated release state.
 
@@ -24,7 +37,7 @@ Published Code implementation commit: `ef8812f251268d67af0c4295629ec7db99344373`
 - The approved P2 living mineral/sunlit-water material, optical laser typesetter, and calm Parallax Lens Mark remain the visual baseline.
 - `SPEC_AMENDMENT` is now a first-class calm protected hand-off state, not a generic error state.
 - P2 preview deployment remains isolated from the existing Parallax 1.x Vercel production project.
-- Dedicated P2 Vercel web/API projects and a dedicated P2 Supabase PostgreSQL project have not been created or deployment-verified.
+- The dedicated P2 Supabase project and production schema exist; dedicated P2 Vercel web/API production projects remain pending.
 - Code 2.0 uses durable append-only engineering runs, protected evidence gates, bounded workspace identity, and a deny-by-default recorded execution contract.
 - FastAPI is pinned to the validated `0.128.x` minor line after the broader range admitted test-client dependency drift that stalled the full suite.
 
@@ -193,7 +206,7 @@ The credential-free local DSPy model proves the required DSPy development method
 
 `npm audit` continues to report issues in the Expo/Metro build-tool dependency graph. The exported browser artifact does not ship the identified build-time tooling. An unsafe framework downgrade is not justified solely to silence build-tool findings; this remains tracked dependency-maintenance risk.
 
-The foundation still uses SQLAlchemy `Base.metadata.create_all()` for schema bootstrap. Explicit versioned migrations remain required before a durable production release.
+Production now uses explicit ordered migrations and disables startup DDL. SQLAlchemy metadata bootstrap remains available only for local development and isolated tests.
 
 The current Reason benchmark is intentionally repository-safe and synthetic. Passing it proves the v0.3.0 contracts and evaluation mechanism; it does not establish general-purpose reasoning supremacy or replace future real-world benchmark expansion.
 
@@ -207,7 +220,7 @@ Provider-backed Reason optimization has not yet been executed. v0.3.0 validation
 - Validated inherited evaluation spine/foundation: **YES**
 - Validated preview-readiness code/config: **YES**
 - Provider-backed DSPy/MIPROv2 Reason optimization: **NO**
-- Dedicated P2 Supabase project created: **NO**
+- Dedicated P2 Supabase project created and migrated: **YES**
 - Dedicated P2 Vercel web/API projects created: **NO**
 - Deployed: **NO**
 - Deployment-verified: **NO**

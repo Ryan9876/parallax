@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.1
+Version: 1.2
 Status: Authoritative
 
 ## Design direction
@@ -94,6 +94,8 @@ All final assistant text remains normal selectable/accessibility-aware text. Mot
 Conversation remains primary. Wide layouts may show a recent-conversation rail; mobile collapses that rail. The assistant response surface may use glass separation but should not become a card-heavy dashboard.
 
 The active conversation's durable `spec_id` may be shown as quiet metadata. Never hard-code a stale release label into the visible shell; historical conversations must remain capable of displaying their own stored specification identity.
+
+Private production begins with a restrained access surface using the same mineral canvas, Parallax Lens Mark, typography, and optical-blue action color. It asks only for the operator credential, uses normal accessible form semantics, and does not expose technical authentication detail. The full conversation shell appears only after access is accepted.
 
 ## Motion state mapping
 

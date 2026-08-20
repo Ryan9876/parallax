@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 1.5
+Version: 1.6
 Status: Authoritative
 
 ## System shape
@@ -157,7 +157,11 @@ Conversation identity is an opaque UUID. Messages are durable and ordered by cre
 
 The P2 preview persistence target is a **dedicated Supabase PostgreSQL project**, separate from unrelated application databases. Vercel's ephemeral API functions connect through Supabase/Supavisor transaction pooling rather than maintaining application-side connection pools. Generic `postgres://` and `postgresql://` URLs are normalized to psycopg 3, prepared statements are disabled for transaction-pooler compatibility, and preview/production engines use SQLAlchemy `NullPool` so provider-side pooling remains authoritative.
 
-The foundation still uses `Base.metadata.create_all()` for initial schema bootstrap. That is acceptable for an isolated preview but is not the long-term production migration strategy; schema evolution must move to explicit versioned migrations before a durable production release.
+Production schema evolution uses ordered SQL migrations under `services/api/migrations`; production startup performs no implicit DDL. Local development and isolated tests may opt into SQLAlchemy metadata bootstrap explicitly.
+
+### Private production access
+
+The initial P2 production release is private and single-operator. `/health` and `/ready` remain public operational probes; conversation, Reason, and Code routers share a server-owned bearer-authentication dependency. The high-entropy access credential is supplied by the operator at runtime, compared in constant time, retained by the browser only for the session, and never embedded in the web artifact or placed in a URL. Production fails closed when the server credential is missing or too short.
 
 ### Model routing
 
@@ -250,7 +254,7 @@ P2 uses two dedicated Vercel preview projects from the same repository when prev
 
 The web project receives only public client configuration such as `EXPO_PUBLIC_PARALLAX_API_URL`. The API project owns `DATABASE_URL`, provider credentials, `DSPY_MODEL`, `PARALLAX_ENV`, `PARALLAX_ACTIVE_SPEC_ID`, scope-override configuration, and CORS configuration.
 
-Until application-level authentication is implemented, any P2 deployment connected to durable data or commercial model credentials must remain a protected preview rather than an intentionally public production service.
+P2 production remains private behind the application bearer boundary. Public signup and multi-user tenancy require a later approved specification.
 
 ### Deployment verification
 
