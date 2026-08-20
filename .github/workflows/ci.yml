@@ -13,7 +13,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python scripts/validate_spec.py specs/P2-V0.1.0.md
+      - name: Validate v0.1.0 foundation spec and bootstrap plan
+        run: python scripts/validate_spec.py specs/P2-V0.1.0.md
+      - name: Validate v0.2.0 approved spec before DSPy compilation
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.2.0.md
       - run: pip install -e 'services/api[dev]'
       - run: python -m compileall -q services/api/parallax_api scripts
       - run: python -m pytest services/api/tests -q
@@ -60,11 +63,14 @@ jobs:
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
           ollama pull qwen2.5:0.5b
 
-      - name: Run DSPy SpecCritic + SpecCompiler
+      - name: Run DSPy SpecCritic + SpecCompiler for P2-V0.2.0
         timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py specs/P2-V0.1.0.md
+        run: python scripts/compile_spec.py specs/P2-V0.2.0.md
+
+      - name: Verify compiled plan against protected v0.2.0 contract
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.2.0.md
 
       - name: Record DSPy development status
         if: success()
@@ -78,11 +84,12 @@ jobs:
           from pathlib import Path
           Path('specs/compiled/dspy-run-status.json').write_text(json.dumps({
               'executed': True,
+              'spec_id': 'P2-V0.2.0',
               'spec_compiler_executed': True,
               'spec_critic_executed': True,
               'model': os.environ['MODEL'],
               'provider_backed': os.environ['PROVIDER'] == 'true',
-              'artifact': 'P2-V0.1.0.plan.json',
+              'artifact': 'P2-V0.2.0.plan.json',
               'protected_metrics_required': True
           }, indent=2) + '\n', encoding='utf-8')
           PY
@@ -92,7 +99,7 @@ jobs:
         with:
           name: dspy-development-evidence
           path: |
-            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/P2-V0.2.0.plan.json
             specs/compiled/dspy-run-status.json
             /tmp/ollama.log
           if-no-files-found: error
