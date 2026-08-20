@@ -41,10 +41,11 @@ jobs:
             echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "name=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "name=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
           fi
 
       - name: Install local DSPy development LM
@@ -57,9 +58,10 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull llama3.2:1b
+          ollama pull qwen2.5:0.5b
 
       - name: Run DSPy SpecCritic + SpecCompiler
+        timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py specs/P2-V0.1.0.md
