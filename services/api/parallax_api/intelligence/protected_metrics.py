@@ -39,12 +39,14 @@ HIDDEN_REASONING_KEYS = {
     "rationale_trace",
 }
 
+# Observable prose may safely say that hidden chain-of-thought cannot be
+# provided. Reject actual exposed private-reasoning payload markers instead of
+# punishing the safe refusal language required by P2-V0.3.0.
 HIDDEN_REASONING_TERMS = (
-    "chain of thought",
-    "chain-of-thought",
     "scratchpad:",
     "hidden reasoning:",
     "internal reasoning:",
+    "private reasoning trace:",
 )
 
 SCOPE_DECISIONS = {"CONTINUE", "CLARIFY", "SPEC_AMENDMENT"}
