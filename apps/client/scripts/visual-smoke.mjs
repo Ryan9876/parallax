@@ -261,9 +261,24 @@ async function inspectFallback(browser, report) {
   await page.getByText(/The response is being inscribed line by line/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
-  const unexpected = errors.filter((entry) => !entry.includes('Skia failed to initialize'));
+  const expectedSkiaFailure = (entry) => [
+    'Skia failed to initialize',
+    '503 (Service Unavailable)',
+    'wasm streaming compile failed',
+    'falling back to ArrayBuffer instantiation',
+    'failed to asynchronously prepare wasm',
+    'both async and sync fetching of the wasm failed',
+    'Aborted(both async and sync fetching of the wasm failed)',
+  ].some((pattern) => entry.includes(pattern));
+  const unexpected = errors.filter((entry) => !expectedSkiaFailure(entry));
   assert(unexpected.length === 0, `fallback: unexpected browser errors: ${unexpected.join(' | ')}`);
-  report.fallback = { canvasCount, functionalConversation: true, expectedSkiaInitializationErrorObserved: errors.some((entry) => entry.includes('Skia failed to initialize')) };
+  assert(errors.some(expectedSkiaFailure), 'fallback: CanvasKit outage did not produce the expected initialization failure evidence');
+  report.fallback = {
+    canvasCount,
+    functionalConversation: true,
+    expectedSkiaInitializationErrorObserved: true,
+    observedExpectedErrorCount: errors.filter(expectedSkiaFailure).length,
+  };
   await page.close();
 }
 
