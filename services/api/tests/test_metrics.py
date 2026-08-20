@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from parallax_api.intelligence.dspy_programs import plan_from_prediction
 from parallax_api.intelligence.protected_metrics import (
     evaluate_compiled_plan,
@@ -12,7 +14,9 @@ from parallax_api.intelligence.protected_metrics import (
 )
 
 
-SPEC_PATH = Path(__file__).resolve().parents[3] / "specs" / "P2-V0.1.0.md"
+SPECS_DIR = Path(__file__).resolve().parents[3] / "specs"
+FOUNDATION_SPEC = SPECS_DIR / "P2-V0.1.0.md"
+EVALUATION_SPEC = SPECS_DIR / "P2-V0.2.0.md"
 
 
 def test_protected_spec_metric_rejects_missing_contract():
@@ -21,12 +25,20 @@ def test_protected_spec_metric_rejects_missing_contract():
     assert result.score < 1
 
 
-def test_approved_spec_has_all_expected_acceptance_ids():
-    spec = SPEC_PATH.read_text(encoding="utf-8")
+@pytest.mark.parametrize(
+    ("spec_path", "expected_count"),
+    (
+        (FOUNDATION_SPEC, 13),
+        (EVALUATION_SPEC, 12),
+    ),
+)
+def test_approved_specs_have_extractable_version_independent_acceptance_contracts(spec_path: Path, expected_count: int):
+    spec = spec_path.read_text(encoding="utf-8")
     result = evaluate_spec_contract(spec)
     assert result.passed, result.failures
-    assert extract_acceptance_ids(spec) == tuple(f"AC-{index:02d}" for index in range(1, 14))
-    assert tuple(item["id"] for item in extract_acceptance_contract(spec)) == extract_acceptance_ids(spec)
+    expected_ids = tuple(f"AC-{index:02d}" for index in range(1, expected_count + 1))
+    assert extract_acceptance_ids(spec) == expected_ids
+    assert tuple(item["id"] for item in extract_acceptance_contract(spec)) == expected_ids
 
 
 def test_typed_dspy_plan_normalization_requires_all_nonempty_lists():
@@ -42,7 +54,7 @@ def test_typed_dspy_plan_normalization_requires_all_nonempty_lists():
 
 
 def test_compiled_plan_must_map_every_acceptance_criterion():
-    spec = SPEC_PATH.read_text(encoding="utf-8")
+    spec = FOUNDATION_SPEC.read_text(encoding="utf-8")
     plan = {
         "spec_id": "P2-V0.1.0",
         "dspy_run": {"executed": True, "model": "test"},
@@ -58,7 +70,7 @@ def test_compiled_plan_must_map_every_acceptance_criterion():
 
 
 def test_compiled_plan_rejects_modified_protected_acceptance_map():
-    spec = SPEC_PATH.read_text(encoding="utf-8")
+    spec = FOUNDATION_SPEC.read_text(encoding="utf-8")
     contract = [dict(item) for item in extract_acceptance_contract(spec)]
     contract[0]["protected_requirement"] = "weakened"
     all_ids = list(extract_acceptance_ids(spec))
@@ -77,8 +89,8 @@ def test_compiled_plan_rejects_modified_protected_acceptance_map():
 
 
 def test_bootstrap_plan_is_structurally_evaluable_without_claiming_dspy_execution():
-    spec = SPEC_PATH.read_text(encoding="utf-8")
-    plan_path = SPEC_PATH.parent / "compiled" / "P2-V0.1.0.plan.json"
+    spec = FOUNDATION_SPEC.read_text(encoding="utf-8")
+    plan_path = SPECS_DIR / "compiled" / "P2-V0.1.0.plan.json"
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     result = evaluate_compiled_plan(spec, plan, require_metadata=False)
     assert result.passed, result.failures
