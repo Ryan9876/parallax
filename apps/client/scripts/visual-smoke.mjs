@@ -277,6 +277,12 @@ async function inspectFallback(browser, report) {
   await page.getByText(/The response is being inscribed line by line/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
+  // AC-10 has two distinct claims: normal text is usable without Skia, and the
+  // request lifecycle still completes. Wait for the product state transition
+  // before asserting transport closure instead of racing the active stream.
+  await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
+  assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
+
   const expectedSkiaFailure = (entry) => [
     'Skia failed to initialize',
     '503 (Service Unavailable)',
@@ -289,7 +295,6 @@ async function inspectFallback(browser, report) {
   const unexpected = errors.filter((entry) => !expectedSkiaFailure(entry));
   assert(unexpected.length === 0, `fallback: unexpected browser errors: ${unexpected.join(' | ')}`);
   assert(errors.some(expectedSkiaFailure), 'fallback: CanvasKit outage did not produce the expected initialization failure evidence');
-  assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
   report.fallback = {
     canvasCount,
     functionalConversation: true,
