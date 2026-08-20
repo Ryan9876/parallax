@@ -1,63 +1,82 @@
 from __future__ import annotations
 
-from pathlib import Path
+import argparse
 import json
-import re
+from pathlib import Path
 import sys
 
-REQUIRED = (
-    "## 1. Objective",
-    "## 4. Scope for v0.1.0",
-    "## 5. Non-goals for v0.1.0",
-    "## 9. Security requirements",
-    "## 11. Acceptance criteria",
-    "## 12. Release gate",
-)
+
+def _protected_metrics():
+    service = Path(__file__).resolve().parents[1] / "services" / "api"
+    sys.path.insert(0, str(service))
+    from parallax_api.intelligence.protected_metrics import (  # noqa: PLC0415
+        evaluate_compiled_plan,
+        evaluate_spec_contract,
+    )
+
+    return evaluate_spec_contract, evaluate_compiled_plan
 
 
-def validate(path: Path) -> list[str]:
+def validate(path: Path, *, require_plan: bool = True, require_dspy: bool = False) -> list[str]:
+    evaluate_spec_contract, evaluate_compiled_plan = _protected_metrics()
     text = path.read_text(encoding="utf-8")
-    errors = [f"missing heading: {heading}" for heading in REQUIRED if heading not in text]
-    if "Status: APPROVED FOR IMPLEMENTATION" not in text:
-        errors.append("spec is not approved for implementation")
-    ids = re.findall(r"^### (AC-\d+)", text, flags=re.MULTILINE)
-    if len(ids) < 10:
-        errors.append("expected at least 10 explicit acceptance criteria")
-    if len(ids) != len(set(ids)):
-        errors.append("duplicate acceptance criterion IDs")
-
-    spec_id_match = re.search(r"^Spec ID:\s*(\S+)", text, flags=re.MULTILINE)
-    if not spec_id_match:
-        errors.append("missing Spec ID")
+    contract = evaluate_spec_contract(text)
+    errors = [f"protected spec contract: {failure}" for failure in contract.failures]
+    if errors or not require_plan:
         return errors
 
     plan_path = path.parent / "compiled" / f"{path.stem}.plan.json"
     if not plan_path.exists():
         errors.append(f"missing compiled plan: {plan_path}")
         return errors
+
     try:
         plan = json.loads(plan_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         errors.append(f"compiled plan is invalid JSON: {exc}")
         return errors
-    if plan.get("spec_id") != spec_id_match.group(1):
-        errors.append("compiled plan does not reference the approved Spec ID")
-    if not plan.get("work_items"):
-        errors.append("compiled plan has no work items")
+
+    plan_result = evaluate_compiled_plan(text, plan, require_metadata=require_dspy)
+    errors.extend(f"protected compiled plan: {failure}" for failure in plan_result.failures)
     return errors
 
 
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description="Validate a Parallax approved specification and optional compiled plan.")
+    result.add_argument("spec", type=Path)
+    result.add_argument(
+        "--spec-only",
+        action="store_true",
+        help="validate only the approved specification contract before DSPy compilation",
+    )
+    result.add_argument(
+        "--require-dspy",
+        action="store_true",
+        help="require compiled-plan metadata proving DSPy execution and the exact protected acceptance map",
+    )
+    return result
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: validate_spec.py <spec.md>", file=sys.stderr)
+    args = parser().parse_args()
+    if args.spec_only and args.require_dspy:
+        print("FAIL: --spec-only and --require-dspy cannot be combined")
         return 2
-    path = Path(sys.argv[1])
-    errors = validate(path)
+
+    errors = validate(
+        args.spec,
+        require_plan=not args.spec_only,
+        require_dspy=args.require_dspy,
+    )
     if errors:
         for error in errors:
             print(f"FAIL: {error}")
         return 1
-    print(f"PASS: {path} satisfies the Parallax spec-first gate")
+
+    scope = "spec contract" if args.spec_only else "spec + compiled plan"
+    if args.require_dspy:
+        scope += " + DSPy evidence"
+    print(f"PASS: {args.spec} satisfies the Parallax {scope} gate")
     return 0
 
 
