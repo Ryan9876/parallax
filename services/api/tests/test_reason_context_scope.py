@@ -8,7 +8,7 @@ from parallax_api.intelligence.context import (
     ContextLimits,
     compose_reason_context,
 )
-from parallax_api.intelligence.protected_metrics import evaluate_scope_output
+from parallax_api.intelligence.protected_metrics import evaluate_reason_result, evaluate_scope_output
 from parallax_api.intelligence.scope import (
     ProtectedScopePolicy,
     ScopeDecision,
@@ -139,3 +139,30 @@ def test_scope_metric_rejects_hidden_reasoning_and_secret_bearing_metadata():
     assert "scope_hidden_reasoning_exposed" in hidden.failures
     assert secret.passed is False
     assert "scope_possible_secret_leak" in secret.failures
+
+
+def test_reason_metric_allows_safe_chain_of_thought_refusal_but_rejects_private_payload_markers():
+    safe = evaluate_reason_result(
+        {
+            "answer": "I cannot provide hidden chain-of-thought. I can provide a concise rationale instead.",
+            "confidence": 0.95,
+            "material_uncertainties": [],
+            "assumptions": [],
+            "program_version": "reason-test-v1",
+        },
+        scope_decision="CONTINUE",
+    )
+    exposed = evaluate_reason_result(
+        {
+            "answer": "Here is the requested explanation. scratchpad: private internal analysis follows.",
+            "confidence": 0.95,
+            "material_uncertainties": [],
+            "assumptions": [],
+            "program_version": "reason-test-v1",
+        },
+        scope_decision="CONTINUE",
+    )
+
+    assert safe.passed is True
+    assert exposed.passed is False
+    assert "reason_hidden_reasoning_exposed" in exposed.failures
