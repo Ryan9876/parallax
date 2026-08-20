@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
+from parallax_api.intelligence.dspy_programs import plan_from_prediction
 from parallax_api.intelligence.protected_metrics import (
     evaluate_compiled_plan,
     evaluate_reasoning_output,
@@ -25,6 +27,18 @@ def test_approved_spec_has_all_expected_acceptance_ids():
     assert result.passed, result.failures
     assert extract_acceptance_ids(spec) == tuple(f"AC-{index:02d}" for index in range(1, 14))
     assert tuple(item["id"] for item in extract_acceptance_contract(spec)) == extract_acceptance_ids(spec)
+
+
+def test_typed_dspy_plan_normalization_requires_all_nonempty_lists():
+    prediction = SimpleNamespace(
+        architecture_decisions=["AC-01: preserve API boundaries"],
+        work_items=["AC-02: implement DSPy program boundary"],
+        validations=["AC-03: persistence test"],
+        risks=["AC-10: verify static fallback"],
+    )
+    plan = plan_from_prediction(prediction)
+    assert plan["architecture_decisions"] == ["AC-01: preserve API boundaries"]
+    assert set(plan) == {"architecture_decisions", "work_items", "validations", "risks"}
 
 
 def test_compiled_plan_must_map_every_acceptance_criterion():
