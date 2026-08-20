@@ -1,16 +1,16 @@
 # Parallax 2.0 Current State
 
-Version: 0.4.0-code-candidate
+Version: 0.4.0-code
 Date: 2026-08-20
-Status: LOCALLY VALIDATED CODE 2.0 CANDIDATE ON VALIDATED REASON 2.0 FOUNDATION — EXACT-HEAD CI PENDING — NOT DEPLOYED
-Active candidate spec: `P2-V0.4.0`
-Target branch: `p2/code-v0.4.0`
-Validated implementation head: `d96442c39fc2534fd733a50d39527ffd158653ee`
-Validation workflow: GitHub Actions `Parallax P2 CI` run `32371806776`
+Status: VALIDATED CODE 2.0 EXECUTION KERNEL ON VALIDATED REASON 2.0 FOUNDATION — NOT DEPLOYED
+Active spec: `P2-V0.4.0`
+Branch: `p2/code-v0.4.0`
+Validated implementation head: `b8ea12dc7ed26e862b545d3efea52f6efa749c01`
+Validation workflow: GitHub Actions `Parallax P2 CI` run `32391263226`
 
-The validated implementation head and workflow above remain the last completed exact-head GitHub evidence and cover Reason 2.0. The Code 2.0 candidate described below is reconstructed, validated locally, committed, and pushed; exact-head CI validation remains pending.
+The implementation head and workflow above are exact-head GitHub evidence for Code 2.0 and its inherited Reason/evaluation/client foundation. All required jobs completed successfully.
 
-Published Code candidate commit: `ef8812f251268d67af0c4295629ec7db99344373`. GitHub Actions `Parallax P2 CI` run `32391149258` started for that commit; its result is pending and is not yet validation evidence.
+Published Code implementation commit: `ef8812f251268d67af0c4295629ec7db99344373`. Record-only head `b8ea12dc7ed26e862b545d3efea52f6efa749c01` contains the validated release state.
 
 ## Material decisions
 
@@ -28,7 +28,7 @@ Published Code candidate commit: `ef8812f251268d67af0c4295629ec7db99344373`. Git
 - Code 2.0 uses durable append-only engineering runs, protected evidence gates, bounded workspace identity, and a deny-by-default recorded execution contract.
 - FastAPI is pinned to the validated `0.128.x` minor line after the broader range admitted test-client dependency drift that stalled the full suite.
 
-## Locally validated v0.4.0 Code 2.0 candidate
+## Validated v0.4.0 Code 2.0 execution kernel
 
 - Durable Code run lifecycle, immutable conversation/spec binding, revisions, idempotency, failure history, pause/resume, amendment, and cancellation are implemented.
 - PLAN, IMPLEMENT, BUILD, TEST, VERIFY, and REVIEW have protected evidence contracts; implementation prose and failed/timed-out execution cannot be treated as success.
@@ -38,8 +38,14 @@ Published Code candidate commit: `ef8812f251268d67af0c4295629ec7db99344373`. Git
 - The client shows concise accessible run status, evidence-bearing stages, failures, and protected pause/resume/cancel actions without becoming an IDE or terminal.
 - Separate ten-case Code development and promotion suites validate successfully. The recorded baseline and equivalent challenger each score `1.0000`; promotion passes with zero aggregate regression. Stage-skipping, false-status, spec-drift, and unsafe-execution fixtures are rejected.
 - Local evidence: Python compilation passed; backend suite `52/52` passed; client TypeScript and response-state tests passed; Expo web export passed; CI YAML parses.
-- Mandatory DSPy SpecCritic + SpecCompiler execution, Playwright visual acceptance, and complete inherited/new gates remain exact-head CI requirements.
-- Generated: **YES**. Locally validated: **YES**. Exact-head CI validated: **NO**. Committed/pushed: **YES**. Deployed: **NO**. Deployment-verified: **NO**.
+- Exact-head CI passed mandatory DSPy SpecCritic + SpecCompiler execution, protected v0.4 compiled-plan verification, Playwright/Skia visual acceptance, and the complete inherited/new gate set.
+- Generated: **YES**. Locally validated: **YES**. Exact-head CI validated: **YES**. Committed/pushed: **YES**. Deployed: **NO**. Deployment-verified: **NO**.
+
+### Exact-head v0.4.0 evidence artifacts
+
+- `evaluation-evidence`: artifact `9414939732`, SHA-256 `3507638abf4d1bce1d5758f8d1762b8810eb493260c17a5a9066710748cd3198`.
+- `client-build-evidence`: artifact `9414973353`, SHA-256 `bfc7594a06481e41d6167bc2d572cb4a761248c946d86c36454f77fc00ecb15f`.
+- `dspy-development-evidence`: artifact `9415031430`, SHA-256 `65ab37eb7eb97a48a79e58e859444924554efafb38f789e2ad423cde4fab273b`.
 
 ## Validated v0.3.0 Reason 2.0
 
