@@ -9,15 +9,16 @@ from parallax_api.routes import conversations as conversation_routes
 
 
 class FakeTrace:
-    def __init__(self, final_state: str):
+    def __init__(self, final_state: str, protected_scope_decision: str | None = None):
         self.final_state = final_state
+        self.protected_scope_decision = protected_scope_decision
 
     def as_public_dict(self):
         return {
             "response_id": "response-test",
             "conversation_id": "conversation-test",
             "spec_id": "P2-V0.3.0",
-            "protected_scope_decision": "CONTINUE" if self.final_state == "ERROR" else self.final_state,
+            "protected_scope_decision": self.protected_scope_decision,
             "protected_verification_passed": self.final_state != "ERROR",
             "final_state": self.final_state,
         }
@@ -65,7 +66,7 @@ class AmendmentCoordinator:
             scope=SimpleNamespace(decision=ScopeDecision.SPEC_AMENDMENT),
             material_uncertainties=(),
             assumptions=(),
-            trace=FakeTrace("SPEC_AMENDMENT"),
+            trace=FakeTrace("SPEC_AMENDMENT", "SPEC_AMENDMENT"),
         )
 
 
@@ -77,14 +78,28 @@ class ContinueCoordinator:
             scope=SimpleNamespace(decision=ScopeDecision.CONTINUE),
             material_uncertainties=("Provider-backed optimization is not part of this test.",),
             assumptions=(),
-            trace=FakeTrace("COMPLETE"),
+            trace=FakeTrace("COMPLETE", "CONTINUE"),
         )
 
 
-class FailureCoordinator:
+class ReasonFailureCoordinator:
     async def respond(self, **kwargs):
         assert kwargs["spec_id"] == "P2-V0.3.0"
-        raise ResponseCoordinationFailure(FakeTrace("ERROR"))
+        raise ResponseCoordinationFailure(
+            error_code="PROTECTED_REASON_FAILURE",
+            public_message="Parallax could not produce a response that passed protected verification.",
+            trace=FakeTrace("ERROR", "CONTINUE"),
+        )
+
+
+class ScopeFailureCoordinator:
+    async def respond(self, **kwargs):
+        assert kwargs["spec_id"] == "P2-V0.3.0"
+        raise ResponseCoordinationFailure(
+            error_code="PROTECTED_SCOPE_FAILURE",
+            public_message="Parallax could not establish a protected scope decision.",
+            trace=FakeTrace("ERROR", None),
+        )
 
 
 def client_with(service: FakeConversationService, monkeypatch, coordinator_type):
@@ -131,9 +146,9 @@ def test_response_api_streams_continue_answer_and_reason_metadata(monkeypatch):
     assert service.conversation.messages[-1].role == "assistant"
 
 
-def test_response_api_returns_recoverable_protected_failure_with_trace(monkeypatch):
+def test_response_api_returns_recoverable_reason_failure_with_trace(monkeypatch):
     service = FakeConversationService()
-    client = client_with(service, monkeypatch, FailureCoordinator)
+    client = client_with(service, monkeypatch, ReasonFailureCoordinator)
 
     response = client.post(
         "/v1/conversations/conversation-test/responses",
@@ -144,7 +159,28 @@ def test_response_api_returns_recoverable_protected_failure_with_trace(monkeypat
     assert "event: error" in response.text
     assert '"error": "PROTECTED_REASON_FAILURE"' in response.text
     assert '"recoverable": true' in response.text
+    assert '"protected_scope_decision": "CONTINUE"' in response.text
     assert '"protected_verification_passed": false' in response.text
+    assert '"final_state": "ERROR"' in response.text
+    assert "event: chunk" not in response.text
+    assert service.conversation.status == "ACTIVE"
+    assert service.conversation.messages[-1].role == "user"
+
+
+def test_response_api_returns_recoverable_scope_failure_without_fabricated_decision(monkeypatch):
+    service = FakeConversationService()
+    client = client_with(service, monkeypatch, ScopeFailureCoordinator)
+
+    response = client.post(
+        "/v1/conversations/conversation-test/responses",
+        json={"content": "Continue the current objective."},
+    )
+
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    assert '"error": "PROTECTED_SCOPE_FAILURE"' in response.text
+    assert '"recoverable": true' in response.text
+    assert '"protected_scope_decision": null' in response.text
     assert '"final_state": "ERROR"' in response.text
     assert "event: chunk" not in response.text
     assert service.conversation.status == "ACTIVE"
