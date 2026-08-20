@@ -192,7 +192,7 @@ async function inspectViewport(browser, name, width, height, report) {
     assert(respondingCanvasCount > idleCanvasCount, `desktop: optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
     assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
     await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
-    await page.getByText(/The response is being inscribed line by line/).waitFor();
+    await page.getByText(/The response is being inscribed line by line/).first().waitFor();
     await page.screenshot({ path: `${evidenceDir}/desktop-complete.png` });
     report.opticalTypesetter = { idleCanvasCount, respondingCanvasCount, hotGlyphCount, completed: true };
   }
@@ -215,7 +215,7 @@ async function inspectFallback(browser, report) {
 
   await page.getByLabel('Message Parallax').fill('Continue without Skia.');
   await page.getByLabel('Send message').click();
-  await page.getByText(/The response is being inscribed line by line/).waitFor({ timeout: 10000 });
+  await page.getByText(/The response is being inscribed line by line/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
   const unexpected = errors.filter((entry) => !entry.includes('Skia failed to initialize'));
