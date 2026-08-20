@@ -22,11 +22,6 @@ AMENDMENT_MESSAGE = (
     "An approved specification amendment is required before I continue against the new objective."
 )
 
-PROTECTED_FAILURE_MESSAGE = (
-    "Parallax could not produce a response that passed protected verification. "
-    "Your conversation is preserved; retry or refine the request."
-)
-
 
 def service(session: Session = Depends(get_session)) -> ConversationService:
     return ConversationService(ConversationRepository(session))
@@ -113,7 +108,7 @@ async def stream_response(
                     "phase": "ERROR",
                     "error": exc.error_code,
                     "recoverable": True,
-                    "message": PROTECTED_FAILURE_MESSAGE,
+                    "message": f"{exc.public_message} Your conversation is preserved; retry or refine the request.",
                     "trace": exc.trace.as_public_dict(),
                 },
             )
