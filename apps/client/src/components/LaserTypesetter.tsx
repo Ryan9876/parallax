@@ -2,10 +2,10 @@ import React from 'react';
 import { AccessibilityInfo, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
 
-const CHAR_MS = 24;
-const HOT_TAIL = 4;
-const START_DELAY_MS = 90;
-const COOL_DELAY_MS = 170;
+const CHAR_MS = 14;
+const HOT_TAIL = 5;
+const START_DELAY_MS = 70;
+const COOL_DELAY_MS = 160;
 
 type MeasuredLine = {
   text: string;
@@ -58,27 +58,21 @@ function lineForIndex(lines: readonly MeasuredLine[], index: number): MeasuredLi
 }
 
 function characterDelay(character: string): number {
-  if (/[.!?]/.test(character)) return CHAR_MS * 5;
-  if (/[,;:]/.test(character)) return CHAR_MS * 2.4;
-  if (/\s/.test(character)) return CHAR_MS * 0.45;
+  if (/[.!?]/.test(character)) return CHAR_MS * 4.2;
+  if (/[,;:]/.test(character)) return CHAR_MS * 2.1;
+  if (/\s/.test(character)) return CHAR_MS * 0.42;
   return CHAR_MS;
-}
-
-function buildTimeline(text: string): number[] {
-  let elapsed = 0;
-  return Array.from(text, (character) => {
-    elapsed += characterDelay(character);
-    return elapsed;
-  });
 }
 
 export function LaserTypesetter({
   text,
   active,
+  streamComplete = true,
   onComplete,
 }: {
   text: string;
   active: boolean;
+  streamComplete?: boolean;
   onComplete?: () => void;
 }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
@@ -86,10 +80,22 @@ export function LaserTypesetter({
   const [head, setHead] = React.useState<HeadPosition>({ x: 0, y: 0, lineHeight: 30 });
   const [beamVisible, setBeamVisible] = React.useState(false);
   const [cooled, setCooled] = React.useState(!active);
+
+  const textRef = React.useRef(text);
+  const streamCompleteRef = React.useRef(streamComplete);
   const measuredLinesRef = React.useRef<MeasuredLine[]>([]);
   const containerWidthRef = React.useRef(0);
   const completionRef = React.useRef(onComplete);
   const runRef = React.useRef(0);
+  const completionSentRef = React.useRef(false);
+
+  React.useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
+  React.useEffect(() => {
+    streamCompleteRef.current = streamComplete;
+  }, [streamComplete]);
 
   React.useEffect(() => {
     completionRef.current = onComplete;
@@ -101,10 +107,6 @@ export function LaserTypesetter({
     return () => sub.remove();
   }, []);
 
-  React.useEffect(() => {
-    measuredLinesRef.current = [];
-  }, [text]);
-
   const onLayout = React.useCallback((event: LayoutChangeEvent) => {
     containerWidthRef.current = event.nativeEvent.layout.width;
   }, []);
@@ -113,59 +115,81 @@ export function LaserTypesetter({
     measuredLinesRef.current = indexMeasuredLines(text, event.nativeEvent.lines);
   }, [text]);
 
-  React.useEffect(() => {
-    const run = ++runRef.current;
-
-    if (!active || reduceMotion) {
-      setVisibleCount(text.length);
-      setBeamVisible(false);
-      setCooled(true);
-      if (active && reduceMotion) queueMicrotask(() => completionRef.current?.());
+  const updateHead = React.useCallback((index: number) => {
+    if (index <= 0) return;
+    const targetText = textRef.current;
+    const measured = lineForIndex(measuredLinesRef.current, index - 1);
+    if (measured) {
+      const span = Math.max(1, measured.end - measured.start);
+      const within = Math.max(0, Math.min(span, index - measured.start));
+      setHead({
+        x: measured.x + measured.width * (within / span),
+        y: measured.y,
+        lineHeight: measured.height,
+      });
       return;
     }
 
-    const timeline = buildTimeline(text);
-    const startedAt = Date.now() + START_DELAY_MS;
+    const containerWidth = containerWidthRef.current;
+    if (containerWidth <= 0) return;
+    const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
+    const approximateLine = Math.floor((index - 1) / approximateLineLength);
+    const within = index % approximateLineLength;
+    const finalLine = Math.max(0, Math.ceil(targetText.length / approximateLineLength) - 1);
+    setHead({
+      x: Math.min(containerWidth, (within / approximateLineLength) * containerWidth),
+      y: Math.min(approximateLine, finalLine) * 29,
+      lineHeight: 29,
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!active || !reduceMotion) return;
+    setVisibleCount(text.length);
+    setBeamVisible(false);
+    setCooled(true);
+    if (streamComplete && !completionSentRef.current) {
+      completionSentRef.current = true;
+      queueMicrotask(() => completionRef.current?.());
+    }
+  }, [active, reduceMotion, streamComplete, text]);
+
+  React.useEffect(() => {
+    const run = ++runRef.current;
+    completionSentRef.current = false;
+
+    if (!active) {
+      setVisibleCount(textRef.current.length);
+      setBeamVisible(false);
+      setCooled(true);
+      return;
+    }
+
+    if (reduceMotion) return;
+
     let displayed = 0;
+    let budget = -START_DELAY_MS;
+    let lastFrame: number | null = null;
     let frame: number | null = null;
-    let coolTimer: ReturnType<typeof setTimeout> | null = null;
+    let coolStartedAt: number | null = null;
 
     setVisibleCount(0);
-    setBeamVisible(true);
+    setBeamVisible(false);
     setCooled(false);
     setHead({ x: 0, y: 0, lineHeight: 30 });
 
-    const updateHead = (index: number) => {
-      if (index <= 0) return;
-      const measured = lineForIndex(measuredLinesRef.current, index - 1);
-      if (measured) {
-        const span = Math.max(1, measured.end - measured.start);
-        const within = Math.max(0, Math.min(span, index - measured.start));
-        setHead({
-          x: measured.x + measured.width * (within / span),
-          y: measured.y,
-          lineHeight: measured.height,
-        });
-        return;
-      }
-
-      const containerWidth = containerWidthRef.current;
-      if (containerWidth <= 0) return;
-      const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
-      const approximateLine = Math.floor((index - 1) / approximateLineLength);
-      const within = index % approximateLineLength;
-      setHead({
-        x: Math.min(containerWidth, (within / approximateLineLength) * containerWidth),
-        y: approximateLine * 29,
-        lineHeight: 29,
-      });
-    };
-
-    const tick = () => {
+    const tick = (now: number) => {
       if (run !== runRef.current) return;
-      const elapsed = Math.max(0, Date.now() - startedAt);
+      if (lastFrame === null) lastFrame = now;
+      budget += Math.min(100, Math.max(0, now - lastFrame));
+      lastFrame = now;
+
+      const target = textRef.current;
       let next = displayed;
-      while (next < timeline.length && (timeline[next] ?? Number.POSITIVE_INFINITY) <= elapsed) {
+      while (next < target.length) {
+        const delay = characterDelay(target[next] ?? '');
+        if (budget < delay) break;
+        budget -= delay;
         next += 1;
       }
 
@@ -175,14 +199,23 @@ export function LaserTypesetter({
         updateHead(displayed);
       }
 
-      if (displayed >= text.length) {
+      const caughtUp = displayed >= target.length;
+      const finished = caughtUp && streamCompleteRef.current;
+
+      if (finished) {
         setBeamVisible(false);
-        coolTimer = setTimeout(() => {
-          if (run !== runRef.current) return;
+        if (coolStartedAt === null) coolStartedAt = now;
+        if (now - coolStartedAt >= COOL_DELAY_MS) {
           setCooled(true);
-          completionRef.current?.();
-        }, COOL_DELAY_MS);
-        return;
+          if (!completionSentRef.current) {
+            completionSentRef.current = true;
+            completionRef.current?.();
+          }
+          return;
+        }
+      } else {
+        coolStartedAt = null;
+        setBeamVisible(target.length > 0);
       }
 
       frame = requestAnimationFrame(tick);
@@ -192,19 +225,23 @@ export function LaserTypesetter({
     return () => {
       runRef.current += 1;
       if (frame !== null) cancelAnimationFrame(frame);
-      if (coolTimer) clearTimeout(coolTimer);
     };
-  }, [active, reduceMotion, text]);
+  }, [active, reduceMotion, updateHead]);
 
-  const coolEnd = cooled ? visibleCount : Math.max(0, visibleCount - HOT_TAIL);
+  React.useEffect(() => {
+    if (!active) setVisibleCount(text.length);
+  }, [active, text]);
+
+  const boundedVisibleCount = Math.min(visibleCount, text.length);
+  const coolEnd = cooled ? boundedVisibleCount : Math.max(0, boundedVisibleCount - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
-  const hotText = text.slice(coolEnd, visibleCount);
+  const hotText = text.slice(coolEnd, boundedVisibleCount);
   const beamHeight = Math.max(34, head.lineHeight + 8);
 
   return (
     <View onLayout={onLayout} style={styles.container}>
       <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">
-        <Text onTextLayout={onTextLayout} style={[styles.text, styles.measure]}>{text}</Text>
+        <Text onTextLayout={onTextLayout} style={[styles.text, styles.measure]}>{text || ' '}</Text>
       </View>
 
       <View style={styles.visibleText}>
