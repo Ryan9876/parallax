@@ -46,7 +46,7 @@ function indexMeasuredLines(text: string, rawLines: readonly { text: string; x: 
   });
 }
 
-function lineForIndex(lines: MeasuredLine[], index: number): MeasuredLine | null {
+function lineForIndex(lines: readonly MeasuredLine[], index: number): MeasuredLine | null {
   if (!lines.length) return null;
   const exact = lines.find((line, lineIndex) => {
     const next = lines[lineIndex + 1];
@@ -66,11 +66,11 @@ export function LaserTypesetter({
 }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
   const [visibleCount, setVisibleCount] = React.useState(active ? 0 : text.length);
-  const [measuredLines, setMeasuredLines] = React.useState<MeasuredLine[]>([]);
   const [containerWidth, setContainerWidth] = React.useState(0);
   const [head, setHead] = React.useState<HeadPosition>({ x: 0, y: 0, lineHeight: 30 });
   const [beamVisible, setBeamVisible] = React.useState(false);
   const [cooled, setCooled] = React.useState(!active);
+  const measuredLinesRef = React.useRef<MeasuredLine[]>([]);
   const completionRef = React.useRef(onComplete);
   const runRef = React.useRef(0);
 
@@ -84,14 +84,19 @@ export function LaserTypesetter({
     return () => sub.remove();
   }, []);
 
+  React.useEffect(() => {
+    measuredLinesRef.current = [];
+  }, [text]);
+
   const onLayout = React.useCallback((event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
   }, []);
 
   const onTextLayout = React.useCallback((event: { nativeEvent: { lines: Array<{ text: string; x: number; y: number; width: number; height: number }> } }) => {
-    const next = indexMeasuredLines(text, event.nativeEvent.lines);
-    const signature = (lines: MeasuredLine[]) => lines.map((line) => `${line.text}|${line.x}|${line.y}|${line.width}|${line.height}`).join('~');
-    setMeasuredLines((current) => (signature(current) === signature(next) ? current : next));
+    // Geometry is measurement data, not product state. Keep it in a ref so
+    // onTextLayout cannot restart the active typesetting timer as React Native
+    // refines line metrics during rendering.
+    measuredLinesRef.current = indexMeasuredLines(text, event.nativeEvent.lines);
   }, [text]);
 
   React.useEffect(() => {
@@ -118,7 +123,7 @@ export function LaserTypesetter({
       index = Math.min(text.length, index + 1);
       setVisibleCount(index);
 
-      const measured = lineForIndex(measuredLines, Math.max(0, index - 1));
+      const measured = lineForIndex(measuredLinesRef.current, Math.max(0, index - 1));
       if (measured) {
         const span = Math.max(1, measured.end - measured.start);
         const within = Math.max(0, Math.min(span, index - measured.start));
@@ -128,7 +133,6 @@ export function LaserTypesetter({
           lineHeight: measured.height,
         });
       } else if (containerWidth > 0) {
-        // Graceful web fallback if a renderer does not expose onTextLayout geometry.
         const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
         const approximateLine = Math.floor(index / approximateLineLength);
         const within = index % approximateLineLength;
@@ -150,7 +154,13 @@ export function LaserTypesetter({
       }
 
       const current = text[index - 1] ?? '';
-      const delay = /[.!?]/.test(current) ? CHAR_MS * 5 : /[,;:]/.test(current) ? CHAR_MS * 2.4 : /\s/.test(current) ? CHAR_MS * 0.45 : CHAR_MS;
+      const delay = /[.!?]/.test(current)
+        ? CHAR_MS * 5
+        : /[,;:]/.test(current)
+          ? CHAR_MS * 2.4
+          : /\s/.test(current)
+            ? CHAR_MS * 0.45
+            : CHAR_MS;
       timer = setTimeout(step, delay);
     };
 
@@ -159,7 +169,7 @@ export function LaserTypesetter({
       runRef.current += 1;
       if (timer) clearTimeout(timer);
     };
-  }, [active, containerWidth, measuredLines, reduceMotion, text]);
+  }, [active, containerWidth, reduceMotion, text]);
 
   const coolEnd = cooled ? visibleCount : Math.max(0, visibleCount - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
