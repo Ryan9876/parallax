@@ -278,9 +278,9 @@ async function inspectFallback(browser, report) {
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
   // AC-10 has two distinct claims: normal text is usable without Skia, and the
-  // request lifecycle still completes. Wait for the product state transition
-  // before asserting transport closure instead of racing the active stream.
-  await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
+  // request lifecycle still completes. Wait for the reduced-graphics product
+  // state before asserting transport closure instead of racing the stream.
+  await page.getByText(/Reduced graphics mode · complete/i).waitFor({ timeout: 10000 });
   assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
 
   const expectedSkiaFailure = (entry) => [
