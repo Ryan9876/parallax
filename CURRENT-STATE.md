@@ -8,7 +8,9 @@ Target branch: `p2/code-v0.4.0`
 Validated implementation head: `d96442c39fc2534fd733a50d39527ffd158653ee`
 Validation workflow: GitHub Actions `Parallax P2 CI` run `32371806776`
 
-The validated implementation head and workflow above remain the last exact-head GitHub evidence and cover Reason 2.0. The Code 2.0 candidate described below is reconstructed and validated locally; it has not been committed, pushed, or exact-head CI validated.
+The validated implementation head and workflow above remain the last completed exact-head GitHub evidence and cover Reason 2.0. The Code 2.0 candidate described below is reconstructed, validated locally, committed, and pushed; exact-head CI validation remains pending.
+
+Published Code candidate commit: `ef8812f251268d67af0c4295629ec7db99344373`. GitHub Actions `Parallax P2 CI` run `32391149258` started for that commit; its result is pending and is not yet validation evidence.
 
 ## Material decisions
 
@@ -37,7 +39,7 @@ The validated implementation head and workflow above remain the last exact-head 
 - Separate ten-case Code development and promotion suites validate successfully. The recorded baseline and equivalent challenger each score `1.0000`; promotion passes with zero aggregate regression. Stage-skipping, false-status, spec-drift, and unsafe-execution fixtures are rejected.
 - Local evidence: Python compilation passed; backend suite `52/52` passed; client TypeScript and response-state tests passed; Expo web export passed; CI YAML parses.
 - Mandatory DSPy SpecCritic + SpecCompiler execution, Playwright visual acceptance, and complete inherited/new gates remain exact-head CI requirements.
-- Generated: **YES**. Locally validated: **YES**. Exact-head CI validated: **NO**. Committed/pushed: **NO**. Deployed: **NO**. Deployment-verified: **NO**.
+- Generated: **YES**. Locally validated: **YES**. Exact-head CI validated: **NO**. Committed/pushed: **YES**. Deployed: **NO**. Deployment-verified: **NO**.
 
 ## Validated v0.3.0 Reason 2.0
 
