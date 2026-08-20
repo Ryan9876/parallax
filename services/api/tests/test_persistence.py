@@ -12,16 +12,27 @@ def test_conversation_persists_across_service_instances(tmp_path):
     Session = sessionmaker(bind=engine, expire_on_commit=False)
 
     with Session() as session:
-        service = ConversationService(ConversationRepository(session))
+        service = ConversationService(
+            ConversationRepository(session),
+            active_spec_id="P2-V0.3.0",
+        )
         conversation = service.create("reason")
+        assert conversation.spec_id == "P2-V0.3.0"
         service.append_message(conversation.id, "user", "Persistent hello")
         conversation_id = conversation.id
 
     with Session() as session:
-        service = ConversationService(ConversationRepository(session))
+        service = ConversationService(
+            ConversationRepository(session),
+            active_spec_id="P2-V0.4.0",
+        )
         loaded = service.get(conversation_id)
         assert loaded.id == conversation_id
+        assert loaded.spec_id == "P2-V0.3.0"
         assert [message.content for message in loaded.messages] == ["Persistent hello"]
+
+        newer = service.create("reason")
+        assert newer.spec_id == "P2-V0.4.0"
 
 
 def test_follow_up_client_hint_is_not_scope_authority(tmp_path):
@@ -31,9 +42,13 @@ def test_follow_up_client_hint_is_not_scope_authority(tmp_path):
     Session = sessionmaker(bind=engine, expire_on_commit=False)
 
     with Session() as session:
-        service = ConversationService(ConversationRepository(session))
+        service = ConversationService(
+            ConversationRepository(session),
+            active_spec_id="P2-V0.3.0",
+        )
         conversation = service.create("reason")
         assert conversation.status == "ACTIVE"
+        assert conversation.spec_id == "P2-V0.3.0"
 
         service.append_follow_up(conversation.id, "Why option B?")
         assert service.get(conversation.id).status == "ACTIVE"
