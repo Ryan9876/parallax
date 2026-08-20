@@ -5,6 +5,7 @@ from parallax_api.intelligence.protected_metrics import (
     evaluate_compiled_plan,
     evaluate_reasoning_output,
     evaluate_spec_contract,
+    extract_acceptance_contract,
     extract_acceptance_ids,
 )
 
@@ -23,6 +24,7 @@ def test_approved_spec_has_all_expected_acceptance_ids():
     result = evaluate_spec_contract(spec)
     assert result.passed, result.failures
     assert extract_acceptance_ids(spec) == tuple(f"AC-{index:02d}" for index in range(1, 14))
+    assert tuple(item["id"] for item in extract_acceptance_contract(spec)) == extract_acceptance_ids(spec)
 
 
 def test_compiled_plan_must_map_every_acceptance_criterion():
@@ -30,6 +32,7 @@ def test_compiled_plan_must_map_every_acceptance_criterion():
     plan = {
         "spec_id": "P2-V0.1.0",
         "dspy_run": {"executed": True, "model": "test"},
+        "protected_acceptance_map": [dict(item) for item in extract_acceptance_contract(spec)],
         "architecture_decisions": ["AC-01"],
         "work_items": [{"acceptance": ["AC-02"]}],
         "validations": ["AC-03"],
@@ -38,6 +41,25 @@ def test_compiled_plan_must_map_every_acceptance_criterion():
     result = evaluate_compiled_plan(spec, plan)
     assert not result.passed
     assert "acceptance_not_mapped:AC-13" in result.failures
+
+
+def test_compiled_plan_rejects_modified_protected_acceptance_map():
+    spec = SPEC_PATH.read_text(encoding="utf-8")
+    contract = [dict(item) for item in extract_acceptance_contract(spec)]
+    contract[0]["protected_requirement"] = "weakened"
+    all_ids = list(extract_acceptance_ids(spec))
+    plan = {
+        "spec_id": "P2-V0.1.0",
+        "dspy_run": {"executed": True, "model": "test"},
+        "protected_acceptance_map": contract,
+        "architecture_decisions": all_ids,
+        "work_items": ["implementation work"],
+        "validations": ["validation work"],
+        "risks": ["risk review"],
+    }
+    result = evaluate_compiled_plan(spec, plan)
+    assert not result.passed
+    assert "protected_acceptance_map_mismatch" in result.failures
 
 
 def test_bootstrap_plan_is_structurally_evaluable_without_claiming_dspy_execution():
