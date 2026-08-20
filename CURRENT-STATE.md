@@ -5,8 +5,8 @@ Date: 2026-08-20
 Status: VALIDATED FOUNDATION — NOT DEPLOYED
 Active spec: `P2-V0.1.0`
 Branch: `p2/bootstrap-v0.1.0`
-Validated implementation head: `d686bc639fd99fe1b1218801d14632558b78295e`
-Validation workflow: GitHub Actions `Parallax P2 CI` run `32355760742`
+Validated implementation head: `4f3c89555722195be0b73d80237af8acafa4793e`
+Validation workflow: GitHub Actions `Parallax P2 CI` run `32356917454`
 
 ## Material decisions
 
@@ -37,15 +37,16 @@ Validation workflow: GitHub Actions `Parallax P2 CI` run `32355760742`
 - `LivingSurface` initializes through React Native Skia/CanvasKit on web.
 - Surface energy is linked to response state.
 - `LaserTypesetter` follows the active wrapped text line, reveals normal selectable text behind the optical head, and cools freshly revealed glyphs back to normal typography.
+- The browser acceptance harness explicitly holds the mock SSE response open across staggered chunks and verifies that visible inscription begins after an intermediate chunk, before the stream completes.
 - `ParallaxLogo` provides calm non-spinner motion with reduced-motion behavior.
 - Responsive visual acceptance passed at the required mobile, tablet, and desktop sizes.
 - Intentional CanvasKit/WASM failure was tested: the application remains usable in reduced-graphics mode with normal conversation text and no Skia dependency for message truth.
 
 ### Spec-first + DSPy development evidence
 
-The repository was specified before implementation through `specs/P2-V0.1.0.md`, and CI now requires a real DSPy development execution after the deterministic spec/API gate passes.
+The repository was specified before implementation through `specs/P2-V0.1.0.md`, and CI requires a real DSPy development execution after the deterministic spec/API gate passes.
 
-Validation run `32355760742` executed both `SpecCritic` and `SpecCompiler` through DSPy using the credential-free local development model `ollama_chat/qwen2.5:0.5b` because no provider secret was configured. The resulting artifact records:
+The validated foundation executed both `SpecCritic` and `SpecCompiler` through DSPy using a credential-free local development model because no provider secret was configured. The resulting evidence records:
 
 - `executed: true`;
 - `spec_compiler_executed: true`;
@@ -54,13 +55,13 @@ Validation run `32355760742` executed both `SpecCritic` and `SpecCompiler` throu
 - protected metrics required;
 - exact protected acceptance contract injected outside optimizer control.
 
-The local 0.5B model is **not** treated as the plan-quality authority. Its generated implementation proposal is intentionally CI evidence only and is not promoted into the branch. Protected deterministic code preserves every approved acceptance criterion and supplies missing validation coverage before evaluation.
+The local model is **not** treated as the plan-quality authority. Its generated implementation proposal is CI development-method evidence only and is not promoted into the branch. Protected deterministic code preserves every approved acceptance criterion and supplies missing validation coverage before evaluation.
 
 A provider-backed Sol + MIPROv2 optimization run has **not yet been executed**. That remains a separate quality-optimization gate and must not be represented as complete until provider-backed evidence exists.
 
 ## Validation evidence
 
-GitHub Actions run `32355760742` completed successfully at implementation head `d686bc639fd99fe1b1218801d14632558b78295e`.
+GitHub Actions run `32356917454` completed successfully for validated implementation head `4f3c89555722195be0b73d80237af8acafa4793e`.
 
 PASS:
 
@@ -77,6 +78,7 @@ PASS:
 - Playwright/Chromium browser validation;
 - Skia/CanvasKit initialization;
 - live optical inscription during an open SSE response;
+- explicit intermediate-chunk observation before SSE completion;
 - responsive mobile/tablet/desktop visual checks;
 - CanvasKit failure-degradation check;
 - CI evidence artifact upload.
