@@ -3,7 +3,37 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import sys
+from typing import Any
+
+
+def parse_json_payload(raw: str, expected: type[list] | type[dict]) -> Any:
+    """Accept plain JSON or a single fenced JSON payload, then validate type.
+
+    Local development LMs sometimes wrap otherwise valid structured output in
+    Markdown fences. We normalize only that presentation wrapper; protected
+    metrics remain responsible for semantic acceptance of the resulting plan.
+    """
+
+    clean = raw.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", clean, flags=re.DOTALL | re.IGNORECASE)
+    if fenced:
+        clean = fenced.group(1).strip()
+
+    try:
+        payload = json.loads(clean)
+    except json.JSONDecodeError:
+        opener, closer = ("[", "]") if expected is list else ("{", "}")
+        start = clean.find(opener)
+        end = clean.rfind(closer)
+        if start < 0 or end < start:
+            raise
+        payload = json.loads(clean[start : end + 1])
+
+    if not isinstance(payload, expected):
+        raise TypeError(f"DSPy output must decode to {expected.__name__}")
+    return payload
 
 
 def main() -> int:
@@ -33,32 +63,29 @@ def main() -> int:
     with critic_dspy.context(lm=critic_lm):
         critique_prediction = critic_program(specification=spec)
     try:
-        critique = json.loads(str(critique_prediction.critique_json))
-    except json.JSONDecodeError as exc:
+        critique = parse_json_payload(str(critique_prediction.critique_json), list)
+    except (json.JSONDecodeError, TypeError) as exc:
         print(f"DSPy critic returned invalid JSON: {exc}", file=sys.stderr)
-        return 1
-    if not isinstance(critique, list):
-        print("DSPy critic must return a JSON array", file=sys.stderr)
         return 1
 
     compiler_dspy, compiler_lm, compiler_program = build_spec_compiler(model)
     with compiler_dspy.context(lm=compiler_lm):
         prediction = compiler_program(specification=spec)
 
-    raw = str(prediction.implementation_plan_json)
     try:
-        plan = json.loads(raw)
-    except json.JSONDecodeError as exc:
+        plan = parse_json_payload(str(prediction.implementation_plan_json), dict)
+    except (json.JSONDecodeError, TypeError) as exc:
         print(f"DSPy compiler returned invalid JSON: {exc}", file=sys.stderr)
-        return 1
-    if not isinstance(plan, dict):
-        print("DSPy compiler must return a JSON object", file=sys.stderr)
         return 1
 
     spec_id = extract_spec_id(spec)
     plan["spec_id"] = spec_id
     plan["critique"] = critique
-    plan["dspy_run"] = {"executed": True, "model": model}
+    plan["dspy_run"] = {
+        "executed": True,
+        "model": model,
+        "api_base": os.getenv("DSPY_API_BASE") or "provider-default",
+    }
 
     protected = evaluate_compiled_plan(spec, plan)
     if not protected.passed:
