@@ -47,10 +47,10 @@ def build_lm(model: str):
         kwargs["model_type"] = model_type
     if _local_development():
         # The local CI LM proves that the DSPy development path executes; it is
-        # not the plan-quality authority. Keep its generation deliberately
-        # bounded while protected deterministic metrics remain authoritative.
-        kwargs["temperature"] = 0.0
-        kwargs["max_tokens"] = 640
+        # not the plan-quality authority. A small non-zero temperature avoids
+        # the deterministic repetition loops seen with tiny CPU-only models.
+        kwargs["temperature"] = 0.15
+        kwargs["max_tokens"] = 384
         kwargs["num_retries"] = 1
     return dspy.LM(model, **kwargs)
 
@@ -62,23 +62,36 @@ _PLAN_LIMITS = {
     "risks": 2,
 }
 
+_LOCAL_SCALAR_FIELDS = {
+    "architecture_decisions": "architecture_decision",
+    "work_items": "work_item",
+    "validations": "validation",
+    "risks": "risk",
+}
+
 
 def plan_from_prediction(prediction: Any) -> dict[str, list[str]]:
-    """Normalize the typed DSPy compiler prediction into the protected plan shape.
+    """Normalize DSPy compiler output into the protected plan shape.
 
-    The model proposes implementation content, but metadata and the exact
-    acceptance contract are injected later by deterministic protected code.
-    Local-development output is capped after successful structured parsing so a
-    small proof model cannot inflate artifacts; missing fields are never
-    synthesized here.
+    Provider-backed compilation uses richer list fields. The credential-free
+    proof model uses one bounded scalar per semantic field because a 0.5B model
+    is not reliable at generating several typed arrays. Both paths still have
+    DSPy propose architecture/work/validation/risk content; deterministic
+    protected code later injects the exact acceptance map and coverage gaps.
     """
 
     plan: dict[str, list[str]] = {}
     for key, limit in _PLAN_LIMITS.items():
         raw = getattr(prediction, key, None)
-        if not isinstance(raw, list):
+        if isinstance(raw, list):
+            clean = [str(item).strip() for item in raw if str(item).strip()]
+        elif _local_development():
+            scalar_name = _LOCAL_SCALAR_FIELDS[key]
+            scalar = getattr(prediction, scalar_name, None)
+            clean = [str(scalar).strip()] if scalar is not None and str(scalar).strip() else []
+        else:
             raise TypeError(f"DSPy compiler field {key} must be a list")
-        clean = [str(item).strip() for item in raw if str(item).strip()]
+
         if not clean:
             raise ValueError(f"DSPy compiler field {key} must not be empty")
         plan[key] = clean[:limit] if _local_development() else clean
@@ -121,27 +134,44 @@ class DspyReasoningProgram:
 def build_spec_compiler(model: str):
     dspy = _dspy()
 
-    class CompileSpec(dspy.Signature):
-        """Convert an approved software specification into a compact dependency-ordered implementation plan without changing protected requirements. Never repeat an item."""
+    if _local_development():
+        class CompileSpec(dspy.Signature):
+            """Propose one concise item for each implementation-plan dimension from an approved specification. Do not enumerate versions or repeat text."""
 
-        specification: str = dspy.InputField()
-        architecture_decisions: list[str] = dspy.OutputField(
-            desc="Exactly 3 concise architecture decisions, one sentence each. Reference relevant AC IDs. Do not repeat."
-        )
-        work_items: list[str] = dspy.OutputField(
-            desc="Exactly 4 concise dependency-ordered work items, one sentence each. Reference relevant AC IDs. Do not repeat."
-        )
-        validations: list[str] = dspy.OutputField(
-            desc="Exactly 3 concise executable validation/evidence checks, one sentence each. Reference relevant AC IDs. Do not repeat."
-        )
-        risks: list[str] = dspy.OutputField(
-            desc="Exactly 2 concise material risk-and-mitigation items, one sentence each. Do not repeat."
-        )
+            specification: str = dspy.InputField()
+            architecture_decision: str = dspy.OutputField(
+                desc="One architecture decision, maximum 160 characters"
+            )
+            work_item: str = dspy.OutputField(
+                desc="One concrete implementation work item, maximum 160 characters"
+            )
+            validation: str = dspy.OutputField(
+                desc="One executable validation or evidence check, maximum 160 characters"
+            )
+            risk: str = dspy.OutputField(
+                desc="One material risk and mitigation, maximum 160 characters"
+            )
+    else:
+        class CompileSpec(dspy.Signature):
+            """Convert an approved software specification into a compact dependency-ordered implementation plan without changing protected requirements. Never repeat an item."""
+
+            specification: str = dspy.InputField()
+            architecture_decisions: list[str] = dspy.OutputField(
+                desc="Exactly 3 concise architecture decisions, one sentence each. Reference relevant AC IDs. Do not repeat."
+            )
+            work_items: list[str] = dspy.OutputField(
+                desc="Exactly 4 concise dependency-ordered work items, one sentence each. Reference relevant AC IDs. Do not repeat."
+            )
+            validations: list[str] = dspy.OutputField(
+                desc="Exactly 3 concise executable validation/evidence checks, one sentence each. Reference relevant AC IDs. Do not repeat."
+            )
+            risks: list[str] = dspy.OutputField(
+                desc="Exactly 2 concise material risk-and-mitigation items, one sentence each. Do not repeat."
+            )
 
     lm = build_lm(model)
-    # Predict is deliberate here. Structured typed outputs are the contract;
-    # extra chain-of-thought text only makes small local development LMs less
-    # reliable without improving protected evaluation quality.
+    # Predict is deliberate here. Structured outputs are the contract; extra
+    # chain-of-thought text only makes small development LMs less reliable.
     program = dspy.Predict(CompileSpec)
     return dspy, lm, program
 
@@ -149,13 +179,22 @@ def build_spec_compiler(model: str):
 def build_spec_critic(model: str):
     dspy = _dspy()
 
-    class Critic(dspy.Signature):
-        """Critique an approved software specification for contradictions, missing acceptance criteria, hidden dependencies, unsafe optimizer boundaries, and deployment risks."""
+    if _local_development():
+        class Critic(dspy.Signature):
+            """Identify the single most material implementation risk or omission in an approved software specification."""
 
-        specification: str = dspy.InputField()
-        findings: list[str] = dspy.OutputField(
-            desc="At most 3 concise material findings. Return an empty list when there is no material finding. Never repeat a finding."
-        )
+            specification: str = dspy.InputField()
+            finding: str = dspy.OutputField(
+                desc="One concise material finding, maximum 180 characters; use 'none' if no material issue"
+            )
+    else:
+        class Critic(dspy.Signature):
+            """Critique an approved software specification for contradictions, missing acceptance criteria, hidden dependencies, unsafe optimizer boundaries, and deployment risks."""
+
+            specification: str = dspy.InputField()
+            findings: list[str] = dspy.OutputField(
+                desc="At most 3 concise material findings. Return an empty list when there is no material finding. Never repeat a finding."
+            )
 
     lm = build_lm(model)
     program = dspy.Predict(Critic)
