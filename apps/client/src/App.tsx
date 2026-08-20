@@ -48,6 +48,7 @@ export default function App() {
   const [streamFinished, setStreamFinished] = React.useState(true);
   const pendingRefreshRef = React.useRef<string | null>(null);
   const motion = motionForPhase(state.phase);
+  const activeConversation = conversations.find((item) => item.id === conversationId);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -141,7 +142,12 @@ export default function App() {
   );
 
   const respond = React.useCallback(async () => {
-    if (state.phase !== 'IDLE' && state.phase !== 'COMPLETE' && state.phase !== 'ERROR') return;
+    if (
+      state.phase !== 'IDLE'
+      && state.phase !== 'COMPLETE'
+      && state.phase !== 'SPEC_AMENDMENT'
+      && state.phase !== 'ERROR'
+    ) return;
     const content = draft.trim();
     if (!content) return;
 
@@ -195,13 +201,26 @@ export default function App() {
         dispatch({ type: 'START_RESPONDING' });
       };
 
+      const requireAmendment = () => {
+        if (scopeAmendment) return;
+        scopeAmendment = true;
+        setStreamFinished(true);
+        setActivePrintId(null);
+        dispatch({ type: 'REQUIRE_AMENDMENT' });
+      };
+
       const onEvent = (event: ResponseStreamEvent) => {
         if (event.event === 'state') {
           if (event.data.phase === 'SPEC_AMENDMENT') {
-            scopeAmendment = true;
+            requireAmendment();
             return;
           }
           if (event.data.phase === 'RESPONDING') startAssistant();
+          return;
+        }
+
+        if (event.event === 'amendment') {
+          requireAmendment();
           return;
         }
 
@@ -215,10 +234,8 @@ export default function App() {
       };
 
       const result = await api.streamResponse(id, content, onEvent);
-      if (scopeAmendment) {
-        setStreamFinished(true);
-        setActivePrintId(null);
-        dispatch({ type: 'FAIL', error: 'This change requires a specification amendment before substantive work continues.' });
+      if (result.phase === 'SPEC_AMENDMENT' || scopeAmendment) {
+        requireAmendment();
         const fresh = await api.getConversation(id);
         applyConversation(fresh);
         return;
@@ -303,7 +320,7 @@ export default function App() {
                 ))}
               </ScrollView>
               <View style={styles.railBottom}>
-                <Text style={styles.railStatus}>SPEC P2-V0.1.0</Text>
+                <Text style={styles.railStatus}>SPEC {activeConversation?.spec_id ?? 'P2-V0.3.0'}</Text>
                 <Text style={styles.railMuted}>{apiOnline ? 'Persistent context online' : 'Visual fallback · API offline'}</Text>
               </View>
             </View>
@@ -386,6 +403,14 @@ export default function App() {
                 </View>
               )}
               {state.phase === 'VERIFYING' && <Text style={styles.phaseHint}>Verifying response…</Text>}
+              {state.phase === 'SPEC_AMENDMENT' && (
+                <View style={styles.amendmentNotice} accessibilityLiveRegion="polite">
+                  <Text style={styles.amendmentTitle}>Specification amendment required</Text>
+                  <Text style={styles.amendmentText}>
+                    The conversation is preserved. Parallax has stopped substantive work against the prior approved objective until the scope is clarified or amended.
+                  </Text>
+                </View>
+              )}
               {state.phase === 'ERROR' && <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text>}
             </ScrollView>
 
@@ -481,6 +506,17 @@ const styles = StyleSheet.create({
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -10, marginBottom: 30 },
   thinkingText: { color: '#688086', fontSize: 11 },
   phaseHint: { color: '#688086', fontSize: 11, marginBottom: 24 },
+  amendmentNotice: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(20,125,159,0.22)',
+    backgroundColor: 'rgba(222,197,182,0.24)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 24,
+  },
+  amendmentTitle: { color: '#405055', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  amendmentText: { color: '#6F7472', fontSize: 11, lineHeight: 17 },
   errorText: { color: '#9A5A52', fontSize: 11, lineHeight: 17, marginBottom: 24 },
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
   composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: 'rgba(248,247,243,0.78)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.86)' },
