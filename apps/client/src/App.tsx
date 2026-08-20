@@ -51,6 +51,9 @@ export default function App() {
   const [accessToken, setAccessToken] = React.useState(() =>
     Platform.OS === 'web' ? globalThis.sessionStorage?.getItem('parallax:p2:access') ?? '' : '',
   );
+  const [accessEnforced, setAccessEnforced] = React.useState(
+    process.env.EXPO_PUBLIC_PARALLAX_REQUIRE_AUTH === 'true',
+  );
   const [accessDraft, setAccessDraft] = React.useState(accessToken);
   const [accessError, setAccessError] = React.useState('');
   const pendingRefreshRef = React.useRef<string | null>(null);
@@ -102,6 +105,7 @@ export default function App() {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof AuthenticationRequiredError) {
+          setAccessEnforced(true);
           api.setAccessToken('');
           setAccessToken('');
           globalThis.sessionStorage?.removeItem('parallax:p2:access');
@@ -316,7 +320,7 @@ export default function App() {
     [activePrintId, state.phase, streamFinished, updateConversationSummary],
   );
 
-  if (!accessToken) {
+  if (accessEnforced && !accessToken) {
     return (
       <View style={styles.accessRoot}>
         <View style={styles.accessPanel}>
