@@ -36,29 +36,6 @@ def parse_json_payload(raw: str, expected: type[list] | type[dict]) -> Any:
     return payload
 
 
-def protected_acceptance_map(specification: str) -> list[dict[str, str]]:
-    """Extract the approved acceptance contract deterministically.
-
-    DSPy is allowed to propose how to satisfy the contract, but it never owns
-    the criterion set itself. This map is injected after model execution and is
-    therefore outside optimizer control.
-    """
-
-    pattern = re.compile(
-        r"^###\s+(AC-\d+)\s+([^\n]+)\n(.*?)(?=^###\s+AC-\d+\b|^##\s+12\.|\Z)",
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    contract: list[dict[str, str]] = []
-    for acceptance_id, title, body in pattern.findall(specification):
-        requirement = " ".join(line.strip() for line in body.strip().splitlines() if line.strip())
-        contract.append({
-            "id": acceptance_id,
-            "title": title.strip(),
-            "protected_requirement": requirement,
-        })
-    return contract
-
-
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: compile_spec.py <spec.md>", file=sys.stderr)
@@ -66,12 +43,22 @@ def main() -> int:
 
     try:
         from parallax_api.intelligence.dspy_programs import build_spec_compiler, build_spec_critic
-        from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract, extract_spec_id
+        from parallax_api.intelligence.protected_metrics import (
+            evaluate_compiled_plan,
+            evaluate_spec_contract,
+            extract_acceptance_contract,
+            extract_spec_id,
+        )
     except ImportError:
         service = Path(__file__).resolve().parents[1] / "services" / "api"
         sys.path.insert(0, str(service))
         from parallax_api.intelligence.dspy_programs import build_spec_compiler, build_spec_critic
-        from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract, extract_spec_id
+        from parallax_api.intelligence.protected_metrics import (
+            evaluate_compiled_plan,
+            evaluate_spec_contract,
+            extract_acceptance_contract,
+            extract_spec_id,
+        )
 
     spec_path = Path(sys.argv[1])
     spec = spec_path.read_text(encoding="utf-8")
@@ -80,7 +67,7 @@ def main() -> int:
         print(f"Protected spec metric failed: {metric.failures}", file=sys.stderr)
         return 1
 
-    acceptance_contract = protected_acceptance_map(spec)
+    acceptance_contract = [dict(item) for item in extract_acceptance_contract(spec)]
     if len(acceptance_contract) < 8:
         print("Protected acceptance map extraction failed", file=sys.stderr)
         return 1
