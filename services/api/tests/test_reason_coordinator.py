@@ -20,6 +20,20 @@ class StaticScopeProgram:
         return self.proposal
 
 
+class InvalidRawScopeProgram:
+    version = "scope-invalid-v1"
+
+    def run(self, *, current_user_turn: str, context: str):
+        assert current_user_turn
+        assert "ACTIVE_SPEC_ID" in context
+        return {
+            "decision": "CONTINUE",
+            "confidence": 2.0,
+            "material_factors": ["Invalid confidence should fail protected scope validation."],
+            "program_version": self.version,
+        }
+
+
 class StaticReasonProgram:
     version = "reason-test-v1"
 
@@ -187,14 +201,7 @@ def test_all_scope_models_failing_protected_validation_returns_unresolved_scope_
     coordinator = ResponseCoordinator(
         scope_router=ModelRouter(models=("scope-a", "scope-b")),
         reason_router=ModelRouter(models=("reason-model",)),
-        scope_factory=lambda model: StaticScopeProgram(
-            ScopeProposal(
-                decision=ScopeDecision.CONTINUE,
-                confidence=2.0,
-                material_factors=["Invalid confidence should fail protected scope validation."],
-                program_version="scope-invalid-v1",
-            )
-        ),
+        scope_factory=lambda model: InvalidRawScopeProgram(),
         reason_factory=lambda model: StaticReasonProgram(
             result("Reason must never run without a protected scope decision.")
         ),
