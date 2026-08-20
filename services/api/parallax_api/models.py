@@ -20,7 +20,7 @@ class Conversation(Base):
     title: Mapped[str] = mapped_column(String(200), default="New conversation")
     mode: Mapped[str] = mapped_column(String(20), default="reason")
     status: Mapped[str] = mapped_column(String(40), default="ACTIVE")
-    spec_id: Mapped[str] = mapped_column(String(64), default="P2-V0.1.0")
+    spec_id: Mapped[str] = mapped_column(String(64), default="P2-V0.3.0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
