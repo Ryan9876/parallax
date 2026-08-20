@@ -17,6 +17,7 @@ from parallax_api.intelligence.protected_metrics import (
 SPECS_DIR = Path(__file__).resolve().parents[3] / "specs"
 FOUNDATION_SPEC = SPECS_DIR / "P2-V0.1.0.md"
 EVALUATION_SPEC = SPECS_DIR / "P2-V0.2.0.md"
+REASON_SPEC = SPECS_DIR / "P2-V0.3.0.md"
 
 
 def test_protected_spec_metric_rejects_missing_contract():
@@ -30,6 +31,7 @@ def test_protected_spec_metric_rejects_missing_contract():
     (
         (FOUNDATION_SPEC, 13),
         (EVALUATION_SPEC, 12),
+        (REASON_SPEC, 17),
     ),
 )
 def test_approved_specs_have_extractable_version_independent_acceptance_contracts(spec_path: Path, expected_count: int):
@@ -66,6 +68,23 @@ def test_local_dspy_plan_is_bounded_after_successful_structured_parse(monkeypatc
     assert len(plan["work_items"]) == 4
     assert len(plan["validations"]) == 3
     assert len(plan["risks"]) == 2
+
+
+def test_local_dspy_plan_accepts_bounded_scalar_proof_signature(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DSPY_LOCAL_DEVELOPMENT", "1")
+    prediction = SimpleNamespace(
+        architecture_decision="Keep scope authority server-side.",
+        work_item="Implement deterministic context composition.",
+        validation="Verify continuity and amendment behavior.",
+        risk="Small proof-model output is not promotion authority.",
+    )
+    plan = plan_from_prediction(prediction)
+    assert plan == {
+        "architecture_decisions": ["Keep scope authority server-side."],
+        "work_items": ["Implement deterministic context composition."],
+        "validations": ["Verify continuity and amendment behavior."],
+        "risks": ["Small proof-model output is not promotion authority."],
+    }
 
 
 def test_compiled_plan_must_map_every_acceptance_criterion():
