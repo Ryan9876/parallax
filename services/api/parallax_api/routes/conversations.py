@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import get_session
 from ..intelligence.context import ContextLimitError, compose_reason_context
-from ..intelligence.coordinator import ResponseCoordinator
+from ..intelligence.coordinator import ResponseCoordinationFailure, ResponseCoordinator
 from ..intelligence.scope import ScopeDecision
 from ..repositories.conversations import ConversationRepository
 from ..schemas import ConversationCreate, ConversationRead, MessageCreate, MessageRead, ResponseRequest
@@ -20,6 +20,11 @@ router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 AMENDMENT_MESSAGE = (
     "This request materially changes the approved objective. "
     "An approved specification amendment is required before I continue against the new objective."
+)
+
+PROTECTED_FAILURE_MESSAGE = (
+    "Parallax could not produce a response that passed protected verification. "
+    "Your conversation is preserved; retry or refine the request."
 )
 
 
@@ -91,10 +96,38 @@ async def stream_response(
                 ),
             )
         except ContextLimitError:
-            yield event("error", {"phase": "ERROR", "error": "ContextLimitError"})
+            yield event(
+                "error",
+                {
+                    "phase": "ERROR",
+                    "error": "CONTEXT_LIMIT",
+                    "recoverable": True,
+                    "message": "The active conversation context exceeded protected limits. Your conversation is preserved.",
+                },
+            )
+            return
+        except ResponseCoordinationFailure as exc:
+            yield event(
+                "error",
+                {
+                    "phase": "ERROR",
+                    "error": exc.error_code,
+                    "recoverable": True,
+                    "message": PROTECTED_FAILURE_MESSAGE,
+                    "trace": exc.trace.as_public_dict(),
+                },
+            )
             return
         except Exception as exc:
-            yield event("error", {"phase": "ERROR", "error": type(exc).__name__})
+            yield event(
+                "error",
+                {
+                    "phase": "ERROR",
+                    "error": type(exc).__name__,
+                    "recoverable": True,
+                    "message": "Parallax could not complete this response. Your conversation is preserved.",
+                },
+            )
             return
 
         if result.scope.decision is ScopeDecision.SPEC_AMENDMENT:
@@ -115,7 +148,15 @@ async def stream_response(
             return
 
         if result.answer is None:
-            yield event("error", {"phase": "ERROR", "error": "MissingReasonAnswer"})
+            yield event(
+                "error",
+                {
+                    "phase": "ERROR",
+                    "error": "MISSING_REASON_ANSWER",
+                    "recoverable": True,
+                    "message": "Parallax could not complete this response. Your conversation is preserved.",
+                },
+            )
             return
 
         yield event("state", {"phase": "RESPONDING"})
