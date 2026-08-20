@@ -1,7 +1,10 @@
+import { fetch } from 'expo/fetch';
+
 export type MessageDto = {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  status: string;
   created_at: string;
 };
 
@@ -10,7 +13,30 @@ export type ConversationDto = {
   title: string;
   mode: 'reason' | 'code';
   status: string;
+  spec_id: string;
+  created_at: string;
+  updated_at: string;
   messages: MessageDto[];
+};
+
+export type ResponsePhase =
+  | 'THINKING'
+  | 'RESPONDING'
+  | 'VERIFYING'
+  | 'COMPLETE'
+  | 'ERROR'
+  | 'SPEC_AMENDMENT';
+
+export type ResponseStreamEvent = {
+  event: 'state' | 'chunk' | 'complete' | 'error';
+  data: Record<string, unknown>;
+};
+
+export type ResponseResult = {
+  text: string;
+  messageId: string | null;
+  confidence: number | null;
+  trace: Record<string, unknown> | null;
 };
 
 const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
@@ -26,6 +52,86 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function decodeEvent(block: string): ResponseStreamEvent | null {
+  let eventName = 'message';
+  const dataLines: string[] = [];
+
+  for (const rawLine of block.split(/\r?\n/)) {
+    if (rawLine.startsWith('event:')) eventName = rawLine.slice(6).trim();
+    if (rawLine.startsWith('data:')) dataLines.push(rawLine.slice(5).trimStart());
+  }
+
+  if (!dataLines.length) return null;
+  if (!['state', 'chunk', 'complete', 'error'].includes(eventName)) return null;
+
+  const parsed = JSON.parse(dataLines.join('\n')) as Record<string, unknown>;
+  return { event: eventName as ResponseStreamEvent['event'], data: parsed };
+}
+
+async function streamResponse(
+  id: string,
+  content: string,
+  onEvent?: (event: ResponseStreamEvent) => void,
+  materialScopeChange = false,
+): Promise<ResponseResult> {
+  const response = await fetch(`${apiBase}/v1/conversations/${id}/responses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify({ content, material_scope_change: materialScopeChange }),
+  });
+
+  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  if (!response.body) throw new Error('Parallax response stream unavailable');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  let messageId: string | null = null;
+  let confidence: number | null = null;
+  let trace: Record<string, unknown> | null = null;
+
+  const handle = (event: ResponseStreamEvent) => {
+    onEvent?.(event);
+    if (event.event === 'chunk' && typeof event.data.text === 'string') {
+      text += event.data.text;
+    }
+    if (event.event === 'complete') {
+      if (typeof event.data.message_id === 'string') messageId = event.data.message_id;
+      if (typeof event.data.confidence === 'number') confidence = event.data.confidence;
+      if (event.data.trace && typeof event.data.trace === 'object') {
+        trace = event.data.trace as Record<string, unknown>;
+      }
+    }
+    if (event.event === 'error') {
+      throw new Error(typeof event.data.error === 'string' ? event.data.error : 'Parallax response failed');
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? '';
+    for (const block of blocks) {
+      const event = decodeEvent(block.trim());
+      if (event) handle(event);
+    }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const event = decodeEvent(buffer.trim());
+    if (event) handle(event);
+  }
+
+  return { text, messageId, confidence, trace };
+}
+
 export const api = {
   createConversation: (mode: 'reason' | 'code') =>
     json<ConversationDto>('/v1/conversations', {
@@ -39,4 +145,5 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ role, content }),
     }),
+  streamResponse,
 };
