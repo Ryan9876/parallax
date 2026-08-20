@@ -39,10 +39,14 @@ class EngineeringRunRepository:
         return self.get(run.id) or run
 
     def get(self, run_id: str) -> EngineeringRun | None:
+        # A long-lived service session may already hold the EngineeringRun in its
+        # identity map with an older attempts collection. populate_existing makes
+        # the aggregate reflect durable database truth after every mutation.
         statement = (
             select(EngineeringRun)
             .where(EngineeringRun.id == run_id)
             .options(selectinload(EngineeringRun.attempts))
+            .execution_options(populate_existing=True)
         )
         return self.session.scalar(statement)
 
