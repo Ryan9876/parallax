@@ -1,155 +1,187 @@
 # Parallax 2.0 Current State
 
-Version: 0.2.0-evaluation
+Version: 0.3.0-reason
 Date: 2026-08-20
-Status: VALIDATED EVALUATION SPINE + FOUNDATION/PREVIEW READINESS — NOT DEPLOYED
-Active spec: `P2-V0.2.0`
-Branch: `p2/evaluation-v0.2.0`
-Validated implementation head: `3b1e93af9989f6af6a58dc4a4df153c02601ccf7`
-Validation workflow: GitHub Actions `Parallax P2 CI` run `32365718862`
+Status: VALIDATED REASON 2.0 + PROTECTED EVALUATION SPINE + FOUNDATION/PREVIEW READINESS — NOT DEPLOYED
+Active spec: `P2-V0.3.0`
+Branch: `p2/reason-v0.3.0`
+Validated implementation head: `d96442c39fc2534fd733a50d39527ffd158653ee`
+Validation workflow: GitHub Actions `Parallax P2 CI` run `32371806776`
 
 ## Material decisions
 
 - Parallax 2.0 remains a separate product track in `Ryan9876/parallax`.
-- P2 is developed using approved specifications and mandatory DSPy development execution before substantive AI-program work.
-- Protected evaluation is now a first-class architecture boundary rather than ad-hoc DSPy scoring code.
-- Development benchmark evidence may be consumed by optimizers; promotion-suite contracts, thresholds, evaluators, and promotion rules may not.
-- A higher aggregate score cannot compensate for a critical protected failure or an excessive protected category regression.
-- Promotion passing does not authorize an automatic merge, deployment, threshold change, or authoritative-record update.
+- P2 itself is built using approved specifications, mandatory DSPy development execution, and protected evaluation before a material AI-program release is called validated.
+- Evaluation remains structurally above optimization: development evidence may guide optimizers; protected promotion contracts, thresholds, evaluators, and release rules may not be silently changed by optimizer-controlled code.
 - Runtime model routing remains Luna → Terra → Sol.
 - Expo + React Native + React Native Skia remains the universal client baseline; FastAPI + SQLAlchemy + DSPy remains the intelligence-service baseline.
-- Server-side durable conversations remain the source of truth; browser storage remains draft convenience only.
-- The first approved P2 MP4 material study, optical laser typesetter, and calm Parallax Lens Mark remain the visual baseline.
+- Durable server-side conversations remain the source of truth; browser storage remains draft convenience only.
+- Each durable conversation carries its own stored specification identity. New conversations receive `PARALLAX_ACTIVE_SPEC_ID`; existing conversations retain their historical spec ID.
+- The approved P2 living mineral/sunlit-water material, optical laser typesetter, and calm Parallax Lens Mark remain the visual baseline.
+- `SPEC_AMENDMENT` is now a first-class calm protected hand-off state, not a generic error state.
 - P2 preview deployment remains isolated from the existing Parallax 1.x Vercel production project.
-- The selected preview topology remains dedicated P2 web/API Vercel projects plus a dedicated Supabase PostgreSQL project; those external resources have not yet been created for P2.
+- Dedicated P2 Vercel web/API projects and a dedicated P2 Supabase PostgreSQL project have not been created or deployment-verified.
 
-## Validated v0.2.0 evaluation spine
+## Validated v0.3.0 Reason 2.0
 
-### Benchmark model
+### Deterministic bounded multi-turn context
 
-- Typed benchmark schemas cover suite identity/version/purpose, case identity/category/objective/context, required and forbidden contracts, exact protected assertions, weights, floors, and candidate fixture data.
-- Loaders reject malformed suites, duplicate case IDs, unsupported purposes, invalid weights, and cases without an executable protected contract.
-- The initial repository-safe Parallax Engineering Benchmark contains separate `development` and `promotion` suites.
-- Both suites cover the required eight behavioral categories: specification fidelity, conversation continuity, implementation-plan completeness, protected-boundary preservation, failure/degradation handling, evidence/status honesty, secret handling, and concise engineering communication.
+- Server-side Reason context composition is deterministic and provider-independent.
+- Context includes the durable conversation/spec identity, lifecycle status, mode, current user turn, bounded recent prior messages, and explicit user/assistant role markers.
+- Later explicit user corrections are authoritative over conflicting older assistant statements or inferred assumptions.
+- Hard limits bound total context, prior-message count, individual prior-message size, and current-turn size.
+- Oldest eligible prior messages are removed first; the active spec and current user turn are never silently discarded.
+- Each context carries an observable SHA-256 digest, included-turn count, and truncation flag.
 
-### Protected scoring and promotion
+### Server-side scope authority
 
-- Deterministic scoring computes declared required coverage, forbidden violations, exact protected assertions, per-case results, category summaries, aggregate score, and explicit failure reasons.
-- Promotion code accepts only compatible promotion-suite artifacts.
-- A challenger is rejected for protected case/category-floor failures, new critical protected failures, incompatible evaluator evidence, aggregate/category regression beyond protected tolerances, or use of development evidence as promotion authority.
-- The optimizer boundary is structural: protected promotion logic lives outside optimizer-controlled DSPy program modules.
+- Normal product behavior no longer treats the client `material_scope_change` Boolean as scope authority.
+- The DSPy scope program proposes `CONTINUE`, `CLARIFY`, or `SPEC_AMENDMENT` under a typed contract.
+- Protected policy validates the proposal and owns transition semantics.
+- Low-confidence material-change proposals become `CLARIFY` rather than silently amending or continuing.
+- The transitional test/developer override is disabled by default and requires `PARALLAX_ALLOW_SCOPE_OVERRIDE=true`; override use is observable in the trace.
+- If scope routing exhausts all candidates, Parallax does not fabricate a protected decision; the safe trace records `protected_scope_decision: null` and a recoverable `ERROR` state.
 
-### Evidence and security
+### Typed Reason program and protected verification
 
-- Evaluation artifacts record run/spec/suite/evaluator/program/model identity, input identity/digest, per-case outcomes, category scores, aggregate score, protected pass/fail, and a no-chain-of-thought marker.
-- Candidate output is treated as untrusted text.
-- Tests reject configured secret-bearing benchmark/evidence content and hidden-reasoning fields such as chain-of-thought and scratchpad payloads.
-- CLI tooling validates suites, evaluates recorded candidates, writes evidence, compares baseline/challenger artifacts, and returns non-zero exits on protected failure.
+- The DSPy Reason program receives the current objective, deterministic context, mode, active spec ID, and protected scope decision.
+- Typed Reason output includes the user-facing answer, bounded confidence, bounded material uncertainties, bounded material assumptions, and program version.
+- Observable uncertainty/assumption metadata is explicitly not hidden chain-of-thought.
+- Protected validation rejects malformed confidence/metadata, unsafe secret-bearing output, exposed hidden-reasoning payloads, unfocused clarification responses, and other contract violations before completion.
+- Protected-invalid Reason results escalate through Luna → Terra → Sol.
+- If every Reason candidate fails provider execution or protected validation, the durable user turn remains preserved and the API returns a sanitized recoverable error.
 
-### Offline evaluation CI evidence
+### Amendment containment
 
-Run `32365718862` executed the credential-free evaluation gate at reconciled implementation head `3b1e93af9989f6af6a58dc4a4df153c02601ccf7`.
+- A protected material-objective change transitions the conversation to `SPEC_AMENDMENT`.
+- The prior conversation and current user turn are preserved.
+- A concise assistant hand-off message is persisted.
+- The SSE endpoint emits an explicit `SPEC_AMENDMENT` state plus an `amendment` event.
+- No substantive response chunks are emitted under the old approved objective.
+- The client renders the state calmly, keeps the conversation intact, and disables the optical typesetter.
 
-PASS:
+### Observable traces
 
-- development and promotion benchmark validation;
-- recorded development fixture evaluation;
-- promotion baseline evaluation;
-- equivalent challenger promotion pass;
-- intentional protected-regression challenger rejection;
-- evaluation artifact retention.
+Reason traces now contain only observable execution evidence needed to explain behavior:
 
-Exact-head evaluation evidence artifact:
+- response/conversation/spec identity;
+- scope and Reason program versions when available;
+- protected scope decision, nullable only when unresolved;
+- scope override/policy-adjustment indicator;
+- context digest/turn count/truncation;
+- model attempts and statuses;
+- protected verification outcome;
+- final state.
 
-- name: `evaluation-evidence`;
-- artifact ID: `9405222370`;
-- SHA-256: `fd1db41fe6787755f984e4d25c7d6422befd68820e210e37b452d73d1fc4ae4e`.
+Invalid candidate answer text, provider credentials, environment values, DSPy rationale, chain-of-thought, and scratchpads are excluded from the public trace.
 
-## Inherited validated foundation
+### Client state and visual behavior
 
-### Conversation and intelligence
+- The response reducer now supports `SPEC_AMENDMENT` in addition to the inherited response lifecycle.
+- `SPEC_AMENDMENT` surface energy is `0.22`; laser is off.
+- Recoverable `ERROR` state uses sanitized server recovery copy rather than technical provider exception text.
+- Visible spec metadata is derived from the active durable conversation rather than a stale hard-coded release label.
+- Reduced-motion and reduced-graphics behavior remain functional.
 
-- Durable conversation creation, list/get, message append, and persistence are implemented.
-- Ordinary follow-ups remain in the active conversation; material scope change is represented explicitly rather than silently resetting context.
-- The browser client restores durable conversations and recent history from the FastAPI service.
-- The response endpoint streams SSE state/chunk/complete events.
-- The client inscribes the response while chunks are arriving; it does not wait for a complete answer and replay the laser afterward.
-- The response state machine is the single source of truth for product state and visual motion state.
-- Luna → Terra → Sol routing and failure escalation remain isolated behind the intelligence boundary.
+## Validated Reason benchmark and promotion evidence
 
-### Visual system
+P2-V0.3.0 adds separate repository-safe Reason `development` and `promotion` suites. Each covers ten protected behaviors:
 
-- `LivingSurface` initializes through React Native Skia/CanvasKit on web.
-- Surface energy is linked to response state.
-- `LaserTypesetter` follows active wrapped text, reveals normal selectable text behind the optical head, and cools new glyphs back to normal typography.
-- Browser acceptance holds the mock SSE stream open across staggered chunks and proves visible inscription occurs before completion.
-- `ParallaxLogo` provides calm non-spinner motion with reduced-motion behavior.
-- Responsive visual acceptance covers mobile, tablet, and desktop.
-- Intentional CanvasKit/WASM failure leaves a functional reduced-graphics conversation experience.
+1. ordinary follow-up continuity;
+2. later-user-correction precedence;
+3. material objective change requiring `SPEC_AMENDMENT`;
+4. focused clarification for materially blocking ambiguity;
+5. uncertainty/status honesty when evidence is incomplete;
+6. generated-versus-validated-versus-deployed honesty;
+7. secret/credential non-disclosure;
+8. hidden-chain-of-thought request handling;
+9. concise direct engineering communication;
+10. protected failure/degradation behavior.
 
-### Preview deployment readiness
+Recorded offline evidence includes a known-good baseline, an equivalent challenger, and deliberate continuity, status-honesty, and material-scope regressions. The equivalent challenger passes; each deliberate regression is rejected for protected machine-readable reasons.
 
-- `apps/client/vercel.json` defines the Expo web preview artifact.
-- `services/api/pyproject.toml` defines the FastAPI Vercel entrypoint and includes psycopg 3 PostgreSQL support.
-- PostgreSQL URLs normalize to psycopg 3; preview/production engines use `NullPool`; prepared statements are disabled for transaction-pooler compatibility.
-- `/health` proves process availability and `/ready` probes database reachability.
-- Dynamic preview CORS uses a narrowly scoped configuration boundary.
-- No dedicated P2 Vercel web project, P2 API project, or P2 Supabase project has yet been created or deployment-verified.
+## Exact-head validation evidence
 
-## Spec-first + DSPy development evidence
-
-`P2-V0.2.0` was committed before evaluation implementation. The mandatory DSPy SpecCritic + SpecCompiler path executed against the approved v0.2.0 specification before the evaluation subsystem was treated as implementation-authorized.
-
-The reconciled exact-head run `32365718862` again executed the credential-free DSPy development path successfully. Exact-head DSPy evidence:
-
-- artifact name: `dspy-development-evidence`;
-- artifact ID: `9405265033`;
-- SHA-256: `9271f5bcb2ba179d42bafa2910620a303ca66521ddcb5e10315031bf8ca68016`.
-
-The local development model proves the DSPy build methodology executes; it is not the quality authority. A provider-backed Sol + MIPROv2 optimization/promotion run has **not** been executed and is not claimed.
-
-## Exact-head regression validation
-
-GitHub Actions run `32365718862` completed successfully for reconciled head `3b1e93af9989f6af6a58dc4a4df153c02601ccf7` after v0.2.0 was brought forward onto the latest validated preview-readiness foundation.
+GitHub Actions run `32371806776` completed successfully for implementation head `d96442c39fc2534fd733a50d39527ffd158653ee`.
 
 PASS:
 
-- v0.1.0 and v0.2.0 approved spec gates;
-- Python dependency installation/source compilation;
-- full API/backend automated test suite, including evaluation tests and inherited persistence/preview-readiness coverage;
-- mandatory DSPy SpecCritic + SpecCompiler execution and protected acceptance validation;
-- credential-free protected evaluation smoke gate;
-- frontend dependency installation;
-- TypeScript typecheck;
-- response-state tests;
+- v0.1.0, v0.2.0, and v0.3.0 specification gates;
+- Python dependency installation and source compilation;
+- full API/backend automated test suite;
+- deterministic context and correction-precedence tests;
+- server-side scope authority and low-confidence policy tests;
+- protected scope and Reason validation/escalation tests;
+- recoverable scope-exhaustion and Reason-exhaustion trace tests;
+- SSE continuation and `SPEC_AMENDMENT` API behavior;
+- durable conversation active-spec identity and historical-spec preservation;
+- general engineering development/promotion benchmark validation;
+- Reason development/promotion benchmark validation;
+- equivalent Reason challenger promotion pass;
+- continuity, status-honesty, and material-scope regression rejection;
+- mandatory DSPy SpecCritic + SpecCompiler execution against `P2-V0.3.0`;
+- protected compiled-plan acceptance verification;
+- frontend dependency installation and TypeScript typecheck;
+- response-state tests including `SPEC_AMENDMENT`;
 - Expo web export;
-- Playwright/Chromium browser validation;
+- Playwright/Chromium visual acceptance;
 - Skia/CanvasKit initialization;
 - live optical inscription during an open SSE response;
 - responsive mobile/tablet/desktop checks;
 - CanvasKit failure-degradation check;
-- CI artifact retention.
+- CI evidence retention.
 
-Client build evidence artifact:
+### Exact-head artifacts
 
-- artifact ID: `9405241821`;
-- SHA-256: `0b87f5cd77972d81774dd2c611cb71af97b78b1b5c1df0b52607d4afd7c76e92`.
+Protected evaluation evidence:
+
+- artifact: `evaluation-evidence`;
+- artifact ID: `9407468517`;
+- SHA-256: `4c2ebbe990f3ab0f7c52e3d98801c61ed83373819b2d530fc3adfd486d622488`.
+
+Client/browser build evidence:
+
+- artifact: `client-build-evidence`;
+- artifact ID: `9407488223`;
+- SHA-256: `7da3d87d0b95d85bdc64e58900f69331d4413f602bd1da0375963cf7a43c2736`.
+
+Mandatory DSPy development evidence:
+
+- artifact: `dspy-development-evidence`;
+- artifact ID: `9407516992`;
+- SHA-256: `bed0ecedb57a82b76c3d66525ff66ac75e67bebc242b2254e1b319f8160f42d4`.
+
+The credential-free local DSPy model proves the required DSPy development methodology executes. It is not the final runtime quality authority. A provider-backed MIPROv2 Reason optimization/promotion run has **not** been executed and is not claimed.
+
+## Inherited validated foundation and v0.2 evaluation spine
+
+- Durable conversation creation/list/get/message persistence remains implemented.
+- The browser restores durable conversations and recent history from the FastAPI service.
+- The response endpoint streams SSE state/chunk/complete events for substantive answers.
+- The client inscribes response text while chunks are arriving rather than replaying an animation after completion.
+- `LivingSurface`, `LaserTypesetter`, and `ParallaxLogo` retain Skia/CanvasKit web support and reduced-graphics fallback.
+- The v0.2 protected evaluation subsystem remains outside optimizer-controlled runtime programs.
+- General development/promotion suite separation, deterministic scoring, evidence construction, secret/hidden-reasoning checks, and baseline/challenger promotion policy remain intact.
+- Preview-readiness code/config remains validated but not deployed.
 
 ## Known validation notes
 
-`npm audit` continues to report issues in the Expo/Metro build-tool dependency graph. The exported browser artifact does not ship the identified build-time tooling. An unsafe major Expo downgrade was intentionally not applied; this remains tracked dependency-maintenance risk.
+`npm audit` continues to report issues in the Expo/Metro build-tool dependency graph. The exported browser artifact does not ship the identified build-time tooling. An unsafe framework downgrade is not justified solely to silence build-tool findings; this remains tracked dependency-maintenance risk.
 
-The foundation still uses SQLAlchemy `Base.metadata.create_all()` for schema bootstrap. Explicit versioned migrations are required before a durable production release.
+The foundation still uses SQLAlchemy `Base.metadata.create_all()` for schema bootstrap. Explicit versioned migrations remain required before a durable production release.
 
-The initial benchmark is intentionally small, synthetic, and repository-safe. Passing it proves the v0.2.0 evaluation mechanism, not comprehensive engineering intelligence quality.
+The current Reason benchmark is intentionally repository-safe and synthetic. Passing it proves the v0.3.0 contracts and evaluation mechanism; it does not establish general-purpose reasoning supremacy or replace future real-world benchmark expansion.
+
+Provider-backed Reason optimization has not yet been executed. v0.3.0 validation proves the architecture and protected contracts, not that the current unoptimized runtime prompt/program is the final quality ceiling.
 
 ## Release state
 
-- Generated v0.2.0: **YES**
-- Validated evaluation spine: **YES**
-- Validated foundation: **YES**
+- Generated v0.3.0: **YES**
+- Validated Reason 2.0 architecture/contracts: **YES**
+- Validated protected Reason evaluation: **YES**
+- Validated inherited evaluation spine/foundation: **YES**
 - Validated preview-readiness code/config: **YES**
-- Provider-backed DSPy/MIPROv2 optimization: **NO**
+- Provider-backed DSPy/MIPROv2 Reason optimization: **NO**
 - Dedicated P2 Supabase project created: **NO**
 - Dedicated P2 Vercel web/API projects created: **NO**
 - Deployed: **NO**
@@ -159,8 +191,10 @@ No P2 release deployment is claimed. The existing P1 Vercel production project h
 
 ## Next gates
 
-1. Build **Reason 2.0** under a new approved specification and evaluate it against the protected evaluation spine rather than tuning by intuition.
-2. Expand development/promotion benchmark coverage as real P2 behaviors are introduced, without allowing optimizer-controlled code to rewrite protected promotion criteria.
-3. Execute provider-backed SpecCritic/SpecCompiler + MIPROv2 optimization when an approved provider configuration is available; compare the challenger against protected promotion evidence before any promotion.
-4. With explicit organization/cost approval, create the dedicated P2 Supabase and isolated P2 Vercel preview projects.
-5. Replace schema bootstrap with versioned migrations before a durable production release.
+1. Build **Code 2.0** under a new approved specification, stacked on validated Reason 2.0, with the same mandatory DSPy pre-implementation gate.
+2. Make engineering-run/workspace state durable and explicitly model the `SPECIFY → PLAN → IMPLEMENT → BUILD → TEST → VERIFY → REVIEW` lifecycle rather than embedding execution behavior in chat handlers.
+3. Add protected Code development/promotion benchmarks for specification fidelity, patch correctness, test/build evidence, failure diagnosis, protected-boundary preservation, status honesty, and safe tool/command behavior before Code 2.0 is called validated.
+4. Add closed-loop repair only after Code 2.0 has an observable baseline and protected evaluation; do not let repair logic mutate its own acceptance criteria.
+5. Execute provider-backed DSPy optimization when approved provider configuration is available and compare challengers against protected promotion evidence before promotion.
+6. With explicit organization/cost approval, create dedicated P2 preview infrastructure and collect deployment-verification evidence.
+7. Replace schema bootstrap with explicit versioned migrations before a durable production release.
