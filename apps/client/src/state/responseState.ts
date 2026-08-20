@@ -4,6 +4,7 @@ export type ResponsePhase =
   | 'RESPONDING'
   | 'VERIFYING'
   | 'COMPLETE'
+  | 'SPEC_AMENDMENT'
   | 'ERROR';
 
 export type ResponseState = {
@@ -17,16 +18,18 @@ export type ResponseEvent =
   | { type: 'START_RESPONDING' }
   | { type: 'START_VERIFYING' }
   | { type: 'COMPLETE' }
+  | { type: 'REQUIRE_AMENDMENT' }
   | { type: 'FAIL'; error: string };
 
 export const initialResponseState: ResponseState = { phase: 'IDLE' };
 
 const allowed: Record<ResponsePhase, readonly ResponsePhase[]> = {
   IDLE: ['THINKING'],
-  THINKING: ['RESPONDING', 'ERROR'],
-  RESPONDING: ['VERIFYING', 'ERROR'],
-  VERIFYING: ['COMPLETE', 'ERROR'],
+  THINKING: ['RESPONDING', 'SPEC_AMENDMENT', 'ERROR'],
+  RESPONDING: ['VERIFYING', 'SPEC_AMENDMENT', 'ERROR'],
+  VERIFYING: ['COMPLETE', 'SPEC_AMENDMENT', 'ERROR'],
   COMPLETE: ['IDLE', 'THINKING'],
+  SPEC_AMENDMENT: ['IDLE', 'THINKING'],
   ERROR: ['IDLE', 'THINKING'],
 };
 
@@ -49,6 +52,8 @@ export function responseReducer(state: ResponseState, event: ResponseEvent): Res
       return transition(state, 'VERIFYING');
     case 'COMPLETE':
       return transition(state, 'COMPLETE');
+    case 'REQUIRE_AMENDMENT':
+      return transition(state, 'SPEC_AMENDMENT');
     case 'FAIL':
       return transition(state, 'ERROR', event.error);
   }
@@ -70,6 +75,8 @@ export function motionForPhase(phase: ResponsePhase): MotionState {
       return { surfaceEnergy: 0.72, laserActive: true };
     case 'VERIFYING':
       return { surfaceEnergy: 0.48, laserActive: false };
+    case 'SPEC_AMENDMENT':
+      return { surfaceEnergy: 0.22, laserActive: false };
     case 'ERROR':
       return { surfaceEnergy: 0.12, laserActive: false };
   }
