@@ -33,6 +33,7 @@ def build_lm(model: str):
     api_base = os.getenv("DSPY_API_BASE")
     api_key = os.getenv("DSPY_API_KEY")
     model_type = os.getenv("DSPY_MODEL_TYPE")
+    local_development = os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1"
 
     kwargs: dict[str, object] = {}
     if api_base:
@@ -41,6 +42,13 @@ def build_lm(model: str):
         kwargs["api_key"] = api_key
     if model_type:
         kwargs["model_type"] = model_type
+    if local_development:
+        # The local CI LM is a development proof, not the quality authority.
+        # Bound cost/latency while protected deterministic metrics remain the
+        # promotion authority. Provider-backed runs keep normal DSPy defaults.
+        kwargs["temperature"] = 0.0
+        kwargs["max_tokens"] = 768
+        kwargs["num_retries"] = 1
     return dspy.LM(model, **kwargs)
 
 
