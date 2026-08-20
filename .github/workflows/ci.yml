@@ -18,6 +18,48 @@ jobs:
       - run: python -m compileall -q services/api/parallax_api scripts
       - run: python -m pytest services/api/tests -q
 
+  dspy-development:
+    runs-on: ubuntu-latest
+    needs: spec-and-api
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - id: credentials
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo '{"executed":false,"reason":"OPENAI_API_KEY secret is not configured"}' > specs/compiled/dspy-run-status.json
+            echo "Provider-backed DSPy compile is pending: OPENAI_API_KEY is not configured."
+          fi
+      - name: Run DSPy SpecCritic + SpecCompiler
+        if: steps.credentials.outputs.available == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DSPY_MODEL: openai/gpt-5.6-sol
+        run: python scripts/compile_spec.py specs/P2-V0.1.0.md
+      - name: Record DSPy compile status
+        if: steps.credentials.outputs.available == 'true' && success()
+        run: |
+          echo '{"executed":true,"model":"openai/gpt-5.6-sol","artifact":"P2-V0.1.0.plan.json"}' > specs/compiled/dspy-run-status.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dspy-development-evidence
+          path: |
+            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/dspy-run-status.json
+          if-no-files-found: error
+          retention-days: 14
+
   client:
     runs-on: ubuntu-latest
     steps:
