@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from typing import Protocol
 
 from .protected_metrics import evaluate_reasoning_output
@@ -25,6 +26,31 @@ def _dspy():
     return dspy
 
 
+def build_lm(model: str):
+    """Build a DSPy LM without coupling programs to one provider.
+
+    Provider-backed CI can rely on normal provider environment variables. For
+    credential-free development, DSPY_API_BASE/DSPY_API_KEY let the same DSPy
+    programs run against an OpenAI-compatible or Ollama endpoint. Keeping this
+    boundary here ensures P2 is genuinely developed through the same DSPy
+    program contracts it exposes at runtime.
+    """
+
+    dspy = _dspy()
+    api_base = os.getenv("DSPY_API_BASE")
+    api_key = os.getenv("DSPY_API_KEY")
+    model_type = os.getenv("DSPY_MODEL_TYPE")
+
+    kwargs: dict[str, object] = {}
+    if api_base:
+        kwargs["api_base"] = api_base
+    if api_key is not None:
+        kwargs["api_key"] = api_key
+    if model_type:
+        kwargs["model_type"] = model_type
+    return dspy.LM(model, **kwargs)
+
+
 class DspyReasoningProgram:
     version = "reasoning-v0.1.0"
 
@@ -41,7 +67,7 @@ class DspyReasoningProgram:
             confidence: float = dspy.OutputField(desc="0 to 1 confidence in the answer")
 
         self._dspy = dspy
-        self._lm = dspy.LM(model)
+        self._lm = build_lm(model)
         self._program = dspy.ChainOfThought(Reason)
 
     def run(self, *, objective: str, context: str, mode: str) -> ReasoningResult:
@@ -66,10 +92,13 @@ def build_spec_compiler(model: str):
 
         specification: str = dspy.InputField()
         implementation_plan_json: str = dspy.OutputField(
-            desc="JSON with architecture decisions, ordered work items, files, validations, risks, and spec acceptance IDs"
+            desc=(
+                "Return only a JSON object with non-empty architecture_decisions, work_items, validations, and risks arrays. "
+                "Every acceptance criterion ID from the specification must appear in at least one plan item."
+            )
         )
 
-    lm = dspy.LM(model)
+    lm = build_lm(model)
     program = dspy.ChainOfThought(CompileSpec)
     return dspy, lm, program
 
@@ -81,8 +110,8 @@ def build_spec_critic(model: str):
         """Critique an approved software specification for contradictions, missing acceptance criteria, hidden dependencies, unsafe optimizer boundaries, and deployment risks."""
 
         specification: str = dspy.InputField()
-        critique_json: str = dspy.OutputField(desc="JSON array of material findings only")
+        critique_json: str = dspy.OutputField(desc="Return only a JSON array of material findings; use [] when there are none")
 
-    lm = dspy.LM(model)
+    lm = build_lm(model)
     program = dspy.ChainOfThought(Critic)
     return dspy, lm, program
