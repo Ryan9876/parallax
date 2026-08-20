@@ -8,7 +8,7 @@ from uuid import uuid4
 from .context import ReasonContext
 from .protected_metrics import evaluate_reason_result, evaluate_scope_output
 from .reason import DspyReasonProgram, ReasonProgram, ReasonResult
-from .router import AttemptRecord, ModelRouter
+from .router import AttemptRecord, ModelRouter, RoutingFailure
 from .scope import (
     DspyScopeProgram,
     ProtectedScopePolicy,
@@ -44,6 +44,16 @@ class ResponseTrace:
         data["scope_attempts"] = [asdict(attempt) for attempt in self.scope_attempts]
         data["reason_attempts"] = [asdict(attempt) for attempt in self.reason_attempts]
         return data
+
+
+class ResponseCoordinationFailure(RuntimeError):
+    """Sanitized runtime failure carrying observable, non-reasoning trace evidence."""
+
+    error_code = "PROTECTED_REASON_FAILURE"
+
+    def __init__(self, trace: ResponseTrace):
+        super().__init__("Parallax could not produce a protected-valid response")
+        self.trace = trace
 
 
 @dataclass(frozen=True)
@@ -159,13 +169,29 @@ class ResponseCoordinator:
                 scope_decision=scope.decision,
             )
 
-        route = await self.reason_router.route(
-            reason_attempt,
-            lambda result: evaluate_reason_result(
-                result,
-                scope_decision=scope.decision.value,
-            ).passed,
-        )
+        try:
+            route = await self.reason_router.route(
+                reason_attempt,
+                lambda result: evaluate_reason_result(
+                    result,
+                    scope_decision=scope.decision.value,
+                ).passed,
+            )
+        except RoutingFailure as exc:
+            trace = self._trace(
+                conversation_id=conversation_id,
+                spec_id=spec_id,
+                mode=mode,
+                context=context,
+                scope=scope,
+                scope_attempts=scope_attempts,
+                reason_attempts=exc.attempts,
+                reason_program_version=None,
+                protected_verification_passed=False,
+                final_state="ERROR",
+            )
+            raise ResponseCoordinationFailure(trace) from None
+
         result = route.value
         trace = self._trace(
             conversation_id=conversation_id,
