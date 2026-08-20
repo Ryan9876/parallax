@@ -67,9 +67,6 @@ def development_spec_view(specification: str, acceptance_contract: list[dict[str
 
     acceptance_lines = []
     for criterion in acceptance_contract:
-        # IDs/titles preserve coverage anchors. The first sentence gives the
-        # local compiler enough semantics to propose work without copying the
-        # entire protected contract into its output.
         requirement = criterion["protected_requirement"].split(". ", 1)[0]
         acceptance_lines.append(
             f"- {criterion['id']} {criterion['title']}: {_compact(requirement, 150)}"
@@ -86,6 +83,25 @@ def development_spec_view(specification: str, acceptance_contract: list[dict[str
         )
         if part.strip()
     )
+
+
+def normalize_critique(prediction: object) -> list[str]:
+    """Normalize provider list output or the local proof model's scalar output."""
+
+    findings = getattr(prediction, "findings", None)
+    if isinstance(findings, list):
+        return [str(item).strip() for item in findings if str(item).strip()]
+
+    if os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1":
+        finding = getattr(prediction, "finding", None)
+        if finding is None:
+            raise TypeError("DSPy local critic must return a finding")
+        value = str(finding).strip()
+        if not value or value.casefold() == "none":
+            return []
+        return [value]
+
+    raise TypeError("DSPy critic findings must be a typed list")
 
 
 def main() -> int:
@@ -138,11 +154,11 @@ def main() -> int:
     critic_dspy, critic_lm, critic_program = build_spec_critic(model)
     with critic_dspy.context(lm=critic_lm):
         critique_prediction = critic_program(specification=program_spec)
-    critique = getattr(critique_prediction, "findings", None)
-    if not isinstance(critique, list):
-        print("DSPy critic findings must be a typed list", file=sys.stderr)
+    try:
+        critique = normalize_critique(critique_prediction)
+    except TypeError as exc:
+        print(str(exc), file=sys.stderr)
         return 1
-    critique = [str(item).strip() for item in critique if str(item).strip()]
 
     compiler_dspy, compiler_lm, compiler_program = build_spec_compiler(model)
     with compiler_dspy.context(lm=compiler_lm):
