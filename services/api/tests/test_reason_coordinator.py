@@ -183,6 +183,49 @@ def test_protected_invalid_reason_result_escalates_to_next_model():
     assert response.answer is not None and "second model" in response.answer
 
 
+def test_all_scope_models_failing_protected_validation_returns_unresolved_scope_trace():
+    coordinator = ResponseCoordinator(
+        scope_router=ModelRouter(models=("scope-a", "scope-b")),
+        reason_router=ModelRouter(models=("reason-model",)),
+        scope_factory=lambda model: StaticScopeProgram(
+            ScopeProposal(
+                decision=ScopeDecision.CONTINUE,
+                confidence=2.0,
+                material_factors=["Invalid confidence should fail protected scope validation."],
+                program_version="scope-invalid-v1",
+            )
+        ),
+        reason_factory=lambda model: StaticReasonProgram(
+            result("Reason must never run without a protected scope decision.")
+        ),
+    )
+
+    with pytest.raises(ResponseCoordinationFailure) as exc:
+        asyncio.run(
+            coordinator.respond(
+                conversation_id="conversation-1",
+                spec_id="P2-V0.3.0",
+                mode="reason",
+                objective="Continue implementation.",
+                current_user_turn="Continue implementation.",
+                context=context(),
+            )
+        )
+
+    failure = exc.value
+    assert failure.error_code == "PROTECTED_SCOPE_FAILURE"
+    assert failure.trace.final_state == "ERROR"
+    assert failure.trace.protected_scope_decision is None
+    assert failure.trace.scope_program_version is None
+    assert failure.trace.protected_verification_passed is False
+    assert failure.trace.reason_attempts == ()
+    assert failure.trace.attempted_models == ("scope-a", "scope-b")
+    assert [attempt.status for attempt in failure.trace.scope_attempts] == [
+        "validation_failed",
+        "validation_failed",
+    ]
+
+
 def test_all_reason_models_failing_protected_validation_returns_sanitized_trace():
     coordinator = ResponseCoordinator(
         scope_router=ModelRouter(models=("scope-model",)),
@@ -205,7 +248,7 @@ def test_all_reason_models_failing_protected_validation_returns_sanitized_trace(
 
     failure = exc.value
     assert failure.error_code == "PROTECTED_REASON_FAILURE"
-    assert str(failure) == "Parallax could not produce a protected-valid response"
+    assert str(failure) == "Parallax could not produce a response that passed protected verification."
     assert failure.trace.final_state == "ERROR"
     assert failure.trace.protected_scope_decision == "CONTINUE"
     assert failure.trace.protected_verification_passed is False
