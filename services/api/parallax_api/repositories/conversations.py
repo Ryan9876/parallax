@@ -43,3 +43,11 @@ class ConversationRepository:
         self.session.commit()
         self.session.refresh(message)
         return message
+
+    def set_status(self, conversation: Conversation, status: str) -> Conversation:
+        conversation.status = status
+        conversation.updated_at = utcnow()
+        self.session.add(conversation)
+        self.session.commit()
+        self.session.refresh(conversation)
+        return conversation
