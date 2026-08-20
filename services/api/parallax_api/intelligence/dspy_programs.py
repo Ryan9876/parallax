@@ -26,6 +26,10 @@ def _dspy():
     return dspy
 
 
+def _local_development() -> bool:
+    return os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1"
+
+
 def build_lm(model: str):
     """Build a DSPy LM without coupling programs to one provider."""
 
@@ -33,7 +37,6 @@ def build_lm(model: str):
     api_base = os.getenv("DSPY_API_BASE")
     api_key = os.getenv("DSPY_API_KEY")
     model_type = os.getenv("DSPY_MODEL_TYPE")
-    local_development = os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1"
 
     kwargs: dict[str, object] = {}
     if api_base:
@@ -42,14 +45,22 @@ def build_lm(model: str):
         kwargs["api_key"] = api_key
     if model_type:
         kwargs["model_type"] = model_type
-    if local_development:
-        # The local CI LM is a development proof, not the quality authority.
-        # Bound cost/latency while protected deterministic metrics remain the
-        # promotion authority. Provider-backed runs keep normal DSPy defaults.
+    if _local_development():
+        # The local CI LM proves that the DSPy development path executes; it is
+        # not the plan-quality authority. Keep its generation deliberately
+        # bounded while protected deterministic metrics remain authoritative.
         kwargs["temperature"] = 0.0
-        kwargs["max_tokens"] = 768
+        kwargs["max_tokens"] = 640
         kwargs["num_retries"] = 1
     return dspy.LM(model, **kwargs)
+
+
+_PLAN_LIMITS = {
+    "architecture_decisions": 3,
+    "work_items": 4,
+    "validations": 3,
+    "risks": 2,
+}
 
 
 def plan_from_prediction(prediction: Any) -> dict[str, list[str]]:
@@ -57,18 +68,20 @@ def plan_from_prediction(prediction: Any) -> dict[str, list[str]]:
 
     The model proposes implementation content, but metadata and the exact
     acceptance contract are injected later by deterministic protected code.
+    Local-development output is capped after successful structured parsing so a
+    small proof model cannot inflate artifacts; missing fields are never
+    synthesized here.
     """
 
-    keys = ("architecture_decisions", "work_items", "validations", "risks")
     plan: dict[str, list[str]] = {}
-    for key in keys:
+    for key, limit in _PLAN_LIMITS.items():
         raw = getattr(prediction, key, None)
         if not isinstance(raw, list):
             raise TypeError(f"DSPy compiler field {key} must be a list")
         clean = [str(item).strip() for item in raw if str(item).strip()]
         if not clean:
             raise ValueError(f"DSPy compiler field {key} must not be empty")
-        plan[key] = clean
+        plan[key] = clean[:limit] if _local_development() else clean
     return plan
 
 
@@ -109,20 +122,20 @@ def build_spec_compiler(model: str):
     dspy = _dspy()
 
     class CompileSpec(dspy.Signature):
-        """Convert an approved software specification into a dependency-ordered implementation plan without changing protected requirements."""
+        """Convert an approved software specification into a compact dependency-ordered implementation plan without changing protected requirements. Never repeat an item."""
 
         specification: str = dspy.InputField()
         architecture_decisions: list[str] = dspy.OutputField(
-            desc="Concrete architecture decisions. Reference relevant AC IDs from the specification."
+            desc="Exactly 3 concise architecture decisions, one sentence each. Reference relevant AC IDs. Do not repeat."
         )
         work_items: list[str] = dspy.OutputField(
-            desc="Dependency-ordered implementation work items. Reference relevant AC IDs."
+            desc="Exactly 4 concise dependency-ordered work items, one sentence each. Reference relevant AC IDs. Do not repeat."
         )
         validations: list[str] = dspy.OutputField(
-            desc="Executable validation and evidence checks. Reference relevant AC IDs."
+            desc="Exactly 3 concise executable validation/evidence checks, one sentence each. Reference relevant AC IDs. Do not repeat."
         )
         risks: list[str] = dspy.OutputField(
-            desc="Material risks and mitigations. Reference relevant AC IDs when applicable."
+            desc="Exactly 2 concise material risk-and-mitigation items, one sentence each. Do not repeat."
         )
 
     lm = build_lm(model)
@@ -141,7 +154,7 @@ def build_spec_critic(model: str):
 
         specification: str = dspy.InputField()
         findings: list[str] = dspy.OutputField(
-            desc="Material findings only. Return an empty list when the approved specification has no material finding."
+            desc="At most 3 concise material findings. Return an empty list when there is no material finding. Never repeat a finding."
         )
 
     lm = build_lm(model)
