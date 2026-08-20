@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -8,27 +9,42 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-  Platform,
 } from 'react-native';
 import { LivingSurface } from './components/LivingSurface';
 import { LaserTypesetter } from './components/LaserTypesetter';
 import { ParallaxLogo } from './components/ParallaxLogo';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
-import { api } from './lib/api';
+import { api, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
 
-const DEMO_RESPONSE =
-  'Parallax 2.0 keeps the conversation calm while the system underneath becomes more capable. The living surface carries the sense of active intelligence, and the optical head inscribes the response directly into place. Spec-first contracts and DSPy optimization stay behind the experience instead of becoming interface clutter.';
+const FALLBACK_MESSAGES: MessageDto[] = [
+  {
+    id: 'fallback-user',
+    role: 'user',
+    content: 'Build Parallax 2.0 so the experience feels alive without losing the calm interface.',
+    status: 'complete',
+    created_at: new Date(0).toISOString(),
+  },
+  {
+    id: 'fallback-assistant',
+    role: 'assistant',
+    content:
+      'Parallax 2.0 keeps the conversation calm while the system underneath becomes more capable. The living surface carries the sense of active intelligence, and the optical head inscribes the response directly into place. Spec-first contracts and DSPy optimization stay behind the experience instead of becoming interface clutter.',
+    status: 'complete',
+    created_at: new Date(0).toISOString(),
+  },
+];
 
 export default function App() {
   const { width } = useWindowDimensions();
   const compact = width < 760;
   const [mode, setMode] = React.useState<'reason' | 'code'>('reason');
   const [draft, setDraft] = React.useState('');
-  const [lastUserMessage, setLastUserMessage] = React.useState(
-    'Build Parallax 2.0 so the experience feels alive without losing the calm interface.',
-  );
   const [state, dispatch] = React.useReducer(responseReducer, initialResponseState);
   const [conversationId, setConversationId] = React.useState<string | null>(null);
+  const [conversations, setConversations] = React.useState<ConversationDto[]>([]);
+  const [messages, setMessages] = React.useState<MessageDto[]>(FALLBACK_MESSAGES);
+  const [apiOnline, setApiOnline] = React.useState(false);
+  const [activePrintId, setActivePrintId] = React.useState<string | null>(null);
   const motion = motionForPhase(state.phase);
 
   React.useEffect(() => {
@@ -42,42 +58,156 @@ export default function App() {
     globalThis.localStorage?.setItem('parallax:p2:draft', draft);
   }, [draft]);
 
+  const applyConversation = React.useCallback((conversation: ConversationDto) => {
+    setConversationId(conversation.id);
+    setMode(conversation.mode);
+    setMessages(conversation.messages);
+    setActivePrintId(null);
+    setConversations((current) => {
+      const without = current.filter((item) => item.id !== conversation.id);
+      return [conversation, ...without];
+    });
+  }, []);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const conversations = await api.listConversations();
-        const current = conversations[0] ?? (await api.createConversation(mode));
+        const existing = await api.listConversations();
+        const current = existing[0] ?? (await api.createConversation('reason'));
         if (cancelled) return;
-        setConversationId(current.id);
-        const lastUser = [...current.messages].reverse().find((message) => message.role === 'user');
-        if (lastUser) setLastUserMessage(lastUser.content);
+        setApiOnline(true);
+        setConversations(existing.length ? existing : [current]);
+        applyConversation(current);
       } catch {
-        // The visual shell remains fully usable before the local API is started.
+        if (cancelled) return;
+        setApiOnline(false);
+        setConversationId(null);
+        setMessages(FALLBACK_MESSAGES);
       }
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [applyConversation]);
 
-  const respond = React.useCallback(() => {
+  const openConversation = React.useCallback(
+    async (conversation: ConversationDto) => {
+      if (state.phase === 'THINKING' || state.phase === 'RESPONDING' || state.phase === 'VERIFYING') return;
+      try {
+        const fresh = await api.getConversation(conversation.id);
+        if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
+        applyConversation(fresh);
+        setApiOnline(true);
+      } catch {
+        setApiOnline(false);
+      }
+    },
+    [applyConversation, state.phase],
+  );
+
+  const startConversation = React.useCallback(
+    async (nextMode: 'reason' | 'code' = mode) => {
+      if (state.phase === 'THINKING' || state.phase === 'RESPONDING' || state.phase === 'VERIFYING') return;
+      try {
+        const created = await api.createConversation(nextMode);
+        if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
+        applyConversation(created);
+        setMode(nextMode);
+        setApiOnline(true);
+      } catch {
+        setApiOnline(false);
+      }
+    },
+    [applyConversation, mode, state.phase],
+  );
+
+  const changeMode = React.useCallback(
+    async (nextMode: 'reason' | 'code') => {
+      if (nextMode === mode) return;
+      // Foundation behavior: a mode switch starts a new durable conversation so
+      // the persisted server-side mode and visible mode can never diverge.
+      await startConversation(nextMode);
+    },
+    [mode, startConversation],
+  );
+
+  const respond = React.useCallback(async () => {
     if (state.phase !== 'IDLE' && state.phase !== 'COMPLETE' && state.phase !== 'ERROR') return;
-    if (draft.trim()) {
-      const content = draft.trim();
-      setLastUserMessage(content);
-      setDraft('');
-      if (conversationId) void api.appendMessage(conversationId, 'user', content).catch(() => undefined);
-    }
-    if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
-    requestAnimationFrame(() => dispatch({ type: 'START_THINKING' }));
-    setTimeout(() => dispatch({ type: 'START_RESPONDING' }), 650);
-  }, [conversationId, draft, state.phase]);
+    const content = draft.trim();
+    if (!content) return;
 
-  const finishPrint = React.useCallback(() => {
-    if (state.phase !== 'RESPONDING') return;
-    dispatch({ type: 'START_VERIFYING' });
-    if (conversationId) void api.appendMessage(conversationId, 'assistant', DEMO_RESPONSE).catch(() => undefined);
-    setTimeout(() => dispatch({ type: 'COMPLETE' }), 500);
-  }, [conversationId, state.phase]);
+    let id = conversationId;
+    try {
+      if (!id) {
+        const created = await api.createConversation(mode);
+        id = created.id;
+        applyConversation(created);
+      }
+
+      const optimisticUser: MessageDto = {
+        id: `local-user-${Date.now()}`,
+        role: 'user',
+        content,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((current) => [...current.filter((message) => !message.id.startsWith('fallback-')), optimisticUser]);
+      setDraft('');
+      setApiOnline(true);
+      dispatch({ type: 'START_THINKING' });
+
+      let scopeAmendment = false;
+      const onEvent = (event: ResponseStreamEvent) => {
+        if (event.event === 'state' && event.data.phase === 'SPEC_AMENDMENT') {
+          scopeAmendment = true;
+        }
+      };
+
+      const result = await api.streamResponse(id, content, onEvent);
+      if (scopeAmendment) {
+        dispatch({ type: 'FAIL', error: 'This change requires a specification amendment before substantive work continues.' });
+        const fresh = await api.getConversation(id);
+        applyConversation(fresh);
+        return;
+      }
+      if (!result.text.trim()) throw new Error('Parallax returned an empty response');
+
+      const assistantId = result.messageId ?? `local-assistant-${Date.now()}`;
+      const assistant: MessageDto = {
+        id: assistantId,
+        role: 'assistant',
+        content: result.text,
+        status: 'complete',
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((current) => {
+        const withoutOptimistic = current.filter((message) => message.id !== optimisticUser.id);
+        return [...withoutOptimistic, { ...optimisticUser, status: 'complete' }, assistant];
+      });
+      setActivePrintId(assistantId);
+      dispatch({ type: 'START_RESPONDING' });
+
+      // Refresh titles and persisted IDs without changing the active visual print.
+      void api.getConversation(id).then((fresh) => {
+        setConversations((current) => [fresh, ...current.filter((item) => item.id !== fresh.id)]);
+      }).catch(() => undefined);
+    } catch (error) {
+      setApiOnline(false);
+      dispatch({ type: 'FAIL', error: error instanceof Error ? error.message : 'Response failed' });
+    }
+  }, [applyConversation, conversationId, draft, mode, state.phase]);
+
+  const finishPrint = React.useCallback(
+    (messageId: string) => {
+      if (state.phase !== 'RESPONDING' || activePrintId !== messageId) return;
+      setActivePrintId(null);
+      dispatch({ type: 'START_VERIFYING' });
+      setTimeout(() => dispatch({ type: 'COMPLETE' }), 420);
+    },
+    [activePrintId, state.phase],
+  );
 
   return (
     <View style={styles.root}>
@@ -93,16 +223,27 @@ export default function App() {
                   <Text style={styles.brandSub}>2.0</Text>
                 </View>
               </View>
-              <Text style={styles.railLabel}>Recent</Text>
-              <TouchableOpacity style={styles.railItemActive}>
-                <Text style={styles.railItemText}>Designing Parallax 2.0</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.railItem}>
-                <Text style={styles.railMuted}>New conversation</Text>
-              </TouchableOpacity>
+              <View style={styles.railHeading}>
+                <Text style={styles.railLabel}>Recent</Text>
+                <TouchableOpacity onPress={() => void startConversation(mode)} accessibilityRole="button">
+                  <Text style={styles.newChat}>＋ New</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.recentList}>
+                {conversations.slice(0, 12).map((conversation) => (
+                  <TouchableOpacity
+                    key={conversation.id}
+                    onPress={() => void openConversation(conversation)}
+                    style={conversation.id === conversationId ? styles.railItemActive : styles.railItem}
+                  >
+                    <Text numberOfLines={2} style={styles.railItemText}>{conversation.title}</Text>
+                    <Text style={styles.railMuted}>{conversation.mode}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
               <View style={styles.railBottom}>
                 <Text style={styles.railStatus}>SPEC P2-V0.1.0</Text>
-                <Text style={styles.railMuted}>Persistent context foundation</Text>
+                <Text style={styles.railMuted}>{apiOnline ? 'Persistent context online' : 'Visual fallback · API offline'}</Text>
               </View>
             </View>
           )}
@@ -113,7 +254,7 @@ export default function App() {
                 {compact && <ParallaxLogo size={36} />}
                 <View>
                   <Text style={styles.topTitle}>Parallax</Text>
-                  <Text style={styles.topSub}>{state.phase.toLowerCase()}</Text>
+                  <Text style={styles.topSub}>Parallax 2.0 · {state.phase.toLowerCase()}</Text>
                 </View>
               </View>
               <View style={styles.modeSwitch}>
@@ -122,7 +263,7 @@ export default function App() {
                     key={item}
                     accessibilityRole="button"
                     accessibilityState={{ selected: mode === item }}
-                    onPress={() => setMode(item)}
+                    onPress={() => void changeMode(item)}
                     style={[styles.modeButton, mode === item && styles.modeButtonActive]}
                   >
                     <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item}</Text>
@@ -131,40 +272,68 @@ export default function App() {
               </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.thread}>
-              <View style={styles.userBlock}>
-                <Text style={styles.meta}>You</Text>
-                <View style={styles.userBubble}>
-                  <Text style={styles.userText}>{lastUserMessage}</Text>
+            <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
+              {messages.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <ParallaxLogo size={44} />
+                  <Text style={styles.emptyTitle}>Start with the outcome.</Text>
+                  <Text style={styles.emptyCopy}>Describe what you are trying to accomplish. Parallax will keep the conversation, specification, evidence, and execution state together as the work evolves.</Text>
                 </View>
-              </View>
+              ) : messages.map((message) => (
+                message.role === 'user' ? (
+                  <View key={message.id} style={styles.userBlock}>
+                    <Text style={styles.meta}>You</Text>
+                    <View style={styles.userBubble}>
+                      <Text selectable style={styles.userText}>{message.content}</Text>
+                    </View>
+                  </View>
+                ) : message.role === 'assistant' ? (
+                  <View key={message.id} style={styles.assistantBlock}>
+                    <View style={styles.assistantHead}>
+                      <ParallaxLogo size={34} />
+                      <View>
+                        <Text style={styles.assistantName}>Parallax 2.0</Text>
+                        <Text style={styles.meta}>{mode === 'reason' ? 'Reason' : 'Code'} · {message.id === activePrintId ? 'RESPONDING' : 'COMPLETE'}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.responseGlass}>
+                      {message.id === activePrintId ? (
+                        <LaserTypesetter
+                          text={message.content}
+                          active
+                          onComplete={() => finishPrint(message.id)}
+                        />
+                      ) : (
+                        <Text selectable accessibilityLiveRegion="polite" style={styles.assistantText}>{message.content}</Text>
+                      )}
+                      {message.id === activePrintId && (
+                        <View style={styles.statusRow}>
+                          <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
+                          <Text style={styles.statusText}>Optical renderer active</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                ) : null
+              ))}
 
-              <View style={styles.assistantBlock}>
-                <View style={styles.assistantHead}>
-                  <ParallaxLogo size={34} />
-                  <View>
-                    <Text style={styles.assistantName}>Parallax 2.0</Text>
-                    <Text style={styles.meta}>{mode === 'reason' ? 'Reason' : 'Code'} · {state.phase}</Text>
-                  </View>
+              {state.phase === 'THINKING' && (
+                <View style={styles.thinkingRow}>
+                  <ParallaxLogo size={26} />
+                  <Text style={styles.thinkingText}>Parallax is resolving the active objective…</Text>
                 </View>
-                <View style={styles.responseGlass}>
-                  <LaserTypesetter
-                    text={DEMO_RESPONSE}
-                    active={state.phase === 'RESPONDING'}
-                    onComplete={finishPrint}
-                  />
-                  <View style={styles.statusRow}>
-                    <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
-                    <Text style={styles.statusText}>
-                      {state.phase === 'RESPONDING' ? 'Optical renderer active' : state.phase.toLowerCase()}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+              )}
+              {state.phase === 'VERIFYING' && <Text style={styles.phaseHint}>Verifying response…</Text>}
+              {state.phase === 'ERROR' && <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text>}
             </ScrollView>
 
             <View style={styles.composerWrap}>
               <View style={styles.composer}>
+                {compact && (
+                  <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation">
+                    <Text style={styles.newMobileText}>＋</Text>
+                  </TouchableOpacity>
+                )}
                 <TextInput
                   accessibilityLabel="Message Parallax"
                   value={draft}
@@ -172,9 +341,10 @@ export default function App() {
                   placeholder="Message Parallax…"
                   placeholderTextColor="#8A9496"
                   style={styles.input}
-                  onSubmitEditing={respond}
+                  onSubmitEditing={() => void respond()}
+                  multiline
                 />
-                <TouchableOpacity accessibilityRole="button" onPress={respond} style={styles.send}>
+                <TouchableOpacity accessibilityRole="button" onPress={() => void respond()} style={styles.send}>
                   <Text style={styles.sendText}>↑</Text>
                 </TouchableOpacity>
               </View>
@@ -197,15 +367,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(242,241,236,0.68)',
     padding: 18,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30 },
   brand: { fontSize: 15, fontWeight: '700', color: '#20282B' },
   brandSub: { fontSize: 11, color: '#9A7F71', marginTop: 1 },
-  railLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.4, color: '#8A9091', marginBottom: 8 },
-  railItemActive: { padding: 11, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.54)' },
-  railItem: { padding: 11 },
-  railItemText: { fontSize: 12, color: '#20282B' },
-  railMuted: { fontSize: 11, color: '#8A9091' },
-  railBottom: { marginTop: 'auto', gap: 4 },
+  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
+  railLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.4, color: '#8A9091' },
+  newChat: { fontSize: 10, color: '#147D9F', fontWeight: '700' },
+  recentList: { flex: 1 },
+  railItemActive: { padding: 11, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.54)', marginBottom: 4 },
+  railItem: { padding: 11, marginBottom: 4 },
+  railItemText: { fontSize: 12, lineHeight: 16, color: '#20282B' },
+  railMuted: { fontSize: 10, color: '#8A9091', marginTop: 3, textTransform: 'capitalize' },
+  railBottom: { gap: 4, paddingTop: 12 },
   railStatus: { fontSize: 9, color: '#147D9F', letterSpacing: 0.8 },
   main: { flex: 1, minWidth: 0 },
   topbar: {
@@ -227,21 +400,31 @@ const styles = StyleSheet.create({
   modeText: { fontSize: 10, textTransform: 'uppercase', color: '#7F898B' },
   modeTextActive: { color: '#F4F3EE' },
   thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 150 },
-  userBlock: { alignItems: 'flex-end', marginBottom: 44 },
+  emptyState: { maxWidth: 560, alignSelf: 'center', alignItems: 'center', paddingTop: 88, paddingHorizontal: 24 },
+  emptyTitle: { color: '#20282B', fontSize: 22, fontWeight: '600', marginTop: 14 },
+  emptyCopy: { color: '#738083', fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 9 },
+  userBlock: { alignItems: 'flex-end', marginBottom: 34 },
   meta: { fontSize: 10, color: '#8A9091', marginBottom: 7 },
   userBubble: { maxWidth: 560, borderRadius: 20, borderBottomRightRadius: 6, padding: 16, backgroundColor: 'rgba(255,255,255,0.55)' },
   userText: { fontSize: 15, lineHeight: 23, color: '#20282B' },
-  assistantBlock: { width: '100%' },
+  assistantBlock: { width: '100%', marginBottom: 34 },
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
   assistantName: { fontSize: 12, fontWeight: '700', color: '#405055' },
   responseGlass: { borderRadius: 22, padding: 20, backgroundColor: 'rgba(250,250,247,0.58)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.80)' },
+  assistantText: { color: '#20282B', fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(20,125,159,0.26)' },
   statusDotActive: { backgroundColor: '#54D8FF' },
   statusText: { fontSize: 10, color: '#678B98' },
+  thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -10, marginBottom: 30 },
+  thinkingText: { color: '#688086', fontSize: 11 },
+  phaseHint: { color: '#688086', fontSize: 11, marginBottom: 24 },
+  errorText: { color: '#9A5A52', fontSize: 11, lineHeight: 17, marginBottom: 24 },
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
-  composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', gap: 8, padding: 8, borderRadius: 22, backgroundColor: 'rgba(248,247,243,0.78)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.86)' },
-  input: { flex: 1, minWidth: 0, paddingHorizontal: 12, color: '#20282B', fontSize: 14 },
+  composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: 'rgba(248,247,243,0.78)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.86)' },
+  newMobile: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.52)' },
+  newMobileText: { color: '#647174', fontSize: 19 },
+  input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: '#20282B', fontSize: 14 },
   send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#147D9F' },
   sendText: { color: '#FFFFFF', fontSize: 19 },
 });
