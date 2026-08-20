@@ -71,7 +71,7 @@ function apiServer() {
       title: 'New conversation',
       mode,
       status: 'ACTIVE',
-      spec_id: 'P2-V0.1.0',
+      spec_id: 'P2-V0.3.0',
       created_at: '2026-08-20T08:00:00Z',
       updated_at: '2026-08-20T08:00:00Z',
       messages: [],
@@ -178,7 +178,7 @@ function apiServer() {
         phase: 'COMPLETE',
         message_id: assistantMessage.id,
         confidence: 0.94,
-        trace: { spec_id: 'P2-V0.1.0' },
+        trace: { spec_id: 'P2-V0.3.0' },
       }, 120);
       mockStreamState.completed = true;
       response.end();
@@ -307,7 +307,7 @@ async function inspectFallback(browser, report) {
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
-const report = { specId: 'P2-V0.1.0', viewports: [], opticalTypesetter: null, fallback: null };
+const report = { specId: 'P2-V0.3.0', viewports: [], opticalTypesetter: null, fallback: null };
 let browser;
 
 try {
