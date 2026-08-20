@@ -22,8 +22,9 @@ def normalize_database_url(url: str) -> str:
     return url
 
 
-def make_engine(database_url: str | None = None):
+def make_engine(database_url: str | None = None, *, environment: str | None = None):
     url = normalize_database_url(database_url or settings.database_url)
+    runtime_environment = environment or settings.environment
     if url.startswith("sqlite"):
         return create_engine(url, future=True, connect_args={"check_same_thread": False})
 
@@ -34,7 +35,7 @@ def make_engine(database_url: str | None = None):
         # Supabase/Supavisor transaction pooling is the intended serverless
         # preview path. Transaction mode does not support prepared statements.
         connect_args["prepare_threshold"] = None
-        if settings.environment in {"preview", "production"}:
+        if runtime_environment in {"preview", "production"}:
             # Let the provider-side pool own connection reuse across ephemeral
             # Vercel function instances instead of multiplying local pools.
             engine_kwargs["poolclass"] = NullPool
