@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(248,247,243,0.40)',
   },
   topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  topTitle: { fontSize: 16, fontWeight: '650', color: '#20282B' },
+  topTitle: { fontSize: 16, fontWeight: '600', color: '#20282B' },
   topSub: { fontSize: 10, color: '#9A7F71', marginTop: 2 },
   modeSwitch: { flexDirection: 'row', borderRadius: 13, padding: 3, backgroundColor: 'rgba(255,255,255,0.38)' },
   modeButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 },
