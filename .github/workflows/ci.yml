@@ -35,6 +35,10 @@ jobs:
         run: npm run test:state
       - working-directory: apps/client
         run: npm run export:web
+      - working-directory: apps/client
+        run: npx playwright install --with-deps chromium
+      - working-directory: apps/client
+        run: npm run test:visual
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -43,5 +47,6 @@ jobs:
             apps/client/package-lock.json
             apps/client/npm-audit.json
             apps/client/dist
+            apps/client/visual-evidence
           if-no-files-found: error
           retention-days: 14
