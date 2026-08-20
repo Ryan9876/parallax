@@ -5,13 +5,16 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-REQUIRED_SPEC_HEADINGS = (
-    "## 1. Objective",
-    "## 4. Scope for v0.1.0",
-    "## 5. Non-goals for v0.1.0",
-    "## 9. Security requirements",
-    "## 11. Acceptance criteria",
-    "## 12. Release gate",
+REQUIRED_SPEC_SECTIONS = (
+    ("objective", re.compile(r"^##\s+\d+\.\s+Objective\b", flags=re.MULTILINE | re.IGNORECASE)),
+    ("scope", re.compile(r"^##\s+\d+\.\s+Scope\b", flags=re.MULTILINE | re.IGNORECASE)),
+    ("non_goals", re.compile(r"^##\s+\d+\.\s+Non-goals\b", flags=re.MULTILINE | re.IGNORECASE)),
+    ("security", re.compile(r"^##\s+\d+\.\s+Security\b", flags=re.MULTILINE | re.IGNORECASE)),
+    (
+        "acceptance_criteria",
+        re.compile(r"^##\s+\d+\.\s+Acceptance criteria\b", flags=re.MULTILINE | re.IGNORECASE),
+    ),
+    ("release_gate", re.compile(r"^##\s+\d+\.\s+Release gate\b", flags=re.MULTILINE | re.IGNORECASE)),
 )
 
 REQUIRED_PLAN_KEYS = (
@@ -48,14 +51,15 @@ def extract_acceptance_ids(spec_text: str) -> tuple[str, ...]:
 
 
 def extract_acceptance_contract(spec_text: str) -> tuple[dict[str, str], ...]:
-    """Return the exact approved acceptance contract from the specification.
+    """Return the exact approved acceptance contract from any P2 spec version.
 
-    This representation is deterministic and intentionally lives with the
-    protected evaluator rather than in DSPy-controlled program code.
+    Acceptance criteria end at the next acceptance criterion, the next numbered
+    level-two section, or EOF. The representation is deterministic and lives
+    with the protected evaluator rather than in DSPy-controlled program code.
     """
 
     pattern = re.compile(
-        r"^###\s+(AC-\d+)\s+([^\n]+)\n(.*?)(?=^###\s+AC-\d+\b|^##\s+12\.|\Z)",
+        r"^###\s+(AC-\d+)\s+([^\n]+)\n(.*?)(?=^###\s+AC-\d+\b|^##\s+\d+\.|\Z)",
         flags=re.MULTILINE | re.DOTALL,
     )
     contract: list[dict[str, str]] = []
@@ -73,9 +77,9 @@ def extract_acceptance_contract(spec_text: str) -> tuple[dict[str, str], ...]:
 
 def evaluate_spec_contract(spec_text: str) -> MetricResult:
     failures: list[str] = []
-    for heading in REQUIRED_SPEC_HEADINGS:
-        if heading not in spec_text:
-            failures.append(f"missing_heading:{heading}")
+    for section_name, section_pattern in REQUIRED_SPEC_SECTIONS:
+        if not section_pattern.search(spec_text):
+            failures.append(f"missing_section:{section_name}")
 
     if "Status: APPROVED FOR IMPLEMENTATION" not in spec_text:
         failures.append("spec_not_approved")
@@ -93,7 +97,7 @@ def evaluate_spec_contract(spec_text: str) -> MetricResult:
     if tuple(item["id"] for item in acceptance_contract) != acceptance_ids:
         failures.append("acceptance_contract_extraction_mismatch")
 
-    checks = len(REQUIRED_SPEC_HEADINGS) + 5
+    checks = len(REQUIRED_SPEC_SECTIONS) + 5
     return MetricResult(passed=not failures, score=_score(failures, checks), failures=tuple(failures))
 
 
@@ -138,10 +142,7 @@ def evaluate_compiled_plan(
     # The protected acceptance map preserves the contract but does not count as
     # implementation coverage. Each criterion must also appear in the plan's
     # architecture/work/validation/risk content.
-    executable_projection = {
-        key: plan_object.get(key)
-        for key in REQUIRED_PLAN_KEYS
-    }
+    executable_projection = {key: plan_object.get(key) for key in REQUIRED_PLAN_KEYS}
     executable_serialized = json.dumps(executable_projection, sort_keys=True)
     for acceptance_id in extract_acceptance_ids(spec_text):
         if acceptance_id not in executable_serialized:
