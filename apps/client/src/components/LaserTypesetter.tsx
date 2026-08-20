@@ -4,6 +4,8 @@ import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
 
 const CHAR_MS = 24;
 const HOT_TAIL = 4;
+const START_DELAY_MS = 90;
+const COOL_DELAY_MS = 170;
 
 type MeasuredLine = {
   text: string;
@@ -55,6 +57,21 @@ function lineForIndex(lines: readonly MeasuredLine[], index: number): MeasuredLi
   return exact ?? lines[lines.length - 1] ?? null;
 }
 
+function characterDelay(character: string): number {
+  if (/[.!?]/.test(character)) return CHAR_MS * 5;
+  if (/[,;:]/.test(character)) return CHAR_MS * 2.4;
+  if (/\s/.test(character)) return CHAR_MS * 0.45;
+  return CHAR_MS;
+}
+
+function buildTimeline(text: string): number[] {
+  let elapsed = 0;
+  return Array.from(text, (character) => {
+    elapsed += characterDelay(character);
+    return elapsed;
+  });
+}
+
 export function LaserTypesetter({
   text,
   active,
@@ -66,11 +83,11 @@ export function LaserTypesetter({
 }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
   const [visibleCount, setVisibleCount] = React.useState(active ? 0 : text.length);
-  const [containerWidth, setContainerWidth] = React.useState(0);
   const [head, setHead] = React.useState<HeadPosition>({ x: 0, y: 0, lineHeight: 30 });
   const [beamVisible, setBeamVisible] = React.useState(false);
   const [cooled, setCooled] = React.useState(!active);
   const measuredLinesRef = React.useRef<MeasuredLine[]>([]);
+  const containerWidthRef = React.useRef(0);
   const completionRef = React.useRef(onComplete);
   const runRef = React.useRef(0);
 
@@ -89,13 +106,10 @@ export function LaserTypesetter({
   }, [text]);
 
   const onLayout = React.useCallback((event: LayoutChangeEvent) => {
-    setContainerWidth(event.nativeEvent.layout.width);
+    containerWidthRef.current = event.nativeEvent.layout.width;
   }, []);
 
   const onTextLayout = React.useCallback((event: { nativeEvent: { lines: Array<{ text: string; x: number; y: number; width: number; height: number }> } }) => {
-    // Geometry is measurement data, not product state. Keep it in a ref so
-    // onTextLayout cannot restart the active typesetting timer as React Native
-    // refines line metrics during rendering.
     measuredLinesRef.current = indexMeasuredLines(text, event.nativeEvent.lines);
   }, [text]);
 
@@ -110,20 +124,20 @@ export function LaserTypesetter({
       return;
     }
 
+    const timeline = buildTimeline(text);
+    const startedAt = Date.now() + START_DELAY_MS;
+    let displayed = 0;
+    let frame: number | null = null;
+    let coolTimer: ReturnType<typeof setTimeout> | null = null;
+
     setVisibleCount(0);
     setBeamVisible(true);
     setCooled(false);
     setHead({ x: 0, y: 0, lineHeight: 30 });
 
-    let index = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const step = () => {
-      if (run !== runRef.current) return;
-      index = Math.min(text.length, index + 1);
-      setVisibleCount(index);
-
-      const measured = lineForIndex(measuredLinesRef.current, Math.max(0, index - 1));
+    const updateHead = (index: number) => {
+      if (index <= 0) return;
+      const measured = lineForIndex(measuredLinesRef.current, index - 1);
       if (measured) {
         const span = Math.max(1, measured.end - measured.start);
         const within = Math.max(0, Math.min(span, index - measured.start));
@@ -132,44 +146,55 @@ export function LaserTypesetter({
           y: measured.y,
           lineHeight: measured.height,
         });
-      } else if (containerWidth > 0) {
-        const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
-        const approximateLine = Math.floor(index / approximateLineLength);
-        const within = index % approximateLineLength;
-        setHead({
-          x: Math.min(containerWidth, (within / approximateLineLength) * containerWidth),
-          y: approximateLine * 29,
-          lineHeight: 29,
-        });
-      }
-
-      if (index >= text.length) {
-        setBeamVisible(false);
-        timer = setTimeout(() => {
-          if (run !== runRef.current) return;
-          setCooled(true);
-          completionRef.current?.();
-        }, 170);
         return;
       }
 
-      const current = text[index - 1] ?? '';
-      const delay = /[.!?]/.test(current)
-        ? CHAR_MS * 5
-        : /[,;:]/.test(current)
-          ? CHAR_MS * 2.4
-          : /\s/.test(current)
-            ? CHAR_MS * 0.45
-            : CHAR_MS;
-      timer = setTimeout(step, delay);
+      const containerWidth = containerWidthRef.current;
+      if (containerWidth <= 0) return;
+      const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
+      const approximateLine = Math.floor((index - 1) / approximateLineLength);
+      const within = index % approximateLineLength;
+      setHead({
+        x: Math.min(containerWidth, (within / approximateLineLength) * containerWidth),
+        y: approximateLine * 29,
+        lineHeight: 29,
+      });
     };
 
-    timer = setTimeout(step, 90);
+    const tick = () => {
+      if (run !== runRef.current) return;
+      const elapsed = Math.max(0, Date.now() - startedAt);
+      let next = displayed;
+      while (next < timeline.length && (timeline[next] ?? Number.POSITIVE_INFINITY) <= elapsed) {
+        next += 1;
+      }
+
+      if (next !== displayed) {
+        displayed = next;
+        setVisibleCount(displayed);
+        updateHead(displayed);
+      }
+
+      if (displayed >= text.length) {
+        setBeamVisible(false);
+        coolTimer = setTimeout(() => {
+          if (run !== runRef.current) return;
+          setCooled(true);
+          completionRef.current?.();
+        }, COOL_DELAY_MS);
+        return;
+      }
+
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
     return () => {
       runRef.current += 1;
-      if (timer) clearTimeout(timer);
+      if (frame !== null) cancelAnimationFrame(frame);
+      if (coolTimer) clearTimeout(coolTimer);
     };
-  }, [active, containerWidth, reduceMotion, text]);
+  }, [active, reduceMotion, text]);
 
   const coolEnd = cooled ? visibleCount : Math.max(0, visibleCount - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
