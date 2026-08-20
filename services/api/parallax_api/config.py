@@ -16,6 +16,7 @@ class Settings:
         ).split(",")
         if value.strip()
     )
+    cors_origin_regex: str | None = os.getenv("PARALLAX_CORS_ORIGIN_REGEX") or None
     dspy_model: str = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
 
 
