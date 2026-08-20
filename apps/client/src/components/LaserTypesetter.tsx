@@ -210,7 +210,11 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   visibleText: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   text: {
     color: '#20282B',
