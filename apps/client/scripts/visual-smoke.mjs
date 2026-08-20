@@ -55,6 +55,12 @@ function staticServer({ failSkia = false } = {}) {
   });
 }
 
+const mockStreamState = {
+  open: false,
+  chunksSent: 0,
+  completed: false,
+};
+
 function apiServer() {
   let conversation = null;
   const answer = 'The response is being inscribed line by line. The optical head should follow the active wrapped line, leave a short cool-blue energized edge on fresh glyphs, and then cool into normal selectable text without disturbing the calm surface behind it.';
@@ -128,6 +134,10 @@ function apiServer() {
       conversation.title = String(payload.content ?? '').slice(0, 72) || 'New conversation';
       conversation.updated_at = now;
 
+      mockStreamState.open = true;
+      mockStreamState.chunksSent = 0;
+      mockStreamState.completed = false;
+
       cors(response, origin);
       response.writeHead(200, {
         'content-type': 'text/event-stream',
@@ -156,8 +166,11 @@ function apiServer() {
       await sse(response, 'state', { phase: 'THINKING' });
       await sse(response, 'state', { phase: 'RESPONDING' }, 180);
       await sse(response, 'chunk', { text: answer.slice(0, splitA) }, 120);
-      await sse(response, 'chunk', { text: answer.slice(splitA, splitB) }, 700);
-      await sse(response, 'chunk', { text: answer.slice(splitB) }, 700);
+      mockStreamState.chunksSent = 1;
+      await sse(response, 'chunk', { text: answer.slice(splitA, splitB) }, 900);
+      mockStreamState.chunksSent = 2;
+      await sse(response, 'chunk', { text: answer.slice(splitB) }, 900);
+      mockStreamState.chunksSent = 3;
       await sse(response, 'state', { phase: 'VERIFYING' }, 180);
 
       conversation.messages = [...conversation.messages, userMessage, assistantMessage];
@@ -167,7 +180,9 @@ function apiServer() {
         confidence: 0.94,
         trace: { spec_id: 'P2-V0.1.0' },
       }, 120);
+      mockStreamState.completed = true;
       response.end();
+      mockStreamState.open = false;
       return;
     }
     json(response, 404, { detail: 'not found' }, origin);
@@ -215,13 +230,13 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.getByLabel('Message Parallax').fill('Show the optical printing behavior on a wrapped response.');
     await page.getByLabel('Send message').click();
     await page.getByText('Optical renderer active').waitFor({ timeout: 5000 });
+    await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
+
+    assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live optical inscription was observed');
+    assert(mockStreamState.chunksSent >= 1 && mockStreamState.chunksSent < 3, `desktop: expected an intermediate streamed chunk, observed ${mockStreamState.chunksSent}`);
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-early.png` });
 
-    const partialText = await page.locator('body').innerText();
-    assert(partialText.includes('The response is being'), 'desktop: first streamed chunk did not become visible during the open stream');
-    assert(!partialText.includes('without disturbing the calm surface behind it.'), 'desktop: full answer appeared before the mock stream finished');
-
-    await page.waitForTimeout(850);
+    await page.waitForTimeout(650);
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
     const hotGlyphCount = await page.locator('span').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).textShadow !== 'none').length);
@@ -231,6 +246,7 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
     await page.screenshot({ path: `${evidenceDir}/desktop-complete.png` });
+    assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
     report.opticalTypesetter = {
       idleCanvasCount,
       respondingCanvasCount,
@@ -273,6 +289,7 @@ async function inspectFallback(browser, report) {
   const unexpected = errors.filter((entry) => !expectedSkiaFailure(entry));
   assert(unexpected.length === 0, `fallback: unexpected browser errors: ${unexpected.join(' | ')}`);
   assert(errors.some(expectedSkiaFailure), 'fallback: CanvasKit outage did not produce the expected initialization failure evidence');
+  assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
   report.fallback = {
     canvasCount,
     functionalConversation: true,
