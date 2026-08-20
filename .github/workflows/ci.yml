@@ -15,6 +15,7 @@ jobs:
           python-version: '3.13'
       - run: python scripts/validate_spec.py specs/P2-V0.1.0.md
       - run: pip install -e 'services/api[dev]'
+      - run: python -m compileall -q services/api/parallax_api scripts
       - run: python -m pytest services/api/tests -q
 
   client:
@@ -41,4 +42,6 @@ jobs:
           path: |
             apps/client/package-lock.json
             apps/client/npm-audit.json
+            apps/client/dist
           if-no-files-found: error
+          retention-days: 14
