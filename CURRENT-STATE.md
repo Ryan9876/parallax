@@ -1,55 +1,103 @@
 # Parallax 2.0 Current State
 
-Version: 0.1.0-bootstrap
+Version: 0.1.0-foundation
 Date: 2026-08-20
-Status: GENERATED / PARTIALLY LOCALLY VALIDATED — NOT DEPLOYED
+Status: VALIDATED FOUNDATION — NOT DEPLOYED
+Active spec: `P2-V0.1.0`
+Branch: `p2/bootstrap-v0.1.0`
+Validated implementation head: `d686bc639fd99fe1b1218801d14632558b78295e`
+Validation workflow: GitHub Actions `Parallax P2 CI` run `32355760742`
 
-## Material decision
+## Material decisions
 
-Parallax 2.0 is being built as a separate product track in `Ryan9876/parallax` using a spec-first development process and a DSPy-compatible optimization architecture.
+- Parallax 2.0 is a separate product track in `Ryan9876/parallax`.
+- P2 is developed using spec-first contracts and mandatory DSPy development execution, not merely built to expose those capabilities later.
+- Expo + React Native + React Native Skia is the universal client baseline.
+- FastAPI + SQLAlchemy + DSPy is the intelligence-service baseline.
+- Runtime model routing remains Luna → Terra → Sol.
+- Server-side durable conversations are the source of truth; browser storage is limited to draft convenience.
+- The first approved P2 MP4 material study remains the visual baseline.
+- The optical laser typesetter is the signature response behavior.
+- The Parallax Lens Mark uses two calm optical planes moving into and out of near-alignment around a stable center.
 
-The approved v0.1.0 specification is `specs/P2-V0.1.0.md`.
+## Validated foundation
 
-## Generated foundation
+### Conversation and intelligence
 
-- Expo/React Native/Skia client scaffold.
-- Living Skia material surface.
-- Calm animated Parallax Lens Mark.
-- Optical laser typesetter tied to response state.
-- Pure response reducer and deterministic motion-state mapping.
-- FastAPI service scaffold.
-- Durable conversation/message persistence via SQLAlchemy.
-- Multi-turn conversation append contract.
-- Luna → Terra → Sol fallback router.
-- DSPy reasoning/spec-compiler boundaries.
-- Protected metrics outside optimizer-controlled modules.
-- Spec validation, compilation, and optimization tooling.
-- GitHub CI definitions.
+- Durable conversation creation, list/get, message append, and persistence are implemented.
+- Ordinary follow-ups remain in the active conversation; a material scope change is represented explicitly rather than silently resetting context.
+- The browser client restores durable conversations and recent history from the FastAPI service.
+- The response endpoint streams SSE state/chunk/complete events.
+- The client inscribes the response while chunks are arriving; it does not wait for a complete answer and replay the laser afterward.
+- The response state machine is the single source of truth for product state and visual motion state.
+- Luna → Terra → Sol routing and failure escalation are isolated behind the intelligence boundary and covered by tests.
+
+### Visual system
+
+- `LivingSurface` initializes through React Native Skia/CanvasKit on web.
+- Surface energy is linked to response state.
+- `LaserTypesetter` follows the active wrapped text line, reveals normal selectable text behind the optical head, and cools freshly revealed glyphs back to normal typography.
+- `ParallaxLogo` provides calm non-spinner motion with reduced-motion behavior.
+- Responsive visual acceptance passed at the required mobile, tablet, and desktop sizes.
+- Intentional CanvasKit/WASM failure was tested: the application remains usable in reduced-graphics mode with normal conversation text and no Skia dependency for message truth.
+
+### Spec-first + DSPy development evidence
+
+The repository was specified before implementation through `specs/P2-V0.1.0.md`, and CI now requires a real DSPy development execution after the deterministic spec/API gate passes.
+
+Validation run `32355760742` executed both `SpecCritic` and `SpecCompiler` through DSPy using the credential-free local development model `ollama_chat/qwen2.5:0.5b` because no provider secret was configured. The resulting artifact records:
+
+- `executed: true`;
+- `spec_compiler_executed: true`;
+- `spec_critic_executed: true`;
+- `provider_backed: false`;
+- protected metrics required;
+- exact protected acceptance contract injected outside optimizer control.
+
+The local 0.5B model is **not** treated as the plan-quality authority. Its generated implementation proposal is intentionally CI evidence only and is not promoted into the branch. Protected deterministic code preserves every approved acceptance criterion and supplies missing validation coverage before evaluation.
+
+A provider-backed Sol + MIPROv2 optimization run has **not yet been executed**. That remains a separate quality-optimization gate and must not be represented as complete until provider-backed evidence exists.
 
 ## Validation evidence
 
-Local environment validation available without package-registry access:
+GitHub Actions run `32355760742` completed successfully at implementation head `d686bc639fd99fe1b1218801d14632558b78295e`.
 
-- Python source compile: PASS (`python -m compileall` against API and build scripts).
-- Backend tests using installed FastAPI/SQLAlchemy: PASS — 6 tests.
-- Pure TypeScript response-state compile/test: PASS.
-- TypeScript/TSX syntax parse across the client source: PASS.
-- Full Expo dependency install, package-level typecheck, web export, and Skia runtime validation: NOT YET POSSIBLE in the current offline build container.
-- Real DSPy compiler/optimizer execution: NOT EXECUTED. Current container cannot reach package registries and has no provider credentials. The bootstrap plan is explicitly marked as human-reviewed, not optimizer-generated.
+PASS:
 
-## Deployment
+- approved spec gate;
+- Python dependency installation;
+- Python source compilation;
+- FastAPI/SQLAlchemy/DSPy backend automated tests;
+- mandatory DSPy SpecCritic + SpecCompiler execution;
+- protected acceptance-contract evaluation;
+- frontend dependency installation;
+- TypeScript typecheck;
+- response-state tests;
+- Expo web export;
+- Playwright/Chromium browser validation;
+- Skia/CanvasKit initialization;
+- live optical inscription during an open SSE response;
+- responsive mobile/tablet/desktop visual checks;
+- CanvasKit failure-degradation check;
+- CI evidence artifact upload.
 
-No deployment has been performed or claimed.
+### Known validation note
 
-## Next validation gate
+`npm audit` still reports vulnerabilities in the current Expo/Metro build-tool dependency graph. The exported browser artifact does not ship the identified Metro/image-parser tooling. An unsafe major Expo downgrade via `npm audit fix --force` was intentionally not applied. This remains a tracked dependency-maintenance risk rather than a release-state claim that the toolchain is vulnerability-free.
 
-In a network-enabled environment:
+## Release state
 
-1. install client dependencies;
-2. run Skia CanvasKit setup;
-3. run client typecheck/tests and web export;
-4. install API dependencies including DSPy;
-5. execute the DSPy spec compiler against the approved spec with provider credentials;
-6. run API tests;
-7. compare any DSPy-produced implementation-plan changes against the bootstrap plan before accepting them;
-8. create a preview deployment and collect desktop/mobile motion evidence.
+- Generated: **YES**
+- Validated foundation: **YES**
+- Deployed: **NO**
+- Deployment-verified: **NO**
+- Provider-backed DSPy/MIPROv2 optimization: **NO**
+
+No P2 deployment has been performed or claimed.
+
+## Next gate
+
+1. Execute the provider-backed DSPy SpecCritic/SpecCompiler and MIPROv2 optimizer with an approved development model/provider configuration.
+2. Compare the challenger artifact against the protected metrics and the validated foundation rather than accepting it automatically.
+3. Create a preview deployment only after the provider/runtime environment and persistence target are selected.
+4. Collect target-environment health, persistence, responsive UI, Skia motion, and failure-degradation evidence before claiming deployment-verified status.
