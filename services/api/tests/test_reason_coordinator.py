@@ -3,9 +3,9 @@ import asyncio
 import pytest
 
 from parallax_api.intelligence.context import compose_reason_context
-from parallax_api.intelligence.coordinator import ResponseCoordinator
+from parallax_api.intelligence.coordinator import ResponseCoordinationFailure, ResponseCoordinator
 from parallax_api.intelligence.reason import ReasonResult
-from parallax_api.intelligence.router import ModelRouter, RoutingFailure
+from parallax_api.intelligence.router import ModelRouter
 from parallax_api.intelligence.scope import ScopeDecision, ScopeProposal
 
 
@@ -183,7 +183,7 @@ def test_protected_invalid_reason_result_escalates_to_next_model():
     assert response.answer is not None and "second model" in response.answer
 
 
-def test_all_reason_models_failing_protected_validation_returns_routing_failure():
+def test_all_reason_models_failing_protected_validation_returns_sanitized_trace():
     coordinator = ResponseCoordinator(
         scope_router=ModelRouter(models=("scope-model",)),
         reason_router=ModelRouter(models=("reason-a", "reason-b")),
@@ -191,7 +191,7 @@ def test_all_reason_models_failing_protected_validation_returns_routing_failure(
         reason_factory=lambda model: StaticReasonProgram(result("too short")),
     )
 
-    with pytest.raises(RoutingFailure) as exc:
+    with pytest.raises(ResponseCoordinationFailure) as exc:
         asyncio.run(
             coordinator.respond(
                 conversation_id="conversation-1",
@@ -203,4 +203,19 @@ def test_all_reason_models_failing_protected_validation_returns_routing_failure(
             )
         )
 
-    assert [attempt.status for attempt in exc.value.attempts] == ["validation_failed", "validation_failed"]
+    failure = exc.value
+    assert failure.error_code == "PROTECTED_REASON_FAILURE"
+    assert str(failure) == "Parallax could not produce a protected-valid response"
+    assert failure.trace.final_state == "ERROR"
+    assert failure.trace.protected_scope_decision == "CONTINUE"
+    assert failure.trace.protected_verification_passed is False
+    assert failure.trace.context_digest.startswith("sha256:")
+    assert failure.trace.reason_program_version is None
+    assert failure.trace.attempted_models == ("scope-model", "reason-a", "reason-b")
+    assert [attempt.status for attempt in failure.trace.reason_attempts] == [
+        "validation_failed",
+        "validation_failed",
+    ]
+    serialized = failure.trace.as_public_dict()
+    assert "too short" not in str(serialized)
+    assert "chain_of_thought" not in serialized
