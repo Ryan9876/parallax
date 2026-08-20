@@ -27,5 +27,8 @@ dev = [
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.setuptools.packages.find]
+include = ["parallax_api*"]
+
 [tool.vercel]
 entrypoint = "parallax_api.main:app"

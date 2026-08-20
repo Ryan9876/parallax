@@ -55,12 +55,20 @@ export type EngineeringRunDto = {
 };
 
 const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
+let accessToken = '';
+
+export class AuthenticationRequiredError extends Error {}
+
+function authenticatedHeaders(): Record<string, string> {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
+  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
   if (!response.ok) {
     throw new Error(`Parallax API ${response.status}`);
   }
@@ -94,6 +102,7 @@ async function streamResponse(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...authenticatedHeaders(),
     },
     body: JSON.stringify({ content, material_scope_change: materialScopeChange }),
   });
@@ -160,6 +169,7 @@ async function streamResponse(
 }
 
 export const api = {
+  setAccessToken: (token: string) => { accessToken = token.trim(); },
   createConversation: (mode: 'reason' | 'code') =>
     json<ConversationDto>('/v1/conversations', {
       method: 'POST',

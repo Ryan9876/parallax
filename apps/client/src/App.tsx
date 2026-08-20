@@ -14,7 +14,7 @@ import { LivingSurface } from './components/LivingSurface';
 import { LaserTypesetter } from './components/LaserTypesetter';
 import { ParallaxLogo } from './components/ParallaxLogo';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
-import { api, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
+import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
 import { EngineeringRunStatus } from './components/EngineeringRunStatus';
 import { useEngineeringRun } from './hooks/useEngineeringRun';
 
@@ -48,10 +48,17 @@ export default function App() {
   const [apiOnline, setApiOnline] = React.useState(false);
   const [activePrintId, setActivePrintId] = React.useState<string | null>(null);
   const [streamFinished, setStreamFinished] = React.useState(true);
+  const [accessToken, setAccessToken] = React.useState(() =>
+    Platform.OS === 'web' ? globalThis.sessionStorage?.getItem('parallax:p2:access') ?? '' : '',
+  );
+  const [accessDraft, setAccessDraft] = React.useState(accessToken);
+  const [accessError, setAccessError] = React.useState('');
   const pendingRefreshRef = React.useRef<string | null>(null);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
   const engineering = useEngineeringRun(conversationId, mode === 'code');
+
+  React.useEffect(() => { api.setAccessToken(accessToken); }, [accessToken]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -82,6 +89,7 @@ export default function App() {
   }, [updateConversationSummary]);
 
   React.useEffect(() => {
+    if (!accessToken) return;
     let cancelled = false;
     (async () => {
       try {
@@ -91,8 +99,14 @@ export default function App() {
         setApiOnline(true);
         setConversations(existing.length ? existing : [current]);
         applyConversation(current);
-      } catch {
+      } catch (error) {
         if (cancelled) return;
+        if (error instanceof AuthenticationRequiredError) {
+          api.setAccessToken('');
+          setAccessToken('');
+          globalThis.sessionStorage?.removeItem('parallax:p2:access');
+          setAccessError('That access credential was not accepted.');
+        }
         setApiOnline(false);
         setConversationId(null);
         setMessages(FALLBACK_MESSAGES);
@@ -101,7 +115,19 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [applyConversation]);
+  }, [accessToken, applyConversation]);
+
+  const unlock = React.useCallback(() => {
+    const candidate = accessDraft.trim();
+    if (!candidate) {
+      setAccessError('Enter the private production access credential.');
+      return;
+    }
+    api.setAccessToken(candidate);
+    globalThis.sessionStorage?.setItem('parallax:p2:access', candidate);
+    setAccessError('');
+    setAccessToken(candidate);
+  }, [accessDraft]);
 
   const openConversation = React.useCallback(
     async (conversation: ConversationDto) => {
@@ -290,6 +316,32 @@ export default function App() {
     [activePrintId, state.phase, streamFinished, updateConversationSummary],
   );
 
+  if (!accessToken) {
+    return (
+      <View style={styles.accessRoot}>
+        <View style={styles.accessPanel}>
+          <ParallaxLogo size={52} />
+          <Text style={styles.accessTitle}>Parallax 2.0</Text>
+          <Text style={styles.accessCopy}>Private production access</Text>
+          <TextInput
+            accessibilityLabel="Private access credential"
+            secureTextEntry
+            value={accessDraft}
+            onChangeText={setAccessDraft}
+            onSubmitEditing={unlock}
+            placeholder="Access credential"
+            placeholderTextColor="#8A9496"
+            style={styles.accessInput}
+          />
+          {accessError ? <Text style={styles.errorText}>{accessError}</Text> : null}
+          <TouchableOpacity accessibilityRole="button" onPress={unlock} style={styles.accessButton}>
+            <Text style={styles.accessButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <LivingSurface energy={motion.surfaceEnergy} />
@@ -457,6 +509,13 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  accessRoot: { flex: 1, backgroundColor: '#F4F3EE', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 24, padding: 28, backgroundColor: 'rgba(250,250,247,0.72)' },
+  accessTitle: { color: '#20282B', fontSize: 24, fontWeight: '700', marginTop: 14 },
+  accessCopy: { color: '#738083', fontSize: 13, marginTop: 5, marginBottom: 22 },
+  accessInput: { width: '100%', minHeight: 48, borderRadius: 14, paddingHorizontal: 14, color: '#20282B', backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)' },
+  accessButton: { width: '100%', minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#147D9F', marginTop: 8 },
+  accessButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   root: { flex: 1, backgroundColor: '#F4F3EE' },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },

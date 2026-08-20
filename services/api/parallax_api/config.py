@@ -16,7 +16,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _active_spec_id() -> str:
-    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", "P2-V0.3.0").strip()
+    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", "P2-V0.5.0").strip()
     if not _SPEC_ID.fullmatch(value):
         raise ValueError("PARALLAX_ACTIVE_SPEC_ID must use the P2-Vx.y.z format")
     return value
@@ -38,6 +38,16 @@ class Settings:
     dspy_model: str = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
     active_spec_id: str = _active_spec_id()
     allow_scope_override: bool = _env_bool("PARALLAX_ALLOW_SCOPE_OVERRIDE", False)
+    access_token: str = os.getenv("PARALLAX_ACCESS_TOKEN", "").strip()
+    create_schema: bool = _env_bool(
+        "PARALLAX_CREATE_SCHEMA",
+        os.getenv("PARALLAX_ENV", "development") in {"development", "test"},
+    )
+
+    def validate_runtime(self) -> None:
+        if self.environment == "production" and len(self.access_token) < 32:
+            raise ValueError("PARALLAX_ACCESS_TOKEN must contain at least 32 characters in production")
 
 
 settings = Settings()
+settings.validate_runtime()
