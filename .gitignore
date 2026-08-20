@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+apps/client/public/canvaskit.wasm
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.env
+*.db
+coverage/
+.DS_Store

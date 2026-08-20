@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Parallax 2.0",
+    "slug": "parallax-2",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "web": {
+      "output": "single",
+      "bundler": "metro"
+    }
+  }
+}

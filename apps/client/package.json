@@ -1,0 +1,30 @@
+{
+  "name": "@parallax/client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index",
+  "scripts": {
+    "postinstall": "node scripts/setup-skia-web.mjs",
+    "start": "expo start",
+    "web": "expo start --web",
+    "export:web": "expo export --platform web",
+    "typecheck": "tsc --noEmit",
+    "test:state": "tsc src/state/responseState.ts --target ES2022 --module commonjs --outDir .tmp-state && node scripts/test-response-state.cjs"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "57.0.9",
+    "@shopify/react-native-skia": "2.11.0",
+    "expo": "~57.0.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-reanimated": "4.5.3",
+    "react-native-web": "0.21.0",
+    "react-native-worklets": "0.11.4",
+    "canvaskit-wasm": "0.41.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "typescript": "~5.9.2"
+  }
+}

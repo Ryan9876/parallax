@@ -1,0 +1,11 @@
+{
+  "name": "parallax-2",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "client:web": "npm --prefix apps/client run web",
+    "client:typecheck": "npm --prefix apps/client run typecheck",
+    "spec:validate": "python scripts/validate_spec.py specs/P2-V0.1.0.md",
+    "api:test": "python -m pytest services/api/tests -q"
+  }
+}

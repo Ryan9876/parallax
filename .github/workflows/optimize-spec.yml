@@ -1,0 +1,30 @@
+name: DSPy Spec Optimization
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: Specification path
+        required: true
+        default: specs/P2-V0.1.0.md
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - run: python scripts/validate_spec.py '${{ inputs.spec }}'
+      - run: python scripts/compile_spec.py '${{ inputs.spec }}'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DSPY_MODEL: openai/gpt-5.6-sol
+      - run: python scripts/optimize_spec.py '${{ inputs.spec }}'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DSPY_MODEL: openai/gpt-5.6-sol

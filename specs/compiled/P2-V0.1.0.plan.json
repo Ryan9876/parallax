@@ -1,0 +1,36 @@
+{
+  "spec_id": "P2-V0.1.0",
+  "compiler": "human-reviewed bootstrap",
+  "dspy_run": {
+    "executed": false,
+    "reason": "The current build container cannot reach package registries or model-provider APIs. This artifact is intentionally not represented as DSPy-generated."
+  },
+  "architecture_decisions": [
+    "Use Expo SDK 57 / React Native 0.86 as the universal client foundation.",
+    "Use React Native Skia for the living material surface, optical head, and animated Parallax Lens Mark while preserving normal Text for accessible message content.",
+    "Use FastAPI + SQLAlchemy + DSPy as the intelligence/persistence service.",
+    "Keep protected metrics outside DSPy optimizer-controlled modules.",
+    "Use Luna -> Terra -> Sol as the runtime escalation order."
+  ],
+  "work_items": [
+    {"id": "W1", "acceptance": ["AC-06", "AC-08", "AC-10"], "summary": "Build the living surface, calm lens mark, and response-state motion mapping."},
+    {"id": "W2", "acceptance": ["AC-06", "AC-07", "AC-08"], "summary": "Build the optical laser typesetter with normal accessible text."},
+    {"id": "W3", "acceptance": ["AC-03", "AC-04", "AC-11"], "summary": "Build durable conversation persistence and multi-turn service contracts."},
+    {"id": "W4", "acceptance": ["AC-02", "AC-05", "AC-11"], "summary": "Build DSPy program boundaries, protected metrics, and Luna/Terra/Sol routing."},
+    {"id": "W5", "acceptance": ["AC-01", "AC-02"], "summary": "Build spec validator/compiler/optimizer tooling."},
+    {"id": "W6", "acceptance": ["AC-09", "AC-12", "AC-13"], "summary": "Add responsive shell and validation workflows."}
+  ],
+  "validations": [
+    "python scripts/validate_spec.py specs/P2-V0.1.0.md",
+    "python -m pytest services/api/tests -q",
+    "npm --prefix apps/client run test:state",
+    "npm --prefix apps/client run typecheck",
+    "npm --prefix apps/client run export:web"
+  ],
+  "risks": [
+    "React Native Skia web requires CanvasKit WASM to be available before registration.",
+    "The initial optical head maps generation progress across the response container rather than true per-glyph geometry; visual QA is required before production promotion.",
+    "A real DSPy compile/optimization pass still requires a provider-enabled environment and must be reviewed before it can replace this bootstrap plan.",
+    "Package lockfiles are not yet generated in the offline build container."
+  ]
+}
