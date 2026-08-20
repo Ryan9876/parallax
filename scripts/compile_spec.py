@@ -36,6 +36,43 @@ def parse_json_payload(raw: str, expected: type[list] | type[dict]) -> Any:
     return payload
 
 
+def ensure_acceptance_coverage(plan: dict[str, Any], acceptance_contract: list[dict[str, str]]) -> None:
+    """Guarantee that every protected criterion has executable validation coverage.
+
+    DSPy still proposes architecture, work, validations, and risks. This
+    deterministic post-processor only fills acceptance-coverage gaps and is
+    intentionally outside optimizer-controlled program code.
+    """
+
+    validations = plan.setdefault("validations", [])
+    if not isinstance(validations, list):
+        validations = []
+        plan["validations"] = validations
+
+    execution_projection = json.dumps(
+        {
+            "architecture_decisions": plan.get("architecture_decisions"),
+            "work_items": plan.get("work_items"),
+            "validations": validations,
+            "risks": plan.get("risks"),
+        },
+        sort_keys=True,
+    )
+
+    for criterion in acceptance_contract:
+        acceptance_id = criterion["id"]
+        if acceptance_id in execution_projection:
+            continue
+        validations.append(
+            {
+                "acceptance_id": acceptance_id,
+                "source": "protected_acceptance_contract",
+                "required_validation": criterion["protected_requirement"],
+            }
+        )
+        execution_projection += acceptance_id
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: compile_spec.py <spec.md>", file=sys.stderr)
@@ -92,6 +129,8 @@ def main() -> int:
     except (json.JSONDecodeError, TypeError) as exc:
         print(f"DSPy compiler returned invalid JSON: {exc}", file=sys.stderr)
         return 1
+
+    ensure_acceptance_coverage(plan, acceptance_contract)
 
     spec_id = extract_spec_id(spec)
     plan["spec_id"] = spec_id
