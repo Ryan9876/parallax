@@ -116,7 +116,12 @@ async function streamResponse(
       }
     }
     if (event.event === 'error') {
-      throw new Error(typeof event.data.error === 'string' ? event.data.error : 'Parallax response failed');
+      const message = typeof event.data.message === 'string'
+        ? event.data.message
+        : typeof event.data.error === 'string'
+          ? event.data.error
+          : 'Parallax response failed';
+      throw new Error(message);
     }
   };
 
