@@ -28,7 +28,7 @@ export type ResponsePhase =
   | 'SPEC_AMENDMENT';
 
 export type ResponseStreamEvent = {
-  event: 'state' | 'chunk' | 'complete' | 'error';
+  event: 'state' | 'chunk' | 'complete' | 'amendment' | 'error';
   data: Record<string, unknown>;
 };
 
@@ -37,6 +37,8 @@ export type ResponseResult = {
   messageId: string | null;
   confidence: number | null;
   trace: Record<string, unknown> | null;
+  phase: 'COMPLETE' | 'SPEC_AMENDMENT';
+  scopeDecision: string | null;
 };
 
 const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
@@ -62,7 +64,7 @@ function decodeEvent(block: string): ResponseStreamEvent | null {
   }
 
   if (!dataLines.length) return null;
-  if (!['state', 'chunk', 'complete', 'error'].includes(eventName)) return null;
+  if (!['state', 'chunk', 'complete', 'amendment', 'error'].includes(eventName)) return null;
 
   const parsed = JSON.parse(dataLines.join('\n')) as Record<string, unknown>;
   return { event: eventName as ResponseStreamEvent['event'], data: parsed };
@@ -93,17 +95,24 @@ async function streamResponse(
   let messageId: string | null = null;
   let confidence: number | null = null;
   let trace: Record<string, unknown> | null = null;
+  let phase: ResponseResult['phase'] = 'COMPLETE';
+  let scopeDecision: string | null = null;
 
   const handle = (event: ResponseStreamEvent) => {
     onEvent?.(event);
     if (event.event === 'chunk' && typeof event.data.text === 'string') {
       text += event.data.text;
     }
-    if (event.event === 'complete') {
+    if (event.event === 'complete' || event.event === 'amendment') {
       if (typeof event.data.message_id === 'string') messageId = event.data.message_id;
       if (typeof event.data.confidence === 'number') confidence = event.data.confidence;
+      if (typeof event.data.scope_decision === 'string') scopeDecision = event.data.scope_decision;
       if (event.data.trace && typeof event.data.trace === 'object') {
         trace = event.data.trace as Record<string, unknown>;
+      }
+      if (event.event === 'amendment') {
+        phase = 'SPEC_AMENDMENT';
+        if (typeof event.data.text === 'string') text = event.data.text;
       }
     }
     if (event.event === 'error') {
@@ -129,7 +138,7 @@ async function streamResponse(
     if (event) handle(event);
   }
 
-  return { text, messageId, confidence, trace };
+  return { text, messageId, confidence, trace, phase, scopeDecision };
 }
 
 export const api = {
