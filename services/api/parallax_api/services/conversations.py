@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+from ..config import settings
 from ..repositories.conversations import ConversationRepository
 
 
 class ConversationService:
-    def __init__(self, repository: ConversationRepository):
+    def __init__(self, repository: ConversationRepository, *, active_spec_id: str | None = None):
         self.repository = repository
+        self.active_spec_id = active_spec_id or settings.active_spec_id
 
     def create(self, mode: str):
-        return self.repository.create(mode)
+        return self.repository.create(mode, spec_id=self.active_spec_id)
 
     def list(self):
         return self.repository.list()
