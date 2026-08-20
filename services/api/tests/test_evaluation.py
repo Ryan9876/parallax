@@ -42,7 +42,7 @@ def test_optimizer_loader_rejects_promotion_suite():
         load_optimizer_suite(BENCH / "promotion-v0.1.json")
 
 
-def test_schema_rejects_duplicate_cases_bad_weights_and_missing_contract():
+def test_schema_rejects_duplicate_cases_bad_weights_missing_contract_and_invalid_purpose():
     suite = json.loads((BENCH / "development-v0.1.json").read_text(encoding="utf-8"))
 
     duplicate = json.loads(json.dumps(suite))
@@ -63,6 +63,11 @@ def test_schema_rejects_duplicate_cases_bad_weights_and_missing_contract():
     case["weights"] = {"required_coverage": 0.0, "forbidden": 0.0, "assertions": 1.0}
     with pytest.raises(ValidationError, match="no executable protected contract"):
         BenchmarkSuite.model_validate(no_contract)
+
+    invalid_purpose = json.loads(json.dumps(suite))
+    invalid_purpose["purpose"] = "optimizer-owned"
+    with pytest.raises(ValidationError, match="development"):
+        BenchmarkSuite.model_validate(invalid_purpose)
 
 
 def test_recorded_good_fixtures_pass_deterministic_evaluation():
@@ -129,3 +134,10 @@ def test_security_scanner_rejects_configured_secret_value(monkeypatch: pytest.Mo
     monkeypatch.setenv("PARALLAX_TEST_SECRET", marker)
     with pytest.raises(SecurityViolation, match="configured_secret_value_exposed"):
         assert_safe_payload({"candidate_output": f"accidentally leaked {marker}"})
+
+
+def test_security_scanner_rejects_hidden_reasoning_fields():
+    with pytest.raises(SecurityViolation, match="forbidden_reasoning_field:chain_of_thought"):
+        assert_safe_payload({"chain_of_thought": "private scratch reasoning"})
+    with pytest.raises(SecurityViolation, match="forbidden_reasoning_field:scratchpad"):
+        assert_safe_payload({"nested": {"scratchpad": "do not persist"}})
