@@ -21,6 +21,68 @@ jobs:
       - run: python -m compileall -q services/api/parallax_api scripts
       - run: python -m pytest services/api/tests -q
 
+  evaluation:
+    runs-on: ubuntu-latest
+    needs: spec-and-api
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+
+      - name: Validate development and promotion benchmark suites
+        run: |
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/development-v0.1.json
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/promotion-v0.1.json
+
+      - name: Evaluate recorded development fixture
+        run: |
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/development-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/development-good.json \
+            --evidence-dir evaluation-evidence/development
+
+      - name: Evaluate protected promotion baseline and equivalent challenger
+        run: |
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/promotion-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/promotion-baseline.json \
+            --evidence-dir evaluation-evidence/promotion-baseline
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/promotion-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/promotion-equivalent.json \
+            --evidence-dir evaluation-evidence/promotion-challenger
+          BASELINE=$(find evaluation-evidence/promotion-baseline -type f -name 'eval-*.json' | head -1)
+          CHALLENGER=$(find evaluation-evidence/promotion-challenger -type f -name 'eval-*.json' | head -1)
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
+            --evidence-dir evaluation-evidence/promotion-decision
+
+      - name: Prove a protected regression is rejected
+        run: |
+          set +e
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/promotion-v0.1.json \
+            benchmarks/parallax-engineering/fixtures/promotion-regression.json \
+            --evidence-dir evaluation-evidence/rejected-regression
+          RC=$?
+          set -e
+          if [ "$RC" -eq 0 ]; then
+            echo 'FAIL: known protected regression unexpectedly passed'
+            exit 1
+          fi
+          echo "PASS: known protected regression rejected with rc=$RC"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-evidence
+          path: evaluation-evidence
+          if-no-files-found: error
+          retention-days: 14
+
   dspy-development:
     runs-on: ubuntu-latest
     needs: spec-and-api
