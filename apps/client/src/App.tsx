@@ -15,6 +15,8 @@ import { LaserTypesetter } from './components/LaserTypesetter';
 import { ParallaxLogo } from './components/ParallaxLogo';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
 import { api, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
+import { EngineeringRunStatus } from './components/EngineeringRunStatus';
+import { useEngineeringRun } from './hooks/useEngineeringRun';
 
 const FALLBACK_MESSAGES: MessageDto[] = [
   {
@@ -49,6 +51,7 @@ export default function App() {
   const pendingRefreshRef = React.useRef<string | null>(null);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
+  const engineering = useEngineeringRun(conversationId, mode === 'code');
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -349,6 +352,16 @@ export default function App() {
                 ))}
               </View>
             </View>
+
+            {mode === 'code' && engineering.run && (
+              <EngineeringRunStatus
+                run={engineering.run}
+                busy={engineering.busy}
+                onPause={() => void engineering.pause()}
+                onResume={() => void engineering.resume()}
+                onCancel={() => void engineering.cancel()}
+              />
+            )}
 
             <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
               {messages.length === 0 ? (

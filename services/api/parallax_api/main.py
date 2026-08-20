@@ -8,6 +8,7 @@ from .db import Base, engine
 from . import models  # noqa: F401
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
+from .routes.engineering_runs import router as engineering_runs_router
 
 
 def create_app(*, create_schema: bool = True) -> FastAPI:
@@ -25,6 +26,7 @@ def create_app(*, create_schema: bool = True) -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(conversations_router)
+    app.include_router(engineering_runs_router)
     return app
 
 

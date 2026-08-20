@@ -27,6 +27,18 @@ def code_conversation(conversations, spec_id="P2-V0.4.0"):
     return conversations.create("code", spec_id=spec_id)
 
 
+def passing_evidence(stage):
+    if stage is WorkflowStage.PLAN:
+        return {"required_acceptance_ids": ["AC-01", "AC-02"], "acceptance_ids_covered": ["AC-01", "AC-02"], "work_items": ["implement"], "validation_checks": ["test"]}
+    if stage is WorkflowStage.IMPLEMENT:
+        return {"artifacts": [{"path": "src/app.py", "sha256": "a" * 64, "size": 1}], "base_revision": "base", "workspace_digest": "work"}
+    if stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
+        return {"protected_success": True, "exit_code": 0, "timed_out": False}
+    if stage is WorkflowStage.REVIEW:
+        return {"required_acceptance_ids": ["AC-01", "AC-02"], "acceptance_ids_verified": ["AC-01", "AC-02"], "recommendation": "PASS", "workspace_digest": "work"}
+    return {"protected_pass": True, "stage": stage.value}
+
+
 def test_engineering_run_persists_with_immutable_conversation_spec_binding(tmp_path):
     Session = session_factory(tmp_path)
     with Session() as session:
@@ -111,7 +123,7 @@ def test_stage_order_idempotency_and_revision_conflicts_are_protected(tmp_path):
             operation_key="plan-1",
             expected_revision=1,
             passed=True,
-            evidence={"acceptance_ids": ["AC-01", "AC-02"]},
+            evidence=passing_evidence(WorkflowStage.PLAN),
         )
         assert plan.run.state == "IMPLEMENT"
         assert plan.run.revision == 2
@@ -132,7 +144,7 @@ def test_failed_stage_is_durable_and_resume_retries_without_overwriting_evidence
                 operation_key=f"{stage.value.lower()}-pass",
                 expected_revision=revision,
                 passed=True,
-                evidence={"stage": stage.value},
+                evidence=passing_evidence(stage),
             )
             revision = result.run.revision
 
@@ -172,7 +184,7 @@ def test_failed_stage_is_durable_and_resume_retries_without_overwriting_evidence
             operation_key="build-pass",
             expected_revision=resumed.run.revision,
             passed=True,
-            evidence={"exit_code": 0, "stdout_digest": "sha256:passed"},
+            evidence=passing_evidence(WorkflowStage.BUILD),
         )
         assert passed.run.state == "TEST"
         build_attempts = [attempt for attempt in runs.get(run.id).attempts if attempt.stage == "BUILD"]
@@ -203,7 +215,7 @@ def test_complete_requires_every_stage_and_terminal_states_block_mutation(tmp_pa
                 operation_key=f"{stage.value.lower()}-pass",
                 expected_revision=revision,
                 passed=True,
-                evidence={"protected_pass": True, "stage": stage.value},
+                evidence=passing_evidence(stage),
             )
             revision = result.run.revision
 

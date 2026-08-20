@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 1.4
+Version: 1.5
 Status: Authoritative
 
 ## System shape
@@ -184,6 +184,23 @@ The development plane must execute even when commercial provider credentials are
 The local path proves that Parallax itself follows the DSPy build methodology; it is not the final quality authority. Provider-backed optimization such as MIPROv2 remains a separate challenger-production step, and every challenger must still pass protected promotion evidence before promotion.
 
 Optimizer-controlled code cannot alter the protected acceptance/evaluation functions used to promote a compiled or optimized program.
+
+### Code 2.0 execution kernel
+
+Code mode owns a durable engineering run that is separate from, and immutably bound to, its durable conversation and approved specification. Protected server policy advances `SPECIFY → PLAN → IMPLEMENT → BUILD → TEST → VERIFY → REVIEW → COMPLETE`; pause, failure, amendment, cancellation, idempotent replay, and stale-revision conflict are explicit durable states or transitions.
+
+The Code boundary consists of:
+
+- append-only engineering attempts and safe evidence metadata;
+- protected plan, implementation, execution, and review validators;
+- provider-neutral workspace artifact identity using bounded paths, sizes, and SHA-256 digests;
+- a deny-by-default typed execution contract and deterministic recorded executor for CI;
+- API orchestration for create/get/latest/advance/pause/resume/cancel;
+- a conversation-first client status surface whose semantics remain normal accessible text in reduced-graphics mode.
+
+BUILD, TEST, and VERIFY cannot pass without successful execution evidence. IMPLEMENT cannot pass on prose alone. REVIEW compares its claimed workspace identity with independently persisted IMPLEMENT evidence and cannot authorize merge, deployment, or production status. A future live executor remains disabled by default and requires an explicit bounded workspace provider and command registry.
+
+The API dependency range pins FastAPI to the validated `0.128.x` minor line. This prevents unreviewed framework/test-client drift from changing the release gate while still permitting patch-level security and compatibility updates.
 
 ## Protected evaluation spine
 

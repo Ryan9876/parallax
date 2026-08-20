@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 
 from ..models import EngineeringRun
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
 from .domain import ACTIVE_STAGES, AttemptStatus, WorkflowStage
 from .state_machine import ProtectedRunPolicy, RevisionConflict, RunTransitionError, SpecBindingError
+from .protected import validate_execution, validate_implementation, validate_plan, validate_review
 
 
 class EngineeringRunNotFound(LookupError):
@@ -106,6 +108,25 @@ class EngineeringRunService:
             attempted_stage=stage,
             passing_stages=passing,
         )
+
+        if passed:
+            protected = evidence or {}
+            required = set(protected.get("required_acceptance_ids", []))
+            if stage is WorkflowStage.PLAN:
+                validate_plan(protected, required)
+            elif stage is WorkflowStage.IMPLEMENT:
+                validate_implementation(protected)
+            elif stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
+                validate_execution(protected)
+            elif stage is WorkflowStage.REVIEW:
+                implementation_attempts = [
+                    item for item in run.attempts
+                    if item.stage == WorkflowStage.IMPLEMENT.value and item.status == AttemptStatus.PASSED.value
+                ]
+                if not implementation_attempts:
+                    raise RunTransitionError("REVIEW requires durable IMPLEMENT evidence")
+                implementation = json.loads(implementation_attempts[-1].evidence_json)
+                validate_review(protected, required, str(implementation.get("workspace_digest", "")))
 
         if passed:
             target = self.policy.success_target(stage)

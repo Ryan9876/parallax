@@ -43,6 +43,43 @@ jobs:
           python scripts/validate_benchmark.py benchmarks/parallax-engineering/promotion-v0.1.json
           python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-development-v0.1.json
           python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-promotion-v0.1.json
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/code-development-v0.4.json
+          python scripts/validate_benchmark.py benchmarks/parallax-engineering/code-promotion-v0.4.json
+
+      - name: Evaluate protected Code baseline and equivalent challenger
+        run: |
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/code-promotion-v0.4.json \
+            benchmarks/parallax-engineering/fixtures/code-baseline.json \
+            --evidence-dir evaluation-evidence/code-promotion-baseline
+          python scripts/evaluate_recorded.py \
+            benchmarks/parallax-engineering/code-promotion-v0.4.json \
+            benchmarks/parallax-engineering/fixtures/code-equivalent.json \
+            --evidence-dir evaluation-evidence/code-promotion-challenger
+          BASELINE=$(find evaluation-evidence/code-promotion-baseline -type f -name 'eval-*.json' | head -1)
+          CHALLENGER=$(find evaluation-evidence/code-promotion-challenger -type f -name 'eval-*.json' | head -1)
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
+            --evidence-dir evaluation-evidence/code-promotion-decision
+
+      - name: Prove Code regressions are rejected
+        run: |
+          for FIXTURE in \
+            code-stage-regression.json \
+            code-status-regression.json \
+            code-spec-regression.json \
+            code-unsafe-regression.json; do
+            set +e
+            python scripts/evaluate_recorded.py \
+              benchmarks/parallax-engineering/code-promotion-v0.4.json \
+              "benchmarks/parallax-engineering/fixtures/$FIXTURE" \
+              --evidence-dir "evaluation-evidence/code-rejected-$FIXTURE"
+            RC=$?
+            set -e
+            if [ "$RC" -eq 0 ]; then
+              echo "FAIL: Code regression unexpectedly passed: $FIXTURE"
+              exit 1
+            fi
+          done
 
       - name: Evaluate recorded engineering development fixture
         run: |

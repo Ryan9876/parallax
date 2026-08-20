@@ -41,6 +41,19 @@ export type ResponseResult = {
   scopeDecision: string | null;
 };
 
+export type EngineeringAttemptDto = {
+  id: string; stage: string; attempt_number: number; status: string;
+  failure_code: string | null; evidence: Record<string, unknown>;
+  started_at: string; completed_at: string;
+};
+
+export type EngineeringRunDto = {
+  id: string; conversation_id: string; spec_id: string; state: string;
+  resume_stage: string | null; revision: number; workspace_ref: string | null;
+  last_failure_code: string | null; completed_at: string | null;
+  created_at: string; updated_at: string; attempts: EngineeringAttemptDto[];
+};
+
 const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
@@ -160,4 +173,18 @@ export const api = {
       body: JSON.stringify({ role, content }),
     }),
   streamResponse,
+  latestEngineeringRun: (conversationId: string) =>
+    json<EngineeringRunDto | null>(`/v1/engineering-runs/conversation/${conversationId}/latest`),
+  pauseEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
+    json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/pause`, {
+      method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),
+    }),
+  resumeEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
+    json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/resume`, {
+      method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),
+    }),
+  cancelEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
+    json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/cancel`, {
+      method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),
+    }),
 };

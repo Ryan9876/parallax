@@ -1,12 +1,14 @@
 # Parallax 2.0 Current State
 
-Version: 0.3.0-reason
+Version: 0.4.0-code-candidate
 Date: 2026-08-20
-Status: VALIDATED REASON 2.0 + PROTECTED EVALUATION SPINE + FOUNDATION/PREVIEW READINESS — NOT DEPLOYED
-Active spec: `P2-V0.3.0`
-Branch: `p2/reason-v0.3.0`
+Status: LOCALLY VALIDATED CODE 2.0 CANDIDATE ON VALIDATED REASON 2.0 FOUNDATION — EXACT-HEAD CI PENDING — NOT DEPLOYED
+Active candidate spec: `P2-V0.4.0`
+Target branch: `p2/code-v0.4.0`
 Validated implementation head: `d96442c39fc2534fd733a50d39527ffd158653ee`
 Validation workflow: GitHub Actions `Parallax P2 CI` run `32371806776`
+
+The validated implementation head and workflow above remain the last exact-head GitHub evidence and cover Reason 2.0. The Code 2.0 candidate described below is reconstructed and validated locally; it has not been committed, pushed, or exact-head CI validated.
 
 ## Material decisions
 
@@ -21,6 +23,21 @@ Validation workflow: GitHub Actions `Parallax P2 CI` run `32371806776`
 - `SPEC_AMENDMENT` is now a first-class calm protected hand-off state, not a generic error state.
 - P2 preview deployment remains isolated from the existing Parallax 1.x Vercel production project.
 - Dedicated P2 Vercel web/API projects and a dedicated P2 Supabase PostgreSQL project have not been created or deployment-verified.
+- Code 2.0 uses durable append-only engineering runs, protected evidence gates, bounded workspace identity, and a deny-by-default recorded execution contract.
+- FastAPI is pinned to the validated `0.128.x` minor line after the broader range admitted test-client dependency drift that stalled the full suite.
+
+## Locally validated v0.4.0 Code 2.0 candidate
+
+- Durable Code run lifecycle, immutable conversation/spec binding, revisions, idempotency, failure history, pause/resume, amendment, and cancellation are implemented.
+- PLAN, IMPLEMENT, BUILD, TEST, VERIFY, and REVIEW have protected evidence contracts; implementation prose and failed/timed-out execution cannot be treated as success.
+- Workspace artifacts use contained relative paths, bounded file sizes, SHA-256 identity, and symlink/path-traversal rejection.
+- The deterministic executor rejects unregistered tools, shell metacharacters, out-of-root working directories, undeclared environment access, and non-BUILD/TEST/VERIFY execution.
+- Code API routes expose create/get/latest/advance/pause/resume/cancel without placing orchestration in the client.
+- The client shows concise accessible run status, evidence-bearing stages, failures, and protected pause/resume/cancel actions without becoming an IDE or terminal.
+- Separate ten-case Code development and promotion suites validate successfully. The recorded baseline and equivalent challenger each score `1.0000`; promotion passes with zero aggregate regression. Stage-skipping, false-status, spec-drift, and unsafe-execution fixtures are rejected.
+- Local evidence: Python compilation passed; backend suite `52/52` passed; client TypeScript and response-state tests passed; Expo web export passed; CI YAML parses.
+- Mandatory DSPy SpecCritic + SpecCompiler execution, Playwright visual acceptance, and complete inherited/new gates remain exact-head CI requirements.
+- Generated: **YES**. Locally validated: **YES**. Exact-head CI validated: **NO**. Committed/pushed: **NO**. Deployed: **NO**. Deployment-verified: **NO**.
 
 ## Validated v0.3.0 Reason 2.0
 
