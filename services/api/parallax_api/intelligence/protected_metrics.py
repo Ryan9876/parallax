@@ -110,13 +110,13 @@ def evaluate_compiled_plan(
             plan_object = json.loads(plan)
         except json.JSONDecodeError:
             failures.append("plan_invalid_json")
-            return MetricResult(False, _score(failures, 26), tuple(failures))
+            return MetricResult(False, _score(failures, 28), tuple(failures))
     else:
         plan_object = plan
 
     if not isinstance(plan_object, dict):
         failures.append("plan_not_object")
-        return MetricResult(False, _score(failures, 26), tuple(failures))
+        return MetricResult(False, _score(failures, 28), tuple(failures))
 
     for key in REQUIRED_PLAN_KEYS:
         value = plan_object.get(key)
@@ -135,15 +135,23 @@ def evaluate_compiled_plan(
         if plan_object.get("protected_acceptance_map") != expected_contract:
             failures.append("protected_acceptance_map_mismatch")
 
-    serialized = json.dumps(plan_object, sort_keys=True)
+    # The protected acceptance map preserves the contract but does not count as
+    # implementation coverage. Each criterion must also appear in the plan's
+    # architecture/work/validation/risk content.
+    executable_projection = {
+        key: plan_object.get(key)
+        for key in REQUIRED_PLAN_KEYS
+    }
+    executable_serialized = json.dumps(executable_projection, sort_keys=True)
     for acceptance_id in extract_acceptance_ids(spec_text):
-        if acceptance_id not in serialized:
+        if acceptance_id not in executable_serialized:
             failures.append(f"acceptance_not_mapped:{acceptance_id}")
 
+    serialized = json.dumps(plan_object, sort_keys=True)
     if any(pattern.search(serialized) for pattern in SECRET_PATTERNS):
         failures.append("possible_secret_in_artifact")
 
-    return MetricResult(passed=not failures, score=_score(failures, 26), failures=tuple(failures))
+    return MetricResult(passed=not failures, score=_score(failures, 28), failures=tuple(failures))
 
 
 def evaluate_reasoning_output(answer: str) -> MetricResult:
