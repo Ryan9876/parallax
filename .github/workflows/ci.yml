@@ -27,8 +27,16 @@ jobs:
       - working-directory: apps/client
         run: npm install
       - working-directory: apps/client
+        run: npm audit --omit=dev --audit-level=high
+      - working-directory: apps/client
         run: npm run typecheck
       - working-directory: apps/client
         run: npm run test:state
       - working-directory: apps/client
         run: npm run export:web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-package-lock
+          path: apps/client/package-lock.json
+          if-no-files-found: error
