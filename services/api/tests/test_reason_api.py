@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
+from parallax_api.intelligence.coordinator import ResponseCoordinationFailure
 from parallax_api.intelligence.scope import ScopeDecision
 from parallax_api.main import create_app
 from parallax_api.routes import conversations as conversation_routes
@@ -16,7 +17,8 @@ class FakeTrace:
             "response_id": "response-test",
             "conversation_id": "conversation-test",
             "spec_id": "P2-V0.3.0",
-            "protected_scope_decision": self.final_state,
+            "protected_scope_decision": "CONTINUE" if self.final_state == "ERROR" else self.final_state,
+            "protected_verification_passed": self.final_state != "ERROR",
             "final_state": self.final_state,
         }
 
@@ -79,6 +81,12 @@ class ContinueCoordinator:
         )
 
 
+class FailureCoordinator:
+    async def respond(self, **kwargs):
+        assert kwargs["spec_id"] == "P2-V0.3.0"
+        raise ResponseCoordinationFailure(FakeTrace("ERROR"))
+
+
 def client_with(service: FakeConversationService, monkeypatch, coordinator_type):
     app = create_app(create_schema=False)
     app.dependency_overrides[conversation_routes.service] = lambda: service
@@ -121,3 +129,23 @@ def test_response_api_streams_continue_answer_and_reason_metadata(monkeypatch):
     assert '"material_uncertainties"' in response.text
     assert service.conversation.status == "ACTIVE"
     assert service.conversation.messages[-1].role == "assistant"
+
+
+def test_response_api_returns_recoverable_protected_failure_with_trace(monkeypatch):
+    service = FakeConversationService()
+    client = client_with(service, monkeypatch, FailureCoordinator)
+
+    response = client.post(
+        "/v1/conversations/conversation-test/responses",
+        json={"content": "Continue the current objective."},
+    )
+
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    assert '"error": "PROTECTED_REASON_FAILURE"' in response.text
+    assert '"recoverable": true' in response.text
+    assert '"protected_verification_passed": false' in response.text
+    assert '"final_state": "ERROR"' in response.text
+    assert "event: chunk" not in response.text
+    assert service.conversation.status == "ACTIVE"
+    assert service.conversation.messages[-1].role == "user"
