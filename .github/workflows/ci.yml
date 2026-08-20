@@ -29,27 +29,62 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
-      - id: credentials
+
+      - id: model
+        name: Select provider-backed or local DSPy model
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "name=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
           else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo '{"executed":false,"reason":"OPENAI_API_KEY secret is not configured"}' > specs/compiled/dspy-run-status.json
-            echo "Provider-backed DSPy compile is pending: OPENAI_API_KEY is not configured."
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "name=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
           fi
+
+      - name: Install local DSPy development LM
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull llama3.2:1b
+
       - name: Run DSPy SpecCritic + SpecCompiler
-        if: steps.credentials.outputs.available == 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DSPY_MODEL: openai/gpt-5.6-sol
         run: python scripts/compile_spec.py specs/P2-V0.1.0.md
-      - name: Record DSPy compile status
-        if: steps.credentials.outputs.available == 'true' && success()
+
+      - name: Record DSPy development status
+        if: success()
+        env:
+          PROVIDER: ${{ steps.model.outputs.provider }}
+          MODEL: ${{ steps.model.outputs.name }}
         run: |
-          echo '{"executed":true,"model":"openai/gpt-5.6-sol","artifact":"P2-V0.1.0.plan.json"}' > specs/compiled/dspy-run-status.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          Path('specs/compiled/dspy-run-status.json').write_text(json.dumps({
+              'executed': True,
+              'spec_compiler_executed': True,
+              'spec_critic_executed': True,
+              'model': os.environ['MODEL'],
+              'provider_backed': os.environ['PROVIDER'] == 'true',
+              'artifact': 'P2-V0.1.0.plan.json',
+              'protected_metrics_required': True
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -57,6 +92,7 @@ jobs:
           path: |
             specs/compiled/P2-V0.1.0.plan.json
             specs/compiled/dspy-run-status.json
+            /tmp/ollama.log
           if-no-files-found: error
           retention-days: 14
 
