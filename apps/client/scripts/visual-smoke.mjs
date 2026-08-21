@@ -74,7 +74,7 @@ function apiServer() {
       title: 'New conversation',
       mode,
       status: 'ACTIVE',
-      spec_id: 'P2-V0.3.0',
+      spec_id: 'P2-V0.5.0',
       created_at: '2026-08-20T08:00:00Z',
       updated_at: '2026-08-20T08:00:00Z',
       messages: [],
@@ -177,7 +177,7 @@ function apiServer() {
           text: amendmentMessage,
           confidence: 0.96,
           scope_decision: 'SPEC_AMENDMENT',
-          trace: { spec_id: 'P2-V0.3.0', final_state: 'SPEC_AMENDMENT' },
+          trace: { spec_id: 'P2-V0.5.0', final_state: 'SPEC_AMENDMENT' },
         }, 80);
         mockStreamState.amendment = true;
         mockStreamState.completed = true;
@@ -213,7 +213,7 @@ function apiServer() {
         message_id: assistantMessage.id,
         confidence: 0.94,
         scope_decision: 'CONTINUE',
-        trace: { spec_id: 'P2-V0.3.0' },
+        trace: { spec_id: 'P2-V0.5.0' },
       }, 120);
       mockStreamState.completed = true;
       response.end();
@@ -278,7 +278,7 @@ async function inspectViewport(browser, name, width, height, report) {
     assert(respondingCanvasCount > idleCanvasCount, `desktop: optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
     assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
 
-    await page.getByText(/Parallax 2\.0 · complete/i).waitFor({ timeout: 10000 });
+    await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
     await page.screenshot({ path: `${evidenceDir}/desktop-complete.png` });
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
@@ -349,7 +349,7 @@ async function inspectFallback(browser, report) {
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
-const report = { specId: 'P2-V0.3.0', viewports: [], opticalTypesetter: null, fallback: null };
+const report = { specId: 'P2-V0.5.0', viewports: [], opticalTypesetter: null, fallback: null };
 let browser;
 
 try {
