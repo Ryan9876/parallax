@@ -1,3 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.com/vercel.json"
+  "$schema": "https://openapi.vercel.com/vercel.json",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
 }
