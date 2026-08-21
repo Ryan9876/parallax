@@ -1,20 +1,29 @@
 import '@expo/metro-runtime';
+import React from 'react';
 import { registerRootComponent } from 'expo';
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
+import WebAuthRoot from './src/WebAuthRoot';
 
 type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
+
+function register(AppComponent: React.ComponentType) {
+  function Root() {
+    return <WebAuthRoot AppComponent={AppComponent} />;
+  }
+  registerRootComponent(Root);
+}
 
 async function boot() {
   try {
     await LoadSkiaWeb({ locateFile: (file: string) => `/${file}` });
     (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = false;
     const { default: App } = await import('./src/App');
-    registerRootComponent(App);
+    register(App);
   } catch (error) {
     console.error('Skia failed to initialize; registering functional static fallback.', error);
     (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = true;
     const { default: FallbackApp } = await import('./src/FallbackApp');
-    registerRootComponent(FallbackApp);
+    register(FallbackApp);
   }
 }
 
