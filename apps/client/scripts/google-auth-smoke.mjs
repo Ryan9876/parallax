@@ -71,6 +71,7 @@ let googleExchangeAuthorization = '';
 let sessionMarkerObserved = false;
 let sessionDeleteObserved = false;
 let authorizeRequestObserved = false;
+const observedRequests = [];
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -79,6 +80,12 @@ const browserErrors = [];
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
   if (message.type() === 'error') browserErrors.push(`console: ${message.text()}`);
+});
+page.on('request', (request) => {
+  const url = new URL(request.url());
+  if (url.origin === supabaseOrigin || url.origin === origin) {
+    observedRequests.push(`${request.method()} ${url.origin}${url.pathname}${url.search}`);
+  }
 });
 
 await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
@@ -98,9 +105,6 @@ await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
     const redirectTo = requestUrl.searchParams.get('redirect_to');
     assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
     authorizeRequestObserved = true;
-    // A 204 navigation does not replace the active document. This models the
-    // consent boundary without destroying the Parallax-origin sessionStorage
-    // that Supabase intentionally uses for the PKCE verifier.
     await route.fulfill({ status: 204, body: '' });
     return;
   }
@@ -117,6 +121,7 @@ await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
         access_token: 'supabase-transient-token',
         token_type: 'bearer',
         expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
         refresh_token: 'supabase-transient-refresh',
         user: supabaseUser,
       }),
@@ -247,8 +252,28 @@ try {
   await page.waitForTimeout(100);
   assert(authorizeRequestObserved, 'Supabase Google authorization request was not observed');
 
+  const storageKeys = await page.evaluate(() => Object.keys(sessionStorage));
+  assert(storageKeys.some((key) => key.includes('code-verifier')), `PKCE verifier key missing before callback; keys=${storageKeys.join(',')}`);
+
   await page.goto(`${origin}/auth/callback?code=mock-google-code`, { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
+  try {
+    await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      body: document.body.innerText.slice(0, 2000),
+      sessionStorageKeys: Object.keys(sessionStorage),
+      localStorageKeys: Object.keys(localStorage),
+      href: location.href,
+    }));
+    throw new Error(`Google callback did not reach the workspace. diagnostics=${JSON.stringify({
+      diagnostics,
+      authorizeRequestObserved,
+      googleSessionExchangeObserved: Boolean(googleExchangeAuthorization),
+      sessionMarkerObserved,
+      observedRequests: observedRequests.slice(-30),
+      browserErrors: browserErrors.slice(-20),
+    })}`, { cause: error });
+  }
   await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
 
   assert(googleExchangeAuthorization === 'Bearer supabase-transient-token', 'Parallax API did not receive the transient Supabase token for exchange');
