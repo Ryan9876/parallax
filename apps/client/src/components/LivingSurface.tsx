@@ -37,9 +37,8 @@ float fbm(float2 p) {
   return v;
 }
 
-float lineMask(float value, float spacing, float width) {
-  float d = abs(fract(value / spacing + 0.5) - 0.5) * spacing;
-  return 1.0 - smoothstep(width, width * 1.8, d);
+float ribbon(float value, float center, float width) {
+  return 1.0 - smoothstep(width, width * 2.2, abs(value - center));
 }
 
 half4 main(float2 pos) {
@@ -47,53 +46,54 @@ half4 main(float2 pos) {
   float2 q = uv - 0.5;
   float aspect = resolution.x / max(resolution.y, 1.0);
   q.x *= aspect;
-  float t = time * 0.018;
+  float t = time * 0.020;
 
-  float n1 = fbm(q * 1.18 + float2(t * 0.16, -t * 0.07));
-  float n2 = fbm(q * 1.72 + float2(-t * 0.05, t * 0.11));
-  float field = mix(n1, n2, 0.30);
-
-  float3 abyss = float3(0.031, 0.043, 0.071);
-  float3 panel = float3(0.043, 0.063, 0.098);
+  float3 abyss = float3(0.027, 0.035, 0.059);
+  float3 deep = float3(0.043, 0.052, 0.090);
   float3 indigo = float3(0.545, 0.612, 1.000);
   float3 violet = float3(0.820, 0.545, 1.000);
   float3 cyan = float3(0.490, 0.906, 1.000);
-  float3 lightInk = float3(0.925, 0.914, 1.000);
+  float3 peach = float3(0.875, 0.655, 0.561);
 
-  float3 col = mix(abyss, panel, 0.22 + field * 0.12);
+  float paper = fbm(q * 1.04 + float2(t * 0.09, -t * 0.04));
+  float3 col = mix(abyss, deep, 0.18 + paper * 0.10);
 
-  // Sparse topographic structure keeps the workplane spatial without turning into a HUD.
-  float contourSource = field + 0.10 * sin(q.x * 1.45 - q.y * 1.05 + t);
-  float contour = lineMask(contourSource, 0.128, 0.0017);
-  col = mix(col, violet, contour * (0.018 + energy * 0.010));
+  // Slow editorial ink fields: broad asymmetric stains, never a full-screen neon wash.
+  float2 c1 = float2(-0.38 + 0.05 * sin(t * 0.7), -0.18 + 0.04 * cos(t * 0.5));
+  float2 c2 = float2(0.44 + 0.04 * cos(t * 0.4), 0.24 + 0.05 * sin(t * 0.55));
+  float2 c3 = float2(0.08 + 0.03 * sin(t * 0.33), -0.42);
+  float ink1 = exp(-dot(q - c1, q - c1) * 4.0);
+  float ink2 = exp(-dot(q - c2, q - c2) * 5.0);
+  float ink3 = exp(-dot(q - c3, q - c3) * 7.0);
+  float warp = fbm(q * 1.7 + float2(-t * 0.05, t * 0.08));
+  col = mix(col, violet, ink1 * (0.045 + warp * 0.026));
+  col = mix(col, indigo, ink2 * (0.040 + (1.0 - warp) * 0.024));
+  col = mix(col, peach, ink3 * 0.010);
 
-  // Drafting grid stays near the threshold of perception.
-  float gx = lineMask(uv.x, 0.070, 0.00032);
-  float gy = lineMask(uv.y, 0.070, 0.00032);
-  float grid = max(gx, gy);
-  col = mix(col, indigo, grid * 0.010);
+  // Hand-drawn contour ribbons: intentionally uneven, sparse, and open.
+  float contourField = fbm(q * 1.32 + float2(t * 0.08, t * -0.03));
+  float wobble = 0.018 * sin(q.x * 8.2 + q.y * 5.7 + t * 1.1);
+  float r1 = ribbon(contourField + wobble, 0.44, 0.0045);
+  float r2 = ribbon(contourField - wobble * 0.7, 0.59, 0.0038);
+  float r3 = ribbon(contourField + wobble * 0.5, 0.72, 0.0032);
+  col = mix(col, violet, (r1 + r3) * (0.018 + energy * 0.006));
+  col = mix(col, indigo, r2 * (0.015 + energy * 0.008));
 
-  // One slow focus region carries active optical energy.
-  float2 focus = float2(
-    0.12 * sin(t * 0.47),
-    0.08 * cos(t * 0.39)
-  );
-  float r = length(q - focus);
-  float halo = exp(-r * r * 8.6);
-  float ring = 1.0 - smoothstep(0.004, 0.014, abs(r - (0.31 + 0.010 * sin(t))));
-  col = mix(col, indigo, halo * (0.018 + energy * 0.024));
-  col = mix(col, cyan, ring * (0.010 + energy * 0.018));
+  // One optical focus region carries active response energy.
+  float2 focus = float2(0.15 * sin(t * 0.41), 0.10 * cos(t * 0.36));
+  float radius = length(q - focus);
+  float halo = exp(-radius * radius * 8.2);
+  float focusRing = 1.0 - smoothstep(0.004, 0.015, abs(radius - (0.29 + 0.012 * sin(t * 0.8))));
+  col = mix(col, indigo, halo * (0.015 + energy * 0.022));
+  col = mix(col, cyan, focusRing * (0.008 + energy * 0.020));
 
-  // A restrained violet calibration trace prevents the field becoming generic blue SaaS.
-  float diagonal = 1.0 - smoothstep(0.0025, 0.010, abs((q.x * 0.66 + q.y) - 0.60));
-  col = mix(col, violet, diagonal * 0.014);
+  // Procedural print grain keeps glass/material from feeling digitally sterile.
+  float grain = hash(pos * 0.37 + time * 0.07) - 0.5;
+  col += grain * 0.008;
 
-  // Dark center bias keeps conversation copy dominant.
-  float center = exp(-dot(q, q) * 1.6);
-  col = mix(col, abyss, center * 0.14);
-
-  // Tiny lift under higher response energy, never enough to compete with text.
-  col = mix(col, lightInk, energy * halo * 0.0025);
+  // Reading field stays darker than the perimeter so conversation always wins.
+  float center = exp(-dot(q, q) * 1.8);
+  col = mix(col, abyss, center * 0.18);
 
   return half4(col, 1.0);
 }

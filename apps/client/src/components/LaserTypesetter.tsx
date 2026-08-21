@@ -28,11 +28,11 @@ function OpticalHead({ height }: { height: number }) {
   const canvasHeight = Math.max(34, height + 8);
   const center = canvasHeight / 2;
   return (
-    <Canvas style={{ width: 122, height: canvasHeight }} pointerEvents="none">
-      <Line p1={vec(0, center)} p2={vec(112, center)} color="rgba(139,156,255,0.44)" strokeWidth={1} />
-      <Line p1={vec(112, 3)} p2={vec(112, canvasHeight - 3)} color={palette.cyan} strokeWidth={2} />
-      <Circle cx={112} cy={center} r={5} color={palette.cyan} />
-      <Circle cx={112} cy={center} r={10} color="rgba(209,139,255,0.20)" />
+    <Canvas style={{ width: 112, height: canvasHeight }} pointerEvents="none">
+      <Line p1={vec(8, center)} p2={vec(103, center)} color="rgba(209,139,255,0.25)" strokeWidth={0.8} />
+      <Line p1={vec(103, 7)} p2={vec(103, canvasHeight - 7)} color="rgba(125,231,255,0.62)" strokeWidth={1.25} />
+      <Circle cx={103} cy={center} r={3.6} color={palette.cyan} opacity={0.9} />
+      <Circle cx={103} cy={center} r={8.5} color="rgba(209,139,255,0.14)" />
     </Canvas>
   );
 }
@@ -90,17 +90,9 @@ export function LaserTypesetter({
   const runRef = React.useRef(0);
   const completionSentRef = React.useRef(false);
 
-  React.useEffect(() => {
-    textRef.current = text;
-  }, [text]);
-
-  React.useEffect(() => {
-    streamCompleteRef.current = streamComplete;
-  }, [streamComplete]);
-
-  React.useEffect(() => {
-    completionRef.current = onComplete;
-  }, [onComplete]);
+  React.useEffect(() => { textRef.current = text; }, [text]);
+  React.useEffect(() => { streamCompleteRef.current = streamComplete; }, [streamComplete]);
+  React.useEffect(() => { completionRef.current = onComplete; }, [onComplete]);
 
   React.useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -123,11 +115,7 @@ export function LaserTypesetter({
     if (measured) {
       const span = Math.max(1, measured.end - measured.start);
       const within = Math.max(0, Math.min(span, index - measured.start));
-      setHead({
-        x: measured.x + measured.width * (within / span),
-        y: measured.y,
-        lineHeight: measured.height,
-      });
+      setHead({ x: measured.x + measured.width * (within / span), y: measured.y, lineHeight: measured.height });
       return;
     }
 
@@ -165,7 +153,6 @@ export function LaserTypesetter({
       setCooled(true);
       return;
     }
-
     if (reduceMotion) return;
 
     let displayed = 0;
@@ -202,7 +189,6 @@ export function LaserTypesetter({
 
       const caughtUp = displayed >= target.length;
       const finished = caughtUp && streamCompleteRef.current;
-
       if (finished) {
         setBeamVisible(false);
         if (coolStartedAt === null) coolStartedAt = now;
@@ -218,7 +204,6 @@ export function LaserTypesetter({
         coolStartedAt = null;
         setBeamVisible(target.length > 0);
       }
-
       frame = requestAnimationFrame(tick);
     };
 
@@ -244,26 +229,18 @@ export function LaserTypesetter({
       <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">
         <Text onTextLayout={onTextLayout} style={[styles.text, styles.measure]}>{text || ' '}</Text>
       </View>
-
       <View style={styles.visibleText}>
         <Text selectable accessibilityLiveRegion="polite" style={styles.text}>
           {coolText}
           <Text style={!cooled && hotText ? styles.hotText : undefined}>{hotText}</Text>
         </Text>
       </View>
-
       {beamVisible && (
         <View
           pointerEvents="none"
           style={[
             styles.beam,
-            {
-              height: beamHeight,
-              transform: [
-                { translateX: head.x - 112 },
-                { translateY: head.y - 4 },
-              ],
-            },
+            { height: beamHeight, transform: [{ translateX: head.x - 103 }, { translateY: head.y - 4 }] },
           ]}
         >
           <OpticalHead height={head.lineHeight} />
@@ -274,36 +251,14 @@ export function LaserTypesetter({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    minHeight: 32,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  measure: {
-    opacity: 0,
-  },
-  visibleText: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  text: {
-    color: palette.text,
-    fontSize: 18,
-    lineHeight: 29,
-    letterSpacing: -0.1,
-  },
+  container: { minHeight: 32, position: 'relative', overflow: 'hidden' },
+  measure: { opacity: 0 },
+  visibleText: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  text: { color: palette.text, fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
   hotText: {
-    color: '#D9C6FF',
-    textShadowColor: 'rgba(125,231,255,0.48)',
-    textShadowRadius: 5,
+    color: '#E6D9FF',
+    textShadowColor: 'rgba(209,139,255,0.38)',
+    textShadowRadius: 4,
   },
-  beam: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 122,
-  },
+  beam: { position: 'absolute', top: 0, left: 0, width: 112 },
 });

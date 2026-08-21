@@ -2,7 +2,7 @@
   "expo": {
     "name": "Parallax 2.0",
     "slug": "parallax-2",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
