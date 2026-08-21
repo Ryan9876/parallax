@@ -197,9 +197,6 @@ try {
   assert(Boolean(authorizeUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
   assert(authorizeUrl.searchParams.get('redirect_to') === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${authorizeUrl.searchParams.get('redirect_to')}`);
 
-  // A successful callback token exchange is the stronger proof that the verifier
-  // survived the cross-origin OAuth trip, so do not race the in-flight navigation
-  // merely to inspect storage before the callback.
   await page.goto(`${origin}/auth/callback?code=mock-google-code`, { waitUntil: 'domcontentloaded' });
   try {
     await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
@@ -225,10 +222,12 @@ try {
   await page.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 10000 });
   assert(sessionDeleteObserved, 'Parallax session logout was not sent to the API');
 
-  const unexpectedErrors = browserErrors.filter((entry) => !entry.includes('favicon'));
+  const authBoundaryErrors = browserErrors.filter((entry) => entry.includes('Failed to load resource: the server responded with a status of 401 (Unauthorized)'));
+  assert(authBoundaryErrors.length >= 1, 'Unauthenticated browser session boundary did not surface the expected 401');
+  const unexpectedErrors = browserErrors.filter((entry) => !entry.includes('favicon') && !entry.includes('Failed to load resource: the server responded with a status of 401 (Unauthorized)'));
   assert(unexpectedErrors.length === 0, `Hosted Google auth browser errors: ${unexpectedErrors.join(' | ')}`);
 
-  console.log(JSON.stringify({ googleAuthorizeRequest: true, pkce: true, transientSupabaseToken: true, parallaxSessionExchange: true, sessionMarkerObserved, ownerAccessPanel: true, logout: sessionDeleteObserved }, null, 2));
+  console.log(JSON.stringify({ googleAuthorizeRequest: true, pkce: true, transientSupabaseToken: true, parallaxSessionExchange: true, sessionMarkerObserved, ownerAccessPanel: true, logout: sessionDeleteObserved, expectedAuthBoundary401s: authBoundaryErrors.length }, null, 2));
 } finally {
   await browser.close();
 }
