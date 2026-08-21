@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.3
+Version: 1.4
 Status: Authoritative
 
 ## Design direction
@@ -10,6 +10,8 @@ P2 evolves the calmer P1 visual language instead of replacing it with dashboard 
 Reason 2.0 adds one durable interaction principle: a material objective change is treated as a calm protected hand-off, not as a failure alarm. Visual intensity must communicate system state without punishing the user for changing direction.
 
 The v0.6 visual refinement rejects generic AI-neon and generic SaaS-glass aesthetics. Parallax should read as **high-end industrial design software + calm intelligence + optical instrumentation**. Distinction comes from precision, material restraint, spatial depth, and one or two signature behaviors rather than decorative effects.
+
+The v0.6.1 refinement adds a stricter restraint rule: **content wins every visual competition**. Ambient effects must be perceived second, never first. If the living surface, glass treatment, or identity motion attracts attention before the conversation does, its intensity is too high.
 
 ## Material palette
 
@@ -35,6 +37,9 @@ The living surface is an optical workplane, not a decorative fluid background.
 - A warm calibration trace prevents the interface from collapsing into generic blue SaaS styling.
 - Motion stays below readable content and never creates high-frequency shimmer.
 - Reduced motion freezes the field without changing the semantic state.
+- At idle, isolines, grid, focus ring, and calibration trace remain near the threshold of perception.
+- Increased response-state energy may raise the optical focus slightly, but must not materially raise full-screen contrast.
+- The conversation stage maintains a calm center bias so copy is always the dominant visual layer.
 
 The surface is atmosphere and spatial reference, not content.
 
@@ -76,15 +81,16 @@ User-facing error text should prefer the server-provided sanitized recovery mess
 
 ## Parallax mark
 
-The representative logo is the **Parallax Aperture Mark**:
+The representative identity is the **Parallax Optical Mark**:
 
-- one geometric aperture around a stable reference center;
-- restrained horizontal and vertical calibration axes;
-- a single measurement point drifts only a few pixels over a slow cycle;
-- no continuous rotation, orbital loops, or spinner behavior;
+- one stable outer optical boundary around a centered intelligence lens;
+- one directional aperture gesture rather than orbital loops or spinner geometry;
+- a small focus point may shift only a few pixels over a slow cycle;
+- no continuous rotation, orbiting particles, scanner crosshairs, or decorative HUD behavior;
+- the mark must remain legible at sidebar scale before it is allowed to become more expressive at larger sizes;
 - reduced motion uses the centered static mark.
 
-The mark should feel like an instrument calibration symbol rather than an AI-logo trope.
+The mark should feel like an instrument symbol that belongs to Parallax, not a generic AI glyph.
 
 ## Typography
 
@@ -97,6 +103,8 @@ All final assistant text remains normal selectable/accessibility-aware text. Mot
 Conversation remains primary. Wide layouts may show a recent-conversation rail; mobile collapses that rail. The assistant response surface may use glass separation but should not become a card-heavy dashboard.
 
 Use visible chrome sparingly. Hierarchy should come from typography, spacing, optical alignment, and material separation before introducing additional cards or controls.
+
+Response surfaces should read as part of a continuous precision workspace rather than independent chat bubbles. User content may retain a contained surface; assistant content should use flatter spatial separation and a stronger reading rhythm.
 
 The active conversation's durable `spec_id` may be shown as quiet metadata. Never hard-code a stale release label into the visible shell; historical conversations must remain capable of displaying their own stored specification identity.
 
