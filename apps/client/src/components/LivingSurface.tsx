@@ -30,42 +30,70 @@ float fbm(float2 p) {
   float a = 0.5;
   for (int i = 0; i < 4; i++) {
     v += a * noise(p);
-    p = float2(0.8 * p.x + 0.6 * p.y, -0.6 * p.x + 0.8 * p.y) * 2.03 + 7.13;
+    p = float2(0.82 * p.x + 0.57 * p.y, -0.57 * p.x + 0.82 * p.y) * 2.01 + 5.73;
     a *= 0.5;
   }
   return v;
 }
 
+float lineMask(float value, float spacing, float width) {
+  float d = abs(fract(value / spacing + 0.5) - 0.5) * spacing;
+  return 1.0 - smoothstep(width, width * 1.8, d);
+}
+
 half4 main(float2 pos) {
   float2 uv = pos / resolution;
   float2 q = uv - 0.5;
-  q.x *= resolution.x / max(resolution.y, 1.0);
-  float t = time * 0.10;
+  float aspect = resolution.x / max(resolution.y, 1.0);
+  q.x *= aspect;
+  float t = time * 0.035;
 
-  float2 warp = float2(
-    fbm(q * 2.35 + float2(t * (0.20 + energy * 0.20), -t * 0.08)),
-    fbm(q * 2.15 + float2(-t * 0.11, t * (0.20 + energy * 0.20)))
+  // Quiet mineral substrate. Motion is broad and slow so the surface reads
+  // like an optical workplane instead of decorative fluid animation.
+  float n1 = fbm(q * 1.35 + float2(t * 0.24, -t * 0.11));
+  float n2 = fbm(q * 2.10 + float2(-t * 0.08, t * 0.18));
+  float field = mix(n1, n2, 0.38);
+
+  float3 paper = float3(0.965, 0.958, 0.931);
+  float3 stone = float3(0.902, 0.910, 0.894);
+  float3 cool = float3(0.707, 0.829, 0.827);
+  float3 warm = float3(0.875, 0.796, 0.709);
+  float3 ink = float3(0.132, 0.159, 0.165);
+
+  float3 col = mix(paper, stone, 0.11 + field * 0.055);
+
+  // Sparse topographic isolines. They are the signature background behavior:
+  // precise enough to feel instrument-like, soft enough to disappear under copy.
+  float contourSource = field + 0.13 * sin(q.x * 1.7 - q.y * 1.2 + t);
+  float contour = lineMask(contourSource, 0.105, 0.0022);
+  col = mix(col, ink, contour * (0.025 + energy * 0.012));
+
+  // A very faint drafting grid adds scale without turning the surface into a dashboard.
+  float gx = lineMask(uv.x, 0.055, 0.00045);
+  float gy = lineMask(uv.y, 0.055, 0.00045);
+  float grid = max(gx, gy);
+  col = mix(col, ink, grid * 0.010);
+
+  // One optical focus region, not a full-screen glow. The focus drifts slowly and
+  // becomes slightly more apparent while intelligence is active.
+  float2 focus = float2(
+    0.16 * sin(t * 0.71),
+    0.11 * cos(t * 0.53)
   );
-  float2 w = q + (warp - 0.5) * (0.16 + energy * 0.08);
+  float r = length(q - focus);
+  float halo = exp(-r * r * 7.8);
+  float ring = 1.0 - smoothstep(0.006, 0.018, abs(r - (0.34 + 0.018 * sin(t))));
+  col = mix(col, cool, halo * (0.025 + energy * 0.026));
+  col = mix(col, cool, ring * (0.025 + energy * 0.030));
 
-  float f1 = fbm(w * 2.0 + float2(t * 0.06, t * 0.025));
-  float f2 = fbm(w * 3.1 - float2(t * 0.035, t * 0.05));
-  float band1 = 0.5 + 0.5 * sin((w.x * 3.2 + w.y * 2.0 + f1 * 2.6 + t * 0.13) * 3.14159);
-  float band2 = 0.5 + 0.5 * sin((-w.x * 2.4 + w.y * 3.1 + f2 * 2.0 - t * 0.10) * 3.14159);
+  // A secondary warm calibration trace keeps the palette from becoming generic blue SaaS.
+  float diagonal = 1.0 - smoothstep(0.003, 0.012, abs((q.x * 0.72 + q.y) - 0.56));
+  col = mix(col, warm, diagonal * 0.022);
 
-  float3 mineral = float3(0.957, 0.953, 0.933);
-  float3 smoke = float3(0.835, 0.850, 0.846);
-  float3 teal = float3(0.54, 0.77, 0.79);
-  float3 peach = float3(0.92, 0.78, 0.67);
-  float3 moss = float3(0.75, 0.79, 0.64);
+  // Slight edge falloff keeps attention in the working area without visible vignette styling.
+  float edge = smoothstep(0.94, 0.35, length(float2(q.x / max(aspect, 1.0), q.y)));
+  col = mix(paper, col, 0.90 + edge * 0.10);
 
-  float3 col = mix(mineral, smoke, 0.14 * f1);
-  col = mix(col, teal, (0.10 + energy * 0.04) * smoothstep(0.62, 0.98, band1));
-  col = mix(col, peach, 0.08 * smoothstep(0.66, 0.99, band2));
-  col = mix(col, moss, 0.035 * smoothstep(0.76, 1.0, (band1 + band2) * 0.5));
-
-  float caustic = pow(max(0.0, 1.0 - abs(0.5 - band1) * 2.0), 10.0);
-  col += float3(0.84, 0.96, 1.0) * caustic * (0.05 + energy * 0.07);
   return half4(col, 1.0);
 }
 `);
@@ -102,6 +130,6 @@ export function LivingSurface({ energy }: { energy: number }) {
 
 const styles = StyleSheet.create({
   fallback: {
-    backgroundColor: '#F4F3EE',
+    backgroundColor: '#F7F4EC',
   },
 });
