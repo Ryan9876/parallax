@@ -36,9 +36,9 @@ float fbm(float2 p) {
   return v;
 }
 
-float lineMask(float value, float spacing, float width) {
-  float d = abs(fract(value / spacing + 0.5) - 0.5) * spacing;
-  return 1.0 - smoothstep(width, width * 1.8, d);
+float band(float value, float width) {
+  float s = abs(sin(value));
+  return 1.0 - smoothstep(width, width * 2.6, s);
 }
 
 half4 main(float2 pos) {
@@ -46,49 +46,42 @@ half4 main(float2 pos) {
   float2 q = uv - 0.5;
   float aspect = resolution.x / max(resolution.y, 1.0);
   q.x *= aspect;
-  float t = time * 0.018;
 
-  float n1 = fbm(q * 1.18 + float2(t * 0.16, -t * 0.07));
-  float n2 = fbm(q * 1.72 + float2(-t * 0.05, t * 0.11));
-  float field = mix(n1, n2, 0.30);
+  float t = time * 0.09;
+  float warpA = fbm(q * 1.18 + float2(t * 0.11, -t * 0.06));
+  float warpB = fbm(q * 1.72 + float2(-t * 0.05, t * 0.08));
+  float2 warped = q + float2(warpA - 0.5, warpB - 0.5) * 0.20;
 
-  float3 paper = float3(0.972, 0.966, 0.944);
-  float3 stone = float3(0.912, 0.916, 0.903);
-  float3 cool = float3(0.735, 0.834, 0.827);
-  float3 warm = float3(0.882, 0.814, 0.748);
-  float3 ink = float3(0.132, 0.159, 0.165);
+  float3 mineral = float3(0.944, 0.949, 0.925);
+  float3 warm = float3(0.974, 0.957, 0.918);
+  float3 cool = float3(0.868, 0.922, 0.910);
+  float3 white = float3(1.0, 0.998, 0.982);
 
-  float3 col = mix(paper, stone, 0.075 + field * 0.035);
+  float field = fbm(warped * 1.05 + 1.7);
+  float3 col = mix(mineral, warm, 0.34 + field * 0.20);
+  col = mix(col, cool, smoothstep(0.44, 0.78, field) * 0.22);
 
-  // Sparse topographic isolines: perceptible only after the interface settles.
-  float contourSource = field + 0.10 * sin(q.x * 1.45 - q.y * 1.05 + t);
-  float contour = lineMask(contourSource, 0.128, 0.0017);
-  col = mix(col, ink, contour * (0.012 + energy * 0.006));
+  // Broad water-light contours. They are intentionally visible at rest, but remain
+  // soft enough that the conversation surface still wins the hierarchy.
+  float r1 = length(warped - float2(-0.28, -0.12));
+  float r2 = length(warped - float2(0.36, 0.18));
+  float r3 = length(warped - float2(0.02, 0.46));
+  float c1 = band((r1 * 15.0) + warpA * 5.0 - t * 0.55, 0.095);
+  float c2 = band((r2 * 13.0) - warpB * 4.0 + t * 0.38, 0.105);
+  float c3 = band((r3 * 11.0) + (warpA - warpB) * 3.0 - t * 0.24, 0.11);
+  float contour = max(c1 * 0.88, max(c2 * 0.72, c3 * 0.55));
 
-  // Drafting grid is intentionally near the threshold of perception.
-  float gx = lineMask(uv.x, 0.070, 0.00032);
-  float gy = lineMask(uv.y, 0.070, 0.00032);
-  float grid = max(gx, gy);
-  col = mix(col, ink, grid * 0.0045);
+  float contourStrength = 0.25 + energy * 0.16;
+  col = mix(col, white, contour * contourStrength);
 
-  // A single low-energy optical focus provides depth without becoming a glow effect.
-  float2 focus = float2(
-    0.12 * sin(t * 0.47),
-    0.08 * cos(t * 0.39)
-  );
-  float r = length(q - focus);
-  float halo = exp(-r * r * 8.6);
-  float ring = 1.0 - smoothstep(0.004, 0.014, abs(r - (0.31 + 0.010 * sin(t))));
-  col = mix(col, cool, halo * (0.010 + energy * 0.012));
-  col = mix(col, cool, ring * (0.008 + energy * 0.012));
+  // A broad translucent lift behind the working center keeps the surface luminous,
+  // rather than reading as a flat beige canvas.
+  float center = exp(-dot(q, q) * 1.55);
+  col = mix(col, white, center * 0.055);
 
-  // One warm calibration trace keeps the material system from becoming generic blue SaaS.
-  float diagonal = 1.0 - smoothstep(0.0025, 0.010, abs((q.x * 0.66 + q.y) - 0.60));
-  col = mix(col, warm, diagonal * 0.008);
-
-  // Gentle center bias preserves contrast behind the conversation surface.
-  float center = exp(-dot(q, q) * 1.6);
-  col = mix(col, paper, center * 0.025);
+  // Quiet edge depth preserves the softly bowed material feeling of the prototype.
+  float edge = smoothstep(0.90, 0.26, length(float2(q.x / max(aspect, 1.0), q.y)));
+  col = mix(mineral, col, 0.90 + edge * 0.10);
 
   return half4(col, 1.0);
 }
@@ -126,6 +119,6 @@ export function LivingSurface({ energy }: { energy: number }) {
 
 const styles = StyleSheet.create({
   fallback: {
-    backgroundColor: '#F7F4EC',
+    backgroundColor: '#EEF1EC',
   },
 });
