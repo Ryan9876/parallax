@@ -17,9 +17,11 @@ export function useWorkSpecification(conversationId: string | null) {
     }
     try {
       const latest = await api.latestWorkSpecification(conversationId);
-      const approved = latest?.status === 'APPROVED'
-        ? latest
-        : await api.latestApprovedWorkSpecification(conversationId).catch(() => null);
+      const approved = !latest
+        ? null
+        : latest.status === 'APPROVED'
+          ? latest
+          : await api.latestApprovedWorkSpecification(conversationId).catch(() => null);
       setSpecification(latest);
       setApprovedSpecification(approved);
       setError(null);
