@@ -19,6 +19,17 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
         Base.metadata.create_all(engine)
 
     app = FastAPI(title="Parallax 2.0 API", version="0.1.0")
+
+    @app.get("/")
+    def root():
+        return {
+            "service": "Parallax 2.0 API",
+            "status": "online",
+            "docs": "/docs",
+            "health": "/health",
+            "version": "0.1.0",
+        }
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
