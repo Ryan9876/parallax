@@ -37,8 +37,14 @@ float fbm(float2 p) {
   return v;
 }
 
-float ribbon(float value, float center, float width) {
-  return 1.0 - smoothstep(width, width * 2.2, abs(value - center));
+float blob(float2 p, float2 center, float sx, float sy, float wobble) {
+  float2 d = p - center;
+  d += float2(
+    sin((p.y + center.x) * 5.0 + wobble) * 0.035,
+    cos((p.x - center.y) * 4.2 - wobble * 0.7) * 0.030
+  );
+  d /= float2(sx, sy);
+  return exp(-dot(d, d) * 1.55);
 }
 
 half4 main(float2 pos) {
@@ -46,64 +52,61 @@ half4 main(float2 pos) {
   float2 q = uv - 0.5;
   float aspect = resolution.x / max(resolution.y, 1.0);
   q.x *= aspect;
-  float t = time * 0.020;
 
-  float3 abyss = float3(0.024, 0.031, 0.054);
-  float3 deep = float3(0.052, 0.060, 0.108);
-  float3 indigo = float3(0.545, 0.612, 1.000);
-  float3 violet = float3(0.820, 0.545, 1.000);
-  float3 cyan = float3(0.490, 0.906, 1.000);
-  float3 peach = float3(0.875, 0.655, 0.561);
-  float3 cream = float3(0.941, 0.894, 0.812);
-  float3 sage = float3(0.624, 0.725, 0.647);
+  // Slow non-synchronous motion: roughly 20–45+ second visual cycles.
+  float t = time * 0.115;
 
-  float paper = fbm(q * 1.04 + float2(t * 0.09, -t * 0.04));
-  float3 col = mix(abyss, deep, 0.22 + paper * 0.13);
+  float3 abyss = float3(0.018, 0.023, 0.043);
+  float3 midnight = float3(0.032, 0.038, 0.075);
+  float3 indigo = float3(0.310, 0.300, 0.720);
+  float3 violet = float3(0.515, 0.260, 0.830);
+  float3 lavender = float3(0.720, 0.510, 1.000);
+  float3 blue = float3(0.145, 0.255, 0.600);
 
-  // Authored asymmetric ink fields. More visible at rest than v0.9.0, still spatial rather than neon.
-  float2 c1 = float2(-0.39 + 0.05 * sin(t * 0.7), -0.16 + 0.04 * cos(t * 0.5));
-  float2 c2 = float2(0.46 + 0.04 * cos(t * 0.4), 0.25 + 0.05 * sin(t * 0.55));
-  float2 c3 = float2(0.08 + 0.03 * sin(t * 0.33), -0.43);
-  float2 c4 = float2(-0.54, 0.40 + 0.03 * sin(t * 0.27));
-  float ink1 = exp(-dot(q - c1, q - c1) * 3.6);
-  float ink2 = exp(-dot(q - c2, q - c2) * 4.3);
-  float ink3 = exp(-dot(q - c3, q - c3) * 6.4);
-  float ink4 = exp(-dot(q - c4, q - c4) * 7.2);
-  float warp = fbm(q * 1.7 + float2(-t * 0.05, t * 0.08));
-  col = mix(col, violet, ink1 * (0.092 + warp * 0.044));
-  col = mix(col, indigo, ink2 * (0.078 + (1.0 - warp) * 0.038));
-  col = mix(col, peach, ink3 * 0.030);
-  col = mix(col, sage, ink4 * 0.016);
+  float paper = fbm(q * 1.15 + float2(t * 0.018, -t * 0.012));
+  float3 col = mix(abyss, midnight, 0.30 + paper * 0.10);
 
-  // A restrained warm paper-light pool gives the field editorial depth instead of pure cyber color.
-  float2 warmCenter = float2(-0.24, -0.46);
-  float warm = exp(-dot(q - warmCenter, q - warmCenter) * 9.2);
-  col = mix(col, cream, warm * 0.020);
+  float2 c1 = float2(-0.47 + 0.16 * sin(t * 0.57), -0.24 + 0.19 * cos(t * 0.43));
+  float2 c2 = float2( 0.45 + 0.18 * cos(t * 0.38),  0.22 + 0.18 * sin(t * 0.51));
+  float2 c3 = float2(-0.12 + 0.23 * sin(t * 0.31 + 1.7), 0.50 + 0.13 * cos(t * 0.47));
+  float2 c4 = float2( 0.17 + 0.20 * cos(t * 0.29 + 2.2), -0.51 + 0.14 * sin(t * 0.41));
 
-  // Hand-drawn contour ribbons: sparse, uneven, but now legible enough to define the material language.
-  float contourField = fbm(q * 1.32 + float2(t * 0.08, t * -0.03));
-  float wobble = 0.021 * sin(q.x * 8.2 + q.y * 5.7 + t * 1.1);
-  float r1 = ribbon(contourField + wobble, 0.44, 0.0048);
-  float r2 = ribbon(contourField - wobble * 0.7, 0.59, 0.0041);
-  float r3 = ribbon(contourField + wobble * 0.5, 0.72, 0.0036);
-  col = mix(col, violet, (r1 + r3) * (0.032 + energy * 0.010));
-  col = mix(col, indigo, r2 * (0.027 + energy * 0.012));
+  float b1 = blob(q, c1, 0.50, 0.38, t * 0.74);
+  float b2 = blob(q, c2, 0.54, 0.42, -t * 0.61);
+  float b3 = blob(q, c3, 0.46, 0.34, t * 0.53 + 1.2);
+  float b4 = blob(q, c4, 0.42, 0.31, -t * 0.67 + 2.1);
 
-  // One optical focus region carries active response energy.
-  float2 focus = float2(0.15 * sin(t * 0.41), 0.10 * cos(t * 0.36));
-  float radius = length(q - focus);
-  float halo = exp(-radius * radius * 8.2);
-  float focusRing = 1.0 - smoothstep(0.004, 0.015, abs(radius - (0.29 + 0.012 * sin(t * 0.8))));
-  col = mix(col, indigo, halo * (0.024 + energy * 0.032));
-  col = mix(col, cyan, focusRing * (0.014 + energy * 0.026));
+  // Soft metaball fusion creates a lava-lamp feel without discrete particles.
+  float fusionA = smoothstep(0.28, 0.86, b1 + b3 * 0.72);
+  float fusionB = smoothstep(0.30, 0.88, b2 + b4 * 0.76);
+  float overlap = smoothstep(0.38, 1.08, b1 + b2 + b3 + b4);
 
-  // Fine print grain keeps glass/material tactile but below readable content.
-  float grain = hash(pos * 0.37 + time * 0.07) - 0.5;
-  col += grain * 0.010;
+  col = mix(col, violet, fusionA * (0.105 + energy * 0.020));
+  col = mix(col, indigo, fusionB * (0.095 + energy * 0.018));
+  col = mix(col, lavender, overlap * (0.034 + energy * 0.012));
 
-  // Reading field stays darker than the perimeter, but not so dark that the editorial field disappears.
-  float center = exp(-dot(q, q) * 1.8);
-  col = mix(col, abyss, center * 0.115);
+  // Deep blue undercurrent adds dimensional separation without introducing a new accent family.
+  float undercurrent = blob(q, float2(-0.02 + 0.12 * cos(t * 0.23), 0.04 + 0.10 * sin(t * 0.27)), 0.76, 0.58, t * 0.21);
+  col = mix(col, blue, undercurrent * 0.050);
+
+  // Soft liquid seams around the merged forms. They are broader than contour lines and never read as a HUD.
+  float liquidField = b1 + b2 + b3 + b4;
+  float seamA = 1.0 - smoothstep(0.018, 0.060, abs(liquidField - 0.82));
+  float seamB = 1.0 - smoothstep(0.016, 0.055, abs(liquidField - 1.08));
+  col = mix(col, lavender, seamA * 0.026);
+  col = mix(col, violet, seamB * 0.022);
+
+  // Fine material grain stays almost subliminal.
+  float grain = hash(pos * 0.31 + time * 0.021) - 0.5;
+  col += grain * 0.006;
+
+  // Dark reading bias keeps the conversation visually dominant even as blobs pass behind it.
+  float center = exp(-dot(q, q) * 1.55);
+  col = mix(col, abyss, center * 0.16);
+
+  // Gentle vignette grounds the field at the device edges.
+  float edge = smoothstep(0.35, 0.95, length(q * float2(0.84, 1.0)));
+  col = mix(col, abyss, edge * 0.18);
 
   return half4(col, 1.0);
 }
