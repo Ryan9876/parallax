@@ -1,4 +1,5 @@
 import { fetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 
 export type MessageDto = {
   id: string;
@@ -59,7 +60,10 @@ export type SessionDto = {
   expires_at?: string;
 };
 
-const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
+const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
+const apiBase = Platform.OS === 'web' && configuredApiBase.startsWith('https://')
+  ? '/p2-api'
+  : configuredApiBase;
 const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
 let transientAccessToken = '';
 
