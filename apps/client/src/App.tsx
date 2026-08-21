@@ -167,8 +167,6 @@ export default function App() {
   const changeMode = React.useCallback(
     async (nextMode: 'reason' | 'code') => {
       if (nextMode === mode) return;
-      // Foundation behavior: a mode switch starts a new durable conversation so
-      // the persisted server-side mode and visible mode can never diverge.
       await startConversation(nextMode);
     },
     [mode, startConversation],
@@ -281,8 +279,6 @@ export default function App() {
       ));
       setStreamFinished(true);
 
-      // Refresh only the sidebar/title metadata now. Replacing active messages
-      // before the optical renderer catches up would remount the typesetter.
       void api.getConversation(id).then(updateConversationSummary).catch(() => undefined);
     } catch (error) {
       setStreamFinished(true);
@@ -334,7 +330,7 @@ export default function App() {
             onChangeText={setAccessDraft}
             onSubmitEditing={unlock}
             placeholder="Access credential"
-            placeholderTextColor="#8A9496"
+            placeholderTextColor="#7F8582"
             style={styles.accessInput}
           />
           {accessError ? <Text style={styles.errorText}>{accessError}</Text> : null}
@@ -354,16 +350,16 @@ export default function App() {
           {!compact && (
             <View style={styles.rail}>
               <View style={styles.brandRow}>
-                <ParallaxLogo size={42} />
+                <ParallaxLogo size={38} />
                 <View>
-                  <Text style={styles.brand}>Parallax</Text>
-                  <Text style={styles.brandSub}>2.0</Text>
+                  <Text style={styles.brand}>PARALLAX</Text>
+                  <Text style={styles.brandSub}>OPTICAL WORKSPACE · 2.0</Text>
                 </View>
               </View>
               <View style={styles.railHeading}>
-                <Text style={styles.railLabel}>Recent</Text>
+                <Text style={styles.railLabel}>Conversations</Text>
                 <TouchableOpacity onPress={() => void startConversation(mode)} accessibilityRole="button">
-                  <Text style={styles.newChat}>＋ New</Text>
+                  <Text style={styles.newChat}>NEW +</Text>
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.recentList}>
@@ -379,8 +375,8 @@ export default function App() {
                 ))}
               </ScrollView>
               <View style={styles.railBottom}>
-                <Text style={styles.railStatus}>SPEC {activeConversation?.spec_id ?? 'P2-V0.3.0'}</Text>
-                <Text style={styles.railMuted}>{apiOnline ? 'Persistent context online' : 'Visual fallback · API offline'}</Text>
+                <Text style={styles.railStatus}>{activeConversation?.spec_id ?? 'P2-V0.3.0'}</Text>
+                <Text style={styles.railMuted}>{apiOnline ? 'CONTEXT ONLINE' : 'VISUAL FALLBACK · API OFFLINE'}</Text>
               </View>
             </View>
           )}
@@ -388,10 +384,10 @@ export default function App() {
           <View style={styles.main}>
             <View style={styles.topbar}>
               <View style={styles.topbarTitleRow}>
-                {compact && <ParallaxLogo size={36} />}
+                {compact && <ParallaxLogo size={32} />}
                 <View>
                   <Text style={styles.topTitle}>Parallax</Text>
-                  <Text style={styles.topSub}>Parallax 2.0 · {state.phase.toLowerCase()}</Text>
+                  <Text style={styles.topSub}>{state.phase.toLowerCase()} · {activeConversation?.spec_id ?? 'unbound specification'}</Text>
                 </View>
               </View>
               <View style={styles.modeSwitch}>
@@ -423,13 +419,13 @@ export default function App() {
               {messages.length === 0 ? (
                 <View style={styles.emptyState}>
                   <ParallaxLogo size={44} />
-                  <Text style={styles.emptyTitle}>Start with the outcome.</Text>
-                  <Text style={styles.emptyCopy}>Describe what you are trying to accomplish. Parallax will keep the conversation, specification, evidence, and execution state together as the work evolves.</Text>
+                  <Text style={styles.emptyTitle}>Define the outcome.</Text>
+                  <Text style={styles.emptyCopy}>Describe what you are trying to accomplish. Parallax keeps the objective, evidence, specification, and execution state aligned while the work evolves.</Text>
                 </View>
               ) : messages.map((message) => (
                 message.role === 'user' ? (
                   <View key={message.id} style={styles.userBlock}>
-                    <Text style={styles.meta}>You</Text>
+                    <Text style={styles.meta}>YOU</Text>
                     <View style={styles.userBubble}>
                       <Text selectable style={styles.userText}>{message.content}</Text>
                     </View>
@@ -437,10 +433,10 @@ export default function App() {
                 ) : message.role === 'assistant' ? (
                   <View key={message.id} style={styles.assistantBlock}>
                     <View style={styles.assistantHead}>
-                      <ParallaxLogo size={34} />
+                      <ParallaxLogo size={30} />
                       <View>
-                        <Text style={styles.assistantName}>Parallax 2.0</Text>
-                        <Text style={styles.meta}>{mode === 'reason' ? 'Reason' : 'Code'} · {message.id === activePrintId ? 'RESPONDING' : 'COMPLETE'}</Text>
+                        <Text style={styles.assistantName}>PARALLAX 2.0</Text>
+                        <Text style={styles.meta}>{mode === 'reason' ? 'REASON' : 'CODE'} · {message.id === activePrintId ? 'RESPONDING' : 'COMPLETE'}</Text>
                       </View>
                     </View>
                     <View style={styles.responseGlass}>
@@ -457,7 +453,7 @@ export default function App() {
                       {message.id === activePrintId && (
                         <View style={styles.statusRow}>
                           <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
-                          <Text style={styles.statusText}>{streamFinished ? 'Finishing optical inscription' : 'Optical renderer active'}</Text>
+                          <Text style={styles.statusText}>{streamFinished ? 'FINISHING INSCRIPTION' : 'OPTICAL RENDERER ACTIVE'}</Text>
                         </View>
                       )}
                     </View>
@@ -467,8 +463,8 @@ export default function App() {
 
               {state.phase === 'THINKING' && (
                 <View style={styles.thinkingRow}>
-                  <ParallaxLogo size={26} />
-                  <Text style={styles.thinkingText}>Parallax is resolving the active objective…</Text>
+                  <ParallaxLogo size={24} />
+                  <Text style={styles.thinkingText}>Resolving the active objective…</Text>
                 </View>
               )}
               {state.phase === 'VERIFYING' && <Text style={styles.phaseHint}>Verifying response…</Text>}
@@ -494,8 +490,8 @@ export default function App() {
                   accessibilityLabel="Message Parallax"
                   value={draft}
                   onChangeText={setDraft}
-                  placeholder="Message Parallax…"
-                  placeholderTextColor="#8A9496"
+                  placeholder="Describe the next outcome…"
+                  placeholderTextColor="#7B817E"
                   style={styles.input}
                   onSubmitEditing={() => void respond()}
                   multiline
@@ -513,92 +509,93 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  accessRoot: { flex: 1, backgroundColor: '#F4F3EE', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 24, padding: 28, backgroundColor: 'rgba(250,250,247,0.72)' },
-  accessTitle: { color: '#20282B', fontSize: 24, fontWeight: '700', marginTop: 14 },
-  accessCopy: { color: '#738083', fontSize: 13, marginTop: 5, marginBottom: 22 },
-  accessInput: { width: '100%', minHeight: 48, borderRadius: 14, paddingHorizontal: 14, color: '#20282B', backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)' },
-  accessButton: { width: '100%', minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#147D9F', marginTop: 8 },
-  accessButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  root: { flex: 1, backgroundColor: '#F4F3EE' },
+  accessRoot: { flex: 1, backgroundColor: '#F7F4EC', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 10, padding: 30, backgroundColor: 'rgba(250,248,241,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)' },
+  accessTitle: { color: '#20282B', fontSize: 22, fontWeight: '600', marginTop: 14, letterSpacing: -0.4 },
+  accessCopy: { color: '#6F7775', fontSize: 12, marginTop: 5, marginBottom: 22, letterSpacing: 0.4 },
+  accessInput: { width: '100%', minHeight: 48, borderRadius: 6, paddingHorizontal: 14, color: '#20282B', backgroundColor: 'rgba(255,255,255,0.56)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.20)' },
+  accessButton: { width: '100%', minHeight: 46, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20282B', marginTop: 8 },
+  accessButtonText: { color: '#F7F4EC', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
+  root: { flex: 1, backgroundColor: '#F7F4EC' },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },
   rail: {
-    width: 220,
+    width: 196,
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(32,40,43,0.12)',
-    backgroundColor: 'rgba(242,241,236,0.68)',
-    padding: 18,
+    borderRightColor: 'rgba(32,40,43,0.16)',
+    backgroundColor: 'rgba(247,244,236,0.76)',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30 },
-  brand: { fontSize: 15, fontWeight: '700', color: '#20282B' },
-  brandSub: { fontSize: 11, color: '#9A7F71', marginTop: 1 },
-  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
-  railLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.4, color: '#8A9091' },
-  newChat: { fontSize: 10, color: '#147D9F', fontWeight: '700' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 38 },
+  brand: { fontSize: 12, fontWeight: '800', color: '#20282B', letterSpacing: 1.35 },
+  brandSub: { fontSize: 8, color: '#8C786A', marginTop: 3, letterSpacing: 0.75 },
+  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(32,40,43,0.12)' },
+  railLabel: { fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.55, color: '#777D7A' },
+  newChat: { fontSize: 8, color: '#147D9F', fontWeight: '800', letterSpacing: 0.9 },
   recentList: { flex: 1 },
-  railItemActive: { padding: 11, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.54)', marginBottom: 4 },
-  railItem: { padding: 11, marginBottom: 4 },
-  railItemText: { fontSize: 12, lineHeight: 16, color: '#20282B' },
-  railMuted: { fontSize: 10, color: '#8A9091', marginTop: 3, textTransform: 'capitalize' },
-  railBottom: { gap: 4, paddingTop: 12 },
-  railStatus: { fontSize: 9, color: '#147D9F', letterSpacing: 0.8 },
+  railItemActive: { paddingHorizontal: 10, paddingVertical: 10, borderLeftWidth: 2, borderLeftColor: '#147D9F', backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: 2 },
+  railItem: { paddingHorizontal: 12, paddingVertical: 10, marginBottom: 2, borderLeftWidth: 2, borderLeftColor: 'transparent' },
+  railItemText: { fontSize: 11, lineHeight: 15, color: '#20282B' },
+  railMuted: { fontSize: 8, color: '#7F8582', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
+  railBottom: { gap: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(32,40,43,0.12)' },
+  railStatus: { fontSize: 8, color: '#147D9F', letterSpacing: 0.9, fontWeight: '700' },
   main: { flex: 1, minWidth: 0 },
   topbar: {
-    minHeight: 64,
-    paddingHorizontal: 18,
+    minHeight: 62,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(32,40,43,0.10)',
-    backgroundColor: 'rgba(248,247,243,0.40)',
+    borderBottomColor: 'rgba(32,40,43,0.14)',
+    backgroundColor: 'rgba(247,244,236,0.54)',
   },
-  topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  topTitle: { fontSize: 16, fontWeight: '600', color: '#20282B' },
-  topSub: { fontSize: 10, color: '#9A7F71', marginTop: 2 },
-  modeSwitch: { flexDirection: 'row', borderRadius: 13, padding: 3, backgroundColor: 'rgba(255,255,255,0.38)' },
-  modeButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 },
+  topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topTitle: { fontSize: 15, fontWeight: '650', color: '#20282B', letterSpacing: -0.2 },
+  topSub: { fontSize: 8, color: '#8C786A', marginTop: 3, letterSpacing: 0.55 },
+  modeSwitch: { flexDirection: 'row', borderRadius: 5, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)', backgroundColor: 'rgba(255,255,255,0.18)' },
+  modeButton: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 3 },
   modeButtonActive: { backgroundColor: '#20282B' },
-  modeText: { fontSize: 10, textTransform: 'uppercase', color: '#7F898B' },
-  modeTextActive: { color: '#F4F3EE' },
-  thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 150 },
-  emptyState: { maxWidth: 560, alignSelf: 'center', alignItems: 'center', paddingTop: 88, paddingHorizontal: 24 },
-  emptyTitle: { color: '#20282B', fontSize: 22, fontWeight: '600', marginTop: 14 },
-  emptyCopy: { color: '#738083', fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 9 },
-  userBlock: { alignItems: 'flex-end', marginBottom: 34 },
-  meta: { fontSize: 10, color: '#8A9091', marginBottom: 7 },
-  userBubble: { maxWidth: 560, borderRadius: 20, borderBottomRightRadius: 6, padding: 16, backgroundColor: 'rgba(255,255,255,0.55)' },
-  userText: { fontSize: 15, lineHeight: 23, color: '#20282B' },
-  assistantBlock: { width: '100%', marginBottom: 34 },
-  assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
-  assistantName: { fontSize: 12, fontWeight: '700', color: '#405055' },
-  responseGlass: { borderRadius: 22, padding: 20, backgroundColor: 'rgba(250,250,247,0.58)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.80)' },
-  assistantText: { color: '#20282B', fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
-  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(20,125,159,0.26)' },
+  modeText: { fontSize: 8, textTransform: 'uppercase', color: '#6F7775', fontWeight: '700', letterSpacing: 0.8 },
+  modeTextActive: { color: '#F7F4EC' },
+  thread: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 28, paddingTop: 52, paddingBottom: 154 },
+  emptyState: { maxWidth: 540, alignSelf: 'center', alignItems: 'center', paddingTop: 92, paddingHorizontal: 24 },
+  emptyTitle: { color: '#20282B', fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
+  emptyCopy: { color: '#66706E', fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
+  userBlock: { alignItems: 'flex-end', marginBottom: 42 },
+  meta: { fontSize: 8, color: '#727A77', marginBottom: 7, letterSpacing: 0.85, fontWeight: '700' },
+  userBubble: { maxWidth: 600, borderRadius: 6, paddingHorizontal: 18, paddingVertical: 15, backgroundColor: 'rgba(255,255,255,0.47)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.10)' },
+  userText: { fontSize: 15, lineHeight: 23, color: '#20282B', letterSpacing: -0.05 },
+  assistantBlock: { width: '100%', marginBottom: 44 },
+  assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14 },
+  assistantName: { fontSize: 9, fontWeight: '800', color: '#354043', letterSpacing: 1.0 },
+  responseGlass: { paddingTop: 20, paddingBottom: 22, paddingHorizontal: 22, backgroundColor: 'rgba(250,248,241,0.48)', borderTopWidth: 1, borderTopColor: 'rgba(20,125,159,0.34)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(32,40,43,0.10)', borderLeftWidth: 3, borderLeftColor: 'rgba(20,125,159,0.44)' },
+  assistantText: { color: '#20282B', fontSize: 18, lineHeight: 30, letterSpacing: -0.18 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(20,125,159,0.22)' },
   statusDotActive: { backgroundColor: '#54D8FF' },
-  statusText: { fontSize: 10, color: '#678B98' },
+  statusText: { fontSize: 8, color: '#5E7D86', letterSpacing: 0.75, fontWeight: '700' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -10, marginBottom: 30 },
-  thinkingText: { color: '#688086', fontSize: 11 },
-  phaseHint: { color: '#688086', fontSize: 11, marginBottom: 24 },
+  thinkingText: { color: '#60706E', fontSize: 10, letterSpacing: 0.3 },
+  phaseHint: { color: '#60706E', fontSize: 10, marginBottom: 24 },
   amendmentNotice: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(20,125,159,0.22)',
-    backgroundColor: 'rgba(222,197,182,0.24)',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#147D9F',
+    backgroundColor: 'rgba(222,197,182,0.20)',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     marginBottom: 24,
   },
-  amendmentTitle: { color: '#405055', fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  amendmentText: { color: '#6F7472', fontSize: 11, lineHeight: 17 },
-  errorText: { color: '#9A5A52', fontSize: 11, lineHeight: 17, marginBottom: 24 },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
-  composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: 'rgba(248,247,243,0.78)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.86)' },
-  newMobile: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.52)' },
-  newMobileText: { color: '#647174', fontSize: 19 },
-  input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: '#20282B', fontSize: 14 },
-  send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#147D9F' },
-  sendText: { color: '#FFFFFF', fontSize: 19 },
+  amendmentTitle: { color: '#354043', fontSize: 10, fontWeight: '800', marginBottom: 5, letterSpacing: 0.45 },
+  amendmentText: { color: '#656C69', fontSize: 11, lineHeight: 17 },
+  errorText: { color: '#955B52', fontSize: 11, lineHeight: 17, marginBottom: 24 },
+  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8 },
+  composer: { maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(250,248,241,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.20)' },
+  newMobile: { width: 40, height: 40, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.38)' },
+  newMobileText: { color: '#596462', fontSize: 18 },
+  input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 11, paddingVertical: 10, color: '#20282B', fontSize: 14, letterSpacing: -0.05 },
+  send: { width: 42, height: 42, borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20282B' },
+  sendText: { color: '#D8F9FF', fontSize: 19 },
 });
