@@ -102,6 +102,20 @@ export type SessionDto = {
   expires_at?: string;
 };
 
+export type AccessUserDto = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  role: 'owner' | 'member';
+  status: 'active' | 'revoked';
+  auth_method: 'google' | 'bearer' | null;
+  bound: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+  last_login_at: string | null;
+};
+
 const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
 const hostedHttpsWeb = Platform.OS === 'web'
   && typeof globalThis.location !== 'undefined'
@@ -116,6 +130,7 @@ const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
 let transientAccessToken = '';
 
 export class AuthenticationRequiredError extends Error {}
+export class AuthorizationDeniedError extends Error {}
 
 function requestCredentials(): RequestCredentials {
   return secureSessionTransport ? 'include' : 'same-origin';
@@ -128,6 +143,17 @@ function authenticatedHeaders(): Record<string, string> {
   };
 }
 
+async function responseDetail(response: Response): Promise<string> {
+  let detail = `Parallax API ${response.status}`;
+  try {
+    const payload = await response.json() as { detail?: string };
+    if (typeof payload.detail === 'string' && payload.detail.trim()) detail = payload.detail;
+  } catch {
+    // Preserve the status fallback when the API did not return JSON.
+  }
+  return detail;
+}
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
@@ -135,16 +161,8 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
-  if (!response.ok) {
-    let detail = `Parallax API ${response.status}`;
-    try {
-      const payload = await response.json() as { detail?: string };
-      if (typeof payload.detail === 'string' && payload.detail.trim()) detail = payload.detail;
-    } catch {
-      // Preserve the status fallback when the API did not return JSON.
-    }
-    throw new Error(detail);
-  }
+  if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
+  if (!response.ok) throw new Error(await responseDetail(response));
   return (await response.json()) as T;
 }
 
@@ -162,7 +180,25 @@ async function establishSession(token: string): Promise<SessionDto> {
   });
   transientAccessToken = '';
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
-  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  if (!response.ok) throw new Error(await responseDetail(response));
+  return (await response.json()) as SessionDto;
+}
+
+async function establishGoogleSession(accessToken: string): Promise<SessionDto> {
+  const candidate = accessToken.trim();
+  if (!candidate) throw new AuthenticationRequiredError('Google authentication required');
+
+  const response = await fetch(`${apiBase}/v1/session/google`, {
+    method: 'POST',
+    credentials: requestCredentials(),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${candidate}`,
+    },
+  });
+  if (response.status === 401) throw new AuthenticationRequiredError(await responseDetail(response));
+  if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
+  if (!response.ok) throw new Error(await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
 
@@ -179,7 +215,7 @@ async function endSession(): Promise<SessionDto> {
     credentials: requestCredentials(),
     headers: { ...sessionHeaders },
   });
-  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  if (!response.ok) throw new Error(await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
 
@@ -217,7 +253,8 @@ async function streamResponse(
   });
 
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
-  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
+  if (!response.ok) throw new Error(await responseDetail(response));
   if (!response.body) throw new Error('Parallax response stream unavailable');
 
   const reader = response.body.getReader();
@@ -281,8 +318,19 @@ async function streamResponse(
 export const api = {
   setAccessToken: (token: string) => { transientAccessToken = token.trim(); },
   establishSession,
+  establishGoogleSession,
   getSession,
   endSession,
+  currentAccessUser: () => json<AccessUserDto>('/v1/access/me'),
+  listAccessUsers: () => json<AccessUserDto[]>('/v1/access/users'),
+  addAccessUser: (email: string) => json<AccessUserDto>('/v1/access/users', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+  updateAccessUserStatus: (id: string, status: 'active' | 'revoked') => json<AccessUserDto>(`/v1/access/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }),
   createConversation: (mode: 'reason' | 'code') =>
     json<ConversationDto>('/v1/conversations', {
       method: 'POST',

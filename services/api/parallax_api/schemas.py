@@ -127,3 +127,25 @@ class EngineeringOperationRead(BaseModel):
     run: EngineeringRunRead
     attempt_id: str
     replayed: bool
+
+
+class AuthorizedUserRead(BaseModel):
+    id: str
+    email: str | None
+    display_name: str | None
+    avatar_url: str | None
+    role: Literal["owner", "member"]
+    status: Literal["active", "revoked"]
+    auth_method: Literal["google", "bearer"] | None = None
+    bound: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_login_at: datetime | None = None
+
+
+class AuthorizedUserCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+class AuthorizedUserStatusUpdate(BaseModel):
+    status: Literal["active", "revoked"]
