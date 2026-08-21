@@ -19,7 +19,7 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
   }, [reduceMotion]);
 
   const scanOpacity = useDerivedValue(() => 0.18 + Math.abs(phase.value) * 0.24);
-  const dotOffset = useDerivedValue(() => phase.value * size * 0.045);
+  const dotCx = useDerivedValue(() => size / 2 + phase.value * size * 0.045, [size]);
 
   const aperture = React.useMemo(() => {
     const p = Skia.Path.Make();
@@ -66,12 +66,7 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           strokeWidth={0.8}
           opacity={0.16}
         />
-        <Circle
-          cx={useDerivedValue(() => size / 2 + dotOffset.value)}
-          cy={size / 2}
-          r={size * 0.04}
-          color="#D8F9FF"
-        />
+        <Circle cx={dotCx} cy={size / 2} r={size * 0.04} color="#D8F9FF" />
         <Circle cx={size / 2} cy={size / 2} r={size * 0.018} color="#20282B" />
       </Canvas>
     </View>
