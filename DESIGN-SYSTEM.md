@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.6
+Version: 1.7
 Status: Authoritative
 
 ## Design direction
@@ -13,7 +13,7 @@ The editorial layer is inspired by principles such as confident section hierarch
 
 This is not a generic neon-AI theme and it is not a pastel redesign. Distinction comes from spatial depth, material restraint, authored hierarchy, and a small number of signature optical behaviors.
 
-Content wins every visual competition. Ambient effects must be perceived second, never first. If the living surface, trace treatment, identity color, or response energy attracts attention before the conversation does, its intensity is too high.
+Content wins every visual competition. Ambient effects must be perceived second, never first. If the living surface, trace treatment, identity color, response energy, or laser inscription attracts attention before the conversation does, its intensity is too high.
 
 ## Material palette
 
@@ -30,6 +30,8 @@ Core production tokens:
 - Indigo transition accent: `#8B9CFF`
 - Violet identity/action accent: `#D18BFF`
 - Deep violet control accent: `#8F63D8`
+- Violet laser: `#B88CFF`
+- Violet laser core: `#F2E9FF`
 - Editorial cream: `#F0E4CF`
 - Editorial dusty peach: `#DFA78F`
 - Editorial muted sage: `#9FB9A5`
@@ -38,13 +40,16 @@ Core production tokens:
 - Verified/success: `#72E3C4`
 - Dark glass: `rgba(13,16,29,0.70)`
 - Strong glass: `rgba(17,21,37,0.90)`
+- Conversation glass: `rgba(84,86,103,0.20)`
+- Strong conversation glass: `rgba(92,94,112,0.27)`
+- Conversation edge: `rgba(228,225,242,0.07)`
 - Optical border: `rgba(167,151,255,0.18)`
 
 Color hierarchy is intentional:
 
-- cyan = active optical energy and live focus;
+- cyan = restrained secondary optical focus and live technical energy;
 - indigo = precision structure and technical status;
-- violet = identity, selection, and product atmosphere;
+- violet = identity, selection, product atmosphere, and the primary response-inscription energy;
 - cream = display reading warmth and selected editorial headings;
 - peach = human/operator annotation and soft editorial emphasis;
 - sage = approved/ready editorial treatment when paired with explicit state text.
@@ -58,7 +63,7 @@ Parallax uses two coordinated reading scales:
 1. **Narrative scale** — assistant/user conversation remains the highest-contrast, most readable layer.
 2. **Editorial state scale** — Work Specification and Code execution surfaces may use larger display labels, compact kickers, and more negative space to make governed state legible without becoming dashboard cards.
 
-Use visible chrome sparingly. Prefer spacing, offset rules, open framing, typography, and optical alignment over enclosing every region in a full card.
+Use visible chrome sparingly. Prefer spacing, soft material, offset rules, typography, and optical alignment over enclosing every region in a full card.
 
 A governed surface may use:
 
@@ -70,30 +75,35 @@ A governed surface may use:
 
 Do not stack multiple decorative frames around the same content.
 
-## Optical workplane
+## Ambient optical workplane
 
-The living surface is an editorial optical workplane, not a HUD, scanner, or decorative liquid wallpaper.
+The living surface is a calm **ambient optical lava field**. It borrows the slow, organic behavior of a lava lamp without becoming novelty decoration or a bright liquid wallpaper.
 
 Use:
 
-- a deep navy substrate;
-- broad low-frequency violet and indigo ink fields with asymmetric centers;
-- sparse hand-drawn contour ribbons with controlled irregularity;
-- extremely subtle procedural print/paper grain;
-- one low-energy cyan optical focus region tied to response energy;
-- a dark center bias behind conversation copy.
+- a deep navy/midnight substrate;
+- three to five very large indigo, violet, midnight-blue, and restrained lavender organic fields;
+- soft metaball-like fusion and broad liquid seams rather than discrete particles;
+- non-synchronous low-frequency drift/deformation with visually long cycles, typically on the order of 20–45 seconds or longer;
+- extremely subtle procedural grain;
+- a dark center reading bias behind conversation copy;
+- only a modest energy lift while Parallax is actively responding.
 
 Avoid:
 
+- particles or starfields;
 - obvious drafting grids;
 - scanner/calibration lines;
 - uniform topographic repetition;
 - continuous orbital motion;
-- high-frequency shimmer or neon noise.
+- fast morphing blobs;
+- high-frequency shimmer;
+- bright saturated forms beneath narrative text;
+- obvious short loops.
 
-At idle, the workplane should read as material atmosphere. During response activity, only the focus region and local optical energy rise modestly.
+At idle, the field should read as depth and atmosphere. The motion should be noticeable only after looking for it. During response activity, the background may gain slightly more presence but remains subordinate to copy and the local laser inscription.
 
-Reduced motion freezes the time-dependent field without changing semantic state.
+Reduced motion freezes the time-dependent field into a stable composition without changing semantic state or product depth.
 
 ## Editorial trace
 
@@ -109,21 +119,23 @@ Rules:
 - reduced motion keeps a static trace;
 - reduced-graphics mode renders no Skia trace at all while retaining the same layout hierarchy through normal React Native views/text.
 
-## Optical typesetter
+## Purple laser typesetter
 
-The active assistant response is inscribed as illuminated ink:
+The active assistant response is inscribed as a fine **violet/purple optical etch** into the conversation surface.
 
-- the optical head follows the active wrapped line;
-- response text arrives continuously with the live SSE stream;
-- fresh glyphs carry a short lavender energy edge;
-- a small cyan hot point marks the active inscription position;
-- the beam is intentionally softer and less scanner-like than the original Deep Violet implementation;
-- glyphs cool quickly to normal pale text;
-- final text remains selectable and accessibility-aware.
+Required character:
+
+- the optical head follows the active wrapped line and the actual growing SSE text target;
+- a short soft violet trail leads into a concentrated purple-white core;
+- freshly inscribed glyphs carry a brighter lavender/violet energized edge and restrained glow;
+- the energized tail is short and cools quickly to normal pale narrative text;
+- cyan, if present, is a secondary optical highlight rather than the dominant beam color;
+- the effect must read as glass-like laser inscription, not a typewriter cursor, scanner, or post-response replay;
+- final text remains normal selectable and accessibility-aware text.
 
 The typesetter represents substantive generated response content. It does not run for a `SPEC_AMENDMENT` hand-off that intentionally stops substantive continuation.
 
-Reduced motion disables the animated head and reveals substantive response text normally.
+Reduced motion disables the moving head/beam and reveals substantive response text normally.
 
 ## Work Specification surface
 
@@ -156,11 +168,33 @@ Presentation rules:
 
 ## Conversation and composer
 
-Conversation remains visually dominant. Assistant response surfaces should read as one continuous precision workspace rather than a stack of independent dashboard cards.
+Conversation remains visually dominant. Ordinary messages are not dashboard panels and should not be enclosed by persistent conventional hard-line boxes.
 
-User content may remain lightly contained, but unnecessary border weight should be avoided. Metadata stays quieter than narrative text.
+### Conversation material
 
-The composer anchors the interaction and may use a strong dark material surface, but it should not become a glossy floating pill or compete with the active response.
+User and assistant messages share one quiet material family:
+
+- softly rounded graphite/neutral-gray translucent glass;
+- approximately 18–22 px radii, tuned by viewport;
+- no persistent full rectangular outline or heavy left rail;
+- separation comes primarily from translucency, spacing, alignment, subtle shadow/depth, and at most a nearly imperceptible edge light;
+- user messages remain right aligned and somewhat narrower;
+- assistant responses remain left aligned and may be broader, but should not become full-width panels;
+- role is also communicated by alignment and metadata, never color alone.
+
+Assistant identity remains outside/above the response surface as a compact signature. The laser inscription occurs inside the assistant glass surface while responding.
+
+On mobile, bubble width and padding should preserve breathing room without the stacked full-width-card appearance. The surrounding ambient field should remain visible enough to make the conversation feel spatial rather than boxed.
+
+### Composer
+
+The composer anchors the interaction in the same soft graphite glass family:
+
+- rounded translucent neutral-gray material;
+- no strong permanent outline; a very low-opacity edge is acceptable where contrast requires it;
+- violet send control retains product identity;
+- input text remains the visual priority;
+- the composer should feel grounded, not like a glossy floating pill.
 
 ## Specification-amendment state
 
@@ -213,13 +247,13 @@ It preserves:
 
 - Deep Violet + editorial accent palette;
 - display hierarchy;
-- open framing through normal borders/spacing;
+- soft conversation material and role/alignment semantics;
 - Work Specification revision/approval semantics;
 - bound Code run identity and controls;
 - conversation/composer behavior;
 - all accessibility and state text.
 
-It deliberately omits Skia ink, grain, optical traces, and animated inscription head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
+It deliberately omits Skia ambient lava motion, grain, optical traces, and animated laser head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
 
 ## Motion state mapping
 
@@ -227,7 +261,7 @@ It deliberately omits Skia ink, grain, optical traces, and animated inscription 
 | --- | ---: | --- | --- | --- |
 | IDLE | 0.18 | calm | off | ready |
 | THINKING | 0.42 | calm | off | resolving objective/context |
-| RESPONDING | 0.72 | calm | active illuminated ink | substantive answer arriving |
+| RESPONDING | 0.72 | calm | active violet laser etch | substantive answer arriving |
 | VERIFYING | 0.48 | calm | off | protected verification/finalization |
 | COMPLETE | 0.18 | calm | off | response settled |
 | SPEC_AMENDMENT | 0.22 | calm | off | deliberate protected hand-off |
@@ -242,6 +276,8 @@ Governed section traces follow their own product state but remain subordinate to
 - Minimum 44 pt mobile interaction targets remain required.
 - Keyboard and screen-reader semantics are preserved.
 - Reduced motion and reduced graphics remain first-class modes.
-- Grain/ink effects may never lower narrative contrast materially.
+- Final assistant text remains selectable.
+- Ambient motion and laser inscription are decorative enhancements, never the sole carrier of content or state.
+- Grain/lava effects may never lower narrative contrast materially.
 - Editorial traces are decorative and excluded from accessibility navigation.
-- Ambient violet/cyan/peach/sage effects may never obscure narrative text or primary controls.
+- Ambient violet/indigo/lavender and editorial accent effects may never obscure narrative text or primary controls.
