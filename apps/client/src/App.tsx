@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(247,244,236,0.54)',
   },
   topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  topTitle: { fontSize: 15, fontWeight: '650', color: '#20282B', letterSpacing: -0.2 },
+  topTitle: { fontSize: 15, fontWeight: '600', color: '#20282B', letterSpacing: -0.2 },
   topSub: { fontSize: 8, color: '#8C786A', marginTop: 3, letterSpacing: 0.55 },
   modeSwitch: { flexDirection: 'row', borderRadius: 5, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)', backgroundColor: 'rgba(255,255,255,0.18)' },
   modeButton: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 3 },
