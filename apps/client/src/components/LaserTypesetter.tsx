@@ -3,10 +3,10 @@ import { AccessibilityInfo, LayoutChangeEvent, StyleSheet, Text, View } from 're
 import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
 import { palette } from '../theme';
 
-const CHAR_MS = 14;
-const HOT_TAIL = 5;
-const START_DELAY_MS = 70;
-const COOL_DELAY_MS = 160;
+const CHAR_MS = 17;
+const HOT_TAIL = 11;
+const START_DELAY_MS = 80;
+const COOL_DELAY_MS = 260;
 
 type MeasuredLine = {
   text: string;
@@ -29,10 +29,12 @@ function OpticalHead({ height }: { height: number }) {
   const center = canvasHeight / 2;
   return (
     <Canvas style={{ width: 112, height: canvasHeight }} pointerEvents="none">
-      <Line p1={vec(8, center)} p2={vec(103, center)} color="rgba(209,139,255,0.25)" strokeWidth={0.8} />
-      <Line p1={vec(103, 7)} p2={vec(103, canvasHeight - 7)} color="rgba(125,231,255,0.62)" strokeWidth={1.25} />
-      <Circle cx={103} cy={center} r={3.6} color={palette.cyan} opacity={0.9} />
-      <Circle cx={103} cy={center} r={8.5} color="rgba(209,139,255,0.14)" />
+      <Line p1={vec(8, center)} p2={vec(103, center)} color="rgba(209,139,255,0.42)" strokeWidth={1.05} />
+      <Line p1={vec(42, center + 2)} p2={vec(103, center + 2)} color="rgba(139,156,255,0.22)" strokeWidth={2.0} />
+      <Line p1={vec(103, 7)} p2={vec(103, canvasHeight - 7)} color="rgba(209,139,255,0.72)" strokeWidth={1.35} />
+      <Circle cx={103} cy={center} r={3.8} color={palette.cyan} opacity={0.96} />
+      <Circle cx={103} cy={center} r={8.5} color="rgba(139,156,255,0.23)" />
+      <Circle cx={103} cy={center} r={12} color="rgba(209,139,255,0.10)" />
     </Canvas>
   );
 }
@@ -59,8 +61,8 @@ function lineForIndex(lines: readonly MeasuredLine[], index: number): MeasuredLi
 }
 
 function characterDelay(character: string): number {
-  if (/[.!?]/.test(character)) return CHAR_MS * 4.2;
-  if (/[,;:]/.test(character)) return CHAR_MS * 2.1;
+  if (/[.!?]/.test(character)) return CHAR_MS * 4.0;
+  if (/[,;:]/.test(character)) return CHAR_MS * 2.0;
   if (/\s/.test(character)) return CHAR_MS * 0.42;
   return CHAR_MS;
 }
@@ -256,9 +258,9 @@ const styles = StyleSheet.create({
   visibleText: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   text: { color: palette.text, fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
   hotText: {
-    color: '#E6D9FF',
-    textShadowColor: 'rgba(209,139,255,0.38)',
-    textShadowRadius: 4,
+    color: '#E9D9FF',
+    textShadowColor: 'rgba(176,122,255,0.82)',
+    textShadowRadius: 7,
   },
   beam: { position: 'absolute', top: 0, left: 0, width: 112 },
 });
