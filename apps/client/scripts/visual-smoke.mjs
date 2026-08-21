@@ -330,22 +330,19 @@ async function inspectViewport(browser, name, width, height, report) {
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
 
     const conversationMaterial = await page.evaluate(({ promptText, assistantPrefix }) => {
-      const all = [...document.querySelectorAll('*')];
-      const exact = (value) => all.find((node) => node.textContent?.trim() === value);
-      const userText = exact(promptText);
-      const assistantText = all.find((node) => node.textContent?.trim().startsWith(assistantPrefix));
-      const findSurface = (node) => {
-        let current = node?.parentElement ?? null;
-        for (let depth = 0; depth < 7 && current; depth += 1, current = current.parentElement) {
-          const style = getComputedStyle(current);
-          const radius = parseFloat(style.borderRadius || '0');
-          const background = style.backgroundColor;
-          if (radius >= 18 && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') return current;
-        }
-        return null;
-      };
-      const userSurface = findSurface(userText);
-      const assistantSurface = findSurface(assistantText);
+      const elements = [...document.querySelectorAll('*')];
+      const candidates = elements.filter((element) => {
+        const style = getComputedStyle(element);
+        const radius = parseFloat(style.borderRadius || '0');
+        const border = parseFloat(style.borderTopWidth || '0');
+        const background = style.backgroundColor;
+        return radius >= 18
+          && border === 0
+          && background !== 'rgba(0, 0, 0, 0)'
+          && background !== 'transparent';
+      });
+      const userSurface = candidates.find((element) => element.textContent?.includes(promptText));
+      const assistantSurface = candidates.find((element) => element.textContent?.includes(assistantPrefix));
       const summarize = (element) => {
         if (!element) return null;
         const style = getComputedStyle(element);
