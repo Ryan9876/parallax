@@ -11,6 +11,9 @@ export const palette = {
   indigo: '#8B9CFF',
   violet: '#D18BFF',
   violetDeep: '#8F63D8',
+  cream: '#F0E4CF',
+  peach: '#DFA78F',
+  sage: '#9FB9A5',
   danger: '#FF9AAB',
   warning: '#E7C98F',
   success: '#72E3C4',
@@ -22,4 +25,7 @@ export const palette = {
   violetWash: 'rgba(209, 139, 255, 0.10)',
   indigoWash: 'rgba(139, 156, 255, 0.10)',
   cyanWash: 'rgba(125, 231, 255, 0.10)',
+  creamWash: 'rgba(240, 228, 207, 0.08)',
+  peachWash: 'rgba(223, 167, 143, 0.10)',
+  sageWash: 'rgba(159, 185, 165, 0.10)',
 } as const;
