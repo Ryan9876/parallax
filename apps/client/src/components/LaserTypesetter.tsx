@@ -4,9 +4,9 @@ import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
 import { palette } from '../theme';
 
 const CHAR_MS = 14;
-const HOT_TAIL = 5;
+const HOT_TAIL = 8;
 const START_DELAY_MS = 70;
-const COOL_DELAY_MS = 160;
+const COOL_DELAY_MS = 190;
 
 type MeasuredLine = {
   text: string;
@@ -25,14 +25,18 @@ type HeadPosition = {
 };
 
 function OpticalHead({ height }: { height: number }) {
-  const canvasHeight = Math.max(34, height + 8);
+  const canvasHeight = Math.max(38, height + 12);
   const center = canvasHeight / 2;
   return (
-    <Canvas style={{ width: 112, height: canvasHeight }} pointerEvents="none">
-      <Line p1={vec(8, center)} p2={vec(103, center)} color="rgba(209,139,255,0.25)" strokeWidth={0.8} />
-      <Line p1={vec(103, 7)} p2={vec(103, canvasHeight - 7)} color="rgba(125,231,255,0.62)" strokeWidth={1.25} />
-      <Circle cx={103} cy={center} r={3.6} color={palette.cyan} opacity={0.9} />
-      <Circle cx={103} cy={center} r={8.5} color="rgba(209,139,255,0.14)" />
+    <Canvas style={{ width: 132, height: canvasHeight }} pointerEvents="none">
+      <Line p1={vec(6, center)} p2={vec(120, center)} color="rgba(184,140,255,0.08)" strokeWidth={8} />
+      <Line p1={vec(30, center)} p2={vec(120, center)} color="rgba(184,140,255,0.18)" strokeWidth={4} />
+      <Line p1={vec(66, center)} p2={vec(120, center)} color="rgba(209,139,255,0.48)" strokeWidth={1.7} />
+      <Line p1={vec(120, 5)} p2={vec(120, canvasHeight - 5)} color="rgba(209,139,255,0.92)" strokeWidth={1.45} />
+      <Circle cx={120} cy={center} r={12} color="rgba(143,99,216,0.12)" />
+      <Circle cx={120} cy={center} r={7.2} color="rgba(209,139,255,0.22)" />
+      <Circle cx={120} cy={center} r={4.1} color={palette.violetLaser} opacity={0.98} />
+      <Circle cx={120} cy={center} r={1.65} color={palette.violetLaserCore} />
     </Canvas>
   );
 }
@@ -222,7 +226,7 @@ export function LaserTypesetter({
   const coolEnd = cooled ? boundedVisibleCount : Math.max(0, boundedVisibleCount - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
   const hotText = text.slice(coolEnd, boundedVisibleCount);
-  const beamHeight = Math.max(34, head.lineHeight + 8);
+  const beamHeight = Math.max(38, head.lineHeight + 12);
 
   return (
     <View onLayout={onLayout} style={styles.container}>
@@ -240,7 +244,7 @@ export function LaserTypesetter({
           pointerEvents="none"
           style={[
             styles.beam,
-            { height: beamHeight, transform: [{ translateX: head.x - 103 }, { translateY: head.y - 4 }] },
+            { height: beamHeight, transform: [{ translateX: head.x - 120 }, { translateY: head.y - 6 }] },
           ]}
         >
           <OpticalHead height={head.lineHeight} />
@@ -256,9 +260,9 @@ const styles = StyleSheet.create({
   visibleText: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   text: { color: palette.text, fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
   hotText: {
-    color: '#E6D9FF',
-    textShadowColor: 'rgba(209,139,255,0.38)',
-    textShadowRadius: 4,
+    color: palette.violetLaserCore,
+    textShadowColor: 'rgba(184,140,255,0.88)',
+    textShadowRadius: 8,
   },
-  beam: { position: 'absolute', top: 0, left: 0, width: 112 },
+  beam: { position: 'absolute', top: 0, left: 0, width: 132 },
 });
