@@ -38,7 +38,12 @@ class Settings:
     dspy_model: str = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
     active_spec_id: str = _active_spec_id()
     allow_scope_override: bool = _env_bool("PARALLAX_ALLOW_SCOPE_OVERRIDE", False)
-    access_token: str = os.getenv("PARALLAX_ACCESS_TOKEN", "").strip()
+    # Support both the documented PARALLAX name and Vercel-friendly ACCESS_TOKEN naming.
+    access_token: str = (
+        os.getenv("PARALLAX_ACCESS_TOKEN")
+        or os.getenv("ACCESS_TOKEN")
+        or ""
+    ).strip()
     create_schema: bool = _env_bool(
         "PARALLAX_CREATE_SCHEMA",
         os.getenv("PARALLAX_ENV", "development") in {"development", "test"},
