@@ -1,6 +1,7 @@
 import React from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
-import { Canvas, Circle, Line, Path, Skia, useClock, vec } from '@shopify/react-native-skia';
+import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
+import { useClock } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
 export function ParallaxLogo({ size = 44 }: { size?: number }) {
@@ -15,34 +16,31 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
 
   const phase = useDerivedValue(() => {
     if (reduceMotion) return 0;
-    return Math.sin((clock.value / 1000) * (Math.PI * 2 / 9));
+    return Math.sin((clock.value / 1000) * (Math.PI * 2 / 12));
   }, [reduceMotion]);
 
-  const scanOpacity = useDerivedValue(() => 0.18 + Math.abs(phase.value) * 0.24);
-  const dotCx = useDerivedValue(() => size / 2 + phase.value * size * 0.045, [size]);
+  const focus = useDerivedValue(() => 0.55 + phase.value * 0.08);
 
   const aperture = React.useMemo(() => {
     const p = Skia.Path.Make();
     const c = size / 2;
-    const r = size * 0.23;
+    const r = size * 0.27;
     p.moveTo(c, c - r);
-    p.lineTo(c + r * 0.86, c - r * 0.5);
-    p.lineTo(c + r * 0.86, c + r * 0.5);
-    p.lineTo(c, c + r);
-    p.lineTo(c - r * 0.86, c + r * 0.5);
-    p.lineTo(c - r * 0.86, c - r * 0.5);
+    p.quadTo(c + r * 1.05, c - r * 0.15, c + r * 0.58, c + r * 0.92);
+    p.quadTo(c, c + r * 1.1, c - r * 0.58, c + r * 0.92);
+    p.quadTo(c - r * 1.05, c - r * 0.15, c, c - r);
     p.close();
     return p;
   }, [size]);
 
   return (
-    <View accessibilityLabel="Parallax" style={{ width: size, height: size }}>
+    <View accessibilityLabel="Parallax optical mark" style={{ width: size, height: size }}>
       <Canvas style={StyleSheet.absoluteFill}>
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.32}
-          color="rgba(20,125,159,0.18)"
+          r={size * 0.38}
+          color="rgba(20,125,159,0.10)"
           style="stroke"
           strokeWidth={1}
         />
@@ -50,24 +48,27 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           path={aperture}
           color="#147D9F"
           style="stroke"
-          strokeWidth={1.35}
+          strokeWidth={1.8}
         />
-        <Line
-          p1={vec(size * 0.18, size / 2)}
-          p2={vec(size * 0.82, size / 2)}
-          color="#9A7F71"
-          strokeWidth={0.8}
-          opacity={scanOpacity}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={size * 0.09}
+          color="rgba(20,125,159,0.12)"
         />
-        <Line
-          p1={vec(size / 2, size * 0.18)}
-          p2={vec(size / 2, size * 0.82)}
-          color="#9A7F71"
-          strokeWidth={0.8}
-          opacity={0.16}
+        <Circle
+          cx={size / 2 + phase.value * size * 0.06}
+          cy={size / 2}
+          r={size * 0.035}
+          color="#D8F9FF"
+          opacity={focus}
         />
-        <Circle cx={dotCx} cy={size / 2} r={size * 0.04} color="#D8F9FF" />
-        <Circle cx={size / 2} cy={size / 2} r={size * 0.018} color="#20282B" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={size * 0.022}
+          color="#20282B"
+        />
       </Canvas>
     </View>
   );
