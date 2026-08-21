@@ -48,20 +48,18 @@ export default function App() {
   const [apiOnline, setApiOnline] = React.useState(false);
   const [activePrintId, setActivePrintId] = React.useState<string | null>(null);
   const [streamFinished, setStreamFinished] = React.useState(true);
-  const [accessToken, setAccessToken] = React.useState(() =>
-    Platform.OS === 'web' ? globalThis.sessionStorage?.getItem('parallax:p2:access') ?? '' : '',
-  );
+  const [accessResolved, setAccessResolved] = React.useState(false);
+  const [accessGranted, setAccessGranted] = React.useState(false);
   const [accessEnforced, setAccessEnforced] = React.useState(
     process.env.EXPO_PUBLIC_PARALLAX_REQUIRE_AUTH === 'true',
   );
-  const [accessDraft, setAccessDraft] = React.useState(accessToken);
+  const [accessDraft, setAccessDraft] = React.useState('');
   const [accessError, setAccessError] = React.useState('');
+  const [accessBusy, setAccessBusy] = React.useState(false);
   const pendingRefreshRef = React.useRef<string | null>(null);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
   const engineering = useEngineeringRun(conversationId, mode === 'code');
-
-  React.useEffect(() => { api.setAccessToken(accessToken); }, [accessToken]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -91,47 +89,78 @@ export default function App() {
     updateConversationSummary(conversation);
   }, [updateConversationSummary]);
 
+  const loadWorkspace = React.useCallback(async () => {
+    const existing = await api.listConversations();
+    const current = existing[0] ?? (await api.createConversation('reason'));
+    setApiOnline(true);
+    setConversations(existing.length ? existing : [current]);
+    applyConversation(current);
+  }, [applyConversation]);
+
+  const lockAccess = React.useCallback((message = '') => {
+    api.setAccessToken('');
+    setAccessGranted(false);
+    setAccessEnforced(true);
+    setApiOnline(false);
+    setConversationId(null);
+    setMessages(FALLBACK_MESSAGES);
+    setAccessError(message);
+  }, []);
+
   React.useEffect(() => {
-    if (!accessToken) return;
     let cancelled = false;
     (async () => {
       try {
-        const existing = await api.listConversations();
-        const current = existing[0] ?? (await api.createConversation('reason'));
+        await api.getSession();
         if (cancelled) return;
-        setApiOnline(true);
-        setConversations(existing.length ? existing : [current]);
-        applyConversation(current);
+        setAccessGranted(true);
+        setAccessError('');
+        await loadWorkspace();
       } catch (error) {
         if (cancelled) return;
         if (error instanceof AuthenticationRequiredError) {
-          setAccessEnforced(true);
-          api.setAccessToken('');
-          setAccessToken('');
-          globalThis.sessionStorage?.removeItem('parallax:p2:access');
-          setAccessError('That access credential was not accepted.');
+          lockAccess();
+        } else {
+          setApiOnline(false);
+          setConversationId(null);
+          setMessages(FALLBACK_MESSAGES);
         }
-        setApiOnline(false);
-        setConversationId(null);
-        setMessages(FALLBACK_MESSAGES);
+      } finally {
+        if (!cancelled) setAccessResolved(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [accessToken, applyConversation]);
+  }, [loadWorkspace, lockAccess]);
 
-  const unlock = React.useCallback(() => {
+  const unlock = React.useCallback(async () => {
     const candidate = accessDraft.trim();
     if (!candidate) {
       setAccessError('Enter the private production access credential.');
       return;
     }
-    api.setAccessToken(candidate);
-    globalThis.sessionStorage?.setItem('parallax:p2:access', candidate);
+
+    setAccessBusy(true);
     setAccessError('');
-    setAccessToken(candidate);
-  }, [accessDraft]);
+    try {
+      await api.establishSession(candidate);
+      setAccessDraft('');
+      setAccessGranted(true);
+      setAccessEnforced(true);
+      await loadWorkspace();
+    } catch (error) {
+      if (error instanceof AuthenticationRequiredError) {
+        lockAccess('That access credential was not accepted.');
+      } else {
+        setApiOnline(false);
+        setAccessError('Parallax could not establish a private session. Try again.');
+      }
+    } finally {
+      setAccessBusy(false);
+      setAccessResolved(true);
+    }
+  }, [accessDraft, loadWorkspace, lockAccess]);
 
   const openConversation = React.useCallback(
     async (conversation: ConversationDto) => {
@@ -141,11 +170,15 @@ export default function App() {
         if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
         applyConversation(fresh);
         setApiOnline(true);
-      } catch {
+      } catch (error) {
+        if (error instanceof AuthenticationRequiredError) {
+          lockAccess('Your private session expired. Unlock Parallax to continue.');
+          return;
+        }
         setApiOnline(false);
       }
     },
-    [applyConversation, state.phase],
+    [applyConversation, lockAccess, state.phase],
   );
 
   const startConversation = React.useCallback(
@@ -157,11 +190,15 @@ export default function App() {
         applyConversation(created);
         setMode(nextMode);
         setApiOnline(true);
-      } catch {
+      } catch (error) {
+        if (error instanceof AuthenticationRequiredError) {
+          lockAccess('Your private session expired. Unlock Parallax to continue.');
+          return;
+        }
         setApiOnline(false);
       }
     },
-    [applyConversation, mode, state.phase],
+    [applyConversation, lockAccess, mode, state.phase],
   );
 
   const changeMode = React.useCallback(
@@ -287,9 +324,14 @@ export default function App() {
       setMessages((current) => current.map((message) =>
         message.status === 'streaming' ? { ...message, status: 'error' } : message,
       ));
+      if (error instanceof AuthenticationRequiredError) {
+        if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
+        lockAccess('Your private session expired. Unlock Parallax to continue.');
+        return;
+      }
       dispatch({ type: 'FAIL', error: error instanceof Error ? error.message : 'Response failed' });
     }
-  }, [applyConversation, conversationId, draft, mode, state.phase, updateConversationSummary]);
+  }, [applyConversation, conversationId, draft, lockAccess, mode, state.phase, updateConversationSummary]);
 
   const finishPrint = React.useCallback(
     (messageId: string) => {
@@ -316,7 +358,19 @@ export default function App() {
     [activePrintId, state.phase, streamFinished, updateConversationSummary],
   );
 
-  if (accessEnforced && !accessToken) {
+  if (!accessResolved) {
+    return (
+      <View style={styles.accessRoot}>
+        <View style={styles.accessPanel}>
+          <ParallaxLogo size={52} />
+          <Text style={styles.accessTitle}>Parallax 2.0</Text>
+          <Text style={styles.accessCopy}>Restoring private session…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (accessEnforced && !accessGranted) {
     return (
       <View style={styles.accessRoot}>
         <View style={styles.accessPanel}>
@@ -328,14 +382,20 @@ export default function App() {
             secureTextEntry
             value={accessDraft}
             onChangeText={setAccessDraft}
-            onSubmitEditing={unlock}
+            onSubmitEditing={() => void unlock()}
             placeholder="Access credential"
             placeholderTextColor="#7F8582"
             style={styles.accessInput}
           />
           {accessError ? <Text style={styles.errorText}>{accessError}</Text> : null}
-          <TouchableOpacity accessibilityRole="button" onPress={unlock} style={styles.accessButton}>
-            <Text style={styles.accessButtonText}>Continue</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ disabled: accessBusy }}
+            disabled={accessBusy}
+            onPress={() => void unlock()}
+            style={styles.accessButton}
+          >
+            <Text style={styles.accessButtonText}>{accessBusy ? 'VERIFYING…' : 'CONTINUE'}</Text>
           </TouchableOpacity>
         </View>
       </View>
