@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 1.9
+Version: 2.0
 Status: Authoritative
 
 ## System shape
 
-Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by durable PostgreSQL persistence in hosted environments. Conversation remains the primary product surface. Reason, Code, user Work Specifications, protected evaluation, and release evidence are separate governed capabilities behind that surface.
+Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by durable PostgreSQL persistence in hosted environments. Conversation remains the primary product surface. Reason, Code, user Work Specifications, identity/access control, protected evaluation, and release evidence are separate governed capabilities behind that surface.
 
 ```text
 Expo / React Native client
@@ -15,12 +15,14 @@ Expo / React Native client
   ├─ reduced-graphics fallback
   ├─ compact Work Specification surface
   ├─ bound Code run status surface
+  ├─ Google PKCE sign-in gate + owner access panel
   ├─ same-origin /p2-api web gateway
   └─ SSE + JSON API client
           │
           ▼
 FastAPI intelligence service
-  ├─ signed browser-session boundary + bearer compatibility
+  ├─ Google identity verification + authorized-user allowlist
+  ├─ signed browser-session boundary + bearer break-glass compatibility
   ├─ durable conversation + product-policy spec identity
   ├─ Work Specification revision/approval service
   ├─ approved-spec Code activation policy
@@ -39,20 +41,22 @@ FastAPI intelligence service
           │                  ├─ evidence artifacts
           │                  └─ baseline/challenger gate
           ▼
-SQLite (development) / dedicated Supabase PostgreSQL (hosted)
+SQLite (development) / dedicated Supabase PostgreSQL + Auth (hosted)
 ```
 
 ## Core boundaries
 
 ### Client
 
-The client owns interaction state and presentation. It does not own provider credentials, the production root access secret, durable conversation truth, Work Specification approval authority, required acceptance criteria, protected evaluation rules, material-scope authority, or execution-release authority.
+The client owns interaction state and presentation. It does not own provider credentials, the production root access secret, durable conversation truth, durable authorization truth, Work Specification approval authority, required acceptance criteria, protected evaluation rules, material-scope authority, or execution-release authority.
 
 Assistant content is rendered as standard React Native `Text`. Skia is used for living material, optical beam, glint, and decorative motion. The no-Skia reduced-graphics path preserves equivalent semantic state and capability.
 
 The response reducer remains authoritative for `IDLE`, `THINKING`, `RESPONDING`, `VERIFYING`, `COMPLETE`, `SPEC_AMENDMENT`, and `ERROR`. Motion and optical energy derive from product state rather than independent animation state.
 
 Deployed web protected API traffic is same-origin `/p2-api/*`, rewritten by Vercel to the configured API origin. No provider secret or API root access secret is embedded in the browser bundle.
+
+Google sign-in uses an explicit browser-owned PKCE verifier held only in `sessionStorage` for the duration of the OAuth redirect round trip. The browser receives a transient Supabase access token after PKCE exchange, forwards it once to the Parallax API for identity verification/session establishment, and does not persist that token as the Parallax session credential.
 
 ### API
 
@@ -63,7 +67,51 @@ Operational probes remain deliberately public:
 - `/health` proves the FastAPI process can answer;
 - `/ready` executes a database query and proves persistence is reachable.
 
-Conversation, Reason, Code, Work Specification, and session-status routes remain behind the private server authentication boundary.
+Conversation, Reason, Code, Work Specification, access-management, and session-status routes remain behind the private server authentication boundary.
+
+## Identity and access architecture
+
+v0.10.0 replaces the shared browser credential as the normal hosted-web sign-in path with Google identity plus a server-owned allowlist.
+
+### Google identity broker
+
+The browser initiates Google OAuth through the dedicated Parallax Supabase Auth project using PKCE. Supabase is an identity broker only; it is not the authoritative application authorization store.
+
+After Google/Supabase completes PKCE exchange, the browser sends the transient Supabase bearer to `POST /v1/session/google`. The API verifies that token against the configured Supabase Auth project and requires a Google-authenticated identity with a usable email and auth user ID.
+
+The transient provider token is not converted into durable client authorization. It is used only to prove identity to Parallax and establish a Parallax-owned signed session.
+
+### Authorized-user allowlist
+
+Application authorization is server-owned in `authorized_users`.
+
+Each record carries:
+
+- opaque Parallax user ID;
+- original and normalized email;
+- optional bound Google/Supabase auth user ID;
+- display name and avatar metadata;
+- role `owner` or `member`;
+- status `active` or `revoked`;
+- created/updated/last-login timestamps.
+
+Email is the enrollment key before first sign-in. On the first successful Google login, Parallax binds the allowlist row to the verified auth user ID. Subsequent authenticated access requires the active allowlist row, matching bound identity, and matching signed-session role.
+
+The database enforces uniqueness for normalized email and bound auth user ID. RLS is enabled and direct `anon` / `authenticated` table privileges are revoked; FastAPI remains the authorization boundary.
+
+### Roles and owner authority
+
+`member` authorizes normal Parallax product use. `owner` additionally authorizes access-management mutations.
+
+Owner-only API operations can list/add authorized users and revoke/reactivate access. Access changes are enforced against server-owned role/status data, not browser claims.
+
+A revoked Google user loses normal session access even if an older signed cookie still exists, because protected requests re-check the current allowlist record.
+
+### Break-glass compatibility
+
+`PARALLAX_ACCESS_TOKEN` remains the root server secret for break-glass and explicit non-browser automation compatibility. A matching root bearer is treated as owner authority and may still establish a Parallax session through the legacy session endpoint.
+
+The hosted browser UI does not request or persist this root secret. Google identity is the normal interactive production path.
 
 ## Specification identities
 
@@ -224,7 +272,7 @@ The optical typesetter follows the live text target; it does not wait for the wh
 
 SQLAlchemy 2 provides SQLite development support and PostgreSQL hosted support through `DATABASE_URL`.
 
-Production uses the dedicated Parallax 2.0 Supabase PostgreSQL project through Supavisor transaction pooling. Vercel functions do not depend on long-lived application-side pools.
+Production uses the dedicated Parallax 2.0 Supabase PostgreSQL project through Supavisor transaction pooling. Vercel functions do not depend on long-lived application-side pools. The same Supabase project provides the public Google OAuth broker used by the hosted client, while FastAPI remains authoritative for application authorization and data access.
 
 Production schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
@@ -234,19 +282,24 @@ Current hosted schema includes:
 - messages;
 - work specifications;
 - engineering runs;
-- engineering attempts.
+- engineering attempts;
+- authorized users.
 
 The v0.8 additive migration adds nullable historical-compatibility binding columns to `engineering_runs`, a restrictive foreign key to `work_specifications`, and an index on the binding ID.
+
+The v0.10 additive migration adds `authorized_users`, unique normalized-email and auth-user bindings, owner/member and active/revoked constraints, RLS, and revoked direct client-role privileges.
 
 RLS is enabled on server-owned tables and direct client-role access is not the application data path. The FastAPI service remains the authoritative data boundary.
 
 ## Private production access
 
-Production is private and single-operator. `PARALLAX_ACCESS_TOKEN` is the root operator secret and is validated server-side with constant-time comparison.
+Production remains private, but normal interactive access is identity-based rather than shared-secret-based.
 
-Bearer authentication remains available for Swagger/automation/non-browser clients. Browser clients use bearer only to establish a short-lived signed session through `POST /v1/session`; the bearer is then cleared from JavaScript state and is never persisted in `localStorage` or `sessionStorage`.
+Hosted browser sign-in uses Google OAuth through Supabase PKCE, then exchanges the verified identity for a short-lived Parallax-signed session. Browser authorization uses a bounded HMAC-signed `HttpOnly`, `Secure`, host-only, `SameSite=Lax` cookie. Cookie-authenticated protected requests also require `X-Parallax-Session: 1`.
 
-Browser authorization uses a bounded HMAC-signed `HttpOnly`, `Secure`, host-only, `SameSite=Lax` cookie. Cookie-authenticated protected requests also require `X-Parallax-Session: 1`.
+The browser stores only the temporary PKCE verifier in `sessionStorage` during the redirect round trip. The transient Supabase access token is not retained in `localStorage` or `sessionStorage` as the Parallax session credential.
+
+`PARALLAX_ACCESS_TOKEN` remains the root server secret for break-glass/automation access and is validated server-side with constant-time comparison. It is not the normal hosted UI login mechanism and is never embedded in public client configuration.
 
 Same-origin `/p2-api` traffic avoids third-party-cookie dependence.
 
@@ -290,12 +343,15 @@ Release promotion requires exact-head CI, relevant preview evidence, migration r
 
 React Native Skia uses CanvasKit/WASM on web. The build copies the matching `canvaskit.wasm` into the public directory before export.
 
-Browser acceptance covers mobile, tablet, desktop, animated Skia behavior, optical response inscription, and a deliberate CanvasKit-unavailable reduced-graphics run. v0.8 additionally exercises the approved Work Specification → Code binding lifecycle and reduced-graphics bound-run parity.
+Browser acceptance covers mobile, tablet, desktop, animated Skia behavior, optical response inscription, and a deliberate CanvasKit-unavailable reduced-graphics run. v0.8 additionally exercises the approved Work Specification → Code binding lifecycle and reduced-graphics bound-run parity. v0.10 additionally exercises the hosted Google PKCE initiation/callback lifecycle, transient-token handoff, Parallax session establishment, owner access panel, and logout behavior under mocked provider boundaries.
 
 ## Failure degradation
 
 - Skia unavailable: preserve content/capability in the static reduced-graphics path.
-- Browser session invalid/expired: sanitized 401 and return to private access without retaining root credentials.
+- Google/Supabase identity provider unavailable: fail closed with sanitized sign-in recovery; do not fall back to an embedded shared browser secret.
+- Google identity not enrolled in `authorized_users`: return access denied and issue no Parallax session.
+- Bound identity mismatch or revoked allowlist row: reject protected session access even when a signed cookie is otherwise structurally valid.
+- Browser session invalid/expired: sanitized 401 and return to the Google sign-in gate without retaining provider or root credentials.
 - Same-origin proxy unavailable: recoverable offline/private-session UI; never embed the root secret.
 - Context cannot fit protected bounds: preserve user turn and return a sanitized context failure.
 - Scope exhaustion: preserve turn and fabricate no decision.
@@ -309,7 +365,11 @@ Browser acceptance covers mobile, tablet, desktop, animated Skia behavior, optic
 
 ## Security
 
-No provider secret or production root access secret is shipped to the client. Conversation and Work Specification content are untrusted model/user data and cannot redefine authentication, approval authority, required acceptance criteria, protected evaluation, execution policy, or deployment state.
+No provider secret or production root access secret is shipped to the client. The Supabase project URL and publishable key are public browser configuration, not authorization secrets.
+
+Google identity proves who the user is; the server-owned `authorized_users` table decides whether that identity may use Parallax and whether it has owner authority. Provider claims cannot directly grant application role or access status.
+
+Conversation and Work Specification content are untrusted model/user data and cannot redefine authentication, authorization, approval authority, required acceptance criteria, protected evaluation, execution policy, or deployment state.
 
 The approved Work Specification binding is a trust boundary: the server owns its digest and acceptance map, while the client owns only interaction intent. Engineering evidence may demonstrate satisfaction of the contract but cannot redefine the contract.
 
