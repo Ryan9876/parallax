@@ -16,19 +16,16 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
 
   const phase = useDerivedValue(() => {
     if (reduceMotion) return 0;
-    return Math.sin((clock.value / 1000) * (Math.PI * 2 / 12));
+    return Math.sin((clock.value / 1000) * (Math.PI * 2 / 16));
   }, [reduceMotion]);
-
-  const focus = useDerivedValue(() => 0.55 + phase.value * 0.08);
 
   const aperture = React.useMemo(() => {
     const p = Skia.Path.Make();
     const c = size / 2;
-    const r = size * 0.27;
+    const r = size * 0.28;
     p.moveTo(c, c - r);
-    p.quadTo(c + r * 1.05, c - r * 0.15, c + r * 0.58, c + r * 0.92);
-    p.quadTo(c, c + r * 1.1, c - r * 0.58, c + r * 0.92);
-    p.quadTo(c - r * 1.05, c - r * 0.15, c, c - r);
+    p.quadTo(c + r * 1.15, c, c, c + r * 1.15);
+    p.quadTo(c - r * 1.15, c, c, c - r);
     p.close();
     return p;
   }, [size]);
@@ -39,8 +36,16 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.38}
-          color="rgba(20,125,159,0.10)"
+          r={size * 0.43}
+          color="rgba(20,125,159,0.08)"
+          style="stroke"
+          strokeWidth={1}
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={size * 0.34}
+          color="rgba(20,125,159,0.18)"
           style="stroke"
           strokeWidth={1}
         />
@@ -48,25 +53,18 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           path={aperture}
           color="#147D9F"
           style="stroke"
-          strokeWidth={1.8}
+          strokeWidth={2}
+        />
+        <Circle
+          cx={size / 2 + phase.value * size * 0.08}
+          cy={size / 2}
+          r={size * 0.065}
+          color="rgba(216,249,255,0.9)"
         />
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.09}
-          color="rgba(20,125,159,0.12)"
-        />
-        <Circle
-          cx={size / 2 + phase.value * size * 0.06}
-          cy={size / 2}
-          r={size * 0.035}
-          color="#D8F9FF"
-          opacity={focus}
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.022}
+          r={size * 0.026}
           color="#20282B"
         />
       </Canvas>
