@@ -491,7 +491,7 @@ export default function App() {
               />
             )}
 
-            <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={[styles.thread, compact && styles.threadCompact]} keyboardShouldPersistTaps="handled">
               {messages.length === 0 ? (
                 <View style={styles.emptyState}>
                   <ParallaxLogo size={44} />
@@ -502,7 +502,7 @@ export default function App() {
                 message.role === 'user' ? (
                   <View key={message.id} style={styles.userBlock}>
                     <Text style={styles.meta}>YOU</Text>
-                    <View style={styles.userBubble}>
+                    <View style={[styles.userBubble, compact && styles.userBubbleCompact]}>
                       <Text selectable style={styles.userText}>{message.content}</Text>
                     </View>
                   </View>
@@ -515,7 +515,7 @@ export default function App() {
                         <Text style={styles.meta}>{mode === 'reason' ? 'REASON' : 'CODE'} · {message.id === activePrintId ? 'RESPONDING' : 'COMPLETE'}</Text>
                       </View>
                     </View>
-                    <View style={styles.responseGlass}>
+                    <View style={[styles.responseGlass, compact && styles.responseGlassCompact]}>
                       {message.id === activePrintId ? (
                         <LaserTypesetter
                           text={message.content}
@@ -529,7 +529,7 @@ export default function App() {
                       {message.id === activePrintId && (
                         <View style={styles.statusRow}>
                           <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
-                          <Text style={styles.statusText}>{streamFinished ? 'FINISHING INSCRIPTION' : 'OPTICAL RENDERER ACTIVE'}</Text>
+                          <Text style={styles.statusText}>{streamFinished ? 'FINISHING INSCRIPTION' : 'VIOLET ETCHING ACTIVE'}</Text>
                         </View>
                       )}
                     </View>
@@ -556,7 +556,7 @@ export default function App() {
             </ScrollView>
 
             <View style={styles.composerWrap}>
-              <View style={styles.composer}>
+              <View style={[styles.composer, compact && styles.composerCompact]}>
                 {compact && (
                   <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation">
                     <Text style={styles.newMobileText}>＋</Text>
@@ -636,23 +636,52 @@ const styles = StyleSheet.create({
   modeButtonActive: { backgroundColor: palette.violetDeep },
   modeText: { fontSize: 8, textTransform: 'uppercase', color: palette.textSecondary, fontWeight: '700', letterSpacing: 0.8 },
   modeTextActive: { color: palette.text },
-  thread: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 28, paddingTop: 52, paddingBottom: 154 },
+  thread: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 30, paddingTop: 48, paddingBottom: 156 },
+  threadCompact: { paddingHorizontal: 18, paddingTop: 36, paddingBottom: 146 },
   emptyState: { maxWidth: 540, alignSelf: 'center', alignItems: 'center', paddingTop: 92, paddingHorizontal: 24 },
   emptyTitle: { color: palette.text, fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
   emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
-  userBlock: { alignItems: 'flex-end', marginBottom: 42 },
+  userBlock: { alignItems: 'flex-end', marginBottom: 38 },
   meta: { fontSize: 8, color: palette.muted, marginBottom: 7, letterSpacing: 0.85, fontWeight: '700' },
-  userBubble: { maxWidth: 600, borderRadius: 8, paddingHorizontal: 18, paddingVertical: 15, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  userBubble: {
+    maxWidth: 560,
+    borderRadius: 20,
+    paddingHorizontal: 19,
+    paddingVertical: 15,
+    backgroundColor: palette.conversationGlassStrong,
+    borderWidth: 0,
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  userBubbleCompact: { maxWidth: '82%', borderRadius: 19, paddingHorizontal: 17, paddingVertical: 14 },
   userText: { fontSize: 15, lineHeight: 23, color: palette.text, letterSpacing: -0.05 },
-  assistantBlock: { width: '100%', marginBottom: 44 },
-  assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14 },
-  assistantName: { fontSize: 9, fontWeight: '800', color: palette.indigo, letterSpacing: 1.0 },
-  responseGlass: { paddingTop: 20, paddingBottom: 22, paddingHorizontal: 22, backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: 'rgba(209,139,255,0.42)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, borderLeftWidth: 3, borderLeftColor: 'rgba(139,156,255,0.62)' },
+  assistantBlock: { width: '100%', alignItems: 'flex-start', marginBottom: 48 },
+  assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10, marginLeft: 5 },
+  assistantName: { fontSize: 9, fontWeight: '800', color: palette.violetLaser, letterSpacing: 1.0 },
+  responseGlass: {
+    alignSelf: 'flex-start',
+    maxWidth: '88%',
+    minWidth: 220,
+    borderRadius: 22,
+    paddingTop: 19,
+    paddingBottom: 20,
+    paddingHorizontal: 22,
+    backgroundColor: palette.conversationGlass,
+    borderWidth: 0,
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    overflow: 'hidden',
+  },
+  responseGlassCompact: { maxWidth: '92%', minWidth: 0, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 17 },
   assistantText: { color: palette.text, fontSize: 18, lineHeight: 30, letterSpacing: -0.18 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(139,156,255,0.28)' },
-  statusDotActive: { backgroundColor: palette.cyan },
-  statusText: { fontSize: 8, color: palette.indigo, letterSpacing: 0.75, fontWeight: '700' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(184,140,255,0.28)' },
+  statusDotActive: { backgroundColor: palette.violetLaser, shadowColor: palette.violetLaser, shadowOpacity: 0.7, shadowRadius: 5 },
+  statusText: { fontSize: 8, color: palette.violetLaser, letterSpacing: 0.75, fontWeight: '700' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -10, marginBottom: 30 },
   thinkingText: { color: palette.textSecondary, fontSize: 10, letterSpacing: 0.3 },
   phaseHint: { color: palette.textSecondary, fontSize: 10, marginBottom: 24 },
@@ -668,10 +697,27 @@ const styles = StyleSheet.create({
   amendmentText: { color: palette.textSecondary, fontSize: 11, lineHeight: 17 },
   errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8 },
-  composer: { maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 10, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
-  newMobile: { width: 40, height: 40, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.indigoWash },
+  composer: {
+    maxWidth: 820,
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    padding: 8,
+    borderRadius: 22,
+    backgroundColor: 'rgba(74,76,94,0.24)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.conversationEdge,
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  composerCompact: { borderRadius: 21, padding: 8 },
+  newMobile: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,156,255,0.13)' },
   newMobileText: { color: palette.indigo, fontSize: 18 },
   input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 11, paddingVertical: 10, color: palette.text, fontSize: 14, letterSpacing: -0.05 },
-  send: { width: 42, height: 42, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep },
+  send: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep, shadowColor: palette.violetLaser, shadowOpacity: 0.22, shadowRadius: 9 },
   sendText: { color: palette.text, fontSize: 19 },
 });
