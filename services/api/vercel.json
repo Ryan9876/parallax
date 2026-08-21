@@ -4,5 +4,11 @@
     "parallax_api/main.py": {
       "runtime": "python3.12"
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "parallax_api/main.py"
+    }
+  ]
 }
