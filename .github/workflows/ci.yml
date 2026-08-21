@@ -30,11 +30,12 @@ jobs:
       - name: Validate specifications
         run: |
           python scripts/validate_spec.py specs/P2-V0.1.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.2.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.3.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.4.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.5.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.6.2.md
+          for SPEC in $(find specs -maxdepth 1 -type f -name 'P2-V*.md' | sort -V); do
+            if [ "$SPEC" = "specs/P2-V0.1.0.md" ]; then
+              continue
+            fi
+            python scripts/validate_spec.py --spec-only "$SPEC"
+          done
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
       - name: Compile Python sources
@@ -272,6 +273,18 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
 
+      - name: Resolve active release specification
+        run: |
+          RELEASE_SPEC=$(find specs -maxdepth 1 -type f -name 'P2-V*.md' | sort -V | tail -1)
+          if [ -z "$RELEASE_SPEC" ]; then
+            echo 'FAIL: no versioned Parallax release specification found'
+            exit 1
+          fi
+          RELEASE_STEM=$(basename "$RELEASE_SPEC" .md)
+          echo "PARALLAX_RELEASE_SPEC=$RELEASE_SPEC" >> "$GITHUB_ENV"
+          echo "PARALLAX_RELEASE_STEM=$RELEASE_STEM" >> "$GITHUB_ENV"
+          echo "Resolved active release specification: $RELEASE_SPEC"
+
       - id: model
         name: Select provider-backed or local DSPy model
         env:
@@ -306,10 +319,12 @@ jobs:
         timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py specs/P2-V0.6.2.md
+        run: |
+          python scripts/compile_spec.py "$PARALLAX_RELEASE_SPEC"
+          cp "specs/compiled/${PARALLAX_RELEASE_STEM}.plan.json" specs/compiled/active-release.plan.json
 
-      - name: Verify compiled plan against protected v0.6.2 contract
-        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.6.2.md
+      - name: Verify compiled plan against protected active release contract
+        run: python scripts/validate_spec.py --require-dspy "$PARALLAX_RELEASE_SPEC"
 
       - name: Record DSPy development status
         if: success()
@@ -321,14 +336,15 @@ jobs:
           import json
           import os
           from pathlib import Path
+          stem = os.environ['PARALLAX_RELEASE_STEM']
           Path('specs/compiled/dspy-run-status.json').write_text(json.dumps({
               'executed': True,
-              'spec_id': 'P2-V0.6.2',
+              'spec_id': stem,
               'spec_compiler_executed': True,
               'spec_critic_executed': True,
               'model': os.environ['MODEL'],
               'provider_backed': os.environ['PROVIDER'] == 'true',
-              'artifact': 'P2-V0.6.2.plan.json',
+              'artifact': f'{stem}.plan.json',
               'protected_metrics_required': True
           }, indent=2) + '\n', encoding='utf-8')
           PY
@@ -338,7 +354,7 @@ jobs:
         with:
           name: dspy-development-evidence
           path: |
-            specs/compiled/P2-V0.6.2.plan.json
+            specs/compiled/active-release.plan.json
             specs/compiled/dspy-run-status.json
             /tmp/ollama.log
           if-no-files-found: warn
