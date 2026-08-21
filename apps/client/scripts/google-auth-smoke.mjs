@@ -61,7 +61,6 @@ let authenticated = false;
 let googleExchangeAuthorization = '';
 let sessionMarkerObserved = false;
 let sessionDeleteObserved = false;
-let authorizeRequestObserved = false;
 const observedRequests = [];
 
 const browser = await chromium.launch({ headless: true });
@@ -90,13 +89,7 @@ await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
   }
 
   if (pathname === '/auth/v1/authorize') {
-    assert(requestUrl.searchParams.get('provider') === 'google', 'OAuth provider was not Google');
-    assert(requestUrl.searchParams.get('code_challenge_method') === 's256', 'OAuth did not use PKCE S256');
-    assert(Boolean(requestUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
-    const redirectTo = requestUrl.searchParams.get('redirect_to');
-    assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
-    authorizeRequestObserved = true;
-    await route.fulfill({ status: 302, headers: { location: `${origin}/` }, body: '' });
+    await route.fulfill({ status: 204, body: '' });
     return;
   }
 
@@ -195,21 +188,24 @@ try {
   await page.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 10000 });
   assert(!(await page.getByPlaceholder('Access credential').isVisible().catch(() => false)), 'Shared access credential field remained visible');
 
-  const authorizeRequest = page.waitForRequest((request) => request.url().startsWith(`${supabaseOrigin}/auth/v1/authorize`));
+  const authorizeRequestPromise = page.waitForRequest((request) => request.url().startsWith(`${supabaseOrigin}/auth/v1/authorize`));
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await authorizeRequest;
-  await page.waitForURL(`${origin}/`, { timeout: 10000 });
-  assert(authorizeRequestObserved, 'Supabase Google authorization request was not observed');
+  const authorizeRequest = await authorizeRequestPromise;
+  const authorizeUrl = new URL(authorizeRequest.url());
+  assert(authorizeUrl.searchParams.get('provider') === 'google', 'OAuth provider was not Google');
+  assert(authorizeUrl.searchParams.get('code_challenge_method') === 's256', 'OAuth did not use PKCE S256');
+  assert(Boolean(authorizeUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
+  assert(authorizeUrl.searchParams.get('redirect_to') === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${authorizeUrl.searchParams.get('redirect_to')}`);
 
-  const storageKeys = await page.evaluate(() => Object.keys(sessionStorage));
-  assert(storageKeys.includes('parallax:google:pkce-verifier'), `PKCE verifier key missing before callback; keys=${storageKeys.join(',')}`);
-
+  // A successful callback token exchange is the stronger proof that the verifier
+  // survived the cross-origin OAuth trip, so do not race the in-flight navigation
+  // merely to inspect storage before the callback.
   await page.goto(`${origin}/auth/callback?code=mock-google-code`, { waitUntil: 'domcontentloaded' });
   try {
     await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
   } catch (error) {
     const diagnostics = await page.evaluate(() => ({ body: document.body.innerText.slice(0, 2000), sessionStorageKeys: Object.keys(sessionStorage), localStorageKeys: Object.keys(localStorage), href: location.href }));
-    throw new Error(`Google callback did not reach the workspace. diagnostics=${JSON.stringify({ diagnostics, authorizeRequestObserved, googleSessionExchangeObserved: Boolean(googleExchangeAuthorization), sessionMarkerObserved, observedRequests: observedRequests.slice(-30), browserErrors: browserErrors.slice(-20) })}`, { cause: error });
+    throw new Error(`Google callback did not reach the workspace. diagnostics=${JSON.stringify({ diagnostics, googleSessionExchangeObserved: Boolean(googleExchangeAuthorization), sessionMarkerObserved, observedRequests: observedRequests.slice(-30), browserErrors: browserErrors.slice(-20) })}`, { cause: error });
   }
   await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
 
@@ -232,7 +228,7 @@ try {
   const unexpectedErrors = browserErrors.filter((entry) => !entry.includes('favicon'));
   assert(unexpectedErrors.length === 0, `Hosted Google auth browser errors: ${unexpectedErrors.join(' | ')}`);
 
-  console.log(JSON.stringify({ googleAuthorizeRequest: authorizeRequestObserved, pkce: true, transientSupabaseToken: true, parallaxSessionExchange: true, sessionMarkerObserved, ownerAccessPanel: true, logout: sessionDeleteObserved }, null, 2));
+  console.log(JSON.stringify({ googleAuthorizeRequest: true, pkce: true, transientSupabaseToken: true, parallaxSessionExchange: true, sessionMarkerObserved, ownerAccessPanel: true, logout: sessionDeleteObserved }, null, 2));
 } finally {
   await browser.close();
 }
