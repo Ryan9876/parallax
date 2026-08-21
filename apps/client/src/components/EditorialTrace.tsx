@@ -3,6 +3,8 @@ import { AccessibilityInfo, LayoutChangeEvent, StyleSheet, View } from 'react-na
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { palette } from '../theme';
 
+type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
+
 export function EditorialTrace({
   active = false,
   tone = 'violet',
@@ -12,6 +14,7 @@ export function EditorialTrace({
 }) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
   const [reduceMotion, setReduceMotion] = React.useState(false);
+  const reducedGraphics = Boolean((globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__);
 
   React.useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -38,37 +41,17 @@ export function EditorialTrace({
     return p;
   }, [size]);
 
-  const toneColor = tone === 'sage'
-    ? palette.sage
-    : tone === 'peach'
-      ? palette.peach
-      : palette.violet;
+  if (reducedGraphics) return null;
+
+  const toneColor = tone === 'sage' ? palette.sage : tone === 'peach' ? palette.peach : palette.violet;
   const opacity = active && !reduceMotion ? 0.72 : 0.34;
 
   return (
-    <View
-      accessible={false}
-      importantForAccessibility="no-hide-descendants"
-      pointerEvents="none"
-      onLayout={onLayout}
-      style={StyleSheet.absoluteFill}
-    >
+    <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none" onLayout={onLayout} style={StyleSheet.absoluteFill}>
       {path && (
         <Canvas style={StyleSheet.absoluteFill}>
-          <Path
-            path={path}
-            color={toneColor}
-            style="stroke"
-            strokeWidth={1.25}
-            opacity={opacity}
-          />
-          <Circle
-            cx={Math.max(14, size.width - 11)}
-            cy={Math.min(size.height - 12, size.height * 0.44)}
-            r={active ? 2.6 : 1.8}
-            color={active ? palette.cyan : toneColor}
-            opacity={active ? 0.9 : 0.45}
-          />
+          <Path path={path} color={toneColor} style="stroke" strokeWidth={1.25} opacity={opacity} />
+          <Circle cx={Math.max(14, size.width - 11)} cy={Math.min(size.height - 12, size.height * 0.44)} r={active ? 2.6 : 1.8} color={active ? palette.cyan : toneColor} opacity={active ? 0.9 : 0.45} />
         </Canvas>
       )}
     </View>
