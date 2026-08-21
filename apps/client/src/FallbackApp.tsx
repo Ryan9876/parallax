@@ -9,6 +9,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { WorkSpecificationStatus } from './components/WorkSpecificationStatus';
+import { useWorkSpecification } from './hooks/useWorkSpecification';
 import { api, type ConversationDto, type MessageDto } from './lib/api';
 import { palette } from './theme';
 
@@ -31,6 +33,8 @@ export default function FallbackApp() {
   const [conversation, setConversation] = React.useState<ConversationDto | null>(null);
   const [messages, setMessages] = React.useState<MessageDto[]>([]);
   const [recent, setRecent] = React.useState<ConversationDto[]>([]);
+  const workSpecification = useWorkSpecification(conversation?.id ?? null);
+  const canDraftWorkSpecification = messages.some((message) => message.role === 'user');
 
   React.useEffect(() => {
     const saved = globalThis.localStorage?.getItem('parallax:p2:draft');
@@ -165,6 +169,15 @@ export default function FallbackApp() {
               ))}
             </View>
           </View>
+
+          <WorkSpecificationStatus
+            specification={workSpecification.specification}
+            busy={workSpecification.busy}
+            error={workSpecification.error}
+            canDraft={canDraftWorkSpecification}
+            onDraft={() => void workSpecification.draft()}
+            onApprove={() => void workSpecification.approve()}
+          />
 
           <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
             {messages.length === 0 && (

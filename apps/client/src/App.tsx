@@ -13,10 +13,12 @@ import {
 import { LivingSurface } from './components/LivingSurface';
 import { LaserTypesetter } from './components/LaserTypesetter';
 import { ParallaxLogo } from './components/ParallaxLogo';
+import { EngineeringRunStatus } from './components/EngineeringRunStatus';
+import { WorkSpecificationStatus } from './components/WorkSpecificationStatus';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
 import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
-import { EngineeringRunStatus } from './components/EngineeringRunStatus';
 import { useEngineeringRun } from './hooks/useEngineeringRun';
+import { useWorkSpecification } from './hooks/useWorkSpecification';
 import { palette } from './theme';
 
 const FALLBACK_MESSAGES: MessageDto[] = [
@@ -61,6 +63,10 @@ export default function App() {
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
   const engineering = useEngineeringRun(conversationId, mode === 'code');
+  const workSpecification = useWorkSpecification(conversationId);
+  const canDraftWorkSpecification = messages.some(
+    (message) => message.role === 'user' && !message.id.startsWith('fallback-'),
+  );
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -465,6 +471,15 @@ export default function App() {
                 ))}
               </View>
             </View>
+
+            <WorkSpecificationStatus
+              specification={workSpecification.specification}
+              busy={workSpecification.busy}
+              error={workSpecification.error}
+              canDraft={canDraftWorkSpecification}
+              onDraft={() => void workSpecification.draft()}
+              onApprove={() => void workSpecification.approve()}
+            />
 
             {mode === 'code' && engineering.run && (
               <EngineeringRunStatus
