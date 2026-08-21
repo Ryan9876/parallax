@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.2
+Version: 1.3
 Status: Authoritative
 
 ## Design direction
@@ -9,9 +9,12 @@ P2 evolves the calmer P1 visual language instead of replacing it with dashboard 
 
 Reason 2.0 adds one durable interaction principle: a material objective change is treated as a calm protected hand-off, not as a failure alarm. Visual intensity must communicate system state without punishing the user for changing direction.
 
+The v0.6 visual refinement rejects generic AI-neon and generic SaaS-glass aesthetics. Parallax should read as **high-end industrial design software + calm intelligence + optical instrumentation**. Distinction comes from precision, material restraint, spatial depth, and one or two signature behaviors rather than decorative effects.
+
 ## Material palette
 
 - Mineral canvas: `#F4F3EE`
+- Warm optical paper: `#F7F4EC`
 - Ink: `#20282B`
 - Restrained optical blue: `#147D9F`
 - Laser core: `#D8F9FF`
@@ -21,18 +24,19 @@ Reason 2.0 adds one durable interaction principle: a material objective change i
 - Muted yellow-green undertone: `#C2CAAF`
 - Secondary metadata: soft peach/brown family rather than cool gray where appropriate.
 
-## Living surface
+## Optical workplane
 
-The first P2 motion baseline uses a slow mineral/pearl interference field:
+The living surface is an optical workplane, not a decorative fluid background.
 
-- large low-frequency waves;
-- restrained teal, peach, and yellow-green mixing;
-- sparse caustic highlights;
-- low amplitude at idle;
-- moderately increased energy during THINKING and RESPONDING;
-- no high-frequency noise behind readable text.
+- Use a warm mineral substrate with broad, low-frequency drift.
+- Sparse topographic isolines provide a unique spatial signature.
+- A nearly invisible drafting grid may provide scale and orientation.
+- One slow optical focus region may become slightly more apparent while intelligence is active.
+- A warm calibration trace prevents the interface from collapsing into generic blue SaaS styling.
+- Motion stays below readable content and never creates high-frequency shimmer.
+- Reduced motion freezes the field without changing the semantic state.
 
-The surface is atmosphere, not content.
+The surface is atmosphere and spatial reference, not content.
 
 ## Optical typesetter
 
@@ -72,16 +76,15 @@ User-facing error text should prefer the server-provided sanitized recovery mess
 
 ## Parallax mark
 
-The representative logo is the **Parallax Lens Mark**:
+The representative logo is the **Parallax Aperture Mark**:
 
-- two thin, offset optical planes/lenses around one stable center point;
-- planes drift by only a few pixels over a 7–9 second cycle;
-- they approach near-alignment, then separate again;
-- a restrained center glint appears near alignment;
-- no continuous rotation and no spinner behavior;
+- one geometric aperture around a stable reference center;
+- restrained horizontal and vertical calibration axes;
+- a single measurement point drifts only a few pixels over a slow cycle;
+- no continuous rotation, orbital loops, or spinner behavior;
 - reduced motion uses the centered static mark.
 
-The mark communicates the product name literally: a change in viewpoint creates a perceptible shift while the reference center remains stable.
+The mark should feel like an instrument calibration symbol rather than an AI-logo trope.
 
 ## Typography
 
@@ -93,9 +96,11 @@ All final assistant text remains normal selectable/accessibility-aware text. Mot
 
 Conversation remains primary. Wide layouts may show a recent-conversation rail; mobile collapses that rail. The assistant response surface may use glass separation but should not become a card-heavy dashboard.
 
+Use visible chrome sparingly. Hierarchy should come from typography, spacing, optical alignment, and material separation before introducing additional cards or controls.
+
 The active conversation's durable `spec_id` may be shown as quiet metadata. Never hard-code a stale release label into the visible shell; historical conversations must remain capable of displaying their own stored specification identity.
 
-Private production begins with a restrained access surface using the same mineral canvas, Parallax Lens Mark, typography, and optical-blue action color. It asks only for the operator credential, uses normal accessible form semantics, and does not expose technical authentication detail. The full conversation shell appears only after access is accepted.
+Private production begins with a restrained access surface using the same mineral canvas, Parallax mark, typography, and optical-blue action color. It asks only for the operator credential, uses normal accessible form semantics, and does not expose technical authentication detail. The full conversation shell appears only after access is accepted.
 
 ## Motion state mapping
 
