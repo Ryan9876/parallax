@@ -57,7 +57,7 @@ def test_browser_session_is_http_only_bounded_and_requires_marker_header():
         assert SESSION_COOKIE_NAME in set_cookie
         assert "httponly" in set_cookie
         assert "secure" in set_cookie
-        assert "samesite=none" in set_cookie
+        assert "samesite=lax" in set_cookie
         assert secret not in established.headers["set-cookie"]
 
         cookie_only = client.get("/v1/conversations")
