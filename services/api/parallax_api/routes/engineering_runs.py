@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..code.domain import WorkflowStage
@@ -13,7 +12,7 @@ from ..db import get_session
 from ..models import EngineeringRun
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
-from ..schemas import EngineeringAdvance, EngineeringOperation, EngineeringOperationRead, EngineeringRunCreate, EngineeringRunRead
+from ..schemas import EngineeringAdvance, EngineeringOperation, EngineeringOperationRead, EngineeringRunCreate, EngineeringRunEnsure, EngineeringRunRead
 
 router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
@@ -57,15 +56,20 @@ def create_run(payload: EngineeringRunCreate, svc: EngineeringRunService = Depen
     return present(invoke(lambda: svc.create_run(**payload.model_dump())))
 
 
-@router.get("/{run_id}", response_model=EngineeringRunRead)
-def get_run(run_id: str, svc: EngineeringRunService = Depends(service)):
-    return present(invoke(lambda: svc.get(run_id)))
+@router.post("/ensure", response_model=EngineeringRunRead)
+def ensure_run(payload: EngineeringRunEnsure, svc: EngineeringRunService = Depends(service)):
+    return present(invoke(lambda: svc.ensure_run(**payload.model_dump())))
 
 
 @router.get("/conversation/{conversation_id}/latest", response_model=EngineeringRunRead | None)
-def latest_run(conversation_id: str, session: Session = Depends(get_session)):
-    run = session.scalar(select(EngineeringRun).where(EngineeringRun.conversation_id == conversation_id).order_by(EngineeringRun.updated_at.desc()))
-    return present(EngineeringRunRepository(session).get(run.id)) if run else None
+def latest_run(conversation_id: str, svc: EngineeringRunService = Depends(service)):
+    run = svc.latest_for_conversation(conversation_id)
+    return present(run) if run else None
+
+
+@router.get("/{run_id}", response_model=EngineeringRunRead)
+def get_run(run_id: str, svc: EngineeringRunService = Depends(service)):
+    return present(invoke(lambda: svc.get(run_id)))
 
 
 @router.post("/{run_id}/advance", response_model=EngineeringOperationRead)

@@ -242,6 +242,11 @@ export const api = {
       body: JSON.stringify({ role, content }),
     }),
   streamResponse,
+  ensureEngineeringRun: (conversationId: string, specId: string, workspaceRef?: string | null) =>
+    json<EngineeringRunDto>('/v1/engineering-runs/ensure', {
+      method: 'POST',
+      body: JSON.stringify({ conversation_id: conversationId, spec_id: specId, workspace_ref: workspaceRef ?? null }),
+    }),
   latestEngineeringRun: (conversationId: string) =>
     json<EngineeringRunDto | null>(`/v1/engineering-runs/conversation/${conversationId}/latest`),
   pauseEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>

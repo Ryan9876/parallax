@@ -46,6 +46,10 @@ class EngineeringRunCreate(BaseModel):
     workspace_ref: str | None = Field(default=None, max_length=300)
 
 
+class EngineeringRunEnsure(EngineeringRunCreate):
+    pass
+
+
 class EngineeringOperation(BaseModel):
     operation_key: str = Field(min_length=1, max_length=160)
     expected_revision: int = Field(ge=0)

@@ -9,6 +9,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EngineeringRunStatus } from './components/EngineeringRunStatus';
+import { useEngineeringRun } from './hooks/useEngineeringRun';
 import { api, type ConversationDto, type MessageDto } from './lib/api';
 import { palette } from './theme';
 
@@ -31,6 +33,7 @@ export default function FallbackApp() {
   const [conversation, setConversation] = React.useState<ConversationDto | null>(null);
   const [messages, setMessages] = React.useState<MessageDto[]>([]);
   const [recent, setRecent] = React.useState<ConversationDto[]>([]);
+  const engineering = useEngineeringRun(conversation?.id ?? null, mode === 'code');
 
   React.useEffect(() => {
     const saved = globalThis.localStorage?.getItem('parallax:p2:draft');
@@ -166,12 +169,22 @@ export default function FallbackApp() {
             </View>
           </View>
 
+          {mode === 'code' && engineering.run && (
+            <EngineeringRunStatus
+              run={engineering.run}
+              busy={engineering.busy}
+              onPause={() => void engineering.pause()}
+              onResume={() => void engineering.resume()}
+              onCancel={() => void engineering.cancel()}
+            />
+          )}
+
           <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
             {messages.length === 0 && (
               <View style={styles.empty}>
                 <StaticMark size={44} />
                 <Text style={styles.emptyTitle}>Graphics reduced. Conversation preserved.</Text>
-                <Text style={styles.emptyCopy}>Parallax can continue without Skia. Messages remain normal selectable text and durable server-side context remains available.</Text>
+                <Text style={styles.emptyCopy}>Parallax can continue without Skia. Messages, Code run state, and durable server-side context remain available.</Text>
               </View>
             )}
             {messages.map((message) => message.role === 'user' ? (

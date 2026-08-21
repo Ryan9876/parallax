@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
-from ..models import EngineeringRun
+from ..models import Conversation, EngineeringRun
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
 from .domain import ACTIVE_STAGES, AttemptStatus, WorkflowStage
@@ -34,13 +34,7 @@ class EngineeringRunService:
         self.conversations = conversation_repository
         self.policy = policy or ProtectedRunPolicy()
 
-    def create_run(
-        self,
-        *,
-        conversation_id: str,
-        spec_id: str,
-        workspace_ref: str | None = None,
-    ) -> EngineeringRun:
+    def _bound_code_conversation(self, conversation_id: str, spec_id: str) -> Conversation:
         conversation = self.conversations.get(conversation_id)
         if conversation is None:
             raise EngineeringRunNotFound("conversation not found")
@@ -52,11 +46,64 @@ class EngineeringRunService:
             raise SpecBindingError(
                 f"run spec {spec_id} does not match durable conversation spec {conversation.spec_id}"
             )
+        return conversation
+
+    def create_run(
+        self,
+        *,
+        conversation_id: str,
+        spec_id: str,
+        workspace_ref: str | None = None,
+    ) -> EngineeringRun:
+        conversation = self._bound_code_conversation(conversation_id, spec_id)
         return self.runs.create(
             conversation_id=conversation.id,
             spec_id=conversation.spec_id,
             workspace_ref=workspace_ref,
         )
+
+    def ensure_run(
+        self,
+        *,
+        conversation_id: str,
+        spec_id: str,
+        workspace_ref: str | None = None,
+    ) -> EngineeringRun:
+        conversation = self._bound_code_conversation(conversation_id, spec_id)
+        run = self.runs.latest_for_conversation(conversation.id)
+
+        if run is not None:
+            if run.spec_id != conversation.spec_id:
+                raise SpecBindingError("existing engineering run is bound to a different specification")
+            if workspace_ref is not None and run.workspace_ref != workspace_ref:
+                raise SpecBindingError("existing engineering run workspace binding cannot be changed by activation")
+        else:
+            run = self.runs.create(
+                conversation_id=conversation.id,
+                spec_id=conversation.spec_id,
+                workspace_ref=workspace_ref,
+            )
+
+        if run.state != WorkflowStage.SPECIFY.value:
+            return run
+
+        activated = self.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.SPECIFY,
+            operation_key=f"activate:{run.id}:{run.spec_id}",
+            expected_revision=run.revision,
+            passed=True,
+            evidence={
+                "conversation_id": conversation.id,
+                "spec_id": conversation.spec_id,
+                "binding_verified": True,
+            },
+            program_id="protected-code-activation-v0.7.0",
+        )
+        return activated.run
+
+    def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
+        return self.runs.latest_for_conversation(conversation_id)
 
     def get(self, run_id: str) -> EngineeringRun:
         run = self.runs.get(run_id)
