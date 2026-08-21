@@ -311,7 +311,7 @@ async function inspectViewport(browser, name, width, height, report) {
     const prompt = 'Show the optical printing behavior on a wrapped response.';
     await page.getByLabel('Message Parallax').fill(prompt);
     await page.getByLabel('Send message').click();
-    await page.getByText('Violet etching active').waitFor({ timeout: 5000 });
+    await page.getByText(/violet etching active/i).waitFor({ timeout: 5000 });
     await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
 
     assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live optical inscription was observed');
@@ -334,8 +334,18 @@ async function inspectViewport(browser, name, width, height, report) {
       const exact = (value) => all.find((node) => node.textContent?.trim() === value);
       const userText = exact(promptText);
       const assistantText = all.find((node) => node.textContent?.trim().startsWith(assistantPrefix));
-      const userSurface = userText?.parentElement;
-      const assistantSurface = assistantText?.parentElement;
+      const findSurface = (node) => {
+        let current = node?.parentElement ?? null;
+        for (let depth = 0; depth < 7 && current; depth += 1, current = current.parentElement) {
+          const style = getComputedStyle(current);
+          const radius = parseFloat(style.borderRadius || '0');
+          const background = style.backgroundColor;
+          if (radius >= 18 && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') return current;
+        }
+        return null;
+      };
+      const userSurface = findSurface(userText);
+      const assistantSurface = findSurface(assistantText);
       const summarize = (element) => {
         if (!element) return null;
         const style = getComputedStyle(element);
