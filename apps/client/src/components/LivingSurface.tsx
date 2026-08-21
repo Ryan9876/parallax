@@ -46,53 +46,49 @@ half4 main(float2 pos) {
   float2 q = uv - 0.5;
   float aspect = resolution.x / max(resolution.y, 1.0);
   q.x *= aspect;
-  float t = time * 0.035;
+  float t = time * 0.018;
 
-  // Quiet mineral substrate. Motion is broad and slow so the surface reads
-  // like an optical workplane instead of decorative fluid animation.
-  float n1 = fbm(q * 1.35 + float2(t * 0.24, -t * 0.11));
-  float n2 = fbm(q * 2.10 + float2(-t * 0.08, t * 0.18));
-  float field = mix(n1, n2, 0.38);
+  float n1 = fbm(q * 1.18 + float2(t * 0.16, -t * 0.07));
+  float n2 = fbm(q * 1.72 + float2(-t * 0.05, t * 0.11));
+  float field = mix(n1, n2, 0.30);
 
-  float3 paper = float3(0.965, 0.958, 0.931);
-  float3 stone = float3(0.902, 0.910, 0.894);
-  float3 cool = float3(0.707, 0.829, 0.827);
-  float3 warm = float3(0.875, 0.796, 0.709);
+  float3 paper = float3(0.972, 0.966, 0.944);
+  float3 stone = float3(0.912, 0.916, 0.903);
+  float3 cool = float3(0.735, 0.834, 0.827);
+  float3 warm = float3(0.882, 0.814, 0.748);
   float3 ink = float3(0.132, 0.159, 0.165);
 
-  float3 col = mix(paper, stone, 0.11 + field * 0.055);
+  float3 col = mix(paper, stone, 0.075 + field * 0.035);
 
-  // Sparse topographic isolines. They are the signature background behavior:
-  // precise enough to feel instrument-like, soft enough to disappear under copy.
-  float contourSource = field + 0.13 * sin(q.x * 1.7 - q.y * 1.2 + t);
-  float contour = lineMask(contourSource, 0.105, 0.0022);
-  col = mix(col, ink, contour * (0.025 + energy * 0.012));
+  // Sparse topographic isolines: perceptible only after the interface settles.
+  float contourSource = field + 0.10 * sin(q.x * 1.45 - q.y * 1.05 + t);
+  float contour = lineMask(contourSource, 0.128, 0.0017);
+  col = mix(col, ink, contour * (0.012 + energy * 0.006));
 
-  // A very faint drafting grid adds scale without turning the surface into a dashboard.
-  float gx = lineMask(uv.x, 0.055, 0.00045);
-  float gy = lineMask(uv.y, 0.055, 0.00045);
+  // Drafting grid is intentionally near the threshold of perception.
+  float gx = lineMask(uv.x, 0.070, 0.00032);
+  float gy = lineMask(uv.y, 0.070, 0.00032);
   float grid = max(gx, gy);
-  col = mix(col, ink, grid * 0.010);
+  col = mix(col, ink, grid * 0.0045);
 
-  // One optical focus region, not a full-screen glow. The focus drifts slowly and
-  // becomes slightly more apparent while intelligence is active.
+  // A single low-energy optical focus provides depth without becoming a glow effect.
   float2 focus = float2(
-    0.16 * sin(t * 0.71),
-    0.11 * cos(t * 0.53)
+    0.12 * sin(t * 0.47),
+    0.08 * cos(t * 0.39)
   );
   float r = length(q - focus);
-  float halo = exp(-r * r * 7.8);
-  float ring = 1.0 - smoothstep(0.006, 0.018, abs(r - (0.34 + 0.018 * sin(t))));
-  col = mix(col, cool, halo * (0.025 + energy * 0.026));
-  col = mix(col, cool, ring * (0.025 + energy * 0.030));
+  float halo = exp(-r * r * 8.6);
+  float ring = 1.0 - smoothstep(0.004, 0.014, abs(r - (0.31 + 0.010 * sin(t))));
+  col = mix(col, cool, halo * (0.010 + energy * 0.012));
+  col = mix(col, cool, ring * (0.008 + energy * 0.012));
 
-  // A secondary warm calibration trace keeps the palette from becoming generic blue SaaS.
-  float diagonal = 1.0 - smoothstep(0.003, 0.012, abs((q.x * 0.72 + q.y) - 0.56));
-  col = mix(col, warm, diagonal * 0.022);
+  // One warm calibration trace keeps the material system from becoming generic blue SaaS.
+  float diagonal = 1.0 - smoothstep(0.0025, 0.010, abs((q.x * 0.66 + q.y) - 0.60));
+  col = mix(col, warm, diagonal * 0.008);
 
-  // Slight edge falloff keeps attention in the working area without visible vignette styling.
-  float edge = smoothstep(0.94, 0.35, length(float2(q.x / max(aspect, 1.0), q.y)));
-  col = mix(paper, col, 0.90 + edge * 0.10);
+  // Gentle center bias preserves contrast behind the conversation surface.
+  float center = exp(-dot(q, q) * 1.6);
+  col = mix(col, paper, center * 0.025);
 
   return half4(col, 1.0);
 }
