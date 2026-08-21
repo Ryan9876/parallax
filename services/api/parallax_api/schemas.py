@@ -35,6 +35,25 @@ class ConversationRead(BaseModel):
     messages: list[MessageRead] = Field(default_factory=list)
 
 
+class WorkSpecificationRead(BaseModel):
+    id: str
+    conversation_id: str
+    revision: int
+    status: Literal["DRAFT", "APPROVED", "SUPERSEDED"]
+    title: str
+    objective: str
+    constraints: list[str] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    confidence: float
+    program_version: str
+    model_id: str | None
+    created_at: datetime
+    updated_at: datetime
+    approved_at: datetime | None
+
+
 class ResponseRequest(BaseModel):
     content: str = Field(min_length=1, max_length=100_000)
     material_scope_change: bool = False

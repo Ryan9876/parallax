@@ -20,6 +20,25 @@ export type ConversationDto = {
   messages: MessageDto[];
 };
 
+export type WorkSpecificationDto = {
+  id: string;
+  conversation_id: string;
+  revision: number;
+  status: 'DRAFT' | 'APPROVED' | 'SUPERSEDED';
+  title: string;
+  objective: string;
+  constraints: string[];
+  acceptance_criteria: string[];
+  risks: string[];
+  open_questions: string[];
+  confidence: number;
+  program_version: string;
+  model_id: string | null;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+};
+
 export type ResponsePhase =
   | 'THINKING'
   | 'RESPONDING'
@@ -89,7 +108,14 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
   if (!response.ok) {
-    throw new Error(`Parallax API ${response.status}`);
+    let detail = `Parallax API ${response.status}`;
+    try {
+      const payload = await response.json() as { detail?: string };
+      if (typeof payload.detail === 'string' && payload.detail.trim()) detail = payload.detail;
+    } catch {
+      // Preserve the status fallback when the API did not return JSON.
+    }
+    throw new Error(detail);
   }
   return (await response.json()) as T;
 }
@@ -240,6 +266,16 @@ export const api = {
     json<MessageDto>(`/v1/conversations/${id}/messages`, {
       method: 'POST',
       body: JSON.stringify({ role, content }),
+    }),
+  latestWorkSpecification: (conversationId: string) =>
+    json<WorkSpecificationDto | null>(`/v1/conversations/${conversationId}/work-specifications/latest`),
+  draftWorkSpecification: (conversationId: string) =>
+    json<WorkSpecificationDto>(`/v1/conversations/${conversationId}/work-specifications/draft`, {
+      method: 'POST',
+    }),
+  approveWorkSpecification: (specificationId: string) =>
+    json<WorkSpecificationDto>(`/v1/work-specifications/${specificationId}/approve`, {
+      method: 'POST',
     }),
   streamResponse,
   latestEngineeringRun: (conversationId: string) =>

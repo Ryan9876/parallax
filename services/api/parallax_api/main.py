@@ -11,6 +11,7 @@ from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
 from .routes.engineering_runs import router as engineering_runs_router
 from .routes.session import router as session_router
+from .routes.work_specifications import router as work_specifications_router
 from .session import SESSION_HEADER_NAME
 
 
@@ -45,6 +46,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
     protected = [Depends(require_access)]
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)
+    app.include_router(work_specifications_router, dependencies=protected)
     return app
 
 
