@@ -1,25 +1,31 @@
 import React from 'react';
 import { api, type WorkSpecificationDto } from '../lib/api';
+import { publishApprovedWorkSpecification } from '../lib/workSpecEvents';
 
 export function useWorkSpecification(conversationId: string | null) {
   const [specification, setSpecification] = React.useState<WorkSpecificationDto | null>(null);
+  const [approvedSpecification, setApprovedSpecification] = React.useState<WorkSpecificationDto | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const refresh = React.useCallback(async () => {
     if (!conversationId) {
       setSpecification(null);
+      setApprovedSpecification(null);
       setError(null);
       return;
     }
     try {
       const latest = await api.latestWorkSpecification(conversationId);
+      const approved = latest?.status === 'APPROVED'
+        ? latest
+        : await api.latestApprovedWorkSpecification(conversationId).catch(() => null);
       setSpecification(latest);
+      setApprovedSpecification(approved);
       setError(null);
     } catch {
-      // v0.7 keeps specification status additive. A temporary unavailable
-      // specification endpoint must not block the durable conversation itself.
       setSpecification(null);
+      setApprovedSpecification(null);
     }
   }, [conversationId]);
 
@@ -48,6 +54,11 @@ export function useWorkSpecification(conversationId: string | null) {
     try {
       const approved = await api.approveWorkSpecification(specification.id);
       setSpecification(approved);
+      setApprovedSpecification(approved);
+      publishApprovedWorkSpecification({
+        conversationId: approved.conversation_id,
+        specificationId: approved.id,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Specification approval failed.');
     } finally {
@@ -55,5 +66,5 @@ export function useWorkSpecification(conversationId: string | null) {
     }
   }, [busy, specification]);
 
-  return { specification, busy, error, refresh, draft, approve };
+  return { specification, approvedSpecification, busy, error, refresh, draft, approve };
 }

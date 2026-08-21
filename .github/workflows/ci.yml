@@ -37,6 +37,7 @@ jobs:
           python scripts/validate_spec.py --spec-only specs/P2-V0.6.2.md
           python scripts/validate_spec.py --spec-only specs/P2-V0.6.3.md
           python scripts/validate_spec.py --spec-only specs/P2-V0.7.0.md
+          python scripts/validate_spec.py --spec-only specs/P2-V0.8.0.md
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
       - name: Compile Python sources
@@ -47,7 +48,7 @@ jobs:
   client:
     name: Fast client checks
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -308,10 +309,10 @@ jobs:
         timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py specs/P2-V0.7.0.md
+        run: python scripts/compile_spec.py specs/P2-V0.8.0.md
 
-      - name: Verify compiled plan against protected v0.7.0 contract
-        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.7.0.md
+      - name: Verify compiled plan against protected v0.8.0 contract
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.8.0.md
 
       - name: Record DSPy development status
         if: success()
@@ -325,12 +326,12 @@ jobs:
           from pathlib import Path
           Path('specs/compiled/dspy-run-status.json').write_text(json.dumps({
               'executed': True,
-              'spec_id': 'P2-V0.7.0',
+              'spec_id': 'P2-V0.8.0',
               'spec_compiler_executed': True,
               'spec_critic_executed': True,
               'model': os.environ['MODEL'],
               'provider_backed': os.environ['PROVIDER'] == 'true',
-              'artifact': 'P2-V0.7.0.plan.json',
+              'artifact': 'P2-V0.8.0.plan.json',
               'protected_metrics_required': True
           }, indent=2) + '\n', encoding='utf-8')
           PY
@@ -340,7 +341,7 @@ jobs:
         with:
           name: dspy-development-evidence
           path: |
-            specs/compiled/P2-V0.7.0.plan.json
+            specs/compiled/P2-V0.8.0.plan.json
             specs/compiled/dspy-run-status.json
             /tmp/ollama.log
           if-no-files-found: warn

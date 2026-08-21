@@ -63,6 +63,18 @@ def latest_work_specification(
     return present(specification) if specification else None
 
 
+@router.get(
+    "/conversations/{conversation_id}/work-specifications/approved",
+    response_model=WorkSpecificationRead | None,
+)
+def latest_approved_work_specification(
+    conversation_id: str,
+    svc: WorkSpecificationService = Depends(service),
+):
+    specification = svc.latest_approved(conversation_id)
+    return present(specification) if specification else None
+
+
 @router.post(
     "/conversations/{conversation_id}/work-specifications/draft",
     response_model=WorkSpecificationRead,

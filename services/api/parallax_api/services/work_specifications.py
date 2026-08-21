@@ -26,6 +26,10 @@ class WorkSpecificationService:
         self.conversation(conversation_id)
         return self.repository.latest(conversation_id)
 
+    def latest_approved(self, conversation_id: str):
+        self.conversation(conversation_id)
+        return self.repository.latest_approved(conversation_id)
+
     def create_draft(
         self,
         *,

@@ -62,16 +62,39 @@ export type ResponseResult = {
 };
 
 export type EngineeringAttemptDto = {
-  id: string; stage: string; attempt_number: number; status: string;
-  failure_code: string | null; evidence: Record<string, unknown>;
-  started_at: string; completed_at: string;
+  id: string;
+  stage: string;
+  attempt_number: number;
+  status: string;
+  failure_code: string | null;
+  evidence: Record<string, unknown>;
+  started_at: string;
+  completed_at: string;
+};
+
+export type EngineeringAcceptanceCriterionDto = {
+  id: string;
+  text: string;
 };
 
 export type EngineeringRunDto = {
-  id: string; conversation_id: string; spec_id: string; state: string;
-  resume_stage: string | null; revision: number; workspace_ref: string | null;
-  last_failure_code: string | null; completed_at: string | null;
-  created_at: string; updated_at: string; attempts: EngineeringAttemptDto[];
+  id: string;
+  conversation_id: string;
+  spec_id: string;
+  work_specification_id: string | null;
+  work_specification_revision: number | null;
+  work_specification_digest: string | null;
+  binding_status: 'APPROVED_SPEC_BOUND' | 'HISTORICAL_UNBOUND';
+  acceptance_criteria: EngineeringAcceptanceCriterionDto[];
+  state: string;
+  resume_stage: string | null;
+  revision: number;
+  workspace_ref: string | null;
+  last_failure_code: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  attempts: EngineeringAttemptDto[];
 };
 
 export type SessionDto = {
@@ -269,6 +292,8 @@ export const api = {
     }),
   latestWorkSpecification: (conversationId: string) =>
     json<WorkSpecificationDto | null>(`/v1/conversations/${conversationId}/work-specifications/latest`),
+  latestApprovedWorkSpecification: (conversationId: string) =>
+    json<WorkSpecificationDto | null>(`/v1/conversations/${conversationId}/work-specifications/approved`),
   draftWorkSpecification: (conversationId: string) =>
     json<WorkSpecificationDto>(`/v1/conversations/${conversationId}/work-specifications/draft`, {
       method: 'POST',
@@ -280,6 +305,14 @@ export const api = {
   streamResponse,
   latestEngineeringRun: (conversationId: string) =>
     json<EngineeringRunDto | null>(`/v1/engineering-runs/conversation/${conversationId}/latest`),
+  activateEngineeringRun: (conversationId: string, workSpecificationId?: string | null) =>
+    json<EngineeringRunDto>('/v1/engineering-runs/activate', {
+      method: 'POST',
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        ...(workSpecificationId ? { work_specification_id: workSpecificationId } : {}),
+      }),
+    }),
   pauseEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
     json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/pause`, {
       method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),

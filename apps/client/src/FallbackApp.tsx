@@ -9,7 +9,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EngineeringRunStatus } from './components/EngineeringRunStatus';
 import { WorkSpecificationStatus } from './components/WorkSpecificationStatus';
+import { useEngineeringRun } from './hooks/useEngineeringRun';
 import { useWorkSpecification } from './hooks/useWorkSpecification';
 import { api, type ConversationDto, type MessageDto } from './lib/api';
 import { palette } from './theme';
@@ -33,7 +35,9 @@ export default function FallbackApp() {
   const [conversation, setConversation] = React.useState<ConversationDto | null>(null);
   const [messages, setMessages] = React.useState<MessageDto[]>([]);
   const [recent, setRecent] = React.useState<ConversationDto[]>([]);
-  const workSpecification = useWorkSpecification(conversation?.id ?? null);
+  const conversationId = conversation?.id ?? null;
+  const workSpecification = useWorkSpecification(conversationId);
+  const engineering = useEngineeringRun(conversationId, mode === 'code');
   const canDraftWorkSpecification = messages.some((message) => message.role === 'user');
 
   React.useEffect(() => {
@@ -178,6 +182,16 @@ export default function FallbackApp() {
             onDraft={() => void workSpecification.draft()}
             onApprove={() => void workSpecification.approve()}
           />
+
+          {mode === 'code' && engineering.run && (
+            <EngineeringRunStatus
+              run={engineering.run}
+              busy={engineering.busy}
+              onPause={() => void engineering.pause()}
+              onResume={() => void engineering.resume()}
+              onCancel={() => void engineering.cancel()}
+            />
+          )}
 
           <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
             {messages.length === 0 && (

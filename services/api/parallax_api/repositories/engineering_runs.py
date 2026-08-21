@@ -25,11 +25,17 @@ class EngineeringRunRepository:
         *,
         conversation_id: str,
         spec_id: str,
+        work_specification_id: str,
+        work_specification_revision: int,
+        work_specification_digest: str,
         workspace_ref: str | None = None,
     ) -> EngineeringRun:
         run = EngineeringRun(
             conversation_id=conversation_id,
             spec_id=spec_id,
+            work_specification_id=work_specification_id,
+            work_specification_revision=work_specification_revision,
+            work_specification_digest=work_specification_digest,
             state="SPECIFY",
             revision=0,
             workspace_ref=workspace_ref,
@@ -39,9 +45,6 @@ class EngineeringRunRepository:
         return self.get(run.id) or run
 
     def get(self, run_id: str) -> EngineeringRun | None:
-        # A long-lived service session may already hold the EngineeringRun in its
-        # identity map with an older attempts collection. populate_existing makes
-        # the aggregate reflect durable database truth after every mutation.
         statement = (
             select(EngineeringRun)
             .where(EngineeringRun.id == run_id)
@@ -49,6 +52,25 @@ class EngineeringRunRepository:
             .execution_options(populate_existing=True)
         )
         return self.session.scalar(statement)
+
+    def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
+        run_id = self.session.scalar(
+            select(EngineeringRun.id)
+            .where(EngineeringRun.conversation_id == conversation_id)
+            .order_by(EngineeringRun.updated_at.desc(), EngineeringRun.created_at.desc())
+        )
+        return self.get(run_id) if run_id else None
+
+    def latest_for_binding(self, conversation_id: str, work_specification_id: str) -> EngineeringRun | None:
+        run_id = self.session.scalar(
+            select(EngineeringRun.id)
+            .where(
+                EngineeringRun.conversation_id == conversation_id,
+                EngineeringRun.work_specification_id == work_specification_id,
+            )
+            .order_by(EngineeringRun.updated_at.desc(), EngineeringRun.created_at.desc())
+        )
+        return self.get(run_id) if run_id else None
 
     def find_operation(self, run_id: str, operation_key: str) -> EngineeringAttempt | None:
         return self.session.scalar(

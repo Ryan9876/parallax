@@ -81,6 +81,13 @@ class EngineeringRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
     spec_id: Mapped[str] = mapped_column(String(64), index=True)
+    work_specification_id: Mapped[str | None] = mapped_column(
+        ForeignKey("work_specifications.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    work_specification_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    work_specification_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
     state: Mapped[str] = mapped_column(String(32), default="SPECIFY", index=True)
     resume_stage: Mapped[str | None] = mapped_column(String(32), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, default=0)
