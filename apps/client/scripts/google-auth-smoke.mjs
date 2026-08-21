@@ -197,7 +197,8 @@ await page.route(`${origin}/**`, async (route) => {
 try {
   await page.goto(origin, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 10000 });
-  assert(!page.getByPlaceholder('Access credential').isVisible().catch(() => false), 'Shared access credential field remained visible');
+  const legacyCredentialVisible = await page.getByPlaceholder('Access credential').isVisible().catch(() => false);
+  assert(!legacyCredentialVisible, 'Shared access credential field remained visible');
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await page.getByLabel('Message Parallax').waitFor({ timeout: 15000 });
