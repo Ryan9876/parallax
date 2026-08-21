@@ -66,6 +66,7 @@ const mockStreamState = {
 
 function apiServer() {
   let conversation = null;
+  let workSpecification = null;
   const answer = 'The response is being inscribed line by line. The optical head should follow the active wrapped line, leave a short cool-blue energized edge on fresh glyphs, and then cool into normal selectable text without disturbing the calm surface behind it.';
 
   function baseConversation(mode = 'reason') {
@@ -78,6 +79,31 @@ function apiServer() {
       created_at: '2026-08-20T08:00:00Z',
       updated_at: '2026-08-20T08:00:00Z',
       messages: [],
+    };
+  }
+
+  function baseWorkSpecification() {
+    const now = new Date().toISOString();
+    return {
+      id: '22222222-2222-4222-8222-222222222222',
+      conversation_id: conversation?.id ?? '11111111-1111-4111-8111-111111111111',
+      revision: (workSpecification?.revision ?? 0) + 1,
+      status: 'DRAFT',
+      title: 'Optical response behavior',
+      objective: 'Preserve the calm Parallax conversation while verifying durable specification capture and optical response behavior.',
+      constraints: ['Keep conversation as the primary product surface.'],
+      acceptance_criteria: [
+        'The work specification persists as a durable draft.',
+        'The operator explicitly approves the specification before it is treated as approved.',
+      ],
+      risks: ['Specification chrome could compete with the conversation.'],
+      open_questions: [],
+      confidence: 0.94,
+      program_version: 'work-spec-v0.7.0',
+      model_id: 'visual-smoke-model',
+      created_at: now,
+      updated_at: now,
+      approved_at: null,
     };
   }
 
@@ -123,11 +149,31 @@ function apiServer() {
     if (pathname === '/v1/conversations' && request.method === 'POST') {
       const payload = await requestJson(request);
       conversation = baseConversation(payload.mode === 'code' ? 'code' : 'reason');
+      workSpecification = null;
       json(response, 200, conversation, origin);
       return;
     }
     if (/^\/v1\/conversations\/[^/]+$/.test(pathname) && request.method === 'GET') {
       json(response, conversation ? 200 : 404, conversation ?? { detail: 'Conversation not found' }, origin);
+      return;
+    }
+    if (/^\/v1\/conversations\/[^/]+\/work-specifications\/latest$/.test(pathname) && request.method === 'GET') {
+      json(response, 200, workSpecification, origin);
+      return;
+    }
+    if (/^\/v1\/conversations\/[^/]+\/work-specifications\/draft$/.test(pathname) && request.method === 'POST') {
+      workSpecification = baseWorkSpecification();
+      json(response, 200, workSpecification, origin);
+      return;
+    }
+    if (/^\/v1\/work-specifications\/[^/]+\/approve$/.test(pathname) && request.method === 'POST') {
+      if (!workSpecification) {
+        json(response, 404, { detail: 'Work specification not found' }, origin);
+        return;
+      }
+      const now = new Date().toISOString();
+      workSpecification = { ...workSpecification, status: 'APPROVED', approved_at: now, updated_at: now };
+      json(response, 200, workSpecification, origin);
       return;
     }
     if (/^\/v1\/conversations\/[^/]+\/responses$/.test(pathname) && request.method === 'POST') {
@@ -280,14 +326,28 @@ async function inspectViewport(browser, name, width, height, report) {
 
     await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
-    await page.screenshot({ path: `${evidenceDir}/desktop-complete.png` });
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
+
+    await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
+    await page.getByLabel('Capture work specification').click();
+    await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
+    await page.getByLabel('Expand work specification').click();
+    await page.getByText('The work specification persists as a durable draft.').waitFor({ timeout: 5000 });
+    await page.getByLabel('Approve work specification').click();
+    await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
+    await page.screenshot({ path: `${evidenceDir}/desktop-spec-approved.png` });
+
     report.opticalTypesetter = {
       idleCanvasCount,
       respondingCanvasCount,
       hotGlyphCount,
       liveChunkObservedBeforeStreamCompletion: true,
       completed: true,
+    };
+    report.workSpecification = {
+      captured: true,
+      expanded: true,
+      operatorApproved: true,
     };
   }
 
@@ -304,6 +364,7 @@ async function inspectFallback(browser, report) {
   await page.goto('http://127.0.0.1:8766', { waitUntil: 'networkidle' });
   await page.getByLabel('Message Parallax').waitFor({ timeout: 10000 });
   await page.getByText(/Reduced graphics mode/).first().waitFor();
+  await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
   const canvasCount = await page.locator('canvas').count();
   assert(canvasCount === 0, `fallback: expected zero Skia canvases, found ${canvasCount}`);
 
@@ -339,6 +400,7 @@ async function inspectFallback(browser, report) {
   report.fallback = {
     canvasCount,
     functionalConversation: true,
+    workSpecificationParity: true,
     amendmentStatePreservedWithoutSkia: true,
     expectedSkiaInitializationErrorObserved: true,
     observedExpectedErrorCount: errors.filter(expectedSkiaFailure).length,
@@ -349,7 +411,14 @@ async function inspectFallback(browser, report) {
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
-const report = { specId: 'P2-V0.5.0', viewports: [], opticalTypesetter: null, fallback: null };
+const report = {
+  releaseSpecId: 'P2-V0.7.0',
+  conversationPolicySpecId: 'P2-V0.5.0',
+  viewports: [],
+  opticalTypesetter: null,
+  workSpecification: null,
+  fallback: null,
+};
 let browser;
 
 try {
