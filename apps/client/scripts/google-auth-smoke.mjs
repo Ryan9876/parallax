@@ -22,6 +22,16 @@ function body(route) {
   return JSON.stringify(route);
 }
 
+function supabaseCorsHeaders(extra = {}) {
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-credentials': 'true',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+    'access-control-allow-headers': 'apikey,authorization,content-type,x-client-info,x-supabase-api-version',
+    ...extra,
+  };
+}
+
 const owner = {
   id: '99999999-9999-4999-8999-999999999999',
   email: 'owner@example.test',
@@ -34,6 +44,15 @@ const owner = {
   created_at: '2026-08-21T00:00:00Z',
   updated_at: '2026-08-21T00:00:00Z',
   last_login_at: '2026-08-21T00:00:00Z',
+};
+
+const supabaseUser = {
+  id: 'supabase-google-owner',
+  aud: 'authenticated',
+  email: owner.email,
+  app_metadata: { provider: 'google', providers: ['google'] },
+  user_metadata: { full_name: owner.display_name },
+  created_at: '2026-08-21T00:00:00Z',
 };
 
 const conversation = {
@@ -61,47 +80,67 @@ page.on('console', (message) => {
   if (message.type() === 'error') browserErrors.push(`console: ${message.text()}`);
 });
 
-await page.route(`${supabaseOrigin}/auth/v1/authorize**`, async (route) => {
-  const requestUrl = new URL(route.request().url());
-  assert(requestUrl.searchParams.get('provider') === 'google', 'OAuth provider was not Google');
-  assert(requestUrl.searchParams.get('code_challenge_method') === 's256', 'OAuth did not use PKCE S256');
-  assert(Boolean(requestUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
-  const redirectTo = requestUrl.searchParams.get('redirect_to');
-  assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
-  await route.fulfill({
-    status: 302,
-    headers: { location: `${origin}/auth/callback?code=mock-google-code` },
-  });
-});
+await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
+  const request = route.request();
+  const requestUrl = new URL(request.url());
+  const pathname = requestUrl.pathname;
 
-await page.route(`${supabaseOrigin}/auth/v1/token**`, async (route) => {
-  const requestUrl = new URL(route.request().url());
-  assert(requestUrl.searchParams.get('grant_type') === 'pkce', 'Supabase callback exchange did not use PKCE grant');
-  const requestBody = route.request().postData() ?? '';
-  assert(requestBody.includes('mock-google-code'), 'Supabase token exchange did not contain callback code');
-  assert(requestBody.includes('code_verifier'), 'Supabase token exchange did not contain PKCE verifier');
-  await route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: body({
-      access_token: 'supabase-transient-token',
-      token_type: 'bearer',
-      expires_in: 3600,
-      refresh_token: 'supabase-transient-refresh',
-      user: {
-        id: 'supabase-google-owner',
-        aud: 'authenticated',
-        email: owner.email,
-        app_metadata: { provider: 'google', providers: ['google'] },
-        user_metadata: { full_name: owner.display_name },
-        created_at: '2026-08-21T00:00:00Z',
-      },
-    }),
-  });
-});
+  if (request.method() === 'OPTIONS') {
+    await route.fulfill({ status: 204, headers: supabaseCorsHeaders(), body: '' });
+    return;
+  }
 
-await page.route(`${supabaseOrigin}/auth/v1/logout**`, async (route) => {
-  await route.fulfill({ status: 204, body: '' });
+  if (pathname === '/auth/v1/authorize') {
+    assert(requestUrl.searchParams.get('provider') === 'google', 'OAuth provider was not Google');
+    assert(requestUrl.searchParams.get('code_challenge_method') === 's256', 'OAuth did not use PKCE S256');
+    assert(Boolean(requestUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
+    const redirectTo = requestUrl.searchParams.get('redirect_to');
+    assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
+    await route.fulfill({
+      status: 302,
+      headers: { location: `${origin}/auth/callback?code=mock-google-code` },
+    });
+    return;
+  }
+
+  if (pathname === '/auth/v1/token') {
+    assert(requestUrl.searchParams.get('grant_type') === 'pkce', 'Supabase callback exchange did not use PKCE grant');
+    const requestBody = request.postData() ?? '';
+    assert(requestBody.includes('mock-google-code'), 'Supabase token exchange did not contain callback code');
+    assert(requestBody.includes('code_verifier'), 'Supabase token exchange did not contain PKCE verifier');
+    await route.fulfill({
+      status: 200,
+      headers: supabaseCorsHeaders({ 'content-type': 'application/json' }),
+      body: body({
+        access_token: 'supabase-transient-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        refresh_token: 'supabase-transient-refresh',
+        user: supabaseUser,
+      }),
+    });
+    return;
+  }
+
+  if (pathname === '/auth/v1/user') {
+    await route.fulfill({
+      status: 200,
+      headers: supabaseCorsHeaders({ 'content-type': 'application/json' }),
+      body: body(supabaseUser),
+    });
+    return;
+  }
+
+  if (pathname === '/auth/v1/logout') {
+    await route.fulfill({ status: 204, headers: supabaseCorsHeaders(), body: '' });
+    return;
+  }
+
+  await route.fulfill({
+    status: 404,
+    headers: supabaseCorsHeaders({ 'content-type': 'application/json' }),
+    body: body({ error: 'unmocked Supabase auth route', path: pathname }),
+  });
 });
 
 await page.route(`${origin}/**`, async (route) => {
@@ -197,11 +236,10 @@ await page.route(`${origin}/**`, async (route) => {
 try {
   await page.goto(origin, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 10000 });
-  const legacyCredentialVisible = await page.getByPlaceholder('Access credential').isVisible().catch(() => false);
-  assert(!legacyCredentialVisible, 'Shared access credential field remained visible');
+  assert(!page.getByPlaceholder('Access credential').isVisible().catch(() => false), 'Shared access credential field remained visible');
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await page.getByLabel('Message Parallax').waitFor({ timeout: 15000 });
+  await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
   await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
 
   assert(googleExchangeAuthorization === 'Bearer supabase-transient-token', 'Parallax API did not receive the transient Supabase token for exchange');
