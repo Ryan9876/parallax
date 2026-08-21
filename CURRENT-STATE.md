@@ -1,148 +1,158 @@
 # Parallax 2.0 Current State
 
-Version: 0.6.2
+Version: 0.6.3
 Date: 2026-08-21
 Status: DEPLOYED AND DEPLOYMENT-VERIFIED
 Production branch: `main`
-Production application release commit: `441d69e7d619520824614a28ee0c3643ca7bdf08`
+Production application release commit: `3a05416bca3bf9a14817f7f5341cb38812c7cfa5`
+Validated release-tree commit: `e17ee9262d1a2d151d60c0ed370c7f938a761f0b`
 Production API release lineage: `670d1233bb36de39bb2e5d91fcb046d6dbedea6b`
-Production web deployment: `dpl_7dqvxnkt35Dhyct5v3X4rBQkaCB4`
+Production web deployment: `dpl_GSizfW61TWoVGP8CkRpa3iwLAPKw`
 Production API deployment: `dpl_HctJQ7rWMmg5BVYh35wMYqvTwCCS`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
 
 ## Current verified release
 
-Parallax 2.0 v0.6.2 is live through the GitHub → Vercel production pipeline.
+Parallax 2.0 v0.6.3 is live through the GitHub → Vercel production pipeline.
 
-Release promotion occurred in two validated steps:
+PR #8 promoted the approved `P2-V0.6.3` Deep Violet Optical visual release. The release-candidate tree at `e17ee9262d1a2d151d60c0ed370c7f938a761f0b` passed the complete release validation suite before promotion. The resulting merge commit is `3a05416bca3bf9a14817f7f5341cb38812c7cfa5`.
 
-1. PR #6 promoted the v0.6.2 session-safe private-access release to `main` at `670d1233bb36de39bb2e5d91fcb046d6dbedea6b`.
-2. Production verification exposed a web routing defect: `/p2-api/*` could fall through to the Expo SPA shell instead of reaching the API. PR #7 corrected the web proxy route and was promoted at `441d69e7d619520824614a28ee0c3643ca7bdf08`.
+Git comparison between the validated release-tree commit and the production merge commit reports no changed files. The production application therefore contains the exact validated application tree plus merge metadata.
 
-The corrective release did not change `services/api`, so the path-aware Vercel rule intentionally skipped a redundant API rebuild. The authoritative API deployment therefore remains the READY production deployment from the v0.6.2 promotion lineage.
+This release changes client presentation only. `services/api` was not changed, so the authoritative production API remains the verified v0.6.2 API deployment lineage.
 
-## Verified production evidence
+## v0.6.3 product change — Deep Violet Optical
 
-### Web
+The prior light mineral presentation has been replaced by the approved dark Parallax direction while preserving the existing product and trust contracts.
 
-- Vercel production deployment `dpl_7dqvxnkt35Dhyct5v3X4rBQkaCB4` is `READY`.
-- Deployment target is `production`.
-- Production alias assignment completed without alias error.
-- `https://parallax-ashy-one-20.vercel.app` serves the Parallax 2.0 Expo web application.
-- `https://parallax-ashy-one-20.vercel.app/p2-api/health` returns HTTP 200 with Parallax API health JSON.
-- `https://parallax-ashy-one-20.vercel.app/p2-api/ready` returns HTTP 200 with database readiness `ok`.
-- `https://parallax-ashy-one-20.vercel.app/p2-api/v1/session` without credentials returns the expected HTTP 401 JSON response rather than the SPA shell, proving the same-origin proxy reaches the protected API boundary.
+Production visual language now uses:
 
-### API
+- deep navy/black substrate centered on `#080B12`;
+- dark raised optical surfaces (`#0B1019`, `#111525`, `#161A2B`);
+- high-contrast pale violet-white narrative text (`#F4F2FF`);
+- cyan optical energy (`#7DE7FF`);
+- indigo precision/status structure (`#8B9CFF`);
+- violet identity and selected/action treatment (`#D18BFF`, `#8F63D8`);
+- dark translucent glass instead of light mineral glass;
+- a retuned cyan → indigo → violet Parallax Optical Mark;
+- a deep navy/violet Skia living workplane with restrained contours, grid, focus, and calibration trace;
+- a retuned optical typesetter with cyan/lavender response energy;
+- matching dark-violet reduced-graphics fallback and Code engineering-status presentation.
 
-- Vercel production deployment `dpl_HctJQ7rWMmg5BVYh35wMYqvTwCCS` is `READY`.
-- Production aliases include `parallax-api-tan.vercel.app`.
-- `/health` returns HTTP 200.
-- `/ready` returns HTTP 200 with the database dependency ready.
-- Bearer authentication remains active for protected endpoints.
-- The standard Swagger/OpenAPI bearer authorization scheme was previously verified in production.
-- A protected authenticated conversation creation request was previously verified with HTTP 200 on the production API lineage.
+The theme intentionally concentrates saturation in identity, active focus, and response energy. Conversation copy remains the highest-contrast visual layer.
 
-The new browser-session establishment flow was validated in automated release tests. A fresh authenticated browser-cookie round trip against production is **not separately claimed in this record**, because production secret material was not exposed to the deployment-verification tooling.
+## Preserved functional contracts
 
-## v0.6.2 product and security changes
+v0.6.3 intentionally does not change:
 
-The release adds the production-safe browser access boundary without persisting the root API credential in browser storage:
+- Reason behavior or protected reasoning contracts;
+- Code engineering state machine or execution policy;
+- session establishment or signed HttpOnly cookie behavior;
+- bearer compatibility for non-browser clients and Swagger;
+- same-origin `/p2-api` production proxy;
+- SSE response transport;
+- durable conversation persistence;
+- `SPEC_AMENDMENT` semantics;
+- reduced-motion behavior;
+- selectable/accessibility-aware final response text.
 
-- short-lived signed `HttpOnly` browser session derived from the existing private access secret;
-- bearer compatibility retained for Swagger, automation, and non-browser clients;
-- custom session marker required for cookie-authenticated protected requests;
-- deployed browser API traffic routed through same-origin `/p2-api`;
-- production cookie hardened as Secure + HttpOnly + host-only + SameSite=Lax;
-- session establish/status/logout endpoints;
-- browser credential removed from local/session storage persistence;
-- existing Reason, Code, SSE, Skia, reduced-graphics, and durable conversation behavior preserved.
+## Verified release evidence
 
-## Release validation
+### Release candidate
 
-The full release-grade validation suite passed for the v0.6.2 release candidate and again for the one-file production proxy correction:
+GitHub Actions run `32452412530` passed on the exact validated release-tree commit `e17ee9262d1a2d151d60c0ed370c7f938a761f0b`:
 
-- specification validation: **PASS**;
-- API compile/tests: **PASS**;
+- API + contract checks: **PASS**;
+- Python compile/API tests: **PASS**;
 - client typecheck: **PASS**;
 - response-state tests: **PASS**;
-- web export: **PASS**;
+- Expo web export: **PASS**;
 - production dependency audit evidence: **PASS**;
-- browser/Skia acceptance suite: **PASS**;
+- Playwright browser/Skia acceptance suite: **PASS**;
 - protected Engineering/Reason/Code promotion evaluation: **PASS**;
-- DSPy SpecCritic + SpecCompiler protected-contract validation: **PASS**;
-- Vercel project status checks: **PASS**.
+- DSPy SpecCritic + SpecCompiler release compilation: **PASS**.
 
-## Development and release validation workflow
+The client build evidence artifact was produced successfully for that exact release tree. Desktop, mobile, and reduced-graphics render evidence confirms the Deep Violet Optical material system is present and coherent while keeping copy readable and controls usable.
 
-The authoritative CI path is tiered so normal development remains fast while release integrity remains protected:
+The Vercel preview for the exact release-tree commit was `READY` before promotion:
+
+- deployment: `dpl_HpL3VXTHxC9m3RCGf2pFHZXdasxT`;
+- branch: `p2/v0.6.3-purple-optical`;
+- commit: `e17ee9262d1a2d151d60c0ed370c7f938a761f0b`.
+
+### Production web
+
+- deployment `dpl_GSizfW61TWoVGP8CkRpa3iwLAPKw` is `READY`;
+- target is `production`;
+- deployed Git commit is `3a05416bca3bf9a14817f7f5341cb38812c7cfa5`;
+- production alias assignment completed without error;
+- `https://parallax-ashy-one-20.vercel.app` returns HTTP 200 and serves the Parallax 2.0 Expo application;
+- `https://parallax-ashy-one-20.vercel.app/p2-api/health` returns HTTP 200 with Parallax API health JSON;
+- `https://parallax-ashy-one-20.vercel.app/p2-api/ready` returns HTTP 200 with database readiness `ok`;
+- `https://parallax-ashy-one-20.vercel.app/p2-api/v1/session` without credentials returns the expected HTTP 401 JSON response with `WWW-Authenticate: Bearer`, proving the same-origin route still reaches the protected API boundary rather than the SPA shell.
+
+### Production API
+
+The visual release did not modify `services/api`. The authoritative API deployment remains:
+
+- deployment `dpl_HctJQ7rWMmg5BVYh35wMYqvTwCCS`: `READY`;
+- alias `https://parallax-api-tan.vercel.app`;
+- `/health`: HTTP 200;
+- `/ready`: HTTP 200 with database dependency ready;
+- bearer authentication remains active for protected endpoints;
+- Swagger/OpenAPI bearer authorization and an authenticated protected conversation creation request were previously verified on this production lineage.
+
+A fresh authenticated browser-cookie round trip is **not separately claimed** for v0.6.3 because no authentication implementation changed and production secret material was not exposed to deployment-verification tooling. The browser-session contract remains covered by the protected automated tests inherited from v0.6.2.
+
+## Delivery efficiency
+
+The tiered CI and path-aware Vercel workflow remain in force:
 
 ```text
-Draft development commit
+Development change
     |
-    | spec/API tests + client typecheck/state/export
+    | fast API/contracts + client typecheck/state/export
     v
 Vercel Preview
     |
-    | pull request marked ready / release candidate
+    | release candidate
     v
 Full release validation
-    ├─ browser + Skia acceptance suite
+    ├─ browser + Skia acceptance
     ├─ protected Engineering/Reason/Code evaluation
-    ├─ DSPy SpecCritic + SpecCompiler validation
-    └─ production dependency audit evidence
+    ├─ DSPy compilation/contract verification
+    └─ dependency audit evidence
     |
     v
-main
-    |
-    v
-Vercel Production
-    |
-    v
-production verification
+main → Vercel Production → live verification
 ```
 
-Integrity controls retained:
-
-- API tests and specification validation run during normal development;
-- client typecheck, response-state tests, and web export run during normal development;
-- expensive protected evaluation, DSPy compilation, Playwright/Skia acceptance, and audit evidence run for release candidates and production promotion;
-- superseded CI runs are cancelled;
-- one authoritative CI workflow replaces the previous duplicate release workflow;
-- Vercel READY state does not substitute for live production verification.
-
-## Vercel build efficiency
-
-Both authoritative Vercel projects use project-root Git change detection:
-
-- `parallax` builds when `apps/client` changes;
-- `parallax-api` builds when `services/api` changes;
-- repository-only documentation, CI, or unrelated changes are skipped by unaffected projects.
-
-This behavior was validated during the v0.6.2 release. The client-only proxy hotfix caused the API production deployment attempt to be intentionally skipped while the web project rebuilt and promoted normally.
+Unchanged API code does not require a redundant API application rebuild for this client-only release.
 
 ## Deployment state vocabulary
 
-For v0.6.2:
+For v0.6.3:
 
+- Specification approved: **YES**
 - Generated: **YES**
 - Committed/pushed: **YES**
 - Full release validation: **YES**
-- Deployed to production: **YES**
+- Preview deployment READY: **YES**
+- Promoted to `main`: **YES**
 - Production web deployment READY: **YES**
-- Production API deployment READY: **YES**
+- Production alias active: **YES**
 - Production web/API proxy health verified: **YES**
 - Production database readiness verified: **YES**
 - Protected route reaches API/auth boundary through same-origin proxy: **YES**
-- Fresh authenticated browser-cookie round trip in production: **NOT SEPARATELY CLAIMED**
+- Fresh authenticated browser-cookie round trip: **NOT SEPARATELY CLAIMED**
 - Deployment verified: **YES**, subject to the explicit authenticated-cookie caveat above.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for the verified v0.6.2 production release, the production proxy correction, release evidence, and the validated efficient CI/Vercel workflow.
-- `ARCHITECTURE.md`: unchanged; the session-safe same-origin proxy architecture was already established by the v0.6.2 release work and no additional durable architecture change was introduced by the corrective routing fix.
-- `DESIGN-SYSTEM.md`: unchanged; no durable visual-language rule changed.
-- `PROJECT-CONSTITUTION.md`: unchanged; governance principles did not materially change.
+- `CURRENT-STATE.md`: updated for the verified v0.6.3 production release, deployment identities, release evidence, and live verification.
+- `DESIGN-SYSTEM.md`: updated to v1.5 because Deep Violet Optical is a durable visual-language change.
+- `ARCHITECTURE.md`: unchanged; runtime topology and trust boundaries did not change.
+- `PROJECT-CONSTITUTION.md`: unchanged; governing principles did not change.
 
-Historical v0.1–v0.6.1 implementation and deployment evidence remains preserved in repository history.
+Historical v0.1–v0.6.2 implementation and deployment evidence remains preserved in repository history.
