@@ -7,6 +7,7 @@ from .config import settings
 from .auth import require_access
 from .db import Base, engine
 from . import models  # noqa: F401
+from .routes.access import router as access_router
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
 from .routes.engineering_runs import router as engineering_runs_router
@@ -21,7 +22,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
     if create_schema:
         Base.metadata.create_all(engine)
 
-    app = FastAPI(title="Parallax 2.0 API", version="0.1.0")
+    app = FastAPI(title="Parallax 2.0 API", version="0.10.0")
 
     @app.get("/")
     def root():
@@ -30,7 +31,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
             "status": "online",
             "docs": "/docs",
             "health": "/health",
-            "version": "0.1.0",
+            "version": "0.10.0",
         }
 
     app.add_middleware(
@@ -38,11 +39,12 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
         allow_origins=list(settings.cors_origins),
         allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", SESSION_HEADER_NAME],
     )
     app.include_router(health_router)
     app.include_router(session_router)
+    app.include_router(access_router)
     protected = [Depends(require_access)]
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)
