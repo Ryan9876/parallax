@@ -31,42 +31,55 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
     return p;
   }, [size]);
 
+  const editorialCut = React.useMemo(() => {
+    const p = Skia.Path.Make();
+    p.moveTo(size * 0.18, size * 0.68);
+    p.quadTo(size * 0.33, size * 0.82, size * 0.48, size * 0.78);
+    return p;
+  }, [size]);
+
   return (
     <View accessibilityLabel="Parallax optical mark" style={{ width: size, height: size }}>
       <Canvas style={StyleSheet.absoluteFill}>
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.43}
-          color="rgba(125,231,255,0.18)"
+          r={size * 0.44}
+          color="rgba(125,231,255,0.30)"
           style="stroke"
-          strokeWidth={1}
+          strokeWidth={1.2}
         />
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.34}
-          color="rgba(139,156,255,0.34)"
+          r={size * 0.35}
+          color="rgba(139,156,255,0.52)"
           style="stroke"
-          strokeWidth={1}
+          strokeWidth={1.1}
         />
         <Path
           path={aperture}
           color={palette.violet}
           style="stroke"
-          strokeWidth={2}
+          strokeWidth={2.4}
+        />
+        <Path
+          path={editorialCut}
+          color={palette.peach}
+          style="stroke"
+          strokeWidth={1.2}
         />
         <Circle
           cx={size / 2 + phase.value * size * 0.08}
           cy={size / 2}
-          r={size * 0.065}
+          r={size * 0.07}
           color={palette.cyan}
         />
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={size * 0.026}
-          color={palette.text}
+          r={size * 0.03}
+          color={palette.cream}
         />
       </Canvas>
     </View>

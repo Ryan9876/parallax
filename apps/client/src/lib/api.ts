@@ -103,10 +103,15 @@ export type SessionDto = {
 };
 
 const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
-const secureSessionTransport = configuredApiBase.startsWith('https://');
-const apiBase = Platform.OS === 'web' && secureSessionTransport
+const hostedHttpsWeb = Platform.OS === 'web'
+  && typeof globalThis.location !== 'undefined'
+  && globalThis.location.protocol === 'https:';
+const secureSessionTransport = hostedHttpsWeb || configuredApiBase.startsWith('https://');
+const apiBase = hostedHttpsWeb
   ? '/p2-api'
-  : configuredApiBase;
+  : Platform.OS === 'web' && configuredApiBase.startsWith('https://')
+    ? '/p2-api'
+    : configuredApiBase;
 const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
 let transientAccessToken = '';
 

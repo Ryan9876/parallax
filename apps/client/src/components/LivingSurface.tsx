@@ -48,52 +48,62 @@ half4 main(float2 pos) {
   q.x *= aspect;
   float t = time * 0.020;
 
-  float3 abyss = float3(0.027, 0.035, 0.059);
-  float3 deep = float3(0.043, 0.052, 0.090);
+  float3 abyss = float3(0.024, 0.031, 0.054);
+  float3 deep = float3(0.052, 0.060, 0.108);
   float3 indigo = float3(0.545, 0.612, 1.000);
   float3 violet = float3(0.820, 0.545, 1.000);
   float3 cyan = float3(0.490, 0.906, 1.000);
   float3 peach = float3(0.875, 0.655, 0.561);
+  float3 cream = float3(0.941, 0.894, 0.812);
+  float3 sage = float3(0.624, 0.725, 0.647);
 
   float paper = fbm(q * 1.04 + float2(t * 0.09, -t * 0.04));
-  float3 col = mix(abyss, deep, 0.18 + paper * 0.10);
+  float3 col = mix(abyss, deep, 0.22 + paper * 0.13);
 
-  // Slow editorial ink fields: broad asymmetric stains, never a full-screen neon wash.
-  float2 c1 = float2(-0.38 + 0.05 * sin(t * 0.7), -0.18 + 0.04 * cos(t * 0.5));
-  float2 c2 = float2(0.44 + 0.04 * cos(t * 0.4), 0.24 + 0.05 * sin(t * 0.55));
-  float2 c3 = float2(0.08 + 0.03 * sin(t * 0.33), -0.42);
-  float ink1 = exp(-dot(q - c1, q - c1) * 4.0);
-  float ink2 = exp(-dot(q - c2, q - c2) * 5.0);
-  float ink3 = exp(-dot(q - c3, q - c3) * 7.0);
+  // Authored asymmetric ink fields. More visible at rest than v0.9.0, still spatial rather than neon.
+  float2 c1 = float2(-0.39 + 0.05 * sin(t * 0.7), -0.16 + 0.04 * cos(t * 0.5));
+  float2 c2 = float2(0.46 + 0.04 * cos(t * 0.4), 0.25 + 0.05 * sin(t * 0.55));
+  float2 c3 = float2(0.08 + 0.03 * sin(t * 0.33), -0.43);
+  float2 c4 = float2(-0.54, 0.40 + 0.03 * sin(t * 0.27));
+  float ink1 = exp(-dot(q - c1, q - c1) * 3.6);
+  float ink2 = exp(-dot(q - c2, q - c2) * 4.3);
+  float ink3 = exp(-dot(q - c3, q - c3) * 6.4);
+  float ink4 = exp(-dot(q - c4, q - c4) * 7.2);
   float warp = fbm(q * 1.7 + float2(-t * 0.05, t * 0.08));
-  col = mix(col, violet, ink1 * (0.045 + warp * 0.026));
-  col = mix(col, indigo, ink2 * (0.040 + (1.0 - warp) * 0.024));
-  col = mix(col, peach, ink3 * 0.010);
+  col = mix(col, violet, ink1 * (0.092 + warp * 0.044));
+  col = mix(col, indigo, ink2 * (0.078 + (1.0 - warp) * 0.038));
+  col = mix(col, peach, ink3 * 0.030);
+  col = mix(col, sage, ink4 * 0.016);
 
-  // Hand-drawn contour ribbons: intentionally uneven, sparse, and open.
+  // A restrained warm paper-light pool gives the field editorial depth instead of pure cyber color.
+  float2 warmCenter = float2(-0.24, -0.46);
+  float warm = exp(-dot(q - warmCenter, q - warmCenter) * 9.2);
+  col = mix(col, cream, warm * 0.020);
+
+  // Hand-drawn contour ribbons: sparse, uneven, but now legible enough to define the material language.
   float contourField = fbm(q * 1.32 + float2(t * 0.08, t * -0.03));
-  float wobble = 0.018 * sin(q.x * 8.2 + q.y * 5.7 + t * 1.1);
-  float r1 = ribbon(contourField + wobble, 0.44, 0.0045);
-  float r2 = ribbon(contourField - wobble * 0.7, 0.59, 0.0038);
-  float r3 = ribbon(contourField + wobble * 0.5, 0.72, 0.0032);
-  col = mix(col, violet, (r1 + r3) * (0.018 + energy * 0.006));
-  col = mix(col, indigo, r2 * (0.015 + energy * 0.008));
+  float wobble = 0.021 * sin(q.x * 8.2 + q.y * 5.7 + t * 1.1);
+  float r1 = ribbon(contourField + wobble, 0.44, 0.0048);
+  float r2 = ribbon(contourField - wobble * 0.7, 0.59, 0.0041);
+  float r3 = ribbon(contourField + wobble * 0.5, 0.72, 0.0036);
+  col = mix(col, violet, (r1 + r3) * (0.032 + energy * 0.010));
+  col = mix(col, indigo, r2 * (0.027 + energy * 0.012));
 
   // One optical focus region carries active response energy.
   float2 focus = float2(0.15 * sin(t * 0.41), 0.10 * cos(t * 0.36));
   float radius = length(q - focus);
   float halo = exp(-radius * radius * 8.2);
   float focusRing = 1.0 - smoothstep(0.004, 0.015, abs(radius - (0.29 + 0.012 * sin(t * 0.8))));
-  col = mix(col, indigo, halo * (0.015 + energy * 0.022));
-  col = mix(col, cyan, focusRing * (0.008 + energy * 0.020));
+  col = mix(col, indigo, halo * (0.024 + energy * 0.032));
+  col = mix(col, cyan, focusRing * (0.014 + energy * 0.026));
 
-  // Procedural print grain keeps glass/material from feeling digitally sterile.
+  // Fine print grain keeps glass/material tactile but below readable content.
   float grain = hash(pos * 0.37 + time * 0.07) - 0.5;
-  col += grain * 0.008;
+  col += grain * 0.010;
 
-  // Reading field stays darker than the perimeter so conversation always wins.
+  // Reading field stays darker than the perimeter, but not so dark that the editorial field disappears.
   float center = exp(-dot(q, q) * 1.8);
-  col = mix(col, abyss, center * 0.18);
+  col = mix(col, abyss, center * 0.115);
 
   return half4(col, 1.0);
 }
