@@ -4,11 +4,5 @@
     "parallax_api/main.py": {
       "runtime": "python3.12"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/parallax_api/main.py"
-    }
-  ]
+  }
 }
