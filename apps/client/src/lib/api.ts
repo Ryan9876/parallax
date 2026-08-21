@@ -112,12 +112,18 @@ async function establishSession(token: string): Promise<SessionDto> {
   return (await response.json()) as SessionDto;
 }
 
+async function getSession(): Promise<SessionDto> {
+  if (!secureSessionTransport) return { authenticated: true };
+  return json<SessionDto>('/v1/session');
+}
+
 async function endSession(): Promise<SessionDto> {
   transientAccessToken = '';
+  if (!secureSessionTransport) return { authenticated: false };
   const response = await fetch(`${apiBase}/v1/session`, {
     method: 'DELETE',
     credentials: requestCredentials(),
-    headers: { ...(secureSessionTransport ? sessionHeaders : {}) },
+    headers: { ...sessionHeaders },
   });
   if (!response.ok) throw new Error(`Parallax API ${response.status}`);
   return (await response.json()) as SessionDto;
@@ -221,7 +227,7 @@ async function streamResponse(
 export const api = {
   setAccessToken: (token: string) => { transientAccessToken = token.trim(); },
   establishSession,
-  getSession: () => json<SessionDto>('/v1/session'),
+  getSession,
   endSession,
   createConversation: (mode: 'reason' | 'code') =>
     json<ConversationDto>('/v1/conversations', {
