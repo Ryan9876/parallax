@@ -98,11 +98,10 @@ await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
     const redirectTo = requestUrl.searchParams.get('redirect_to');
     assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
     authorizeRequestObserved = true;
-    await route.fulfill({
-      status: 200,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
-      body: '<!doctype html><html><body>Mock Google authorization complete.</body></html>',
-    });
+    // A 204 navigation does not replace the active document. This models the
+    // consent boundary without destroying the Parallax-origin sessionStorage
+    // that Supabase intentionally uses for the PKCE verifier.
+    await route.fulfill({ status: 204, body: '' });
     return;
   }
 
@@ -242,13 +241,12 @@ try {
   const sharedCredentialVisible = await page.getByPlaceholder('Access credential').isVisible().catch(() => false);
   assert(!sharedCredentialVisible, 'Shared access credential field remained visible');
 
+  const authorizeRequest = page.waitForRequest((request) => request.url().startsWith(`${supabaseOrigin}/auth/v1/authorize`));
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await page.waitForURL(`${supabaseOrigin}/auth/v1/authorize**`, { timeout: 10000 });
+  await authorizeRequest;
+  await page.waitForTimeout(100);
   assert(authorizeRequestObserved, 'Supabase Google authorization request was not observed');
 
-  // Model the user returning from Google's consent screen explicitly. Keeping this
-  // as a second navigation makes the PKCE browser contract deterministic while
-  // still preserving the same tab/sessionStorage boundary used in production.
   await page.goto(`${origin}/auth/callback?code=mock-google-code`, { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
   await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
