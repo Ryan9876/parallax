@@ -1,155 +1,152 @@
 # Parallax 2.0 Current State
 
-Version: 0.7.0
+Version: 0.8.0
 Date: 2026-08-21
-Status: DEPLOYED — INFRASTRUCTURE/BOUNDARY VERIFIED; AUTHENTICATED WORK-SPEC ROUND TRIP NOT SEPARATELY VERIFIED
+Status: DEPLOYED — INFRASTRUCTURE/BOUNDARY VERIFIED; AUTHENTICATED SPEC→CODE ROUND TRIP NOT SEPARATELY VERIFIED
 Production branch: `main`
-Production application release commit: `c17c1abb021697fc4c17cbdfa205a1c6fa9559cc`
-Validated release-tree commit: `8cbf00dad88bf674e670a4fcb96aecfbf1813df6`
-Production web deployment: `dpl_9oecwVsR6dBDVHsnvoi3XtEtG2Mo`
-Production API deployment: `dpl_J3Q9YMhE2wu23CKtg4qY71rJiApb`
+Production application release commit: `d9b501517b747b1c8432e14e0f8dc3d3609f1e3c`
+Validated release-tree commit: `70a5a1fbd5efb3ccd508f5d55ce9eaddd0cae3de`
+Production web deployment: `dpl_95ne1ov8Q9gR2UPxnLEez9Gw3kRb`
+Production API deployment: `dpl_7gTyHaJPWvRp6SKgMrkhzqEtDHR2`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
 Production database: dedicated Supabase `Parallax 2.0`
-Applied work-spec migration: `20260821131833_work_specifications`
+Applied binding migration: `20260821155808_engineering_work_spec_binding`
 
 ## Current release
 
-Parallax 2.0 v0.7.0 is deployed through the GitHub → Vercel production pipeline.
+Parallax 2.0 v0.8.0 is deployed through the GitHub → Vercel production pipeline.
 
-PR #10 promoted the approved `P2-V0.7.0` Durable Work Specifications release. The exact validated release tree is `8cbf00dad88bf674e670a4fcb96aecfbf1813df6`; the resulting production merge commit is `c17c1abb021697fc4c17cbdfa205a1c6fa9559cc`.
+PR #11 promoted the approved `P2-V0.8.0` Approved-Spec Execution Binding release. The exact validated release tree is `70a5a1fbd5efb3ccd508f5d55ce9eaddd0cae3de`; the resulting production merge commit is `d9b501517b747b1c8432e14e0f8dc3d3609f1e3c`.
 
-Git comparison between the validated release tree and the production merge reports **zero changed files**, so the deployed application tree is the validated release tree plus merge metadata.
+Git comparison between the validated release tree and production merge reports **zero changed files**, so the deployed application tree is the validated tree plus merge metadata.
 
-## v0.7.0 product change — Durable Work Specifications
+## v0.8.0 product change — Approved-Spec Execution Binding
 
-The first user-work specification layer is now part of Parallax while preserving `Conversation.spec_id` as the separate durable product/policy specification identity.
+Code mode now treats an explicitly operator-approved user Work Specification as the authoritative execution contract.
 
 The release adds:
 
-- durable `WorkSpecification` entities linked to conversations;
-- immutable integer revisions with `DRAFT`, `APPROVED`, and `SUPERSEDED` lifecycle states;
-- typed DSPy-assisted drafting through the existing Luna → Terra → Sol model order;
-- protected structural validation before persistence;
-- no persistence when all drafting candidates fail or fail validation;
-- explicit operator approval; model output cannot self-approve;
-- approval supersession rules that preserve the prior approved revision until a newer draft is explicitly approved;
-- protected latest/draft/approve API routes;
-- a compact expandable work-specification surface in the primary conversation UI;
-- equivalent reduced-graphics work-specification interaction;
-- additive PostgreSQL schema migration with RLS and revoked direct client-role table privileges.
+- exact `EngineeringRun` binding to `work_specification_id`, revision, and server-computed SHA-256 contract digest;
+- historical compatibility for pre-v0.8 unbound runs without fabricating bindings;
+- approval-gated Code activation;
+- automatic protected `SPECIFY` binding evidence before a new run reaches `PLAN`;
+- immutable run targeting: later drafts or approvals cannot silently retarget an active run;
+- deterministic server-owned acceptance IDs (`AC-01…`) derived from the bound Work Specification;
+- protected PLAN, BUILD, TEST, VERIFY, and REVIEW coverage checks against that server-owned acceptance set;
+- exact acceptance-map and binding identity in engineering-run read contracts;
+- Code-mode status showing the bound Work Specification revision and acceptance count;
+- equivalent reduced-graphics binding/status semantics;
+- additive PostgreSQL migration for binding ID/revision/digest plus foreign key and index.
 
-The release intentionally does **not** bind Code engineering runs to user work-specification IDs and does not enable a live unrestricted executor.
+The release intentionally does **not** enable unrestricted shell execution, arbitrary Git mutation, autonomous merge, or autonomous production deployment.
 
 ## Release validation evidence
 
-GitHub Actions run `32493235669` passed on the exact validated release-tree commit `8cbf00dad88bf674e670a4fcb96aecfbf1813df6`.
+GitHub Actions run `32502425778` passed on exact candidate commit `70a5a1fbd5efb3ccd508f5d55ce9eaddd0cae3de`.
 
 Passed gates:
 
-- protected specification validation;
-- Python compilation and API test suite;
+- protected specification validation including `P2-V0.8.0`;
+- Python compilation and full API tests;
 - client TypeScript typecheck;
 - response-state tests;
 - Expo web export;
-- production dependency-audit evidence capture;
-- Playwright browser/Skia acceptance suite;
-- mobile, tablet, and desktop acceptance coverage;
-- reduced-graphics functional coverage;
-- work-specification capture → expand → explicit approve browser lifecycle;
+- dependency-audit evidence capture;
+- Playwright browser/Skia acceptance;
+- explicit Code binding browser lifecycle;
+- reduced-graphics Code binding parity;
 - protected Engineering/Reason/Code promotion evaluation;
-- DSPy SpecCritic + SpecCompiler release compilation and protected v0.7.0 contract validation.
+- DSPy SpecCritic + SpecCompiler release compilation and protected v0.8.0 contract validation.
 
-The initial browser gate exposed a test-fixture defect because the mock API did not implement the new work-specification routes. The mock was corrected to exercise the real new contract; the complete browser acceptance suite then passed.
+The first release-grade browser run correctly exposed one client-fixture inefficiency: the work-specification hook performed an unnecessary approved-spec lookup when no latest specification existed, causing the mock API to return a 404. The product hook was corrected to avoid the redundant request. The full release suite then passed.
 
 ## Database release evidence
 
-The additive `work_specifications` migration was applied to the dedicated production Supabase project before promotion.
+Production Supabase migration `20260821155808_engineering_work_spec_binding` was applied before production promotion.
 
-Supabase reports migration `20260821131833` named `work_specifications` in the production migration history.
+Verified schema state:
 
-Post-migration verification confirmed:
+- `engineering_runs.work_specification_id` exists and is nullable for historical compatibility;
+- `engineering_runs.work_specification_revision` exists;
+- `engineering_runs.work_specification_digest` exists;
+- foreign key `fk_engineering_runs_work_specification` exists with restrictive deletion behavior;
+- index `ix_engineering_runs_work_specification_id` exists;
+- production `/ready` returns database readiness `ok` after migration.
 
-- row-level security enabled on `work_specifications`;
-- direct `anon` SELECT privilege absent;
-- direct `authenticated` SELECT privilege absent;
-- unique conversation/revision constraint present.
-
-Production `/ready` succeeds after the migration, proving the deployed API can reach the production database.
+Supabase security advisor continues to report only informational `RLS enabled / no policy` notices on the server-owned tables. This is expected for the current architecture because direct client table access is not granted; API access remains server-owned.
 
 ## Preview evidence
 
-The final validated client release-tree commit produced a READY Vercel preview:
+Final v0.8.0 web preview for exact validated candidate `70a5a1fbd5efb3ccd508f5d55ce9eaddd0cae3de`:
 
-- web deployment: `dpl_HD1j4WqrhJujrxZPj7GpN7mE7wsm`;
-- branch: `p2/v0.7.0-work-specifications`;
-- commit: `8cbf00dad88bf674e670a4fcb96aecfbf1813df6`.
+- deployment `dpl_3qrbjGqxQkcMNEs9vGW19p1wXakB`;
+- state `READY`;
+- branch `p2/v0.8.0-spec-execution-binding`.
 
-The implementation API preview was also READY before promotion. Later branch commits changed only protected specification/test evidence, so redundant API preview builds were path-aware skipped/cancelled while the exact API code remained covered by the passing release suite and was rebuilt from the exact merge commit for production.
+The API implementation preview for the same application release lineage was `READY` before the final client-only correction. Path-aware Vercel ignore logic correctly skipped the redundant API rebuild for the client-only head change.
 
 ## Production verification evidence
 
 ### Web
 
-Vercel production deployment `dpl_9oecwVsR6dBDVHsnvoi3XtEtG2Mo` is `READY` with no alias error.
+Vercel deployment `dpl_95ne1ov8Q9gR2UPxnLEez9Gw3kRb` is `READY` with production aliases active and no alias error.
 
-- target: `production`;
-- Git commit: `c17c1abb021697fc4c17cbdfa205a1c6fa9559cc`;
-- production alias: `https://parallax-ashy-one-20.vercel.app`;
-- production root returns HTTP 200 and serves the Parallax 2.0 Expo application;
-- same-origin `/p2-api/health` returns HTTP 200 with Parallax API health JSON;
-- a same-origin unauthenticated work-specification request reaches the API and returns the expected sanitized HTTP 401 with `WWW-Authenticate: Bearer` rather than falling through to the SPA shell.
+- commit: `d9b501517b747b1c8432e14e0f8dc3d3609f1e3c`;
+- `/p2-api/health`: HTTP 200;
+- `/p2-api/ready`: HTTP 200 with database `ok`;
+- unauthenticated `/p2-api/v1/engineering-runs/activate`: expected HTTP 401 with `WWW-Authenticate: Bearer`, proving the same-origin route reaches the protected API boundary rather than the SPA shell.
 
 ### API
 
-Vercel production deployment `dpl_J3Q9YMhE2wu23CKtg4qY71rJiApb` is `READY` with no alias error.
+Vercel deployment `dpl_7gTyHaJPWvRp6SKgMrkhzqEtDHR2` is `READY` with production aliases active and no alias error.
 
+- commit: `d9b501517b747b1c8432e14e0f8dc3d3609f1e3c`;
 - target: `production`;
-- Git commit: `c17c1abb021697fc4c17cbdfa205a1c6fa9559cc`;
-- production alias: `https://parallax-api-tan.vercel.app`;
-- `/health`: HTTP 200;
-- `/ready`: HTTP 200 with database dependency `ok`;
-- `/openapi.json`: HTTP 200 and exposes the protected work-specification latest, draft, and approve routes;
-- OpenAPI retains the HTTP Bearer security scheme on the new routes;
-- unauthenticated work-specification access returns the existing sanitized 401 contract.
+- database-backed readiness succeeds;
+- new engineering-run activation/binding code is deployed from the exact merge tree.
 
-No Vercel runtime error clusters were reported for either authoritative production project during the deployment verification window.
+No runtime error clusters were reported for either production Vercel project during the verification window.
 
 ## Verification boundary
 
-The release is **deployed** and its production infrastructure, database migration, route exposure, same-origin proxy, and authentication boundary are verified.
+The release is deployed and its schema migration, application tree, Vercel deployment state, health/readiness, same-origin routing, and authentication boundary are verified.
 
-A fresh authenticated production work-specification **draft → approve** round trip is **not separately claimed** because the production access secret is not exposed to deployment tooling. The exact behavior passed API tests and browser acceptance on the validated release tree, but the project constitution requires evidence-based status language; therefore this record does not label v0.7.0 fully deployment-verified yet.
+A fresh authenticated production **capture Work Specification → approve → Code activation → bound PLAN run** round trip is **not separately claimed** because the production root access secret is deliberately unavailable to deployment tooling. That lifecycle passed protected API and browser acceptance on the exact validated release tree.
 
-The next time an authorized browser session performs `CAPTURE SPEC` and `APPROVE` successfully against production, that evidence is sufficient to close this final release-verification gap if no contradictory production evidence appears.
+This record therefore distinguishes deployment evidence from an authenticated live feature exercise instead of overstating verification.
 
 ## Deployment state vocabulary
 
-For v0.7.0:
+For v0.8.0:
 
 - Specification approved: **YES**
-- Generated/implemented: **YES**
+- Implemented: **YES**
 - Production database migration applied: **YES**
 - Full release validation: **YES**
-- Validated client preview READY: **YES**
+- Validated preview READY: **YES**
 - Promoted to `main`: **YES**
 - Production web deployment READY: **YES**
 - Production API deployment READY: **YES**
 - Production aliases active: **YES**
-- API health verified: **YES**
-- Database readiness verified: **YES**
-- Work-spec routes present in production OpenAPI: **YES**
-- Work-spec routes protected by production auth boundary: **YES**
-- Same-origin web → API route verified: **YES**
-- Production runtime-error check: **NO ERRORS FOUND IN VERIFICATION WINDOW**
-- Fresh authenticated production draft → approve round trip: **NOT SEPARATELY VERIFIED**
-- Fully deployment-verified: **NO — one explicit authenticated feature round trip remains unclaimed**
+- Health/readiness verified: **YES**
+- Same-origin protected activation route verified: **YES**
+- Production runtime errors in verification window: **NONE FOUND**
+- Fresh authenticated production spec→Code activation round trip: **NOT SEPARATELY VERIFIED**
+
+## Next development cycle
+
+The next visual/product cycle is **Editorial Optical**, inspired by the editorial hierarchy, asymmetrical framing, negative space, and tactile graphic character reviewed from Anna's House while preserving Parallax's Deep Violet Optical identity and conversation-first architecture.
+
+The intended balance is approximately **80% Deep Violet precision / 20% editorial personality**. Planned visual work includes stronger display hierarchy, selective organic framing, restrained warm/sage secondary accents, softer non-HUD Skia structure, slow violet ink fields, hand-drawn contour ribbons, subtle print grain, and state-linked editorial tracing strokes.
+
+This visual cycle must remain separate from execution authority: it may change presentation and Skia behavior, but it must not weaken the v0.8.0 approved-spec execution boundary.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for the v0.7.0 validated production deployment, database migration, deployment identities, live evidence, and the explicit remaining verification boundary.
-- `ARCHITECTURE.md`: updated to v1.8 because durable user work specifications, their revision/approval lifecycle, persistence contract, API boundary, and model/human authority split are new durable architecture.
-- `DESIGN-SYSTEM.md`: unchanged; v0.7.0 adds a component within the existing Deep Violet Optical system but does not change durable visual-language rules.
+- `CURRENT-STATE.md`: updated for the v0.8.0 validated production release, migration, deployment identities, live verification, and next visual cycle decision.
+- `ARCHITECTURE.md`: must advance to v1.9 because exact Work Specification → EngineeringRun binding and server-owned acceptance authority are durable architecture changes.
+- `DESIGN-SYSTEM.md`: remains v1.5 until Editorial Optical is implemented and validated; the visual direction is recorded here as the next-cycle decision, not falsely as deployed design.
 - `PROJECT-CONSTITUTION.md`: unchanged; governing principles did not materially change.
 
-Historical v0.1–v0.6.3 release evidence remains preserved in repository history.
+Historical release evidence remains preserved in repository history.
