@@ -70,6 +70,7 @@ let authenticated = false;
 let googleExchangeAuthorization = '';
 let sessionMarkerObserved = false;
 let sessionDeleteObserved = false;
+let authorizeRequestObserved = false;
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -96,9 +97,11 @@ await page.route(`${supabaseOrigin}/auth/v1/**`, async (route) => {
     assert(Boolean(requestUrl.searchParams.get('code_challenge')), 'OAuth code challenge was missing');
     const redirectTo = requestUrl.searchParams.get('redirect_to');
     assert(redirectTo === `${origin}/auth/callback`, `Unexpected OAuth redirect target: ${redirectTo}`);
+    authorizeRequestObserved = true;
     await route.fulfill({
-      status: 302,
-      headers: { location: `${origin}/auth/callback?code=mock-google-code` },
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+      body: '<!doctype html><html><body>Mock Google authorization complete.</body></html>',
     });
     return;
   }
@@ -240,6 +243,13 @@ try {
   assert(!sharedCredentialVisible, 'Shared access credential field remained visible');
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await page.waitForURL(`${supabaseOrigin}/auth/v1/authorize**`, { timeout: 10000 });
+  assert(authorizeRequestObserved, 'Supabase Google authorization request was not observed');
+
+  // Model the user returning from Google's consent screen explicitly. Keeping this
+  // as a second navigation makes the PKCE browser contract deterministic while
+  // still preserving the same tab/sessionStorage boundary used in production.
+  await page.goto(`${origin}/auth/callback?code=mock-google-code`, { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Message Parallax').waitFor({ timeout: 20000 });
   await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
 
@@ -265,6 +275,7 @@ try {
   assert(unexpectedErrors.length === 0, `Hosted Google auth browser errors: ${unexpectedErrors.join(' | ')}`);
 
   console.log(JSON.stringify({
+    googleAuthorizeRequest: authorizeRequestObserved,
     pkce: true,
     transientSupabaseToken: true,
     parallaxSessionExchange: true,
