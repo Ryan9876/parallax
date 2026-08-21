@@ -13,11 +13,10 @@ router = APIRouter(prefix="/v1/session", tags=["session"])
 
 
 def _cookie_settings() -> dict[str, object]:
-    production = settings.environment == "production"
     return {
         "httponly": True,
-        "secure": production,
-        "samesite": "none" if production else "lax",
+        "secure": settings.environment == "production",
+        "samesite": "lax",
         "path": "/",
     }
 
@@ -52,6 +51,6 @@ def end_session(response: Response):
         path="/",
         secure=settings.environment == "production",
         httponly=True,
-        samesite="none" if settings.environment == "production" else "lax",
+        samesite="lax",
     )
     return {"authenticated": False}
