@@ -1,29 +1,54 @@
 # Parallax 2.0 Current State
 
-Version: 0.6.2 release candidate
+Version: 0.6.2
 Date: 2026-08-21
-Status: DEVELOPMENT CANDIDATE — NOT YET PROMOTED TO PRODUCTION
-Active development branch: `p2/v0.6.2`
+Status: DEPLOYED AND DEPLOYMENT-VERIFIED
 Production branch: `main`
-Current candidate head before this record update: `3437abd92c7a158767135609f863c70dfabca579`
+Production application release commit: `441d69e7d619520824614a28ee0c3643ca7bdf08`
+Production API release lineage: `670d1233bb36de39bb2e5d91fcb046d6dbedea6b`
+Production web deployment: `dpl_7dqvxnkt35Dhyct5v3X4rBQkaCB4`
+Production API deployment: `dpl_HctJQ7rWMmg5BVYh35wMYqvTwCCS`
+Production web alias: `https://parallax-ashy-one-20.vercel.app`
+Production API alias: `https://parallax-api-tan.vercel.app`
 
-## Production baseline
+## Current verified release
 
-The deployed product remains the previously verified v0.6.1 frontend baseline, with the subsequent production API authentication/OpenAPI fixes on `main` validated separately.
+Parallax 2.0 v0.6.2 is live through the GitHub → Vercel production pipeline.
 
-Verified production API evidence already established during the v0.6.2 preparation work:
+Release promotion occurred in two validated steps:
 
-- API root responds successfully.
+1. PR #6 promoted the v0.6.2 session-safe private-access release to `main` at `670d1233bb36de39bb2e5d91fcb046d6dbedea6b`.
+2. Production verification exposed a web routing defect: `/p2-api/*` could fall through to the Expo SPA shell instead of reaching the API. PR #7 corrected the web proxy route and was promoted at `441d69e7d619520824614a28ee0c3643ca7bdf08`.
+
+The corrective release did not change `services/api`, so the path-aware Vercel rule intentionally skipped a redundant API rebuild. The authoritative API deployment therefore remains the READY production deployment from the v0.6.2 promotion lineage.
+
+## Verified production evidence
+
+### Web
+
+- Vercel production deployment `dpl_7dqvxnkt35Dhyct5v3X4rBQkaCB4` is `READY`.
+- Deployment target is `production`.
+- Production alias assignment completed without alias error.
+- `https://parallax-ashy-one-20.vercel.app` serves the Parallax 2.0 Expo web application.
+- `https://parallax-ashy-one-20.vercel.app/p2-api/health` returns HTTP 200 with Parallax API health JSON.
+- `https://parallax-ashy-one-20.vercel.app/p2-api/ready` returns HTTP 200 with database readiness `ok`.
+- `https://parallax-ashy-one-20.vercel.app/p2-api/v1/session` without credentials returns the expected HTTP 401 JSON response rather than the SPA shell, proving the same-origin proxy reaches the protected API boundary.
+
+### API
+
+- Vercel production deployment `dpl_HctJQ7rWMmg5BVYh35wMYqvTwCCS` is `READY`.
+- Production aliases include `parallax-api-tan.vercel.app`.
 - `/health` returns HTTP 200.
 - `/ready` returns HTTP 200 with the database dependency ready.
-- Swagger/OpenAPI exposes the standard Bearer authorization scheme.
-- an authenticated `POST /v1/conversations` returned HTTP 200.
+- Bearer authentication remains active for protected endpoints.
+- The standard Swagger/OpenAPI bearer authorization scheme was previously verified in production.
+- A protected authenticated conversation creation request was previously verified with HTTP 200 on the production API lineage.
 
-These checks do not imply that the v0.6.2 browser-session release candidate has been promoted. Production promotion remains a separate release event.
+The new browser-session establishment flow was validated in automated release tests. A fresh authenticated browser-cookie round trip against production is **not separately claimed in this record**, because production secret material was not exposed to the deployment-verification tooling.
 
-## v0.6.2 candidate
+## v0.6.2 product and security changes
 
-The active candidate adds the production-safe browser access boundary without exposing the root API credential in persistent browser storage:
+The release adds the production-safe browser access boundary without persisting the root API credential in browser storage:
 
 - short-lived signed `HttpOnly` browser session derived from the existing private access secret;
 - bearer compatibility retained for Swagger, automation, and non-browser clients;
@@ -34,27 +59,29 @@ The active candidate adds the production-safe browser access boundary without ex
 - browser credential removed from local/session storage persistence;
 - existing Reason, Code, SSE, Skia, reduced-graphics, and durable conversation behavior preserved.
 
-Latest preview evidence for candidate commit `3437abd92c7a158767135609f863c70dfabca579`:
+## Release validation
 
-- GitHub fast API + contract checks: **PASS**.
-- GitHub fast client typecheck/state/export checks: **PASS**.
-- protected promotion evaluation: intentionally **SKIPPED for draft development**.
-- DSPy release compilation: intentionally **SKIPPED for draft development**.
-- Vercel web preview `dpl_BLgCbzb36F7pcYufzUDwrpW5xWSg`: **READY**.
-- Vercel API preview `dpl_GZrVF6xRxedCUB9CUt3j1MsWdgRS`: **READY**.
+The full release-grade validation suite passed for the v0.6.2 release candidate and again for the one-file production proxy correction:
 
-The candidate is generated, committed, fast-validated, and preview-built. It is **not yet production deployed or deployment-verified**.
+- specification validation: **PASS**;
+- API compile/tests: **PASS**;
+- client typecheck: **PASS**;
+- response-state tests: **PASS**;
+- web export: **PASS**;
+- production dependency audit evidence: **PASS**;
+- browser/Skia acceptance suite: **PASS**;
+- protected Engineering/Reason/Code promotion evaluation: **PASS**;
+- DSPy SpecCritic + SpecCompiler protected-contract validation: **PASS**;
+- Vercel project status checks: **PASS**.
 
 ## Development and release validation workflow
 
-The CI path was simplified because the previous development loop duplicated release-grade work on every small commit.
-
-The authoritative workflow is now tiered:
+The authoritative CI path is tiered so normal development remains fast while release integrity remains protected:
 
 ```text
 Draft development commit
     |
-    | fast contract/API tests + client typecheck/state/export
+    | spec/API tests + client typecheck/state/export
     v
 Vercel Preview
     |
@@ -62,8 +89,8 @@ Vercel Preview
     v
 Full release validation
     ├─ browser + Skia acceptance suite
-    ├─ protected engineering/Reason/Code evaluation
-    ├─ DSPy SpecCritic + SpecCompiler contract validation
+    ├─ protected Engineering/Reason/Code evaluation
+    ├─ DSPy SpecCritic + SpecCompiler validation
     └─ production dependency audit evidence
     |
     v
@@ -76,42 +103,46 @@ Vercel Production
 production verification
 ```
 
-Integrity controls were retained:
+Integrity controls retained:
 
-- all API tests and specification validation still run during normal development;
-- client typecheck, response-state tests, and web export still run during normal development;
-- expensive protected evaluation, DSPy compilation, Playwright/Skia browser acceptance, and audit evidence still run before release promotion and on `main`;
-- superseded CI runs are cancelled so stale commits do not continue consuming time;
-- the duplicate v0.6.2 workflow was removed, leaving one authoritative CI workflow;
-- release checks remain required as a release decision and are not replaced by preview `READY` status.
+- API tests and specification validation run during normal development;
+- client typecheck, response-state tests, and web export run during normal development;
+- expensive protected evaluation, DSPy compilation, Playwright/Skia acceptance, and audit evidence run for release candidates and production promotion;
+- superseded CI runs are cancelled;
+- one authoritative CI workflow replaces the previous duplicate release workflow;
+- Vercel READY state does not substitute for live production verification.
 
 ## Vercel build efficiency
 
-Both authoritative Vercel project configurations now use an ignored-build command based on project-root Git changes.
+Both authoritative Vercel projects use project-root Git change detection:
 
-- `parallax` builds when `apps/client` changes.
-- `parallax-api` builds when `services/api` changes.
-- repository-only documentation, CI, or unrelated changes can therefore be skipped by unaffected Vercel projects.
+- `parallax` builds when `apps/client` changes;
+- `parallax-api` builds when `services/api` changes;
+- repository-only documentation, CI, or unrelated changes are skipped by unaffected projects.
 
-This preserves the two-project production topology while eliminating unnecessary cross-project preview builds.
+This behavior was validated during the v0.6.2 release. The client-only proxy hotfix caused the API production deployment attempt to be intentionally skipped while the web project rebuilt and promoted normally.
 
 ## Deployment state vocabulary
 
-For the v0.6.2 candidate:
+For v0.6.2:
 
 - Generated: **YES**
 - Committed/pushed: **YES**
-- Fast development validation: **YES**
-- Vercel preview build ready: **YES**
-- Full release validation at current record head: **NOT YET CLAIMED**
-- Deployed to production: **NO**
-- Deployment verified: **NO**
+- Full release validation: **YES**
+- Deployed to production: **YES**
+- Production web deployment READY: **YES**
+- Production API deployment READY: **YES**
+- Production web/API proxy health verified: **YES**
+- Production database readiness verified: **YES**
+- Protected route reaches API/auth boundary through same-origin proxy: **YES**
+- Fresh authenticated browser-cookie round trip in production: **NOT SEPARATELY CLAIMED**
+- Deployment verified: **YES**, subject to the explicit authenticated-cookie caveat above.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated because the active candidate state and validated delivery process materially changed.
-- `ARCHITECTURE.md`: unchanged; the application/runtime architecture and two-project deployment topology did not change.
+- `CURRENT-STATE.md`: updated for the verified v0.6.2 production release, the production proxy correction, release evidence, and the validated efficient CI/Vercel workflow.
+- `ARCHITECTURE.md`: unchanged; the session-safe same-origin proxy architecture was already established by the v0.6.2 release work and no additional durable architecture change was introduced by the corrective routing fix.
 - `DESIGN-SYSTEM.md`: unchanged; no durable visual-language rule changed.
-- `PROJECT-CONSTITUTION.md`: unchanged; governance principles did not change.
+- `PROJECT-CONSTITUTION.md`: unchanged; governance principles did not materially change.
 
-Historical v0.1–v0.6.1 implementation and deployment evidence remains preserved in repository history. This file describes the presently deployed baseline and the active release candidate without treating preview or generated work as production.
+Historical v0.1–v0.6.1 implementation and deployment evidence remains preserved in repository history.
