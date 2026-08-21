@@ -6,8 +6,7 @@
   "routes": [
     {
       "src": "/p2-api/(.*)",
-      "dest": "${EXPO_PUBLIC_PARALLAX_API_URL}/$1",
-      "env": ["EXPO_PUBLIC_PARALLAX_API_URL"]
+      "dest": "https://parallax-api-tan.vercel.app/$1"
     },
     {
       "handle": "filesystem"
