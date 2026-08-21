@@ -44,6 +44,15 @@ class Settings:
         or os.getenv("ACCESS_TOKEN")
         or ""
     ).strip()
+    supabase_url: str = (
+        os.getenv("PARALLAX_SUPABASE_URL")
+        or "https://kjyenifnfjqnzfgshpwg.supabase.co"
+    ).strip()
+    # This is a public/publishable browser-safe key, not a service-role secret.
+    supabase_publishable_key: str = (
+        os.getenv("PARALLAX_SUPABASE_PUBLISHABLE_KEY")
+        or "sb_publishable_r2rze_hNPMXthGCGW4hRHg_ajlu6INo"
+    ).strip()
     create_schema: bool = _env_bool(
         "PARALLAX_CREATE_SCHEMA",
         os.getenv("PARALLAX_ENV", "development") in {"development", "test"},
@@ -52,6 +61,10 @@ class Settings:
     def validate_runtime(self) -> None:
         if self.environment == "production" and len(self.access_token) < 32:
             raise ValueError("PARALLAX_ACCESS_TOKEN must contain at least 32 characters in production")
+        if self.environment == "production" and not self.supabase_url.startswith("https://"):
+            raise ValueError("PARALLAX_SUPABASE_URL must use HTTPS in production")
+        if self.environment == "production" and not self.supabase_publishable_key:
+            raise ValueError("PARALLAX_SUPABASE_PUBLISHABLE_KEY is required in production")
 
 
 settings = Settings()
