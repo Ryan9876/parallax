@@ -61,7 +61,8 @@ export type SessionDto = {
 };
 
 const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
-const apiBase = Platform.OS === 'web' && configuredApiBase.startsWith('https://')
+const secureSessionTransport = configuredApiBase.startsWith('https://');
+const apiBase = Platform.OS === 'web' && secureSessionTransport
   ? '/p2-api'
   : configuredApiBase;
 const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
@@ -69,9 +70,13 @@ let transientAccessToken = '';
 
 export class AuthenticationRequiredError extends Error {}
 
+function requestCredentials(): RequestCredentials {
+  return secureSessionTransport ? 'include' : 'same-origin';
+}
+
 function authenticatedHeaders(): Record<string, string> {
   return {
-    ...sessionHeaders,
+    ...(secureSessionTransport ? sessionHeaders : {}),
     ...(transientAccessToken ? { Authorization: `Bearer ${transientAccessToken}` } : {}),
   };
 }
@@ -79,7 +84,7 @@ function authenticatedHeaders(): Record<string, string> {
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
-    credentials: 'include',
+    credentials: requestCredentials(),
     headers: { 'Content-Type': 'application/json', ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
@@ -95,7 +100,7 @@ async function establishSession(token: string): Promise<SessionDto> {
 
   const response = await fetch(`${apiBase}/v1/session`, {
     method: 'POST',
-    credentials: 'include',
+    credentials: requestCredentials(),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${candidate}`,
@@ -111,8 +116,8 @@ async function endSession(): Promise<SessionDto> {
   transientAccessToken = '';
   const response = await fetch(`${apiBase}/v1/session`, {
     method: 'DELETE',
-    credentials: 'include',
-    headers: { ...sessionHeaders },
+    credentials: requestCredentials(),
+    headers: { ...(secureSessionTransport ? sessionHeaders : {}) },
   });
   if (!response.ok) throw new Error(`Parallax API ${response.status}`);
   return (await response.json()) as SessionDto;
@@ -142,7 +147,7 @@ async function streamResponse(
 ): Promise<ResponseResult> {
   const response = await fetch(`${apiBase}/v1/conversations/${id}/responses`, {
     method: 'POST',
-    credentials: 'include',
+    credentials: requestCredentials(),
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
