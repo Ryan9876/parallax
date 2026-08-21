@@ -1,14 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "parallax_api/main.py": {
+    "api/index.py": {
       "runtime": "python3.12"
     }
   },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "parallax_api/main.py"
+      "dest": "api/index.py"
     }
   ]
 }
