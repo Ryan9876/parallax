@@ -39,7 +39,7 @@ function staticServer({ failSkia = false } = {}) {
     const rawPath = new URL(request.url ?? '/', 'http://localhost').pathname;
     if (failSkia && rawPath === '/canvaskit.wasm') {
       response.writeHead(503, { 'content-type': 'text/plain' });
-      response.end('CanvasKit intentionally unavailable for AC-10 validation');
+      response.end('CanvasKit intentionally unavailable for AC-08 validation');
       return;
     }
     const relative = rawPath === '/' ? 'index.html' : rawPath.replace(/^\/+/, '');
@@ -67,7 +67,7 @@ const mockStreamState = {
 function apiServer() {
   let conversation = null;
   let workSpecification = null;
-  const answer = 'The response is being inscribed line by line. The optical head should follow the active wrapped line, leave a short cool-blue energized edge on fresh glyphs, and then cool into normal selectable text without disturbing the calm surface behind it.';
+  const answer = 'The response is being inscribed line by line. The violet optical head should follow the active wrapped line, leave a short purple energized edge on fresh glyphs, and then cool into normal selectable text without disturbing the calm lava-like surface behind it.';
 
   function baseConversation(mode = 'reason') {
     return {
@@ -301,16 +301,17 @@ async function inspectViewport(browser, name, width, height, report) {
   assert(geometry.scrollWidth <= geometry.clientWidth + 1, `${name}: horizontal overflow ${geometry.scrollWidth} > ${geometry.clientWidth}`);
   assert(composerBox && composerBox.x >= 0 && composerBox.x + composerBox.width <= width + 1, `${name}: composer is clipped horizontally`);
   assert(geometry.canvasCount > 0, `${name}: Skia canvases did not initialize`);
-  assert(hash(first) !== hash(second), `${name}: living surface/logo frames did not change over time`);
+  assert(hash(first) !== hash(second), `${name}: calm lava field/logo frames did not change over time`);
   assert(errors.length === 0, `${name}: browser errors: ${errors.join(' | ')}`);
 
   report.viewports.push({ name, width, height, ...geometry, composerBox, animatedFrameChanged: true });
 
   if (name === 'desktop') {
     const idleCanvasCount = geometry.canvasCount;
-    await page.getByLabel('Message Parallax').fill('Show the optical printing behavior on a wrapped response.');
+    const prompt = 'Show the optical printing behavior on a wrapped response.';
+    await page.getByLabel('Message Parallax').fill(prompt);
     await page.getByLabel('Send message').click();
-    await page.getByText('Optical renderer active').waitFor({ timeout: 5000 });
+    await page.getByText('Violet etching active').waitFor({ timeout: 5000 });
     await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
 
     assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live optical inscription was observed');
@@ -321,12 +322,39 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
     const hotGlyphCount = await page.locator('span').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).textShadow !== 'none').length);
-    assert(respondingCanvasCount > idleCanvasCount, `desktop: optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
-    assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
+    assert(respondingCanvasCount > idleCanvasCount, `desktop: violet optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
+    assert(hotGlyphCount > 0, 'desktop: no violet energized fresh-glyph text shadow detected while responding');
 
     await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
+
+    const conversationMaterial = await page.evaluate(({ promptText, assistantPrefix }) => {
+      const all = [...document.querySelectorAll('*')];
+      const exact = (value) => all.find((node) => node.textContent?.trim() === value);
+      const userText = exact(promptText);
+      const assistantText = all.find((node) => node.textContent?.trim().startsWith(assistantPrefix));
+      const userSurface = userText?.parentElement;
+      const assistantSurface = assistantText?.parentElement;
+      const summarize = (element) => {
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        return {
+          borderTopWidth: style.borderTopWidth,
+          borderTopStyle: style.borderTopStyle,
+          borderRadius: style.borderRadius,
+          backgroundColor: style.backgroundColor,
+        };
+      };
+      return { user: summarize(userSurface), assistant: summarize(assistantSurface) };
+    }, { promptText: prompt, assistantPrefix: 'The response is being inscribed line by line.' });
+
+    assert(conversationMaterial.user, 'desktop: user conversation surface was not located');
+    assert(conversationMaterial.assistant, 'desktop: assistant conversation surface was not located');
+    assert(parseFloat(conversationMaterial.user.borderRadius) >= 18, `desktop: user bubble is not softly rounded (${conversationMaterial.user.borderRadius})`);
+    assert(parseFloat(conversationMaterial.assistant.borderRadius) >= 18, `desktop: assistant bubble is not softly rounded (${conversationMaterial.assistant.borderRadius})`);
+    assert(parseFloat(conversationMaterial.user.borderTopWidth) === 0, `desktop: user bubble still has a persistent hard outline (${conversationMaterial.user.borderTopWidth})`);
+    assert(parseFloat(conversationMaterial.assistant.borderTopWidth) === 0, `desktop: assistant bubble still has a persistent hard outline (${conversationMaterial.assistant.borderTopWidth})`);
 
     await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
     await page.getByLabel('Capture work specification').click();
@@ -341,9 +369,11 @@ async function inspectViewport(browser, name, width, height, report) {
       idleCanvasCount,
       respondingCanvasCount,
       hotGlyphCount,
+      themedVioletEtchingObserved: true,
       liveChunkObservedBeforeStreamCompletion: true,
       completed: true,
     };
+    report.conversationMaterial = conversationMaterial;
     report.workSpecification = {
       captured: true,
       expanded: true,
@@ -412,10 +442,11 @@ const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
 const report = {
-  releaseSpecId: 'P2-V0.7.0',
+  releaseSpecId: 'P2-V0.10.1',
   conversationPolicySpecId: 'P2-V0.5.0',
   viewports: [],
   opticalTypesetter: null,
+  conversationMaterial: null,
   workSpecification: null,
   fallback: null,
 };
