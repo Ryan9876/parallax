@@ -3,12 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
-from ..models import EngineeringRun
+from ..models import Conversation, EngineeringRun, WorkSpecification
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
-from .domain import ACTIVE_STAGES, AttemptStatus, WorkflowStage
+from ..repositories.work_specifications import WorkSpecificationRepository
+from .domain import ACTIVE_STAGES, TERMINAL_STAGES, AttemptStatus, WorkflowStage
 from .state_machine import ProtectedRunPolicy, RevisionConflict, RunTransitionError, SpecBindingError
-from .protected import validate_execution, validate_implementation, validate_plan, validate_review
+from .protected import (
+    validate_execution,
+    validate_implementation,
+    validate_plan,
+    validate_review,
+    validate_specification_binding,
+)
+from .work_spec_binding import acceptance_map, required_acceptance_ids, work_specification_digest
 
 
 class EngineeringRunNotFound(LookupError):
@@ -27,20 +35,16 @@ class EngineeringRunService:
         self,
         run_repository: EngineeringRunRepository,
         conversation_repository: ConversationRepository,
+        work_specification_repository: WorkSpecificationRepository | None = None,
         *,
         policy: ProtectedRunPolicy | None = None,
     ):
         self.runs = run_repository
         self.conversations = conversation_repository
+        self.work_specifications = work_specification_repository or WorkSpecificationRepository(run_repository.session)
         self.policy = policy or ProtectedRunPolicy()
 
-    def create_run(
-        self,
-        *,
-        conversation_id: str,
-        spec_id: str,
-        workspace_ref: str | None = None,
-    ) -> EngineeringRun:
+    def _code_conversation(self, conversation_id: str, spec_id: str | None = None) -> Conversation:
         conversation = self.conversations.get(conversation_id)
         if conversation is None:
             raise EngineeringRunNotFound("conversation not found")
@@ -48,15 +52,133 @@ class EngineeringRunService:
             raise SpecBindingError("engineering runs require a Code conversation")
         if conversation.status == "SPEC_AMENDMENT":
             raise SpecBindingError("conversation requires a specification amendment before Code execution")
-        if conversation.spec_id != spec_id:
+        if spec_id is not None and conversation.spec_id != spec_id:
             raise SpecBindingError(
                 f"run spec {spec_id} does not match durable conversation spec {conversation.spec_id}"
             )
+        return conversation
+
+    def _approved_work_specification(
+        self,
+        *,
+        conversation_id: str,
+        work_specification_id: str | None,
+    ) -> WorkSpecification:
+        specification = (
+            self.work_specifications.get(work_specification_id)
+            if work_specification_id
+            else self.work_specifications.latest_approved(conversation_id)
+        )
+        if specification is None:
+            raise SpecBindingError("operator-approved work specification required before Code execution")
+        if specification.conversation_id != conversation_id:
+            raise SpecBindingError("work specification belongs to a different conversation")
+        if specification.status != "APPROVED":
+            raise SpecBindingError("work specification must be explicitly approved before Code execution")
+        if specification.revision < 1:
+            raise SpecBindingError("work specification revision is invalid")
+        return specification
+
+    def _bound_work_specification(self, run: EngineeringRun) -> WorkSpecification:
+        if (
+            not run.work_specification_id
+            or run.work_specification_revision is None
+            or not run.work_specification_digest
+        ):
+            raise SpecBindingError("historical engineering run has no approved work specification binding")
+        specification = self.work_specifications.get(run.work_specification_id)
+        if specification is None:
+            raise SpecBindingError("bound work specification no longer exists")
+        if specification.conversation_id != run.conversation_id:
+            raise SpecBindingError("bound work specification conversation mismatch")
+        if specification.revision != run.work_specification_revision:
+            raise SpecBindingError("bound work specification revision mismatch")
+        if specification.status not in {"APPROVED", "SUPERSEDED"}:
+            raise SpecBindingError("bound work specification is not an approved execution contract")
+        if work_specification_digest(specification) != run.work_specification_digest:
+            raise SpecBindingError("bound work specification content changed after execution binding")
+        return specification
+
+    def create_run(
+        self,
+        *,
+        conversation_id: str,
+        spec_id: str,
+        work_specification_id: str,
+        workspace_ref: str | None = None,
+    ) -> EngineeringRun:
+        conversation = self._code_conversation(conversation_id, spec_id)
+        specification = self._approved_work_specification(
+            conversation_id=conversation.id,
+            work_specification_id=work_specification_id,
+        )
         return self.runs.create(
             conversation_id=conversation.id,
             spec_id=conversation.spec_id,
+            work_specification_id=specification.id,
+            work_specification_revision=specification.revision,
+            work_specification_digest=work_specification_digest(specification),
             workspace_ref=workspace_ref,
         )
+
+    def activate_run(
+        self,
+        *,
+        conversation_id: str,
+        work_specification_id: str | None = None,
+        workspace_ref: str | None = None,
+    ) -> EngineeringRun:
+        conversation = self._code_conversation(conversation_id)
+        specification = self._approved_work_specification(
+            conversation_id=conversation.id,
+            work_specification_id=work_specification_id,
+        )
+        digest = work_specification_digest(specification)
+        run = self.runs.latest_for_binding(conversation.id, specification.id)
+
+        if run is not None and WorkflowStage(run.state) not in TERMINAL_STAGES:
+            if run.work_specification_revision != specification.revision or run.work_specification_digest != digest:
+                raise SpecBindingError("existing engineering run binding does not match the approved specification")
+            if workspace_ref is not None and run.workspace_ref != workspace_ref:
+                raise SpecBindingError("existing engineering run workspace binding cannot be changed")
+        else:
+            run = self.runs.create(
+                conversation_id=conversation.id,
+                spec_id=conversation.spec_id,
+                work_specification_id=specification.id,
+                work_specification_revision=specification.revision,
+                work_specification_digest=digest,
+                workspace_ref=workspace_ref,
+            )
+
+        if run.state != WorkflowStage.SPECIFY.value:
+            return run
+
+        required = required_acceptance_ids(specification)
+        activated = self.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.SPECIFY,
+            operation_key=f"bind:{run.id}:{digest}",
+            expected_revision=run.revision,
+            passed=True,
+            evidence={
+                "work_specification_id": specification.id,
+                "work_specification_revision": specification.revision,
+                "work_specification_digest": digest,
+                "acceptance_ids": sorted(required),
+            },
+            program_id="protected-spec-binding-v0.8.0",
+        )
+        return activated.run
+
+    def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
+        self._code_conversation(conversation_id)
+        return self.runs.latest_for_conversation(conversation_id)
+
+    def acceptance_map_for_run(self, run: EngineeringRun) -> list[dict[str, str]]:
+        if not run.work_specification_id:
+            return []
+        return acceptance_map(self._bound_work_specification(run))
 
     def get(self, run_id: str) -> EngineeringRun:
         run = self.runs.get(run_id)
@@ -97,6 +219,9 @@ class EngineeringRunService:
             return replay
         self._require_revision(run, expected_revision)
 
+        specification = self._bound_work_specification(run)
+        required = required_acceptance_ids(specification)
+
         try:
             current = WorkflowStage(run.state)
         except ValueError as exc:
@@ -111,13 +236,22 @@ class EngineeringRunService:
 
         if passed:
             protected = evidence or {}
-            required = set(protected.get("required_acceptance_ids", []))
-            if stage is WorkflowStage.PLAN:
+            if stage is WorkflowStage.SPECIFY:
+                validate_specification_binding(
+                    protected,
+                    specification_id=specification.id,
+                    specification_revision=specification.revision,
+                    specification_digest=run.work_specification_digest or "",
+                    required_acceptance_ids=required,
+                )
+            elif stage is WorkflowStage.PLAN:
                 validate_plan(protected, required)
             elif stage is WorkflowStage.IMPLEMENT:
                 validate_implementation(protected)
-            elif stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
-                validate_execution(protected)
+            elif stage is WorkflowStage.BUILD:
+                validate_execution(protected, required, acceptance_key="acceptance_ids_targeted")
+            elif stage in {WorkflowStage.TEST, WorkflowStage.VERIFY}:
+                validate_execution(protected, required, acceptance_key="acceptance_ids_verified")
             elif stage is WorkflowStage.REVIEW:
                 implementation_attempts = [
                     item for item in run.attempts
@@ -160,6 +294,7 @@ class EngineeringRunService:
 
     def pause(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:
         run = self.get(run_id)
+        self._bound_work_specification(run)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
@@ -178,6 +313,7 @@ class EngineeringRunService:
 
     def resume(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:
         run = self.get(run_id)
+        self._bound_work_specification(run)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
@@ -229,6 +365,7 @@ class EngineeringRunService:
         status: AttemptStatus,
     ) -> RunOperationResult:
         run = self.get(run_id)
+        self._bound_work_specification(run)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay

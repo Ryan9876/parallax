@@ -62,6 +62,13 @@ class ResponseRequest(BaseModel):
 class EngineeringRunCreate(BaseModel):
     conversation_id: str
     spec_id: str
+    work_specification_id: str
+    workspace_ref: str | None = Field(default=None, max_length=300)
+
+
+class EngineeringRunActivate(BaseModel):
+    conversation_id: str
+    work_specification_id: str | None = None
     workspace_ref: str | None = Field(default=None, max_length=300)
 
 
@@ -91,10 +98,20 @@ class EngineeringAttemptRead(BaseModel):
     completed_at: datetime
 
 
+class EngineeringAcceptanceCriterionRead(BaseModel):
+    id: str
+    text: str
+
+
 class EngineeringRunRead(BaseModel):
     id: str
     conversation_id: str
     spec_id: str
+    work_specification_id: str | None
+    work_specification_revision: int | None
+    work_specification_digest: str | None
+    binding_status: Literal["APPROVED_SPEC_BOUND", "HISTORICAL_UNBOUND"]
+    acceptance_criteria: list[EngineeringAcceptanceCriterionRead] = Field(default_factory=list)
     state: str
     resume_stage: str | None
     revision: int

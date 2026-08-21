@@ -24,6 +24,17 @@ class WorkSpecificationRepository:
         )
         return self.session.scalar(statement)
 
+    def latest_approved(self, conversation_id: str) -> WorkSpecification | None:
+        statement = (
+            select(WorkSpecification)
+            .where(
+                WorkSpecification.conversation_id == conversation_id,
+                WorkSpecification.status == "APPROVED",
+            )
+            .order_by(WorkSpecification.revision.desc())
+        )
+        return self.session.scalar(statement)
+
     def list_for_conversation(self, conversation_id: str) -> list[WorkSpecification]:
         statement = (
             select(WorkSpecification)

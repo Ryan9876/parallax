@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
 
 
@@ -19,11 +18,37 @@ def _safe_mapping(payload: dict[str, object]) -> None:
         raise ProtectedEvidenceError("protected evidence contains a forbidden field")
 
 
+def _exact_acceptance_ids(payload: dict[str, object], key: str, required: set[str]) -> None:
+    raw = payload.get(key)
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        raise ProtectedEvidenceError(f"{key} must be a list of acceptance IDs")
+    if len(raw) != len(set(raw)):
+        raise ProtectedEvidenceError(f"{key} contains duplicate acceptance IDs")
+    if set(raw) != required:
+        raise ProtectedEvidenceError(f"{key} does not exactly match the protected acceptance map")
+
+
+def validate_specification_binding(
+    evidence: dict[str, object],
+    *,
+    specification_id: str,
+    specification_revision: int,
+    specification_digest: str,
+    required_acceptance_ids: set[str],
+) -> None:
+    _safe_mapping(evidence)
+    if evidence.get("work_specification_id") != specification_id:
+        raise ProtectedEvidenceError("SPECIFY evidence does not match the bound work specification")
+    if evidence.get("work_specification_revision") != specification_revision:
+        raise ProtectedEvidenceError("SPECIFY evidence does not match the bound work specification revision")
+    if evidence.get("work_specification_digest") != specification_digest:
+        raise ProtectedEvidenceError("SPECIFY evidence does not match the bound work specification digest")
+    _exact_acceptance_ids(evidence, "acceptance_ids", required_acceptance_ids)
+
+
 def validate_plan(plan: dict[str, object], required_acceptance_ids: set[str]) -> None:
     _safe_mapping(plan)
-    represented = set(plan.get("acceptance_ids_covered", []))
-    if represented != required_acceptance_ids:
-        raise ProtectedEvidenceError("plan does not exactly cover the protected acceptance map")
+    _exact_acceptance_ids(plan, "acceptance_ids_covered", required_acceptance_ids)
     if not plan.get("work_items") or not plan.get("validation_checks"):
         raise ProtectedEvidenceError("plan lacks executable work or validation items")
 
@@ -37,18 +62,23 @@ def validate_implementation(evidence: dict[str, object]) -> None:
         raise ProtectedEvidenceError("IMPLEMENT requires base and resulting workspace identity")
 
 
-def validate_execution(evidence: dict[str, object]) -> None:
+def validate_execution(
+    evidence: dict[str, object],
+    required_acceptance_ids: set[str],
+    *,
+    acceptance_key: str,
+) -> None:
     _safe_mapping(evidence)
     if evidence.get("protected_success") is not True or evidence.get("exit_code") != 0 or evidence.get("timed_out"):
         raise ProtectedEvidenceError("execution evidence does not prove protected success")
+    _exact_acceptance_ids(evidence, acceptance_key, required_acceptance_ids)
 
 
 def validate_review(evidence: dict[str, object], required_acceptance_ids: set[str], current_workspace_digest: str) -> None:
     _safe_mapping(evidence)
     if evidence.get("recommendation") != "PASS":
         raise ProtectedEvidenceError("review did not recommend PASS")
-    if set(evidence.get("acceptance_ids_verified", [])) != required_acceptance_ids:
-        raise ProtectedEvidenceError("review lacks complete acceptance evidence")
+    _exact_acceptance_ids(evidence, "acceptance_ids_verified", required_acceptance_ids)
     if evidence.get("workspace_digest") != current_workspace_digest:
         raise ProtectedEvidenceError("review evidence is stale")
     claims = {str(value).casefold() for value in evidence.get("claims", [])}
