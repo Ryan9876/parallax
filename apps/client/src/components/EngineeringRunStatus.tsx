@@ -6,12 +6,13 @@ import { EditorialTrace } from './EditorialTrace';
 
 const STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
 
-export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel }: {
+export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, reducedGraphics = false }: {
   run: EngineeringRunDto;
   busy: boolean;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
+  reducedGraphics?: boolean;
 }) {
   const passed = new Set(run.attempts.filter((item) => item.status === 'PASSED').map((item) => item.stage));
   const bound = run.binding_status === 'APPROVED_SPEC_BOUND';
@@ -21,7 +22,7 @@ export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel }:
 
   return (
     <View style={styles.card} accessibilityLabel={`Engineering run ${run.state}`}>
-      <EditorialTrace active={busy || STAGES.includes(run.state)} tone={bound ? 'sage' : 'peach'} />
+      {!reducedGraphics && <EditorialTrace active={busy || STAGES.includes(run.state)} tone={bound ? 'sage' : 'peach'} />}
       <View style={styles.kickerRow}>
         <Text style={styles.kicker}>EXECUTION</Text>
         <Text style={styles.spec}>{run.spec_id}</Text>
@@ -53,21 +54,7 @@ export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel }:
 }
 
 const styles = StyleSheet.create({
-  card: {
-    position: 'relative',
-    marginHorizontal: 28,
-    marginTop: 20,
-    paddingTop: 14,
-    paddingRight: 16,
-    paddingBottom: 16,
-    paddingLeft: 18,
-    borderLeftWidth: 2,
-    borderLeftColor: 'rgba(159,185,165,0.58)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-    backgroundColor: 'rgba(13,16,29,0.26)',
-    overflow: 'hidden',
-  },
+  card: { position: 'relative', marginHorizontal: 28, marginTop: 20, paddingTop: 14, paddingRight: 16, paddingBottom: 16, paddingLeft: 18, borderLeftWidth: 2, borderLeftColor: 'rgba(159,185,165,0.58)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, backgroundColor: 'rgba(13,16,29,0.26)', overflow: 'hidden' },
   kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 7 },
   kicker: { color: palette.sage, fontSize: 8, fontWeight: '800', letterSpacing: 1.1 },
   spec: { color: palette.muted, fontSize: 8, letterSpacing: 0.7 },
