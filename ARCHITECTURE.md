@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 1.8
+Version: 1.9
 Status: Authoritative
 
 ## System shape
 
-Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by durable PostgreSQL persistence in hosted environments. Conversation remains the primary product surface. Reason, Code, work-specification drafting, protected evaluation, and release evidence are separate governed capabilities behind that surface.
+Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by durable PostgreSQL persistence in hosted environments. Conversation remains the primary product surface. Reason, Code, user Work Specifications, protected evaluation, and release evidence are separate governed capabilities behind that surface.
 
 ```text
 Expo / React Native client
@@ -13,20 +13,21 @@ Expo / React Native client
   ├─ response state machine
   ├─ React Native Skia optical material / beam effects
   ├─ reduced-graphics fallback
-  ├─ compact work-specification surface
-  ├─ Code run status surface
+  ├─ compact Work Specification surface
+  ├─ bound Code run status surface
   ├─ same-origin /p2-api web gateway
   └─ SSE + JSON API client
           │
           ▼
 FastAPI intelligence service
   ├─ signed browser-session boundary + bearer compatibility
-  ├─ conversation service + durable product-policy spec identity
-  ├─ work-specification service + revision/approval policy
+  ├─ durable conversation + product-policy spec identity
+  ├─ Work Specification revision/approval service
+  ├─ approved-spec Code activation policy
+  ├─ immutable EngineeringRun ↔ WorkSpecification binding
+  ├─ server-owned acceptance map
   ├─ deterministic bounded Reason context composer
-  ├─ DSPy scope program + protected scope policy
-  ├─ DSPy Reason program + protected verifier
-  ├─ DSPy work-specification drafter + protected structural validation
+  ├─ DSPy scope / Reason / Work Specification programs
   ├─ Luna → Terra → Sol model routers
   ├─ durable Code engineering-run kernel
   └─ observable execution/failure traces
@@ -45,258 +46,271 @@ SQLite (development) / dedicated Supabase PostgreSQL (hosted)
 
 ### Client
 
-The client owns interaction state and presentation. It does not own provider credentials, the production root access secret, durable conversation truth, work-specification approval authority, protected evaluation rules, or material-scope authority.
+The client owns interaction state and presentation. It does not own provider credentials, the production root access secret, durable conversation truth, Work Specification approval authority, required acceptance criteria, protected evaluation rules, material-scope authority, or execution-release authority.
 
-Assistant content is rendered as standard React Native `Text`. Skia is used for living material, optical beam, glint, and decorative motion. This preserves accessibility and allows a no-Skia degradation path.
+Assistant content is rendered as standard React Native `Text`. Skia is used for living material, optical beam, glint, and decorative motion. The no-Skia reduced-graphics path preserves equivalent semantic state and capability.
 
-The response reducer remains the source of truth for `IDLE`, `THINKING`, `RESPONDING`, `VERIFYING`, `COMPLETE`, `SPEC_AMENDMENT`, and `ERROR`. Motion and laser energy are derived from product state rather than independent animation state.
+The response reducer remains authoritative for `IDLE`, `THINKING`, `RESPONDING`, `VERIFYING`, `COMPLETE`, `SPEC_AMENDMENT`, and `ERROR`. Motion and optical energy derive from product state rather than independent animation state.
 
-`SPEC_AMENDMENT` is a protected hand-off state, not a generic error. The client preserves the conversation and user turn, shows the server-provided hand-off, and stops substantive continuation against the prior approved objective.
-
-For deployed web builds, protected API traffic is same-origin `/p2-api/*` traffic. Vercel rewrites that path to the configured API origin. Local web and native development may use the configured direct API origin. No provider or API root secret is embedded in the web bundle.
-
-### Live response transport and optical typesetting
-
-Reason responses use server-sent events. State events drive the response reducer and text chunks append to one growing assistant message.
-
-The optical typesetter continuously chases the growing text target while the SSE stream is active; it does not wait for the full response and replay it. Fresh glyphs receive a short optical-energy tail, wrapped lines reset the active head geometry, and the product advances to `VERIFYING` only after the stream closes and the renderer catches up.
-
-For `SPEC_AMENDMENT`, no substantive response chunks are emitted. Recoverable protected failures use sanitized SSE error events and observable trace metadata without candidate text or hidden reasoning.
+Deployed web protected API traffic is same-origin `/p2-api/*`, rewritten by Vercel to the configured API origin. No provider secret or API root access secret is embedded in the browser bundle.
 
 ### API
 
-Routes call services/coordinators. Services call repositories and intelligence adapters. Provider SDK details do not leak into route contracts.
+Routes call services/coordinators; services call repositories and intelligence adapters. Provider SDK detail does not leak into route contracts.
 
-Operational probes are intentionally public and distinct:
+Operational probes remain deliberately public:
 
 - `/health` proves the FastAPI process can answer;
-- `/ready` executes a database `select 1` and proves persistence is reachable.
+- `/ready` executes a database query and proves persistence is reachable.
 
-All conversation, Reason, Code, work-specification, and session-status data routes remain behind the server-owned private-access boundary.
+Conversation, Reason, Code, Work Specification, and session-status routes remain behind the private server authentication boundary.
 
-## Conversation and specification identities
+## Specification identities
 
-### Product-policy specification identity
+Parallax maintains two distinct specification identities.
 
-`Conversation.spec_id` is Parallax's durable product/policy specification identity. New conversations receive the configured `PARALLAX_ACTIVE_SPEC_ID`; existing conversations retain the stored identity they were created under. Product-release advancement therefore does not silently rewrite a resumed conversation's governing policy identity.
+### Product-policy specification
 
-### User work specifications
+`Conversation.spec_id` is the durable Parallax product/policy specification identity. New conversations receive the configured active spec; existing conversations retain the identity they were created under. Product releases do not silently rewrite resumed conversations.
 
-User work specifications are a separate durable entity and must never reuse or reinterpret `Conversation.spec_id`.
+### User Work Specification
 
-Each `WorkSpecification` is linked to exactly one conversation and records:
+A `WorkSpecification` is the operator-controlled implementation contract for one conversation objective. It records:
 
-- opaque work-specification ID;
-- conversation ID;
+- opaque ID and conversation ID;
 - integer revision;
-- status: `DRAFT`, `APPROVED`, or `SUPERSEDED`;
-- title and objective;
+- lifecycle state `DRAFT`, `APPROVED`, or `SUPERSEDED`;
+- title/objective;
 - bounded constraints;
 - bounded acceptance criteria;
-- bounded risks;
-- bounded open questions;
-- draft confidence;
-- drafting program/model identity when available;
-- created/updated timestamps;
-- optional approval timestamp.
+- bounded risks/open questions;
+- confidence and drafting program/model identity;
+- created/updated/approved timestamps.
 
-The database enforces unique `(conversation_id, revision)` values and cascades work-specification deletion when its parent conversation is deleted.
-
-### Work-specification lifecycle
-
-Drafting is AI-assisted but approval is human-controlled.
+The database enforces unique `(conversation_id, revision)` values. Drafting may be AI-assisted; approval is an explicit protected operator mutation. A model cannot approve its own output.
 
 ```text
-CONVERSATION WITH USER OBJECTIVE
+USER OBJECTIVE
    ↓
-BOUNDED OBSERVABLE CONTEXT
+BOUNDED CONVERSATION CONTEXT
    ↓
 WORK-SPEC ROUTER (Luna → Terra → Sol)
    ↓
-TYPED DSPy DRAFT
+TYPED DRAFT + PROTECTED VALIDATION
    ↓
-PROTECTED STRUCTURAL VALIDATION
-   ├─ all candidates fail ─► sanitized recoverable failure; persist nothing
-   └─ valid candidate ─────► persist next DRAFT revision
-                                   │
-                                   ├─ newer draft supersedes older unapproved DRAFT
-                                   └─ existing APPROVED revision remains approved
-                                          until explicit operator approval
-
-OPERATOR APPROVE
-   ↓
-selected DRAFT → APPROVED
-prior APPROVED → SUPERSEDED
+DRAFT revision
+   ↓ explicit operator approval
+APPROVED revision
+   └─ prior approved revision → SUPERSEDED
 ```
 
-A model may create a candidate but may not approve it. Approval is an explicit protected server mutation. Approving an already approved revision is idempotent. Superseded revisions remain durable history even though the first client surface shows the latest revision.
+Work Specification routes include latest, latest-approved, draft, and approve operations. The client exposes them as compact conversation-native controls rather than a project-management dashboard.
 
-The work-specification API contract is:
+## Approved-Spec Code execution binding
 
-- `GET /v1/conversations/{conversation_id}/work-specifications/latest`
-- `POST /v1/conversations/{conversation_id}/work-specifications/draft`
-- `POST /v1/work-specifications/{specification_id}/approve`
+v0.8.0 makes the approved user Work Specification the authoritative contract for every new Code engineering run.
 
-The client presents this as one compact expandable strip rather than a requirements dashboard. Main Skia and reduced-graphics paths expose the same capture, inspect, refresh, and approve semantics.
+Each new `EngineeringRun` persists:
+
+- product-policy `spec_id`;
+- `work_specification_id`;
+- `work_specification_revision`;
+- `work_specification_digest`;
+- normal durable run state/revision/workspace metadata.
+
+The Work Specification digest is computed server-side from bounded, product-visible contract fields: specification ID, revision, title, objective, constraints, acceptance criteria, risks, and open questions. Approval timestamp/status bookkeeping is excluded so approval does not change content identity.
+
+The binding columns are nullable only for historical pre-v0.8 runs. New v0.8 runs cannot be created as authoritative execution evidence without an approved Work Specification binding.
+
+### Approval gate
+
+Code activation requires:
+
+- a Code conversation;
+- conversation not in `SPEC_AMENDMENT`;
+- an approved Work Specification belonging to that conversation;
+- positive persisted revision;
+- product-policy `spec_id` consistent with the durable conversation.
+
+A `DRAFT`, `SUPERSEDED`, missing, or foreign-conversation Work Specification cannot activate Code.
+
+### Immutable target
+
+Once a run is created, its Work Specification ID/revision/digest are immutable through stage advance, pause, resume, refresh, and subsequent Work Specification lifecycle changes.
+
+A newer draft does not retarget a run. A newly approved revision creates or reuses only a run already bound to that exact newer revision.
+
+This prevents execution drift from conversation changes after work has begun.
+
+### Server-owned acceptance map
+
+The server derives stable acceptance IDs from the bound Work Specification in list order:
+
+```text
+criterion 1 → AC-01
+criterion 2 → AC-02
+criterion 3 → AC-03
+...
+```
+
+Clients, models, and tools may submit evidence *against* these IDs, but they do not define the required set.
+
+The engineering-run read contract exposes the binding identity and acceptance map for operator visibility.
+
+### Protected Code lifecycle
+
+Protected policy advances:
+
+`SPECIFY → PLAN → IMPLEMENT → BUILD → TEST → VERIFY → REVIEW → COMPLETE`
+
+The product activation path is `POST /v1/engineering-runs/activate`.
+
+For a newly activated run, the server records protected `SPECIFY` binding evidence and advances to `PLAN`. Activation does not grant unrestricted execution authority.
+
+Protected coverage rules:
+
+- `PLAN` must exactly cover the server-owned acceptance set;
+- `IMPLEMENT` still requires real bounded artifact/workspace evidence rather than prose;
+- `BUILD` must target the full acceptance set and provide successful protected execution evidence;
+- `TEST` must exercise the full acceptance set with successful protected test evidence;
+- `VERIFY` must verify the full acceptance set with successful protected verification evidence;
+- `REVIEW` must verify the full set, recommend `PASS`, and match independently persisted implementation workspace identity.
+
+Missing, duplicated, extra, or client-redefined acceptance IDs fail the protected gate.
+
+Activation is idempotent for the same eligible conversation + approved Work Specification. It may reuse a compatible nonterminal exact-bound run but cannot retarget an older run.
+
+## Execution authority boundary
+
+v0.8.0 strengthens the execution contract but deliberately does **not** enable:
+
+- unrestricted shell access;
+- arbitrary command execution;
+- autonomous Git commit/push/merge;
+- autonomous Vercel promotion;
+- autonomous production deployment;
+- model self-approval of Work Specifications.
+
+The current execution layer remains deny-by-default and evidence-oriented. A future live executor requires an explicit bounded workspace provider, command registry, trust policy, rollback model, and release authority contract.
 
 ## Reason architecture
 
-### Deterministic Reason context
+Reason uses provider-independent bounded context assembled from durable server state. Later explicit user corrections supersede conflicting older assistant assumptions. Context limits are deterministic and preserve the current user turn plus governing product-policy identity.
 
-`intelligence/context.py` composes provider-independent runtime context from durable server state. It preserves conversation/spec identity, lifecycle status, mode, current user turn, a bounded chronological prior-message window, explicit role markers, and the authority rule that later explicit user corrections supersede conflicting older assistant assumptions.
+The scope program proposes `CONTINUE`, `CLARIFY`, or `SPEC_AMENDMENT`; protected server policy owns the transition. Low-confidence material-scope changes are conservatively converted to clarification rather than silently continuing.
 
-Hard limits bound total characters, individual prior messages, current-turn length, and message count. Oldest eligible context is removed first. The active product-policy spec and current user turn are not silently discarded. Context digest, included-turn count, and truncation status are observable trace metadata.
-
-### Scope authority
-
-The client is not material-scope authority. The DSPy scope program proposes `CONTINUE`, `CLARIFY`, or `SPEC_AMENDMENT`, and protected server policy owns transition semantics. Low-confidence amendment proposals are conservatively converted to clarification. The developer/test override is available only when explicitly enabled and is trace-visible.
-
-If all scope candidates fail provider execution or protected validation, no scope decision is fabricated.
-
-### Reason program and verification
-
-The typed Reason program receives objective, deterministic context, mode, durable product-policy spec identity, and the protected scope decision. User-visible output includes an answer plus bounded observable confidence, uncertainties, assumptions, and program identity.
-
-Protected verification rejects malformed, secret-bearing, hidden-reasoning, or scope-incompatible output before completion. Invalid output may escalate through the normal model router.
+Typed Reason output is protected before completion. Invalid, secret-bearing, hidden-reasoning, or scope-incompatible candidates may escalate Luna → Terra → Sol.
 
 ```text
-USER TURN (durably preserved)
+USER TURN
    ↓
 DETERMINISTIC CONTEXT
    ↓
-SCOPE ROUTER → PROTECTED SCOPE POLICY
+SCOPE ROUTER + PROTECTED POLICY
    ├─ CONTINUE ─────► REASON ROUTER ─► PROTECTED VERIFY ─► RESPOND
-   ├─ CLARIFY ──────► REASON ROUTER ─► one focused question ─► RESPOND
-   └─ SPEC_AMENDMENT► durable status + hand-off ─► STOP
+   ├─ CLARIFY ──────► one focused question
+   └─ SPEC_AMENDMENT► durable hand-off ─► STOP
 ```
 
-## Observable trace contract
+## Live response transport and optical rendering
 
-Runtime traces are evidence, not chain-of-thought. They may include response/conversation/spec identity, program versions, protected decisions, context digest/count/truncation, model-attempt status, verification outcome, and final product state.
+Reason responses use server-sent events. State events drive the reducer and text chunks append to one growing assistant message.
 
-Invalid candidate text, DSPy rationale, scratchpads, hidden chain-of-thought, provider credentials, database URLs, and environment values are excluded.
+The optical typesetter follows the live text target; it does not wait for the whole response and replay it. Fresh glyphs receive a short optical energy tail before cooling to selectable narrative text.
 
-Work-specification failure paths follow the same rule: only sanitized failure information crosses the API boundary, and raw provider output/diagnostics are not persisted as work-specification content.
+`SPEC_AMENDMENT` emits no substantive answer chunks. Protected failure paths expose sanitized user-visible recovery information and observable metadata without hidden reasoning or candidate payloads.
 
 ## Persistence
 
-SQLAlchemy 2 provides SQLite development support and PostgreSQL through `DATABASE_URL`.
+SQLAlchemy 2 provides SQLite development support and PostgreSQL hosted support through `DATABASE_URL`.
 
-Hosted persistence uses the dedicated Parallax 2.0 Supabase PostgreSQL project. Vercel's ephemeral API functions connect through Supabase/Supavisor transaction pooling; SQLAlchemy uses provider-side pooling rather than maintaining long-lived application pools in preview/production.
+Production uses the dedicated Parallax 2.0 Supabase PostgreSQL project through Supavisor transaction pooling. Vercel functions do not depend on long-lived application-side pools.
 
-Production schema evolution uses ordered SQL migrations under `services/api/migrations`. Production startup performs no implicit DDL. Development/tests may explicitly opt into metadata bootstrap.
+Production schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
-The hosted schema includes durable conversations, messages, engineering runs/attempts, and work specifications. The work-specification table uses RLS and revokes direct `anon` and `authenticated` table privileges to match the existing server-owned data model.
+Current hosted schema includes:
+
+- conversations;
+- messages;
+- work specifications;
+- engineering runs;
+- engineering attempts.
+
+The v0.8 additive migration adds nullable historical-compatibility binding columns to `engineering_runs`, a restrictive foreign key to `work_specifications`, and an index on the binding ID.
+
+RLS is enabled on server-owned tables and direct client-role access is not the application data path. The FastAPI service remains the authoritative data boundary.
 
 ## Private production access
 
-Parallax production remains private and single-operator. `PARALLAX_ACCESS_TOKEN` is the root operator secret. Production requires high entropy and validates candidates using constant-time comparison. Bearer authentication remains supported for Swagger, automation, and non-browser clients.
+Production is private and single-operator. `PARALLAX_ACCESS_TOKEN` is the root operator secret and is validated server-side with constant-time comparison.
 
-The browser uses the bearer only to establish a short-lived signed session through `POST /v1/session`. The bearer is cleared from JavaScript state after exchange and is not stored in `localStorage` or `sessionStorage`.
+Bearer authentication remains available for Swagger/automation/non-browser clients. Browser clients use bearer only to establish a short-lived signed session through `POST /v1/session`; the bearer is then cleared from JavaScript state and is never persisted in `localStorage` or `sessionStorage`.
 
-Browser authorization is carried in a bounded HMAC-signed, `HttpOnly`, `Secure`, host-only, `SameSite=Lax` cookie. Cookie-authenticated protected requests additionally require `X-Parallax-Session: 1`. Missing, invalid, expired, or tampered authorization returns the same sanitized `401` contract.
+Browser authorization uses a bounded HMAC-signed `HttpOnly`, `Secure`, host-only, `SameSite=Lax` cookie. Cookie-authenticated protected requests also require `X-Parallax-Session: 1`.
 
-Deployed browser traffic uses same-origin `/p2-api` so authentication does not depend on third-party-cookie behavior. Direct API CORS remains explicitly restricted.
+Same-origin `/p2-api` traffic avoids third-party-cookie dependence.
 
-## Model routing
+## Model routing and DSPy
 
-Runtime escalation order is:
+Runtime model escalation order remains:
 
 1. `openai/gpt-5.6-luna`
 2. `openai/gpt-5.6-terra`
 3. `openai/gpt-5.6-sol`
 
-Scope, Reason, and work-specification drafting use typed program boundaries and protected validation. Escalation occurs on provider/program failure or protected validation failure. Attempt metadata is retained without candidate payloads.
-
-## DSPy development and optimization
+Scope, Reason, and Work Specification drafting use typed boundaries and protected validation.
 
 DSPy operates in two planes:
 
-1. **Product runtime** — typed scope, Reason, and work-specification modules can evolve without changing protected policy or API contracts.
-2. **Parallax development** — spec compilation/critique uses DSPy with protected metrics.
+1. product runtime typed modules;
+2. Parallax development SpecCritic/SpecCompiler optimization and validation.
 
-CI supports provider-backed development when approved credentials exist and a credential-free local Ollama compiler/critic path otherwise. The local path proves required DSPy execution but is not the final quality authority.
-
-Optimizer-controlled code may not change the protected acceptance/evaluation functions used to promote a challenger.
-
-## Code 2.0 execution kernel
-
-Code mode owns a durable engineering run bound to its conversation and product-policy specification. Protected policy advances `SPECIFY → PLAN → IMPLEMENT → BUILD → TEST → VERIFY → REVIEW → COMPLETE`; pause, failure, amendment, cancellation, replay, and stale-revision conflict are explicit durable states/transitions.
-
-The Code boundary includes append-only attempts, protected plan/implementation/execution/review validators, provider-neutral workspace artifact identity, deny-by-default typed execution contracts, deterministic recorded execution for CI, API orchestration, and an accessible client status surface.
-
-BUILD, TEST, and VERIFY require successful execution evidence. IMPLEMENT cannot pass on prose alone. REVIEW cannot authorize merge/deployment merely from model output.
-
-**v0.7.0 intentionally does not bind Code engineering runs to `WorkSpecification.id`.** That binding remains a later protected architecture step so the new user-work specification contract can stabilize independently.
-
-A future live executor remains disabled by default and requires an explicit bounded workspace provider and command registry.
+CI may use provider-backed development when approved credentials exist and a local Ollama path otherwise. Optimizer-controlled code cannot change protected promotion/evaluation authority.
 
 ## Protected evaluation spine
 
-Development and promotion benchmark suites are separate. Optimizers may consume development examples/feedback but not promotion expected answers or authority.
+Development and promotion benchmark suites are separate. Optimizers may consume development examples but not promotion expected answers or protected authority.
 
-`services/api/parallax_api/evaluation/` owns deterministic protected scoring, safe benchmark/evidence loading, evidence construction, and baseline/challenger comparison. Critical protected regressions cannot be compensated by unrelated aggregate improvements.
+Evaluation evidence records observable IDs, digests, outcomes, summaries, protected pass state, and explicit no-chain-of-thought evidence. Candidate output is untrusted and secret/hidden-reasoning content is rejected.
 
-Evaluation artifacts record observable identities, digests, per-case outcomes, category summaries, aggregate/protected pass state, and explicit no-chain-of-thought evidence. Candidate output is untrusted and secret/hidden-reasoning content is rejected.
-
-Promotion remains an explicit release decision. Passing evaluation does not itself merge, deploy, alter protected thresholds, or prove production deployment.
+Passing evaluation does not itself authorize merge or deployment.
 
 ## Deployment topology
 
-Parallax has two authoritative Vercel projects from the same repository:
+Two authoritative Vercel projects deploy from the same repository:
 
-1. **Web — `parallax`**: root `apps/client`; Expo web export; static output `dist`.
-2. **API — `parallax-api`**: root `services/api`; Vercel Python/FastAPI entrypoint through `api/index.py`.
+1. Web `parallax` — root `apps/client`, Expo static export to `dist`.
+2. API `parallax-api` — root `services/api`, FastAPI via `api/index.py`.
 
-Feature branches create previews in those same projects. Temporary/version/smoke projects are not release evidence.
+`main` is the production source branch. Feature branches create previews. Path-aware ignore commands prevent redundant project builds when a commit does not touch that project's root.
 
-The web project owns only public client configuration. The API project owns database/provider credentials, private access configuration, runtime model configuration, scope-override configuration, and direct-API CORS settings.
-
-`main` is the production source branch. Release branches are validated through GitHub protected checks and Vercel preview evidence before merge. Provider `READY` status alone is insufficient for deployment verification.
-
-### Deployment verification
-
-Verification evidence must cover the material behavior changed by the release in addition to inherited health/security checks. The baseline evidence set includes:
-
-- responsive web artifact and reduced-graphics behavior;
-- Skia/CanvasKit initialization where available;
-- API `/health` and database-backed `/ready`;
-- sanitized unauthenticated `401` for protected routes;
-- same-origin `/p2-api` reachability;
-- durable conversation/spec identity;
-- Reason SSE/optical behavior and amendment/failure paths;
-- durable Code state where changed;
-- work-specification table/migration security and route exposure where changed;
-- authenticated work-specification draft/approval round trip when claiming the work-specification release fully deployment-verified;
-- exact Git/Vercel deployment identities without exposing secrets.
+Release promotion requires exact-head CI, relevant preview evidence, migration readiness when schema changes, production Vercel readiness, live health/readiness, same-origin protected-route verification, and evidence-based status recording.
 
 ## Web Skia
 
-React Native Skia uses CanvasKit/WASM on web. `apps/client/scripts/setup-skia-web.mjs` copies the matching `canvaskit.wasm` into the public directory. Skia initialization is deferred before the application root is registered.
+React Native Skia uses CanvasKit/WASM on web. The build copies the matching `canvaskit.wasm` into the public directory before export.
 
-The browser acceptance gate verifies responsive layout at 390×844, 768×1024, and 1440×900 and deliberately removes CanvasKit in a separate run to prove reduced-graphics functional parity. v0.7.0 extends that browser contract to work-specification capture, expansion, and explicit approval.
+Browser acceptance covers mobile, tablet, desktop, animated Skia behavior, optical response inscription, and a deliberate CanvasKit-unavailable reduced-graphics run. v0.8 additionally exercises the approved Work Specification → Code binding lifecycle and reduced-graphics bound-run parity.
 
 ## Failure degradation
 
-- Skia unavailable: use the static reduced-graphics path; conversation and work-specification semantics remain functional.
-- Browser session invalid/expired: return sanitized `401`, preserve durable data, and return to private access without retaining the root credential.
-- Same-origin proxy unavailable: show recoverable offline/private-session UI; never embed or persist the root secret.
-- Context cannot fit protected bounds: preserve the user turn and return a sanitized recoverable context error.
-- Scope exhaustion: preserve the turn and record no fabricated decision.
-- Reason protected-invalid candidate: escalate Luna → Terra → Sol.
-- Reason exhaustion: preserve the turn and return a sanitized recoverable failure.
-- Work-spec drafting exhaustion/validation failure: persist no fake revision and return sanitized failure.
-- Database failure: `/ready` returns sanitized failure and deployment verification is blocked.
-- Development provider credentials unavailable: use the local DSPy compiler/critic path without claiming provider-backed optimization.
-- Protected evaluation regression: block promotion and retain machine-readable evidence.
+- Skia unavailable: preserve content/capability in the static reduced-graphics path.
+- Browser session invalid/expired: sanitized 401 and return to private access without retaining root credentials.
+- Same-origin proxy unavailable: recoverable offline/private-session UI; never embed the root secret.
+- Context cannot fit protected bounds: preserve user turn and return a sanitized context failure.
+- Scope exhaustion: preserve turn and fabricate no decision.
+- Reason protected-invalid candidate: escalate provider/model route.
+- Work Specification drafting failure: persist no fake revision.
+- No approved Work Specification: block Code activation rather than improvising an execution target.
+- Binding mismatch/digest conflict: block protected execution and preserve evidence.
+- Database failure: `/ready` fails and deployment verification is blocked.
+- Protected evaluation regression: block promotion.
 - Preview regression: keep production on the last known-good deployment.
 
 ## Security
 
-No model/provider secret or production root access secret is shipped to the client. Browser sessions are bounded and signed, and deployed web access remains same-origin through `/p2-api`.
+No provider secret or production root access secret is shipped to the client. Conversation and Work Specification content are untrusted model/user data and cannot redefine authentication, approval authority, required acceptance criteria, protected evaluation, execution policy, or deployment state.
 
-Conversation content and generated work-specification fields are untrusted model inputs/outputs. They cannot redefine scope policy, authentication, approval authority, evaluation rules, or release state. Only bounded observable structured work-specification fields are persisted; raw provider diagnostics and hidden reasoning are excluded.
+The approved Work Specification binding is a trust boundary: the server owns its digest and acceptance map, while the client owns only interaction intent. Engineering evidence may demonstrate satisfaction of the contract but cannot redefine the contract.
 
-Hosted infrastructure remains isolated from unrelated application databases. The work-specification table follows the same RLS/revoked-client-role model as existing durable application data.
-
-The protected evaluation subsystem is a trust boundary: optimizer code cannot obtain writable promotion authority, evidence artifacts may not contain secrets or hidden reasoning, and release claims must remain traceable to versioned evidence.
+Release claims remain traceable to versioned Git, migration, CI, and Vercel evidence.
