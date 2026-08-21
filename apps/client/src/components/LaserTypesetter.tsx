@@ -1,6 +1,7 @@
 import React from 'react';
 import { AccessibilityInfo, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
+import { palette } from '../theme';
 
 const CHAR_MS = 14;
 const HOT_TAIL = 5;
@@ -28,10 +29,10 @@ function OpticalHead({ height }: { height: number }) {
   const center = canvasHeight / 2;
   return (
     <Canvas style={{ width: 122, height: canvasHeight }} pointerEvents="none">
-      <Line p1={vec(0, center)} p2={vec(112, center)} color="rgba(84,216,255,0.34)" strokeWidth={1} />
-      <Line p1={vec(112, 3)} p2={vec(112, canvasHeight - 3)} color="#D8F9FF" strokeWidth={2} />
-      <Circle cx={112} cy={center} r={5} color="#D8F9FF" />
-      <Circle cx={112} cy={center} r={10} color="rgba(84,216,255,0.18)" />
+      <Line p1={vec(0, center)} p2={vec(112, center)} color="rgba(139,156,255,0.44)" strokeWidth={1} />
+      <Line p1={vec(112, 3)} p2={vec(112, canvasHeight - 3)} color={palette.cyan} strokeWidth={2} />
+      <Circle cx={112} cy={center} r={5} color={palette.cyan} />
+      <Circle cx={112} cy={center} r={10} color="rgba(209,139,255,0.20)" />
     </Canvas>
   );
 }
@@ -289,14 +290,14 @@ const styles = StyleSheet.create({
     left: 0,
   },
   text: {
-    color: '#20282B',
+    color: palette.text,
     fontSize: 18,
     lineHeight: 29,
     letterSpacing: -0.1,
   },
   hotText: {
-    color: '#36BEEA',
-    textShadowColor: 'rgba(84,216,255,0.62)',
+    color: '#D9C6FF',
+    textShadowColor: 'rgba(125,231,255,0.48)',
     textShadowRadius: 5,
   },
   beam: {

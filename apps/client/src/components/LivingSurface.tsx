@@ -2,6 +2,7 @@ import React from 'react';
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
+import { palette } from '../theme';
 
 const effect = Skia.RuntimeEffect.Make(`
 uniform float2 resolution;
@@ -52,26 +53,27 @@ half4 main(float2 pos) {
   float n2 = fbm(q * 1.72 + float2(-t * 0.05, t * 0.11));
   float field = mix(n1, n2, 0.30);
 
-  float3 paper = float3(0.972, 0.966, 0.944);
-  float3 stone = float3(0.912, 0.916, 0.903);
-  float3 cool = float3(0.735, 0.834, 0.827);
-  float3 warm = float3(0.882, 0.814, 0.748);
-  float3 ink = float3(0.132, 0.159, 0.165);
+  float3 abyss = float3(0.031, 0.043, 0.071);
+  float3 panel = float3(0.043, 0.063, 0.098);
+  float3 indigo = float3(0.545, 0.612, 1.000);
+  float3 violet = float3(0.820, 0.545, 1.000);
+  float3 cyan = float3(0.490, 0.906, 1.000);
+  float3 lightInk = float3(0.925, 0.914, 1.000);
 
-  float3 col = mix(paper, stone, 0.075 + field * 0.035);
+  float3 col = mix(abyss, panel, 0.22 + field * 0.12);
 
-  // Sparse topographic isolines: perceptible only after the interface settles.
+  // Sparse topographic structure keeps the workplane spatial without turning into a HUD.
   float contourSource = field + 0.10 * sin(q.x * 1.45 - q.y * 1.05 + t);
   float contour = lineMask(contourSource, 0.128, 0.0017);
-  col = mix(col, ink, contour * (0.012 + energy * 0.006));
+  col = mix(col, violet, contour * (0.018 + energy * 0.010));
 
-  // Drafting grid is intentionally near the threshold of perception.
+  // Drafting grid stays near the threshold of perception.
   float gx = lineMask(uv.x, 0.070, 0.00032);
   float gy = lineMask(uv.y, 0.070, 0.00032);
   float grid = max(gx, gy);
-  col = mix(col, ink, grid * 0.0045);
+  col = mix(col, indigo, grid * 0.010);
 
-  // A single low-energy optical focus provides depth without becoming a glow effect.
+  // One slow focus region carries active optical energy.
   float2 focus = float2(
     0.12 * sin(t * 0.47),
     0.08 * cos(t * 0.39)
@@ -79,16 +81,19 @@ half4 main(float2 pos) {
   float r = length(q - focus);
   float halo = exp(-r * r * 8.6);
   float ring = 1.0 - smoothstep(0.004, 0.014, abs(r - (0.31 + 0.010 * sin(t))));
-  col = mix(col, cool, halo * (0.010 + energy * 0.012));
-  col = mix(col, cool, ring * (0.008 + energy * 0.012));
+  col = mix(col, indigo, halo * (0.018 + energy * 0.024));
+  col = mix(col, cyan, ring * (0.010 + energy * 0.018));
 
-  // One warm calibration trace keeps the material system from becoming generic blue SaaS.
+  // A restrained violet calibration trace prevents the field becoming generic blue SaaS.
   float diagonal = 1.0 - smoothstep(0.0025, 0.010, abs((q.x * 0.66 + q.y) - 0.60));
-  col = mix(col, warm, diagonal * 0.008);
+  col = mix(col, violet, diagonal * 0.014);
 
-  // Gentle center bias preserves contrast behind the conversation surface.
+  // Dark center bias keeps conversation copy dominant.
   float center = exp(-dot(q, q) * 1.6);
-  col = mix(col, paper, center * 0.025);
+  col = mix(col, abyss, center * 0.14);
+
+  // Tiny lift under higher response energy, never enough to compete with text.
+  col = mix(col, lightInk, energy * halo * 0.0025);
 
   return half4(col, 1.0);
 }
@@ -126,6 +131,6 @@ export function LivingSurface({ energy }: { energy: number }) {
 
 const styles = StyleSheet.create({
   fallback: {
-    backgroundColor: '#F7F4EC',
+    backgroundColor: palette.void,
   },
 });

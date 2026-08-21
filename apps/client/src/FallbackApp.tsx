@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { api, type ConversationDto, type MessageDto } from './lib/api';
+import { palette } from './theme';
 
 function StaticMark({ size = 34 }: { size?: number }) {
   return (
@@ -190,7 +191,7 @@ export default function FallbackApp() {
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="Message Parallax…"
-                placeholderTextColor="#8A9496"
+                placeholderTextColor={palette.muted}
                 style={styles.input}
                 multiline
                 onSubmitEditing={() => void submit()}
@@ -205,46 +206,46 @@ export default function FallbackApp() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F4F3EE' },
+  root: { flex: 1, backgroundColor: palette.void },
   shell: { flex: 1, flexDirection: 'row' },
   mark: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  markPlaneA: { position: 'absolute', borderWidth: 1.4, borderColor: '#147D9F', transform: [{ rotate: '-28deg' }] },
-  markPlaneB: { position: 'absolute', borderWidth: 1.2, borderColor: '#8AA7AE', transform: [{ rotate: '28deg' }] },
-  markCenter: { backgroundColor: '#147D9F' },
-  rail: { width: 220, padding: 18, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(32,40,43,0.12)', backgroundColor: '#F0EFEA' },
+  markPlaneA: { position: 'absolute', borderWidth: 1.4, borderColor: palette.violet, transform: [{ rotate: '-28deg' }] },
+  markPlaneB: { position: 'absolute', borderWidth: 1.2, borderColor: palette.indigo, transform: [{ rotate: '28deg' }] },
+  markCenter: { backgroundColor: palette.cyan },
+  rail: { width: 220, padding: 18, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: palette.border, backgroundColor: 'rgba(8,11,18,0.88)' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30 },
-  brand: { fontSize: 15, fontWeight: '700', color: '#20282B' },
-  brandSub: { fontSize: 11, color: '#9A7F71' },
+  brand: { fontSize: 15, fontWeight: '700', color: palette.text },
+  brandSub: { fontSize: 11, color: palette.violet },
   railHeading: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  railLabel: { fontSize: 10, color: '#8A9091', letterSpacing: 1.2, textTransform: 'uppercase' },
-  newChat: { fontSize: 10, color: '#147D9F', fontWeight: '700' },
+  railLabel: { fontSize: 10, color: palette.muted, letterSpacing: 1.2, textTransform: 'uppercase' },
+  newChat: { fontSize: 10, color: palette.cyan, fontWeight: '700' },
   railItem: { padding: 10, marginBottom: 3 },
-  railItemActive: { padding: 10, marginBottom: 3, borderRadius: 12, backgroundColor: '#FAFAF7' },
-  railItemText: { color: '#20282B', fontSize: 12 },
-  railMuted: { color: '#8A9091', fontSize: 10, textTransform: 'capitalize', marginTop: 3 },
+  railItemActive: { padding: 10, marginBottom: 3, borderRadius: 12, backgroundColor: palette.indigoWash, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  railItemText: { color: palette.textSoft, fontSize: 12 },
+  railMuted: { color: palette.muted, fontSize: 10, textTransform: 'capitalize', marginTop: 3 },
   main: { flex: 1, minWidth: 0 },
-  topbar: { minHeight: 64, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(32,40,43,0.10)' },
+  topbar: { minHeight: 64, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, backgroundColor: 'rgba(8,11,18,0.58)' },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  title: { color: '#20282B', fontSize: 16, fontWeight: '600' },
-  status: { color: '#9A7F71', fontSize: 10, marginTop: 2 },
-  modeSwitch: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: '#ECECE7' },
+  title: { color: palette.text, fontSize: 16, fontWeight: '600' },
+  status: { color: palette.textSecondary, fontSize: 10, marginTop: 2 },
+  modeSwitch: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: palette.glassSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   modeButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 },
-  modeActive: { backgroundColor: '#20282B' },
-  modeText: { fontSize: 10, color: '#7F898B', textTransform: 'uppercase' },
-  modeTextActive: { color: '#F4F3EE' },
+  modeActive: { backgroundColor: palette.violetDeep },
+  modeText: { fontSize: 10, color: palette.textSecondary, textTransform: 'uppercase' },
+  modeTextActive: { color: palette.text },
   thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 150 },
   empty: { maxWidth: 560, alignSelf: 'center', alignItems: 'center', paddingTop: 90 },
-  emptyTitle: { color: '#20282B', fontSize: 20, fontWeight: '600', marginTop: 14, textAlign: 'center' },
-  emptyCopy: { color: '#738083', fontSize: 13, lineHeight: 21, marginTop: 8, textAlign: 'center' },
-  userBubble: { alignSelf: 'flex-end', maxWidth: 560, padding: 16, marginBottom: 30, borderRadius: 20, borderBottomRightRadius: 6, backgroundColor: '#FAFAF7' },
-  userText: { color: '#20282B', fontSize: 15, lineHeight: 23 },
-  assistantBlock: { maxWidth: 700, padding: 20, marginBottom: 30, borderRadius: 22, backgroundColor: '#FAFAF7' },
+  emptyTitle: { color: palette.text, fontSize: 20, fontWeight: '600', marginTop: 14, textAlign: 'center' },
+  emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, marginTop: 8, textAlign: 'center' },
+  userBubble: { alignSelf: 'flex-end', maxWidth: 560, padding: 16, marginBottom: 30, borderRadius: 20, borderBottomRightRadius: 6, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  userText: { color: palette.text, fontSize: 15, lineHeight: 23 },
+  assistantBlock: { maxWidth: 700, padding: 20, marginBottom: 30, borderRadius: 22, backgroundColor: palette.glass, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  assistantName: { color: '#405055', fontSize: 12, fontWeight: '700' },
-  assistantText: { color: '#20282B', fontSize: 17, lineHeight: 27 },
+  assistantName: { color: palette.indigo, fontSize: 12, fontWeight: '700' },
+  assistantText: { color: palette.text, fontSize: 17, lineHeight: 27 },
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
-  composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#DADCD7', backgroundColor: '#FAFAF7' },
-  input: { flex: 1, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: '#20282B', fontSize: 14 },
-  send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#147D9F' },
-  sendText: { color: '#FFFFFF', fontSize: 19 },
+  composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.glassStrong },
+  input: { flex: 1, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: palette.text, fontSize: 14 },
+  send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep },
+  sendText: { color: palette.text, fontSize: 19 },
 });

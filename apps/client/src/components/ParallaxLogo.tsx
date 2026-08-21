@@ -3,6 +3,7 @@ import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { useClock } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
+import { palette } from '../theme';
 
 export function ParallaxLogo({ size = 44 }: { size?: number }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
@@ -37,7 +38,7 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           cx={size / 2}
           cy={size / 2}
           r={size * 0.43}
-          color="rgba(20,125,159,0.08)"
+          color="rgba(125,231,255,0.18)"
           style="stroke"
           strokeWidth={1}
         />
@@ -45,13 +46,13 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           cx={size / 2}
           cy={size / 2}
           r={size * 0.34}
-          color="rgba(20,125,159,0.18)"
+          color="rgba(139,156,255,0.34)"
           style="stroke"
           strokeWidth={1}
         />
         <Path
           path={aperture}
-          color="#147D9F"
+          color={palette.violet}
           style="stroke"
           strokeWidth={2}
         />
@@ -59,13 +60,13 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
           cx={size / 2 + phase.value * size * 0.08}
           cy={size / 2}
           r={size * 0.065}
-          color="rgba(216,249,255,0.9)"
+          color={palette.cyan}
         />
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={size * 0.026}
-          color="#20282B"
+          color={palette.text}
         />
       </Canvas>
     </View>

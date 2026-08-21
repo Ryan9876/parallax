@@ -17,6 +17,7 @@ import { initialResponseState, motionForPhase, responseReducer } from './state/r
 import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
 import { EngineeringRunStatus } from './components/EngineeringRunStatus';
 import { useEngineeringRun } from './hooks/useEngineeringRun';
+import { palette } from './theme';
 
 const FALLBACK_MESSAGES: MessageDto[] = [
   {
@@ -384,7 +385,7 @@ export default function App() {
             onChangeText={setAccessDraft}
             onSubmitEditing={() => void unlock()}
             placeholder="Access credential"
-            placeholderTextColor="#7F8582"
+            placeholderTextColor={palette.muted}
             style={styles.accessInput}
           />
           {accessError ? <Text style={styles.errorText}>{accessError}</Text> : null}
@@ -551,7 +552,7 @@ export default function App() {
                   value={draft}
                   onChangeText={setDraft}
                   placeholder="Describe the next outcome…"
-                  placeholderTextColor="#7B817E"
+                  placeholderTextColor={palette.muted}
                   style={styles.input}
                   onSubmitEditing={() => void respond()}
                   multiline
@@ -569,38 +570,38 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  accessRoot: { flex: 1, backgroundColor: '#F7F4EC', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 10, padding: 30, backgroundColor: 'rgba(250,248,241,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)' },
-  accessTitle: { color: '#20282B', fontSize: 22, fontWeight: '600', marginTop: 14, letterSpacing: -0.4 },
-  accessCopy: { color: '#6F7775', fontSize: 12, marginTop: 5, marginBottom: 22, letterSpacing: 0.4 },
-  accessInput: { width: '100%', minHeight: 48, borderRadius: 6, paddingHorizontal: 14, color: '#20282B', backgroundColor: 'rgba(255,255,255,0.56)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.20)' },
-  accessButton: { width: '100%', minHeight: 46, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20282B', marginTop: 8 },
-  accessButtonText: { color: '#F7F4EC', fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
-  root: { flex: 1, backgroundColor: '#F7F4EC' },
+  accessRoot: { flex: 1, backgroundColor: palette.void, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 14, padding: 30, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  accessTitle: { color: palette.text, fontSize: 22, fontWeight: '600', marginTop: 14, letterSpacing: -0.4 },
+  accessCopy: { color: palette.textSecondary, fontSize: 12, marginTop: 5, marginBottom: 22, letterSpacing: 0.4 },
+  accessInput: { width: '100%', minHeight: 48, borderRadius: 8, paddingHorizontal: 14, color: palette.text, backgroundColor: palette.surfaceRaised, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  accessButton: { width: '100%', minHeight: 46, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep, marginTop: 8 },
+  accessButtonText: { color: palette.text, fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
+  root: { flex: 1, backgroundColor: palette.void },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },
   rail: {
     width: 196,
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(32,40,43,0.16)',
-    backgroundColor: 'rgba(247,244,236,0.76)',
+    borderRightColor: palette.border,
+    backgroundColor: 'rgba(8,11,18,0.82)',
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 16,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 38 },
-  brand: { fontSize: 12, fontWeight: '800', color: '#20282B', letterSpacing: 1.35 },
-  brandSub: { fontSize: 8, color: '#8C786A', marginTop: 3, letterSpacing: 0.75 },
-  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(32,40,43,0.12)' },
-  railLabel: { fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.55, color: '#777D7A' },
-  newChat: { fontSize: 8, color: '#147D9F', fontWeight: '800', letterSpacing: 0.9 },
+  brand: { fontSize: 12, fontWeight: '800', color: palette.text, letterSpacing: 1.35 },
+  brandSub: { fontSize: 8, color: palette.violet, marginTop: 3, letterSpacing: 0.75 },
+  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  railLabel: { fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.55, color: palette.muted },
+  newChat: { fontSize: 8, color: palette.cyan, fontWeight: '800', letterSpacing: 0.9 },
   recentList: { flex: 1 },
-  railItemActive: { paddingHorizontal: 10, paddingVertical: 10, borderLeftWidth: 2, borderLeftColor: '#147D9F', backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: 2 },
+  railItemActive: { paddingHorizontal: 10, paddingVertical: 10, borderLeftWidth: 2, borderLeftColor: palette.violet, backgroundColor: palette.violetWash, marginBottom: 2 },
   railItem: { paddingHorizontal: 12, paddingVertical: 10, marginBottom: 2, borderLeftWidth: 2, borderLeftColor: 'transparent' },
-  railItemText: { fontSize: 11, lineHeight: 15, color: '#20282B' },
-  railMuted: { fontSize: 8, color: '#7F8582', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
-  railBottom: { gap: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(32,40,43,0.12)' },
-  railStatus: { fontSize: 8, color: '#147D9F', letterSpacing: 0.9, fontWeight: '700' },
+  railItemText: { fontSize: 11, lineHeight: 15, color: palette.textSoft },
+  railMuted: { fontSize: 8, color: palette.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
+  railBottom: { gap: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  railStatus: { fontSize: 8, color: palette.indigo, letterSpacing: 0.9, fontWeight: '700' },
   main: { flex: 1, minWidth: 0 },
   topbar: {
     minHeight: 62,
@@ -609,53 +610,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(32,40,43,0.14)',
-    backgroundColor: 'rgba(247,244,236,0.54)',
+    borderBottomColor: palette.border,
+    backgroundColor: 'rgba(8,11,18,0.52)',
   },
   topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  topTitle: { fontSize: 15, fontWeight: '600', color: '#20282B', letterSpacing: -0.2 },
-  topSub: { fontSize: 8, color: '#8C786A', marginTop: 3, letterSpacing: 0.55 },
-  modeSwitch: { flexDirection: 'row', borderRadius: 5, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.16)', backgroundColor: 'rgba(255,255,255,0.18)' },
-  modeButton: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 3 },
-  modeButtonActive: { backgroundColor: '#20282B' },
-  modeText: { fontSize: 8, textTransform: 'uppercase', color: '#6F7775', fontWeight: '700', letterSpacing: 0.8 },
-  modeTextActive: { color: '#F7F4EC' },
+  topTitle: { fontSize: 15, fontWeight: '600', color: palette.text, letterSpacing: -0.2 },
+  topSub: { fontSize: 8, color: palette.textSecondary, marginTop: 3, letterSpacing: 0.55 },
+  modeSwitch: { flexDirection: 'row', borderRadius: 6, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, backgroundColor: palette.glassSoft },
+  modeButton: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 4 },
+  modeButtonActive: { backgroundColor: palette.violetDeep },
+  modeText: { fontSize: 8, textTransform: 'uppercase', color: palette.textSecondary, fontWeight: '700', letterSpacing: 0.8 },
+  modeTextActive: { color: palette.text },
   thread: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 28, paddingTop: 52, paddingBottom: 154 },
   emptyState: { maxWidth: 540, alignSelf: 'center', alignItems: 'center', paddingTop: 92, paddingHorizontal: 24 },
-  emptyTitle: { color: '#20282B', fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
-  emptyCopy: { color: '#66706E', fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
+  emptyTitle: { color: palette.text, fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
+  emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
   userBlock: { alignItems: 'flex-end', marginBottom: 42 },
-  meta: { fontSize: 8, color: '#727A77', marginBottom: 7, letterSpacing: 0.85, fontWeight: '700' },
-  userBubble: { maxWidth: 600, borderRadius: 6, paddingHorizontal: 18, paddingVertical: 15, backgroundColor: 'rgba(255,255,255,0.47)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.10)' },
-  userText: { fontSize: 15, lineHeight: 23, color: '#20282B', letterSpacing: -0.05 },
+  meta: { fontSize: 8, color: palette.muted, marginBottom: 7, letterSpacing: 0.85, fontWeight: '700' },
+  userBubble: { maxWidth: 600, borderRadius: 8, paddingHorizontal: 18, paddingVertical: 15, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  userText: { fontSize: 15, lineHeight: 23, color: palette.text, letterSpacing: -0.05 },
   assistantBlock: { width: '100%', marginBottom: 44 },
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14 },
-  assistantName: { fontSize: 9, fontWeight: '800', color: '#354043', letterSpacing: 1.0 },
-  responseGlass: { paddingTop: 20, paddingBottom: 22, paddingHorizontal: 22, backgroundColor: 'rgba(250,248,241,0.48)', borderTopWidth: 1, borderTopColor: 'rgba(20,125,159,0.34)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(32,40,43,0.10)', borderLeftWidth: 3, borderLeftColor: 'rgba(20,125,159,0.44)' },
-  assistantText: { color: '#20282B', fontSize: 18, lineHeight: 30, letterSpacing: -0.18 },
+  assistantName: { fontSize: 9, fontWeight: '800', color: palette.indigo, letterSpacing: 1.0 },
+  responseGlass: { paddingTop: 20, paddingBottom: 22, paddingHorizontal: 22, backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: 'rgba(209,139,255,0.42)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, borderLeftWidth: 3, borderLeftColor: 'rgba(139,156,255,0.62)' },
+  assistantText: { color: palette.text, fontSize: 18, lineHeight: 30, letterSpacing: -0.18 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(20,125,159,0.22)' },
-  statusDotActive: { backgroundColor: '#54D8FF' },
-  statusText: { fontSize: 8, color: '#5E7D86', letterSpacing: 0.75, fontWeight: '700' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(139,156,255,0.28)' },
+  statusDotActive: { backgroundColor: palette.cyan },
+  statusText: { fontSize: 8, color: palette.indigo, letterSpacing: 0.75, fontWeight: '700' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -10, marginBottom: 30 },
-  thinkingText: { color: '#60706E', fontSize: 10, letterSpacing: 0.3 },
-  phaseHint: { color: '#60706E', fontSize: 10, marginBottom: 24 },
+  thinkingText: { color: palette.textSecondary, fontSize: 10, letterSpacing: 0.3 },
+  phaseHint: { color: palette.textSecondary, fontSize: 10, marginBottom: 24 },
   amendmentNotice: {
     borderLeftWidth: 3,
-    borderLeftColor: '#147D9F',
-    backgroundColor: 'rgba(222,197,182,0.20)',
+    borderLeftColor: palette.indigo,
+    backgroundColor: 'rgba(139,156,255,0.08)',
     paddingHorizontal: 16,
     paddingVertical: 13,
     marginBottom: 24,
   },
-  amendmentTitle: { color: '#354043', fontSize: 10, fontWeight: '800', marginBottom: 5, letterSpacing: 0.45 },
-  amendmentText: { color: '#656C69', fontSize: 11, lineHeight: 17 },
-  errorText: { color: '#955B52', fontSize: 11, lineHeight: 17, marginBottom: 24 },
+  amendmentTitle: { color: palette.text, fontSize: 10, fontWeight: '800', marginBottom: 5, letterSpacing: 0.45 },
+  amendmentText: { color: palette.textSecondary, fontSize: 11, lineHeight: 17 },
+  errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8 },
-  composer: { maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(250,248,241,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(32,40,43,0.20)' },
-  newMobile: { width: 40, height: 40, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.38)' },
-  newMobileText: { color: '#596462', fontSize: 18 },
-  input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 11, paddingVertical: 10, color: '#20282B', fontSize: 14, letterSpacing: -0.05 },
-  send: { width: 42, height: 42, borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20282B' },
-  sendText: { color: '#D8F9FF', fontSize: 19 },
+  composer: { maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 10, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  newMobile: { width: 40, height: 40, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.indigoWash },
+  newMobileText: { color: palette.indigo, fontSize: 18 },
+  input: { flex: 1, minWidth: 0, minHeight: 42, maxHeight: 110, paddingHorizontal: 11, paddingVertical: 10, color: palette.text, fontSize: 14, letterSpacing: -0.05 },
+  send: { width: 42, height: 42, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep },
+  sendText: { color: palette.text, fontSize: 19 },
 });
