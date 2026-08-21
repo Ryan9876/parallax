@@ -1,0 +1,92 @@
+name: Parallax v0.6.2 Gate
+
+on:
+  push:
+    branches: [p2/v0.6.2]
+  pull_request:
+    branches: [main]
+
+jobs:
+  spec-and-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate v0.6.2 specification
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.6.2.md
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Compile Python sources
+        run: python -m compileall -q services/api/parallax_api scripts
+      - name: Run complete API test suite
+        run: python -m pytest services/api/tests -q
+
+  dspy-development:
+    runs-on: ubuntu-latest
+    needs: spec-and-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - id: model
+        name: Select provider-backed or local DSPy model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+          else
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
+          fi
+      - name: Install local DSPy development LM
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+      - name: Run DSPy SpecCritic and SpecCompiler
+        timeout-minutes: 8
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py specs/P2-V0.6.2.md
+      - name: Verify compiled plan against protected contract
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.6.2.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v062-dspy-evidence
+          path: |
+            specs/compiled/P2-V0.6.2.plan.json
+            /tmp/ollama.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - working-directory: apps/client
+        run: npm install
+      - working-directory: apps/client
+        run: npm run typecheck
+      - working-directory: apps/client
+        run: npm run test:state
+      - working-directory: apps/client
+        run: npm run export:web
