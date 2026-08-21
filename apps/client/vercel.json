@@ -1,5 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run export:web",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
+  "routes": [
+    {
+      "src": "/p2-api/(.*)",
+      "dest": "${EXPO_PUBLIC_PARALLAX_API_URL}/$1",
+      "env": ["EXPO_PUBLIC_PARALLAX_API_URL"]
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }

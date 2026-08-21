@@ -1,113 +1,117 @@
 # Parallax 2.0 Current State
 
-Version: 0.6.1
-Date: 2026-08-20
-Status: DEPLOYED AND DEPLOYMENT-VERIFIED
-Active development branch: `p2/v0.6.0`
+Version: 0.6.2 release candidate
+Date: 2026-08-21
+Status: DEVELOPMENT CANDIDATE — NOT YET PROMOTED TO PRODUCTION
+Active development branch: `p2/v0.6.2`
 Production branch: `main`
-Release head before this record update: `74724b166c9481597b3c7b175ec8d37b6bd34336`
-Production deployment: `dpl_6EuWr8yUPRM4KAhqvaCTvwS541p1`
-Production alias: `https://parallax-ashy-one-20.vercel.app`
+Current candidate head before this record update: `3437abd92c7a158767135609f863c70dfabca579`
 
-## Current verified release
+## Production baseline
 
-Parallax 2.0 v0.6.1 is live through the GitHub → Vercel production pipeline.
+The deployed product remains the previously verified v0.6.1 frontend baseline, with the subsequent production API authentication/OpenAPI fixes on `main` validated separately.
 
-Verified release evidence:
+Verified production API evidence already established during the v0.6.2 preparation work:
 
-- GitHub `main` was fast-forwarded to the validated v0.6.1 release lineage.
-- Vercel created a Git-sourced production deployment from commit `74724b166c9481597b3c7b175ec8d37b6bd34336`.
-- Vercel reported deployment state `READY` with production target and no alias error.
-- The production alias returned HTTP `200 OK` and served the Parallax 2.0 Expo web shell.
-- `p2/v0.6.0` was fast-forwarded to the same release head so development and production histories remain aligned.
+- API root responds successfully.
+- `/health` returns HTTP 200.
+- `/ready` returns HTTP 200 with the database dependency ready.
+- Swagger/OpenAPI exposes the standard Bearer authorization scheme.
+- an authenticated `POST /v1/conversations` returned HTTP 200.
 
-Deployment state vocabulary remains strict:
+These checks do not imply that the v0.6.2 browser-session release candidate has been promoted. Production promotion remains a separate release event.
 
-- Generated: **YES**
-- Committed/pushed: **YES**
-- Vercel build ready: **YES**
-- Deployed to production: **YES**
-- Deployment verified: **YES**
-- Full CI/typecheck/lint re-run specifically for this visual-only release: **NOT CLAIMED**
+## v0.6.2 candidate
 
-## v0.6.1 product changes
+The active candidate adds the production-safe browser access boundary without exposing the root API credential in persistent browser storage:
 
-### Optical identity
+- short-lived signed `HttpOnly` browser session derived from the existing private access secret;
+- bearer compatibility retained for Swagger, automation, and non-browser clients;
+- custom session marker required for cookie-authenticated protected requests;
+- deployed browser API traffic routed through same-origin `/p2-api`;
+- production cookie hardened as Secure + HttpOnly + host-only + SameSite=Lax;
+- session establish/status/logout endpoints;
+- browser credential removed from local/session storage persistence;
+- existing Reason, Code, SSE, Skia, reduced-graphics, and durable conversation behavior preserved.
 
-- The Parallax mark was refined away from scanner/HUD language toward a calmer proprietary optical-instrument identity.
-- Motion remains slow and bounded and respects reduced-motion preferences.
-- The mark is designed to remain legible at sidebar scale rather than relying on large decorative animation.
+Latest preview evidence for candidate commit `3437abd92c7a158767135609f863c70dfabca579`:
 
-### Living surface
+- GitHub fast API + contract checks: **PASS**.
+- GitHub fast client typecheck/state/export checks: **PASS**.
+- protected promotion evaluation: intentionally **SKIPPED for draft development**.
+- DSPy release compilation: intentionally **SKIPPED for draft development**.
+- Vercel web preview `dpl_BLgCbzb36F7pcYufzUDwrpW5xWSg`: **READY**.
+- Vercel API preview `dpl_GZrVF6xRxedCUB9CUt3j1MsWdgRS`: **READY**.
 
-- The optical workplane was materially quieted so conversation content remains the dominant visual layer.
-- Topographic isolines, drafting grid, optical focus, and warm calibration trace remain, but all are reduced toward the threshold of perception.
-- Surface movement is slower and lower-frequency.
-- A gentle center bias protects reading contrast behind the conversation stage.
-- Response-state energy may influence the focus region without materially increasing full-screen contrast.
+The candidate is generated, committed, fast-validated, and preview-built. It is **not yet production deployed or deployment-verified**.
 
-### Design system
+## Development and release validation workflow
 
-- `DESIGN-SYSTEM.md` is now version 1.4.
-- The durable visual rule is: **content wins every visual competition**.
-- Parallax continues to reject generic AI-neon, generic SaaS-glass, orbital-logo, spinner, and decorative HUD conventions.
-- The target remains high-end industrial design software + calm intelligence + optical instrumentation.
+The CI path was simplified because the previous development loop duplicated release-grade work on every small commit.
 
-### Release identity
-
-- `apps/client/package.json` now identifies the client as version `0.6.1`.
-- Production deployment is now driven by GitHub `main`; development work remains on `p2/v0.6.0` and is preview-deployed until promoted by fast-forwarding the release lineage into `main`.
-
-## Deployment workflow
-
-The authoritative delivery path is now:
+The authoritative workflow is now tiered:
 
 ```text
-p2/v0.6.0
+Draft development commit
     |
-    | implementation commits
+    | fast contract/API tests + client typecheck/state/export
     v
 Vercel Preview
     |
-    | release accepted
+    | pull request marked ready / release candidate
     v
-main (fast-forward only)
+Full release validation
+    ├─ browser + Skia acceptance suite
+    ├─ protected engineering/Reason/Code evaluation
+    ├─ DSPy SpecCritic + SpecCompiler contract validation
+    └─ production dependency audit evidence
+    |
+    v
+main
     |
     v
 Vercel Production
     |
     v
-production alias verification
+production verification
 ```
 
-Rules:
+Integrity controls were retained:
 
-- Do not return to CLI-created production artifacts for normal releases.
-- Do not force-update `main` for routine releases; production promotion should be a fast-forward from an accepted release lineage.
-- A release is not called deployment-verified until the production deployment is `READY` and the production alias responds successfully.
-- Preview success does not by itself mean production deployment.
+- all API tests and specification validation still run during normal development;
+- client typecheck, response-state tests, and web export still run during normal development;
+- expensive protected evaluation, DSPy compilation, Playwright/Skia browser acceptance, and audit evidence still run before release promotion and on `main`;
+- superseded CI runs are cancelled so stale commits do not continue consuming time;
+- the duplicate v0.6.2 workflow was removed, leaving one authoritative CI workflow;
+- release checks remain required as a release decision and are not replaced by preview `READY` status.
 
-## Architecture status
+## Vercel build efficiency
 
-No durable architecture change was required for v0.6.1.
+Both authoritative Vercel project configurations now use an ignored-build command based on project-root Git changes.
 
-The established architecture remains:
+- `parallax` builds when `apps/client` changes.
+- `parallax-api` builds when `services/api` changes.
+- repository-only documentation, CI, or unrelated changes can therefore be skipped by unaffected Vercel projects.
 
-- Expo + React Native + React Native Skia client.
-- FastAPI + SQLAlchemy + DSPy service baseline.
-- Durable server-side conversations as source of truth.
-- Browser storage only for local draft/session convenience.
-- Stored conversation specification identity remains durable and historical.
-- Reason and Code protected-state contracts remain unchanged.
-- `SPEC_AMENDMENT` remains a first-class protected hand-off state.
+This preserves the two-project production topology while eliminating unnecessary cross-project preview builds.
 
-`ARCHITECTURE.md` therefore did not require a v0.6.1 change.
+## Deployment state vocabulary
+
+For the v0.6.2 candidate:
+
+- Generated: **YES**
+- Committed/pushed: **YES**
+- Fast development validation: **YES**
+- Vercel preview build ready: **YES**
+- Full release validation at current record head: **NOT YET CLAIMED**
+- Deployed to production: **NO**
+- Deployment verified: **NO**
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for the verified v0.6.1 production release and recovered GitHub → Vercel delivery path.
-- `DESIGN-SYSTEM.md`: updated because the durable visual restraint and Parallax mark rules changed.
-- `ARCHITECTURE.md`: unchanged because application architecture did not materially change.
-- `PROJECT-CONSTITUTION.md`: unchanged because governance principles did not materially change.
+- `CURRENT-STATE.md`: updated because the active candidate state and validated delivery process materially changed.
+- `ARCHITECTURE.md`: unchanged; the application/runtime architecture and two-project deployment topology did not change.
+- `DESIGN-SYSTEM.md`: unchanged; no durable visual-language rule changed.
+- `PROJECT-CONSTITUTION.md`: unchanged; governance principles did not change.
 
-Prior v0.1–v0.5 implementation, evaluation, migration, and CI evidence remains preserved in repository history and release branches. This current-state record intentionally describes the presently deployed system rather than duplicating historical release narratives.
+Historical v0.1–v0.6.1 implementation and deployment evidence remains preserved in repository history. This file describes the presently deployed baseline and the active release candidate without treating preview or generated work as production.

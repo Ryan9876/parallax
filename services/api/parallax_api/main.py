@@ -10,6 +10,8 @@ from . import models  # noqa: F401
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
 from .routes.engineering_runs import router as engineering_runs_router
+from .routes.session import router as session_router
+from .session import SESSION_HEADER_NAME
 
 
 def create_app(*, create_schema: bool | None = None) -> FastAPI:
@@ -35,10 +37,11 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
         allow_origins=list(settings.cors_origins),
         allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", SESSION_HEADER_NAME],
     )
     app.include_router(health_router)
+    app.include_router(session_router)
     protected = [Depends(require_access)]
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)

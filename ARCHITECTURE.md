@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 1.6
+Version: 1.7
 Status: Authoritative
 
 ## System shape
@@ -12,10 +12,12 @@ Expo / React Native client
   ├─ normal accessible conversation text
   ├─ response state machine
   ├─ React Native Skia material + beam effects
+  ├─ same-origin /p2-api web gateway
   └─ SSE API client
           │
           ▼
 FastAPI intelligence service
+  ├─ signed browser-session boundary + bearer compatibility
   ├─ conversation service + durable spec identity
   ├─ deterministic bounded context composer
   ├─ DSPy scope program
@@ -32,20 +34,22 @@ FastAPI intelligence service
           │                  ├─ evidence artifacts
           │                  └─ baseline/challenger gate
           ▼
-SQLite (development) / dedicated Supabase PostgreSQL (P2 preview target)
+SQLite (development) / dedicated Supabase PostgreSQL (hosted target)
 ```
 
 ## Core boundaries
 
 ### Client
 
-The client owns interaction state and visual presentation. It does not own provider credentials, durable conversation truth, or material-scope authority.
+The client owns interaction state and visual presentation. It does not own provider credentials, the production root access secret, durable conversation truth, or material-scope authority.
 
 Assistant content is rendered as standard React Native `Text`. Skia is used for living material, optical beam, glint, and decorative motion. This preserves accessibility and allows a no-Skia degradation path.
 
 The response reducer is the single source of truth for `IDLE`, `THINKING`, `RESPONDING`, `VERIFYING`, `COMPLETE`, `SPEC_AMENDMENT`, and `ERROR`. Motion energy and laser activity are derived from that reducer, not from independent animation flags.
 
 `SPEC_AMENDMENT` is a normal protected hand-off state, not a generic error. The client preserves the conversation and user turn, shows the concise server-provided amendment message, disables the optical inscription, and allows the user to continue once the objective/specification is appropriately resolved.
+
+For deployed web builds, protected API traffic is browser-visible as same-origin `/p2-api/*` traffic. Vercel proxies that path to the configured public API origin. Local web and native development may continue to use the configured direct API origin. This keeps the browser session first-party without moving API/provider secrets into the client project.
 
 ### Live response transport and optical typesetting
 
@@ -155,13 +159,21 @@ SQLAlchemy 2 models provide a development SQLite path and a PostgreSQL target pa
 
 Conversation identity is an opaque UUID. Messages are durable and ordered by creation time. Each conversation also stores its active specification identity. New conversations receive the configured `PARALLAX_ACTIVE_SPEC_ID`; existing conversations retain their historical stored spec ID when the product advances to a later release. This prevents a resumed conversation from silently changing its governing specification.
 
-The P2 preview persistence target is a **dedicated Supabase PostgreSQL project**, separate from unrelated application databases. Vercel's ephemeral API functions connect through Supabase/Supavisor transaction pooling rather than maintaining application-side connection pools. Generic `postgres://` and `postgresql://` URLs are normalized to psycopg 3, prepared statements are disabled for transaction-pooler compatibility, and preview/production engines use SQLAlchemy `NullPool` so provider-side pooling remains authoritative.
+The hosted persistence target is a **dedicated Supabase PostgreSQL project**, separate from unrelated application databases. Vercel's ephemeral API functions connect through Supabase/Supavisor transaction pooling rather than maintaining application-side connection pools. Generic `postgres://` and `postgresql://` URLs are normalized to psycopg 3, prepared statements are disabled for transaction-pooler compatibility, and preview/production engines use SQLAlchemy `NullPool` so provider-side pooling remains authoritative.
 
 Production schema evolution uses ordered SQL migrations under `services/api/migrations`; production startup performs no implicit DDL. Local development and isolated tests may opt into SQLAlchemy metadata bootstrap explicitly.
 
 ### Private production access
 
-The initial P2 production release is private and single-operator. `/health` and `/ready` remain public operational probes; conversation, Reason, and Code routers share a server-owned bearer-authentication dependency. The high-entropy access credential is supplied by the operator at runtime, compared in constant time, retained by the browser only for the session, and never embedded in the web artifact or placed in a URL. Production fails closed when the server credential is missing or too short.
+Parallax production remains private and single-operator. `/health` and `/ready` are public operational probes; conversation, Reason, Code, and session-status routes share server-owned authentication boundaries.
+
+`PARALLAX_ACCESS_TOKEN` is the root operator secret. Production requires at least 32 characters and validates bearer candidates in constant time. Bearer authentication remains supported for Swagger, automated verification, and non-browser clients.
+
+The browser uses the bearer secret only to establish a short-lived signed session through `POST /v1/session`. The returned session contains no bearer credential, is signed with HMAC-SHA256 derived from the configured root secret, has an absolute expiry, and is carried in a `Secure`, `HttpOnly`, host-only, `SameSite=Lax` cookie. The browser does not write the root secret to `localStorage` or `sessionStorage`; the access input is cleared after session establishment.
+
+Cookie-authenticated protected requests also require `X-Parallax-Session: 1`. Missing, invalid, expired, or tampered authorization returns the same sanitized `401` contract. Rotating the root access secret invalidates all outstanding browser sessions without introducing a server-side session table.
+
+Deployed web traffic reaches these endpoints through the same-origin `/p2-api` proxy, avoiding dependence on third-party-cookie behavior between separate Vercel project origins. Direct API CORS remains restricted to explicitly configured Parallax origins or a narrowly scoped approved preview-host regex.
 
 ### Model routing
 
@@ -243,33 +255,35 @@ Reason 2.0 includes recorded continuity, status-honesty, and material-scope regr
 
 Promotion remains an explicit engineering/release decision. Passing evaluation never automatically merges, deploys, changes protected thresholds, or rewrites authoritative records.
 
-## Preview deployment topology
+## Deployment topology
 
-P2 preview deployment is isolated from the existing Parallax 1.x production Vercel project. The existing Vercel project named `parallax` is not a P2 deployment target and must not be overwritten, rebound, or used as a smoke-test destination.
+Parallax uses two authoritative Vercel projects from the same `Ryan9876/parallax` repository:
 
-P2 uses two dedicated Vercel preview projects from the same repository when preview deployment is authorized:
+1. **Web — `parallax`**: project root `apps/client`; `npm run export:web`; static output `dist`.
+2. **API — `parallax-api`**: project root `services/api`; Vercel Python/FastAPI entrypoint through `api/index.py`; SSE remains the response transport.
 
-1. **P2 web** — project root `apps/client`; `npm run export:web`; static output `dist`.
-2. **P2 API** — project root `services/api`; Vercel Python/FastAPI entrypoint `parallax_api.main:app`; SSE remains the response transport.
+Feature branches create Preview deployments inside these two projects. Version, smoke, chunk, verifier, or recovery projects are not authoritative deployment targets and are not part of the release topology.
 
-The web project receives only public client configuration such as `EXPO_PUBLIC_PARALLAX_API_URL`. The API project owns `DATABASE_URL`, provider credentials, `DSPY_MODEL`, `PARALLAX_ENV`, `PARALLAX_ACTIVE_SPEC_ID`, scope-override configuration, and CORS configuration.
+The web project receives only public client configuration such as `EXPO_PUBLIC_PARALLAX_API_URL`. At deployment, `/p2-api/*` is externally rewritten to that configured API origin while remaining same-origin in the browser. The API project owns `DATABASE_URL`, provider credentials, `DSPY_MODEL`, `PARALLAX_ENV`, `PARALLAX_ACTIVE_SPEC_ID`, private access configuration, scope-override configuration, and direct-API CORS configuration.
 
-P2 production remains private behind the application bearer boundary. Public signup and multi-user tenancy require a later approved specification.
+The `main` branch is the production source branch for both authoritative Vercel projects. A release branch is validated through Vercel Preview and GitHub protected checks before it may be merged to `main`. Provider `READY` status alone is insufficient evidence of deployment verification.
 
 ### Deployment verification
 
 A deployment is not considered deployment-verified merely because a host reports `READY`. Evidence must cover:
 
-- P2 web artifact loads at mobile, tablet, and desktop sizes;
+- web artifact loads at mobile, tablet, and desktop sizes;
 - CanvasKit/Skia initializes and reduced-graphics degradation remains functional;
-- P2 API `/health` succeeds;
-- P2 API `/ready` succeeds against the dedicated PostgreSQL target;
+- API `/health` succeeds;
+- API `/ready` succeeds against the dedicated PostgreSQL target;
+- unauthenticated protected routes return sanitized `401`;
+- browser web traffic reaches the API through `/p2-api` and session continuity does not require a JavaScript-persisted bearer secret;
 - a conversation persists across separate API requests with the correct durable spec identity;
 - ordinary Reason follow-ups preserve active context;
 - SSE chunks arrive before completion and the optical typesetter visibly inscribes while the stream remains open;
 - protected `SPEC_AMENDMENT` produces a calm hand-off with no substantive continuation;
 - provider/protected-validation exhaustion returns a sanitized recoverable error and observable trace;
-- no P1 deployment, domain, or project setting changed as part of P2 validation.
+- production records identify exact Git/Vercel deployment evidence without exposing secrets.
 
 ## Web Skia
 
@@ -280,6 +294,8 @@ The browser acceptance gate verifies the Skia runtime and responsive layout at 3
 ## Failure degradation
 
 - Skia unavailable: show a static material fallback; conversation semantics remain functional.
+- Browser session missing, expired, or invalid: return sanitized `401`, preserve durable conversation state, and return the client to private access without retaining the root credential.
+- Same-origin API proxy unavailable: show recoverable offline/private-session UI; do not fall back to embedding or persisting the API secret in the client.
 - Context cannot fit protected bounds: preserve the durable user turn and return a sanitized recoverable context error.
 - Scope provider/validation exhaustion: preserve the user turn, return recoverable `PROTECTED_SCOPE_FAILURE`, and record no fabricated protected scope decision.
 - Protected Reason validation failure: continue Luna → Terra → Sol.
@@ -287,14 +303,16 @@ The browser acceptance gate verifies the Skia runtime and responsive layout at 3
 - Database failure: `/ready` returns a sanitized 503 and the system must not claim deployment verification or persisted conversation state.
 - Commercial DSPy provider credentials unavailable during development: use the local DSPy compiler/critic path; do not claim provider-backed optimization.
 - Evaluation challenger regresses a protected case/category: reject promotion and retain machine-readable reasons; do not compensate with a higher unrelated aggregate score.
-- P2 preview regression: roll back the isolated P2 preview deployment without changing the P1 production project.
+- Preview regression: retain production on the last known-good `main` deployment and do not promote the candidate.
 
 ## Security
 
-No model/provider secret is shipped to the client. Provider configuration is server-side environment only. CORS origins are configured explicitly or by a narrowly scoped preview-host regex. ORM-backed SQL is parameterized.
+No model/provider secret or production root access secret is shipped to the client. Provider and root-access configuration are server-side environment only. The root bearer secret is used in-browser only for the explicit session-establishment request and is cleared from JavaScript state after successful exchange.
 
-Conversation content is untrusted model input and cannot redefine protected scope policy, evaluation rules, or release state. Runtime traces exclude hidden chain-of-thought and candidate failure text. Structured scope factors, uncertainties, and assumptions are bounded observable metadata only.
+Browser sessions are bounded, HMAC-signed, `HttpOnly`, `Secure` in production, host-only, and `SameSite=Lax`. Session-cookie authorization additionally requires `X-Parallax-Session: 1`. Deployed web access uses the same-origin `/p2-api` proxy to avoid reliance on third-party-cookie exceptions. Direct API CORS origins are configured explicitly or by a narrowly scoped approved preview-host regex. ORM-backed SQL is parameterized.
 
-P2 preview infrastructure must remain isolated from unrelated application databases and from the P1 production Vercel project. Protected preview access is required while application-level authentication is absent and durable data or provider credentials are attached.
+Conversation content is untrusted model input and cannot redefine protected scope policy, evaluation rules, authentication policy, or release state. Runtime traces exclude hidden chain-of-thought and candidate failure text. Structured scope factors, uncertainties, and assumptions are bounded observable metadata only.
+
+Hosted infrastructure must remain isolated from unrelated application databases. Temporary Vercel projects are not authoritative release targets and must never be used as evidence that production was updated.
 
 The protected evaluation subsystem is also a trust boundary: optimizer code cannot import promotion authority as a writable configuration surface, benchmark/evidence artifacts must not contain secrets or hidden reasoning, and promotion claims must be traceable to versioned evidence.

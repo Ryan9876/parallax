@@ -1,4 +1,5 @@
 import { fetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 
 export type MessageDto = {
   id: string;
@@ -54,18 +55,36 @@ export type EngineeringRunDto = {
   created_at: string; updated_at: string; attempts: EngineeringAttemptDto[];
 };
 
-const apiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
-let accessToken = '';
+export type SessionDto = {
+  authenticated: boolean;
+  expires_at?: string;
+};
+
+const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
+const secureSessionTransport = configuredApiBase.startsWith('https://');
+const apiBase = Platform.OS === 'web' && secureSessionTransport
+  ? '/p2-api'
+  : configuredApiBase;
+const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
+let transientAccessToken = '';
 
 export class AuthenticationRequiredError extends Error {}
 
+function requestCredentials(): RequestCredentials {
+  return secureSessionTransport ? 'include' : 'same-origin';
+}
+
 function authenticatedHeaders(): Record<string, string> {
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  return {
+    ...(secureSessionTransport ? sessionHeaders : {}),
+    ...(transientAccessToken ? { Authorization: `Bearer ${transientAccessToken}` } : {}),
+  };
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
+    credentials: requestCredentials(),
     headers: { 'Content-Type': 'application/json', ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
@@ -73,6 +92,41 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`Parallax API ${response.status}`);
   }
   return (await response.json()) as T;
+}
+
+async function establishSession(token: string): Promise<SessionDto> {
+  const candidate = token.trim();
+  if (!candidate) throw new AuthenticationRequiredError('Private access required');
+
+  const response = await fetch(`${apiBase}/v1/session`, {
+    method: 'POST',
+    credentials: requestCredentials(),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${candidate}`,
+    },
+  });
+  transientAccessToken = '';
+  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  return (await response.json()) as SessionDto;
+}
+
+async function getSession(): Promise<SessionDto> {
+  if (!secureSessionTransport) return { authenticated: true };
+  return json<SessionDto>('/v1/session');
+}
+
+async function endSession(): Promise<SessionDto> {
+  transientAccessToken = '';
+  if (!secureSessionTransport) return { authenticated: false };
+  const response = await fetch(`${apiBase}/v1/session`, {
+    method: 'DELETE',
+    credentials: requestCredentials(),
+    headers: { ...sessionHeaders },
+  });
+  if (!response.ok) throw new Error(`Parallax API ${response.status}`);
+  return (await response.json()) as SessionDto;
 }
 
 function decodeEvent(block: string): ResponseStreamEvent | null {
@@ -99,6 +153,7 @@ async function streamResponse(
 ): Promise<ResponseResult> {
   const response = await fetch(`${apiBase}/v1/conversations/${id}/responses`, {
     method: 'POST',
+    credentials: requestCredentials(),
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
@@ -107,6 +162,7 @@ async function streamResponse(
     body: JSON.stringify({ content, material_scope_change: materialScopeChange }),
   });
 
+  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
   if (!response.ok) throw new Error(`Parallax API ${response.status}`);
   if (!response.body) throw new Error('Parallax response stream unavailable');
 
@@ -169,7 +225,10 @@ async function streamResponse(
 }
 
 export const api = {
-  setAccessToken: (token: string) => { accessToken = token.trim(); },
+  setAccessToken: (token: string) => { transientAccessToken = token.trim(); },
+  establishSession,
+  getSession,
+  endSession,
   createConversation: (mode: 'reason' | 'code') =>
     json<ConversationDto>('/v1/conversations', {
       method: 'POST',
