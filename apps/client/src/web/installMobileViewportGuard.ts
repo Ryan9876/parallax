@@ -1,5 +1,6 @@
 const GUARD_STYLE_ID = 'parallax-mobile-viewport-guard';
 const KEYBOARD_REDUCTION_THRESHOLD = 120;
+const LIVE_EDGE_THRESHOLD = 120;
 
 type GuardedWindow = Window & {
   __PARALLAX_MOBILE_VIEWPORT_GUARD__?: boolean;
@@ -33,6 +34,101 @@ function installMobileInputSizing() {
   document.head.appendChild(style);
 }
 
+function installConversationLiveEdgeGuard(root: HTMLElement) {
+  let activeThread: HTMLElement | null = null;
+  let followLiveEdge = true;
+  let followFrame = 0;
+  let settleTimer = 0;
+
+  const distanceFromEnd = (thread: HTMLElement) => Math.max(
+    0,
+    thread.scrollHeight - thread.clientHeight - thread.scrollTop,
+  );
+
+  const findConversationThread = () => {
+    const response = root.querySelector<HTMLElement>('[aria-label="Parallax response"]');
+    let current = response?.parentElement ?? null;
+    while (current && current !== root) {
+      const style = window.getComputedStyle(current);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') return current;
+      current = current.parentElement;
+    }
+    return null;
+  };
+
+  const onThreadScroll = () => {
+    if (!activeThread) return;
+    followLiveEdge = distanceFromEnd(activeThread) < LIVE_EDGE_THRESHOLD;
+  };
+
+  const attachThread = () => {
+    const next = findConversationThread();
+    if (next === activeThread) return next;
+    activeThread?.removeEventListener('scroll', onThreadScroll);
+    activeThread = next;
+    followLiveEdge = true;
+    activeThread?.addEventListener('scroll', onThreadScroll, { passive: true });
+    return activeThread;
+  };
+
+  const applyLiveEdge = () => {
+    followFrame = 0;
+    const thread = attachThread();
+    if (!thread || !followLiveEdge) return;
+    thread.scrollTop = thread.scrollHeight;
+  };
+
+  const scheduleLiveEdge = () => {
+    if (followFrame) cancelAnimationFrame(followFrame);
+    followFrame = requestAnimationFrame(() => {
+      applyLiveEdge();
+      requestAnimationFrame(applyLiveEdge);
+    });
+  };
+
+  const scheduleSettledLiveEdge = () => {
+    scheduleLiveEdge();
+    if (settleTimer) window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(scheduleLiveEdge, 120);
+  };
+
+  const observer = new MutationObserver(() => {
+    attachThread();
+    if (followLiveEdge) scheduleSettledLiveEdge();
+  });
+  observer.observe(root, { subtree: true, childList: true, characterData: true });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('[aria-label]') : null;
+    const label = target?.getAttribute('aria-label') ?? '';
+    if (label === 'Send message' || label === 'New conversation') {
+      followLiveEdge = true;
+    }
+    if (
+      label === 'Send message'
+      || label === 'New conversation'
+      || label === 'Expand work specification'
+      || label === 'Collapse work specification'
+      || label === 'Approve work specification'
+      || label === 'Refresh work specification draft'
+    ) {
+      scheduleSettledLiveEdge();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || !isEditable(event.target)) return;
+    if ((event.target as HTMLElement).getAttribute('aria-label') !== 'Message Parallax') return;
+    followLiveEdge = true;
+    scheduleSettledLiveEdge();
+  });
+
+  window.addEventListener('resize', scheduleSettledLiveEdge);
+  window.addEventListener('orientationchange', scheduleSettledLiveEdge);
+  attachThread();
+  scheduleSettledLiveEdge();
+}
+
 export function installMobileViewportGuard() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const guardedWindow = window as GuardedWindow;
@@ -41,26 +137,29 @@ export function installMobileViewportGuard() {
 
   installMobileInputSizing();
 
+  const root = document.getElementById('root');
+  if (root) installConversationLiveEdgeGuard(root);
+
   let focusedEditable = isEditable(document.activeElement);
   let baseline: RootBaseline | null = null;
   let applied = false;
   let frame = 0;
 
-  const restore = (root: HTMLElement) => {
+  const restore = (rootElement: HTMLElement) => {
     if (!applied || !baseline) return;
-    root.style.height = baseline.height;
-    root.style.transform = baseline.transform;
-    root.style.transformOrigin = baseline.transformOrigin;
-    delete root.dataset.parallaxKeyboardVisible;
+    rootElement.style.height = baseline.height;
+    rootElement.style.transform = baseline.transform;
+    rootElement.style.transformOrigin = baseline.transformOrigin;
+    delete rootElement.dataset.parallaxKeyboardVisible;
     baseline = null;
     applied = false;
   };
 
   const apply = () => {
     frame = 0;
-    const root = document.getElementById('root');
+    const rootElement = document.getElementById('root');
     const viewport = window.visualViewport;
-    if (!root || !viewport) return;
+    if (!rootElement || !viewport) return;
 
     const layoutHeight = window.innerHeight;
     const viewportReduction = Math.max(0, layoutHeight - viewport.height);
@@ -69,23 +168,23 @@ export function installMobileViewportGuard() {
       && Math.max(viewportReduction, bottomOcclusion) >= KEYBOARD_REDUCTION_THRESHOLD;
 
     if (!keyboardLikely) {
-      restore(root);
+      restore(rootElement);
       return;
     }
 
     if (!applied) {
       baseline = {
-        height: root.style.height,
-        transform: root.style.transform,
-        transformOrigin: root.style.transformOrigin,
+        height: rootElement.style.height,
+        transform: rootElement.style.transform,
+        transformOrigin: rootElement.style.transformOrigin,
       };
       applied = true;
     }
 
-    root.style.height = `${Math.round(viewport.height)}px`;
-    root.style.transform = `translateY(${Math.round(viewport.offsetTop)}px)`;
-    root.style.transformOrigin = 'top left';
-    root.dataset.parallaxKeyboardVisible = 'true';
+    rootElement.style.height = `${Math.round(viewport.height)}px`;
+    rootElement.style.transform = `translateY(${Math.round(viewport.offsetTop)}px)`;
+    rootElement.style.transformOrigin = 'top left';
+    rootElement.dataset.parallaxKeyboardVisible = 'true';
   };
 
   const schedule = () => {
