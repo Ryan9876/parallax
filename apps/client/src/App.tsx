@@ -59,7 +59,10 @@ export default function App() {
   const [accessDraft, setAccessDraft] = React.useState('');
   const [accessError, setAccessError] = React.useState('');
   const [accessBusy, setAccessBusy] = React.useState(false);
+  const [composerHeight, setComposerHeight] = React.useState(86);
   const pendingRefreshRef = React.useRef<string | null>(null);
+  const threadRef = React.useRef<ScrollView>(null);
+  const liveEdgeRef = React.useRef(true);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
   const engineering = useEngineeringRun(conversationId, mode === 'code');
@@ -79,6 +82,27 @@ export default function App() {
     globalThis.localStorage?.setItem('parallax:p2:draft', draft);
   }, [draft]);
 
+  const scrollToLiveEdge = React.useCallback((animated = true) => {
+    requestAnimationFrame(() => threadRef.current?.scrollToEnd({ animated }));
+  }, []);
+
+  React.useEffect(() => {
+    if (!activePrintId) return;
+    liveEdgeRef.current = true;
+    const timer = setTimeout(() => scrollToLiveEdge(true), 24);
+    return () => clearTimeout(timer);
+  }, [activePrintId, scrollToLiveEdge]);
+
+  const handleThreadScroll = React.useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    liveEdgeRef.current = distanceFromEnd < 120;
+  }, []);
+
+  const handleThreadContentSizeChange = React.useCallback(() => {
+    if (activePrintId && liveEdgeRef.current) scrollToLiveEdge(false);
+  }, [activePrintId, scrollToLiveEdge]);
+
   const updateConversationSummary = React.useCallback((conversation: ConversationDto) => {
     setConversations((current) => {
       const without = current.filter((item) => item.id !== conversation.id);
@@ -93,6 +117,7 @@ export default function App() {
     setActivePrintId(null);
     setStreamFinished(true);
     pendingRefreshRef.current = null;
+    liveEdgeRef.current = true;
     updateConversationSummary(conversation);
   }, [updateConversationSummary]);
 
@@ -226,6 +251,7 @@ export default function App() {
     const content = draft.trim();
     if (!content) return;
 
+    liveEdgeRef.current = true;
     let id = conversationId;
     try {
       if (!id) {
@@ -252,6 +278,7 @@ export default function App() {
       setStreamFinished(false);
       pendingRefreshRef.current = id;
       dispatch({ type: 'START_THINKING' });
+      setTimeout(() => scrollToLiveEdge(true), 20);
 
       const startAssistant = () => {
         if (assistantStarted) return;
@@ -338,7 +365,7 @@ export default function App() {
       }
       dispatch({ type: 'FAIL', error: error instanceof Error ? error.message : 'Response failed' });
     }
-  }, [applyConversation, conversationId, draft, lockAccess, mode, state.phase, updateConversationSummary]);
+  }, [applyConversation, conversationId, draft, lockAccess, mode, scrollToLiveEdge, state.phase, updateConversationSummary]);
 
   const finishPrint = React.useCallback(
     (messageId: string) => {
@@ -416,20 +443,25 @@ export default function App() {
         <View style={styles.shell}>
           {!compact && (
             <View style={styles.rail}>
+              <View pointerEvents="none" style={styles.railAura} />
               <View style={styles.brandRow}>
-                <ParallaxLogo size={38} />
-                <View>
+                <ParallaxLogo size={46} />
+                <View style={styles.brandCopy}>
                   <Text style={styles.brand}>PARALLAX</Text>
                   <Text style={styles.brandSub}>OPTICAL WORKSPACE · 2.0</Text>
+                  <View style={styles.brandStateRow}>
+                    <View style={[styles.onlineDot, !apiOnline && styles.offlineDot]} />
+                    <Text style={styles.brandState}>{apiOnline ? 'CONTEXT ONLINE' : 'VISUAL FALLBACK'}</Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.railHeading}>
                 <Text style={styles.railLabel}>Conversations</Text>
-                <TouchableOpacity onPress={() => void startConversation(mode)} accessibilityRole="button">
+                <TouchableOpacity onPress={() => void startConversation(mode)} accessibilityRole="button" style={styles.newChatButton}>
                   <Text style={styles.newChat}>NEW +</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView style={styles.recentList}>
+              <ScrollView style={styles.recentList} showsVerticalScrollIndicator={false}>
                 {conversations.slice(0, 12).map((conversation) => (
                   <TouchableOpacity
                     key={conversation.id}
@@ -443,15 +475,16 @@ export default function App() {
               </ScrollView>
               <View style={styles.railBottom}>
                 <Text style={styles.railStatus}>{activeConversation?.spec_id ?? 'P2-V0.3.0'}</Text>
-                <Text style={styles.railMuted}>{apiOnline ? 'CONTEXT ONLINE' : 'VISUAL FALLBACK · API OFFLINE'}</Text>
+                <Text style={styles.railMuted}>{apiOnline ? 'PRIVATE WORKSPACE' : 'API OFFLINE'}</Text>
               </View>
             </View>
           )}
 
           <View style={styles.main}>
             <View style={styles.topbar}>
+              <View pointerEvents="none" style={styles.topbarAura} />
               <View style={styles.topbarTitleRow}>
-                {compact && <ParallaxLogo size={32} />}
+                {compact && <ParallaxLogo size={34} />}
                 <View>
                   <Text style={styles.topTitle}>Parallax</Text>
                   <Text style={styles.topSub}>{state.phase.toLowerCase()} · {activeConversation?.spec_id ?? 'unbound specification'}</Text>
@@ -491,10 +524,18 @@ export default function App() {
               />
             )}
 
-            <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              ref={threadRef}
+              style={styles.threadScroll}
+              contentContainerStyle={[styles.thread, { paddingBottom: Math.max(118, composerHeight + 34) }]}
+              keyboardShouldPersistTaps="handled"
+              onScroll={handleThreadScroll}
+              onContentSizeChange={handleThreadContentSizeChange}
+              scrollEventThrottle={32}
+            >
               {messages.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <ParallaxLogo size={44} />
+                  <ParallaxLogo size={48} />
                   <Text style={styles.emptyTitle}>Define the outcome.</Text>
                   <Text style={styles.emptyCopy}>Describe what you are trying to accomplish. Parallax keeps the objective, evidence, specification, and execution state aligned while the work evolves.</Text>
                 </View>
@@ -509,13 +550,13 @@ export default function App() {
                 ) : message.role === 'assistant' ? (
                   <View key={message.id} style={styles.assistantBlock}>
                     <View style={styles.assistantHead}>
-                      <ParallaxLogo size={30} />
+                      <ParallaxLogo size={32} />
                       <View>
                         <Text style={styles.assistantName}>PARALLAX 2.0</Text>
                         <Text style={styles.meta}>{mode === 'reason' ? 'REASON' : 'CODE'} · {message.id === activePrintId ? 'RESPONDING' : 'COMPLETE'}</Text>
                       </View>
                     </View>
-                    <View style={styles.responseGlass}>
+                    <View accessibilityLabel="Parallax response" testID="assistant-response" style={styles.responseGlass}>
                       {message.id === activePrintId ? (
                         <LaserTypesetter
                           text={message.content}
@@ -529,7 +570,7 @@ export default function App() {
                       {message.id === activePrintId && (
                         <View style={styles.statusRow}>
                           <View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} />
-                          <Text style={styles.statusText}>{streamFinished ? 'FINISHING INSCRIPTION' : 'OPTICAL RENDERER ACTIVE'}</Text>
+                          <Text style={styles.statusText}>{streamFinished ? 'FINISHING INSCRIPTION' : 'OPTICAL ENGRAVING ACTIVE'}</Text>
                         </View>
                       )}
                     </View>
@@ -539,7 +580,7 @@ export default function App() {
 
               {state.phase === 'THINKING' && (
                 <View style={styles.thinkingRow}>
-                  <ParallaxLogo size={24} />
+                  <ParallaxLogo size={26} />
                   <Text style={styles.thinkingText}>Resolving the active objective…</Text>
                 </View>
               )}
@@ -555,7 +596,10 @@ export default function App() {
               {state.phase === 'ERROR' && <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text>}
             </ScrollView>
 
-            <View style={styles.composerWrap}>
+            <View
+              onLayout={(event) => setComposerHeight(Math.ceil(event.nativeEvent.layout.height))}
+              style={styles.composerWrap}
+            >
               <View style={styles.composer}>
                 {compact && (
                   <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation">
@@ -586,57 +630,72 @@ export default function App() {
 
 const styles = StyleSheet.create({
   accessRoot: { flex: 1, backgroundColor: palette.void, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 14, padding: 30, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 22, padding: 30, backgroundColor: palette.glassStrong, borderWidth: 0, shadowColor: '#8F63D8', shadowOpacity: 0.18, shadowRadius: 30, shadowOffset: { width: 0, height: 14 } },
   accessTitle: { color: palette.text, fontSize: 22, fontWeight: '600', marginTop: 14, letterSpacing: -0.4 },
   accessCopy: { color: palette.textSecondary, fontSize: 12, marginTop: 5, marginBottom: 22, letterSpacing: 0.4 },
-  accessInput: { width: '100%', minHeight: 48, borderRadius: 8, paddingHorizontal: 14, color: palette.text, backgroundColor: palette.surfaceRaised, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
-  accessButton: { width: '100%', minHeight: 46, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep, marginTop: 8 },
+  accessInput: { width: '100%', minHeight: 48, borderRadius: 14, paddingHorizontal: 14, color: palette.text, backgroundColor: palette.surfaceRaised, borderWidth: 0 },
+  accessButton: { width: '100%', minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep, marginTop: 8 },
   accessButtonText: { color: palette.text, fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
   root: { flex: 1, backgroundColor: palette.void },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },
   rail: {
-    width: 196,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: palette.border,
-    backgroundColor: 'rgba(8,11,18,0.82)',
+    position: 'relative',
+    width: 218,
+    backgroundColor: 'rgba(7,9,18,0.78)',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 18,
     paddingBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#090713',
+    shadowOpacity: 0.34,
+    shadowRadius: 26,
+    shadowOffset: { width: 8, height: 0 },
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 38 },
-  brand: { fontSize: 12, fontWeight: '800', color: palette.text, letterSpacing: 1.35 },
-  brandSub: { fontSize: 8, color: palette.violet, marginTop: 3, letterSpacing: 0.75 },
-  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  railAura: { position: 'absolute', width: 220, height: 220, borderRadius: 110, left: -90, top: -92, backgroundColor: 'rgba(111,70,210,0.11)' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30, paddingHorizontal: 2 },
+  brandCopy: { flex: 1, minWidth: 0 },
+  brand: { fontSize: 12, fontWeight: '800', color: palette.text, letterSpacing: 1.45 },
+  brandSub: { fontSize: 7.5, color: palette.violet, marginTop: 3, letterSpacing: 0.72 },
+  brandStateRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },
+  onlineDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.success },
+  offlineDot: { backgroundColor: palette.muted },
+  brandState: { color: palette.muted, fontSize: 6.5, fontWeight: '700', letterSpacing: 0.7 },
+  railHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 },
   railLabel: { fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.55, color: palette.muted },
-  newChat: { fontSize: 8, color: palette.cyan, fontWeight: '800', letterSpacing: 0.9 },
+  newChatButton: { minHeight: 28, paddingHorizontal: 9, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(125,231,255,0.07)' },
+  newChat: { fontSize: 7.5, color: palette.cyan, fontWeight: '800', letterSpacing: 0.85 },
   recentList: { flex: 1 },
-  railItemActive: { paddingHorizontal: 10, paddingVertical: 10, borderLeftWidth: 2, borderLeftColor: palette.violet, backgroundColor: palette.violetWash, marginBottom: 2 },
-  railItem: { paddingHorizontal: 12, paddingVertical: 10, marginBottom: 2, borderLeftWidth: 2, borderLeftColor: 'transparent' },
+  railItemActive: { paddingHorizontal: 12, paddingVertical: 11, borderRadius: 14, backgroundColor: 'rgba(123,91,180,0.24)', marginBottom: 5, shadowColor: '#8F63D8', shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
+  railItem: { paddingHorizontal: 12, paddingVertical: 10, marginBottom: 4, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.012)' },
   railItemText: { fontSize: 11, lineHeight: 15, color: palette.textSoft },
-  railMuted: { fontSize: 8, color: palette.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
-  railBottom: { gap: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  railMuted: { fontSize: 7.5, color: palette.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
+  railBottom: { gap: 4, paddingTop: 13, paddingHorizontal: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
   railStatus: { fontSize: 8, color: palette.indigo, letterSpacing: 0.9, fontWeight: '700' },
   main: { flex: 1, minWidth: 0 },
   topbar: {
-    minHeight: 62,
+    position: 'relative',
+    minHeight: 66,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-    backgroundColor: 'rgba(8,11,18,0.52)',
+    borderBottomColor: 'rgba(167,151,255,0.16)',
+    backgroundColor: 'rgba(11,10,24,0.62)',
+    overflow: 'hidden',
   },
+  topbarAura: { position: 'absolute', width: 380, height: 110, borderRadius: 190, right: 100, top: -58, backgroundColor: 'rgba(117,72,211,0.10)' },
   topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   topTitle: { fontSize: 15, fontWeight: '600', color: palette.text, letterSpacing: -0.2 },
-  topSub: { fontSize: 8, color: palette.textSecondary, marginTop: 3, letterSpacing: 0.55 },
-  modeSwitch: { flexDirection: 'row', borderRadius: 6, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, backgroundColor: palette.glassSoft },
-  modeButton: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 4 },
-  modeButtonActive: { backgroundColor: palette.violetDeep },
+  topSub: { fontSize: 7.5, color: palette.textSecondary, marginTop: 3, letterSpacing: 0.58 },
+  modeSwitch: { flexDirection: 'row', borderRadius: 15, padding: 3, backgroundColor: 'rgba(92,81,135,0.15)', shadowColor: '#8F63D8', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  modeButton: { minHeight: 34, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  modeButtonActive: { backgroundColor: 'rgba(143,99,216,0.82)' },
   modeText: { fontSize: 8, textTransform: 'uppercase', color: palette.textSecondary, fontWeight: '700', letterSpacing: 0.8 },
   modeTextActive: { color: palette.text },
-  thread: { width: '100%', maxWidth: 860, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 46, paddingBottom: 154 },
+  threadScroll: { flex: 1 },
+  thread: { width: '100%', maxWidth: 860, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 34 },
   emptyState: { maxWidth: 540, alignSelf: 'center', alignItems: 'center', paddingTop: 92, paddingHorizontal: 24 },
   emptyTitle: { color: palette.text, fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
   emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
@@ -679,8 +738,7 @@ const styles = StyleSheet.create({
   thinkingText: { color: palette.textSecondary, fontSize: 10, letterSpacing: 0.3 },
   phaseHint: { color: palette.textSecondary, fontSize: 10, marginBottom: 24 },
   amendmentNotice: {
-    borderLeftWidth: 3,
-    borderLeftColor: palette.indigo,
+    borderRadius: 18,
     backgroundColor: 'rgba(139,156,255,0.08)',
     paddingHorizontal: 16,
     paddingVertical: 13,
@@ -689,7 +747,7 @@ const styles = StyleSheet.create({
   amendmentTitle: { color: palette.text, fontSize: 10, fontWeight: '800', marginBottom: 5, letterSpacing: 0.45 },
   amendmentText: { color: palette.textSecondary, fontSize: 11, lineHeight: 17 },
   errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingBottom: 16, paddingTop: 8 },
+  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingBottom: 16, paddingTop: 8, backgroundColor: 'rgba(8,11,18,0.08)' },
   composer: {
     maxWidth: 820,
     width: '100%',
@@ -699,12 +757,12 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 8,
     borderRadius: 22,
-    backgroundColor: 'rgba(118, 122, 138, 0.14)',
+    backgroundColor: 'rgba(118, 122, 138, 0.15)',
     borderWidth: 0,
     shadowColor: '#8F63D8',
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.13,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
   },
   newMobile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,156,255,0.13)' },
   newMobileText: { color: palette.indigo, fontSize: 18 },

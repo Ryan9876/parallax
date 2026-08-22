@@ -1,13 +1,20 @@
 import React from 'react';
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
-import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
-import { useClock } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Image,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { palette } from '../theme';
+import { PARALLAX_KNOT_URI } from './ParallaxLogoAsset';
 
 export function ParallaxLogo({ size = 44 }: { size?: number }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
-  const clock = useClock();
+  const spin = React.useRef(new Animated.Value(0)).current;
+  const sweep = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -15,73 +22,167 @@ export function ParallaxLogo({ size = 44 }: { size?: number }) {
     return () => sub.remove();
   }, []);
 
-  const phase = useDerivedValue(() => {
-    if (reduceMotion) return 0;
-    return Math.sin((clock.value / 1000) * (Math.PI * 2 / 16));
-  }, [reduceMotion]);
+  React.useEffect(() => {
+    spin.stopAnimation();
+    sweep.stopAnimation();
+    spin.setValue(0);
+    sweep.setValue(0);
+    if (reduceMotion) return;
 
-  const aperture = React.useMemo(() => {
-    const p = Skia.Path.Make();
-    const c = size / 2;
-    const r = size * 0.28;
-    p.moveTo(c, c - r);
-    p.quadTo(c + r * 1.15, c, c, c + r * 1.15);
-    p.quadTo(c - r * 1.15, c, c, c - r);
-    p.close();
-    return p;
-  }, [size]);
+    const spinLoop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 36000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const sweepLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(900),
+        Animated.timing(sweep, {
+          toValue: 1,
+          duration: 7600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.delay(1100),
+        Animated.timing(sweep, {
+          toValue: 0,
+          duration: 7200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
 
-  const editorialCut = React.useMemo(() => {
-    const p = Skia.Path.Make();
-    p.moveTo(size * 0.18, size * 0.68);
-    p.quadTo(size * 0.33, size * 0.82, size * 0.48, size * 0.78);
-    return p;
-  }, [size]);
+    spinLoop.start();
+    sweepLoop.start();
+    return () => {
+      spinLoop.stop();
+      sweepLoop.stop();
+    };
+  }, [reduceMotion, spin, sweep]);
+
+  const rotation = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const sweepX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-size * 1.05, size * 1.05] });
+  const sweepY = sweep.interpolate({ inputRange: [0, 1], outputRange: [size * 0.16, -size * 0.12] });
+
+  const webMask = Platform.OS === 'web'
+    ? ({
+        WebkitMaskImage: `url("${PARALLAX_KNOT_URI}")`,
+        maskImage: `url("${PARALLAX_KNOT_URI}")`,
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center',
+        maskPosition: 'center',
+        WebkitMaskSize: 'contain',
+        maskSize: 'contain',
+      } as any)
+    : null;
 
   return (
-    <View accessibilityLabel="Parallax optical mark" style={{ width: size, height: size }}>
-      <Canvas style={StyleSheet.absoluteFill}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.44}
-          color="rgba(125,231,255,0.30)"
-          style="stroke"
-          strokeWidth={1.2}
+    <View
+      accessibilityLabel="Parallax animated knot mark"
+      testID="parallax-knot-logo"
+      style={{ width: size, height: size }}
+    >
+      <Animated.View
+        style={[
+          styles.rotor,
+          {
+            width: size,
+            height: size,
+            transform: [{ rotate: reduceMotion ? '0deg' : rotation }],
+          },
+        ]}
+      >
+        <Image
+          resizeMode="contain"
+          source={{ uri: PARALLAX_KNOT_URI }}
+          style={[
+            styles.image,
+            { width: size, height: size },
+            Platform.OS === 'web' ? ({ filter: 'drop-shadow(0 5px 10px rgba(80,55,180,0.28))' } as any) : null,
+          ]}
         />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.35}
-          color="rgba(139,156,255,0.52)"
-          style="stroke"
-          strokeWidth={1.1}
-        />
-        <Path
-          path={aperture}
-          color={palette.violet}
-          style="stroke"
-          strokeWidth={2.4}
-        />
-        <Path
-          path={editorialCut}
-          color={palette.peach}
-          style="stroke"
-          strokeWidth={1.2}
-        />
-        <Circle
-          cx={size / 2 + phase.value * size * 0.08}
-          cy={size / 2}
-          r={size * 0.07}
-          color={palette.cyan}
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.03}
-          color={palette.cream}
-        />
-      </Canvas>
+
+        {!reduceMotion && Platform.OS === 'web' ? (
+          <View pointerEvents="none" style={[styles.sweepMask, webMask]}>
+            <Animated.View
+              style={[
+                styles.sweepBand,
+                styles.sweepBandCyan,
+                {
+                  width: size * 0.34,
+                  height: size * 1.65,
+                  transform: [
+                    { translateX: sweepX },
+                    { translateY: sweepY },
+                    { rotate: '18deg' },
+                  ],
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.sweepBand,
+                styles.sweepBandViolet,
+                {
+                  width: size * 0.22,
+                  height: size * 1.65,
+                  transform: [
+                    { translateX: Animated.add(sweepX, size * 0.18) },
+                    { translateY: sweepY },
+                    { rotate: '18deg' },
+                  ],
+                },
+              ]}
+            />
+          </View>
+        ) : null}
+      </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  rotor: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  sweepMask: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+  },
+  sweepBand: {
+    position: 'absolute',
+    left: '50%',
+    top: '-30%',
+    borderRadius: 999,
+  },
+  sweepBandCyan: {
+    backgroundColor: 'rgba(125,231,255,0.42)',
+    shadowColor: palette.cyan,
+    shadowOpacity: 0.48,
+    shadowRadius: 12,
+  },
+  sweepBandViolet: {
+    backgroundColor: 'rgba(225,145,255,0.30)',
+    shadowColor: palette.violet,
+    shadowOpacity: 0.40,
+    shadowRadius: 10,
+  },
+});

@@ -3,10 +3,8 @@ import { AccessibilityInfo, LayoutChangeEvent, StyleSheet, Text, View } from 're
 import { Canvas, Circle, Line, vec } from '@shopify/react-native-skia';
 import { palette } from '../theme';
 
-const CHAR_MS = 17;
-const HOT_TAIL = 11;
-const START_DELAY_MS = 80;
-const COOL_DELAY_MS = 260;
+const HOT_TAIL = 8;
+const COOL_DELAY_MS = 240;
 
 type MeasuredLine = {
   text: string;
@@ -25,16 +23,17 @@ type HeadPosition = {
 };
 
 function OpticalHead({ height }: { height: number }) {
-  const canvasHeight = Math.max(34, height + 8);
+  const canvasHeight = Math.max(30, height + 6);
   const center = canvasHeight / 2;
   return (
-    <Canvas style={{ width: 112, height: canvasHeight }} pointerEvents="none">
-      <Line p1={vec(8, center)} p2={vec(103, center)} color="rgba(209,139,255,0.42)" strokeWidth={1.05} />
-      <Line p1={vec(42, center + 2)} p2={vec(103, center + 2)} color="rgba(139,156,255,0.22)" strokeWidth={2.0} />
-      <Line p1={vec(103, 7)} p2={vec(103, canvasHeight - 7)} color="rgba(209,139,255,0.72)" strokeWidth={1.35} />
-      <Circle cx={103} cy={center} r={3.8} color={palette.cyan} opacity={0.96} />
-      <Circle cx={103} cy={center} r={8.5} color="rgba(139,156,255,0.23)" />
-      <Circle cx={103} cy={center} r={12} color="rgba(209,139,255,0.10)" />
+    <Canvas style={{ width: 48, height: canvasHeight }} pointerEvents="none">
+      <Line p1={vec(8, center + 1.4)} p2={vec(34, center + 1.4)} color="rgba(139,156,255,0.34)" strokeWidth={4.2} />
+      <Line p1={vec(15, center)} p2={vec(38, center)} color="rgba(209,139,255,0.68)" strokeWidth={1.7} />
+      <Line p1={vec(29, center - 1)} p2={vec(40, center - 1)} color="rgba(244,242,255,0.92)" strokeWidth={0.9} />
+      <Circle cx={40} cy={center} r={8.0} color="rgba(209,139,255,0.11)" />
+      <Circle cx={40} cy={center} r={4.4} color="rgba(125,231,255,0.28)" />
+      <Circle cx={40} cy={center} r={2.5} color={palette.cyan} opacity={0.98} />
+      <Circle cx={40} cy={center} r={0.9} color={palette.text} opacity={0.98} />
     </Canvas>
   );
 }
@@ -60,13 +59,6 @@ function lineForIndex(lines: readonly MeasuredLine[], index: number): MeasuredLi
   return exact ?? lines[lines.length - 1] ?? null;
 }
 
-function characterDelay(character: string): number {
-  if (/[.!?]/.test(character)) return CHAR_MS * 4.0;
-  if (/[,;:]/.test(character)) return CHAR_MS * 2.0;
-  if (/\s/.test(character)) return CHAR_MS * 0.42;
-  return CHAR_MS;
-}
-
 export function LaserTypesetter({
   text,
   active,
@@ -79,21 +71,16 @@ export function LaserTypesetter({
   onComplete?: () => void;
 }) {
   const [reduceMotion, setReduceMotion] = React.useState(false);
-  const [visibleCount, setVisibleCount] = React.useState(active ? 0 : text.length);
   const [head, setHead] = React.useState<HeadPosition>({ x: 0, y: 0, lineHeight: 30 });
   const [beamVisible, setBeamVisible] = React.useState(false);
   const [cooled, setCooled] = React.useState(!active);
 
-  const textRef = React.useRef(text);
-  const streamCompleteRef = React.useRef(streamComplete);
   const measuredLinesRef = React.useRef<MeasuredLine[]>([]);
   const containerWidthRef = React.useRef(0);
   const completionRef = React.useRef(onComplete);
-  const runRef = React.useRef(0);
   const completionSentRef = React.useRef(false);
+  const coolTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => { textRef.current = text; }, [text]);
-  React.useEffect(() => { streamCompleteRef.current = streamComplete; }, [streamComplete]);
   React.useEffect(() => { completionRef.current = onComplete; }, [onComplete]);
 
   React.useEffect(() => {
@@ -106,18 +93,17 @@ export function LaserTypesetter({
     containerWidthRef.current = event.nativeEvent.layout.width;
   }, []);
 
-  const onTextLayout = React.useCallback((event: { nativeEvent: { lines: Array<{ text: string; x: number; y: number; width: number; height: number }> } }) => {
-    measuredLinesRef.current = indexMeasuredLines(text, event.nativeEvent.lines);
-  }, [text]);
-
   const updateHead = React.useCallback((index: number) => {
     if (index <= 0) return;
-    const targetText = textRef.current;
     const measured = lineForIndex(measuredLinesRef.current, index - 1);
     if (measured) {
       const span = Math.max(1, measured.end - measured.start);
       const within = Math.max(0, Math.min(span, index - measured.start));
-      setHead({ x: measured.x + measured.width * (within / span), y: measured.y, lineHeight: measured.height });
+      setHead({
+        x: measured.x + measured.width * (within / span),
+        y: measured.y,
+        lineHeight: measured.height,
+      });
       return;
     }
 
@@ -126,105 +112,76 @@ export function LaserTypesetter({
     const approximateLineLength = Math.max(24, Math.floor(containerWidth / 8.7));
     const approximateLine = Math.floor((index - 1) / approximateLineLength);
     const within = index % approximateLineLength;
-    const finalLine = Math.max(0, Math.ceil(targetText.length / approximateLineLength) - 1);
     setHead({
       x: Math.min(containerWidth, (within / approximateLineLength) * containerWidth),
-      y: Math.min(approximateLine, finalLine) * 29,
+      y: Math.max(0, approximateLine) * 29,
       lineHeight: 29,
     });
   }, []);
 
-  React.useEffect(() => {
-    if (!active || !reduceMotion) return;
-    setVisibleCount(text.length);
-    setBeamVisible(false);
-    setCooled(true);
-    if (streamComplete && !completionSentRef.current) {
-      completionSentRef.current = true;
-      queueMicrotask(() => completionRef.current?.());
-    }
-  }, [active, reduceMotion, streamComplete, text]);
+  const onTextLayout = React.useCallback((event: { nativeEvent: { lines: Array<{ text: string; x: number; y: number; width: number; height: number }> } }) => {
+    measuredLinesRef.current = indexMeasuredLines(text, event.nativeEvent.lines);
+    if (active && text.length > 0 && !reduceMotion) updateHead(text.length);
+  }, [active, reduceMotion, text, updateHead]);
 
   React.useEffect(() => {
-    const run = ++runRef.current;
-    completionSentRef.current = false;
+    if (coolTimerRef.current) {
+      clearTimeout(coolTimerRef.current);
+      coolTimerRef.current = null;
+    }
 
     if (!active) {
-      setVisibleCount(textRef.current.length);
       setBeamVisible(false);
       setCooled(true);
+      completionSentRef.current = false;
       return;
     }
-    if (reduceMotion) return;
 
-    let displayed = 0;
-    let budget = -START_DELAY_MS;
-    let lastFrame: number | null = null;
-    let frame: number | null = null;
-    let coolStartedAt: number | null = null;
-
-    setVisibleCount(0);
-    setBeamVisible(false);
-    setCooled(false);
-    setHead({ x: 0, y: 0, lineHeight: 30 });
-
-    const tick = (now: number) => {
-      if (run !== runRef.current) return;
-      if (lastFrame === null) lastFrame = now;
-      budget += Math.min(100, Math.max(0, now - lastFrame));
-      lastFrame = now;
-
-      const target = textRef.current;
-      let next = displayed;
-      while (next < target.length) {
-        const delay = characterDelay(target[next] ?? '');
-        if (budget < delay) break;
-        budget -= delay;
-        next += 1;
+    if (reduceMotion) {
+      setBeamVisible(false);
+      setCooled(true);
+      if (streamComplete && !completionSentRef.current) {
+        completionSentRef.current = true;
+        queueMicrotask(() => completionRef.current?.());
       }
+      return;
+    }
 
-      if (next !== displayed) {
-        displayed = next;
-        setVisibleCount(displayed);
-        updateHead(displayed);
-      }
+    if (text.length > 0) {
+      setBeamVisible(!streamComplete);
+      setCooled(false);
+      requestAnimationFrame(() => updateHead(text.length));
+    }
 
-      const caughtUp = displayed >= target.length;
-      const finished = caughtUp && streamCompleteRef.current;
-      if (finished) {
+    if (streamComplete) {
+      setBeamVisible(text.length > 0);
+      coolTimerRef.current = setTimeout(() => {
         setBeamVisible(false);
-        if (coolStartedAt === null) coolStartedAt = now;
-        if (now - coolStartedAt >= COOL_DELAY_MS) {
-          setCooled(true);
-          if (!completionSentRef.current) {
-            completionSentRef.current = true;
-            completionRef.current?.();
-          }
-          return;
+        setCooled(true);
+        if (!completionSentRef.current) {
+          completionSentRef.current = true;
+          completionRef.current?.();
         }
-      } else {
-        coolStartedAt = null;
-        setBeamVisible(target.length > 0);
-      }
-      frame = requestAnimationFrame(tick);
-    };
+      }, COOL_DELAY_MS);
+    }
 
-    frame = requestAnimationFrame(tick);
     return () => {
-      runRef.current += 1;
-      if (frame !== null) cancelAnimationFrame(frame);
+      if (coolTimerRef.current) {
+        clearTimeout(coolTimerRef.current);
+        coolTimerRef.current = null;
+      }
     };
-  }, [active, reduceMotion, updateHead]);
+  }, [active, reduceMotion, streamComplete, text, updateHead]);
 
-  React.useEffect(() => {
-    if (!active) setVisibleCount(text.length);
-  }, [active, text]);
+  React.useEffect(() => () => {
+    if (coolTimerRef.current) clearTimeout(coolTimerRef.current);
+  }, []);
 
-  const boundedVisibleCount = Math.min(visibleCount, text.length);
-  const coolEnd = cooled ? boundedVisibleCount : Math.max(0, boundedVisibleCount - HOT_TAIL);
+  const coolEnd = cooled ? text.length : Math.max(0, text.length - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
-  const hotText = text.slice(coolEnd, boundedVisibleCount);
-  const beamHeight = Math.max(34, head.lineHeight + 8);
+  const hotText = text.slice(coolEnd);
+  const hotTailActive = !cooled && Boolean(hotText);
+  const beamHeight = Math.max(30, head.lineHeight + 6);
 
   return (
     <View onLayout={onLayout} style={styles.container}>
@@ -234,20 +191,25 @@ export function LaserTypesetter({
       <View style={styles.visibleText}>
         <Text selectable accessibilityLiveRegion="polite" style={styles.text}>
           {coolText}
-          <Text style={!cooled && hotText ? styles.hotText : undefined}>{hotText}</Text>
+          <Text testID={hotTailActive ? 'energized-glyph-tail' : undefined} style={hotTailActive ? styles.hotText : undefined}>{hotText}</Text>
         </Text>
       </View>
-      {beamVisible && (
+      {beamVisible && text.length > 0 ? (
         <View
+          accessibilityLabel="Optical engraving head"
+          testID="optical-engraving-head"
           pointerEvents="none"
           style={[
             styles.beam,
-            { height: beamHeight, transform: [{ translateX: head.x - 103 }, { translateY: head.y - 4 }] },
+            {
+              height: beamHeight,
+              transform: [{ translateX: head.x - 40 }, { translateY: head.y - 3 }],
+            },
           ]}
         >
           <OpticalHead height={head.lineHeight} />
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -258,9 +220,10 @@ const styles = StyleSheet.create({
   visibleText: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   text: { color: palette.text, fontSize: 18, lineHeight: 29, letterSpacing: -0.1 },
   hotText: {
-    color: '#E9D9FF',
-    textShadowColor: 'rgba(176,122,255,0.82)',
-    textShadowRadius: 7,
+    color: '#F1E5FF',
+    textShadowColor: 'rgba(194,126,255,0.92)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
-  beam: { position: 'absolute', top: 0, left: 0, width: 112 },
+  beam: { position: 'absolute', top: 0, left: 0, width: 48 },
 });
