@@ -241,3 +241,18 @@ def test_commit_rechecks_preimage_and_refuses_racy_overwrite(tmp_path):
     with pytest.raises(StaleBaseError):
         engine.commit(tmp_path, prepared)
     assert target.read_text(encoding="utf-8") == "external = True\n"
+
+
+def test_noop_or_effectively_unchanged_patch_is_rejected(tmp_path):
+    target = tmp_path / "app.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+    engine = TextPatchEngine()
+
+    empty_hunk = "--- a/app.py\n+++ b/app.py\n@@ -1,0 +1,0 @@\n"
+    with pytest.raises(PatchConflictError):
+        engine.prepare(tmp_path, SourcePatch("app.py", digest(target.read_bytes()), empty_hunk))
+
+    same_content = "--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-x = 1\n+x = 1\n"
+    with pytest.raises(PatchConflictError):
+        engine.prepare(tmp_path, SourcePatch("app.py", digest(target.read_bytes()), same_content))
+    assert target.read_text(encoding="utf-8") == "x = 1\n"
