@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import type { WorkSpecificationDto } from '../lib/api';
+import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { api, type WorkSpecificationDto } from '../lib/api';
 import { palette } from '../theme';
 
 function Section({ label, items }: { label: string; items: string[] }) {
@@ -20,34 +20,67 @@ export function WorkSpecificationStatus({
   busy,
   error,
   canDraft,
-  canResumeApprovedScope = false,
   onDraft,
   onApprove,
-  onResumeApprovedScope,
   reducedGraphics = false,
 }: {
   specification: WorkSpecificationDto | null;
   busy: boolean;
   error: string | null;
   canDraft: boolean;
-  canResumeApprovedScope?: boolean;
   onDraft(): void;
   onApprove(): void;
-  onResumeApprovedScope?(): void;
   reducedGraphics?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const compact = width < 760;
   const [expanded, setExpanded] = React.useState(false);
+  const [conversationStatus, setConversationStatus] = React.useState<string | null>(null);
+  const [resumeBusy, setResumeBusy] = React.useState(false);
+  const [resumeError, setResumeError] = React.useState<string | null>(null);
 
   React.useEffect(() => { setExpanded(false); }, [specification?.id]);
+
+  React.useEffect(() => {
+    if (!specification || specification.status !== 'APPROVED') {
+      setConversationStatus(null);
+      setResumeError(null);
+      return;
+    }
+
+    let cancelled = false;
+    void api.getConversation(specification.conversation_id).then((conversation) => {
+      if (!cancelled) setConversationStatus(conversation.status);
+    }).catch(() => {
+      if (!cancelled) setConversationStatus(null);
+    });
+    return () => { cancelled = true; };
+  }, [specification?.conversation_id, specification?.id, specification?.status]);
 
   if (!specification && !canDraft && !error) return null;
 
   const approved = specification?.status === 'APPROVED';
-  const resumable = approved && canResumeApprovedScope && Boolean(onResumeApprovedScope);
+  const resumable = approved && conversationStatus === 'SPEC_AMENDMENT';
+  const working = busy || resumeBusy;
   const statusLabel = specification ? `SPEC · ${specification.status}` : 'SPEC · NOT CAPTURED';
   void reducedGraphics;
+
+  const resumeApprovedScope = async () => {
+    if (!specification || !resumable || working) return;
+    setResumeBusy(true);
+    setResumeError(null);
+    try {
+      const conversation = await api.resumeApprovedScope(specification.conversation_id);
+      setConversationStatus(conversation.status);
+      if (Platform.OS === 'web' && typeof globalThis.location?.reload === 'function') {
+        globalThis.location.reload();
+      }
+    } catch (caught) {
+      setResumeError(caught instanceof Error ? caught.message : 'Approved scope could not be resumed.');
+    } finally {
+      setResumeBusy(false);
+    }
+  };
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]} accessibilityLabel="Work specification">
@@ -86,20 +119,20 @@ export function WorkSpecificationStatus({
               accessibilityRole="button"
               accessibilityLabel="Resume approved scope"
               accessibilityHint="Return this conversation to its current approved work specification"
-              disabled={busy}
-              onPress={onResumeApprovedScope}
+              disabled={working}
+              onPress={() => void resumeApprovedScope()}
               style={[styles.actionButton, styles.resumeButton, compact && styles.actionButtonCompact]}
             >
-              <Text style={styles.resumeText}>{busy ? 'WORKING…' : 'RESUME SCOPE'}</Text>
+              <Text style={styles.resumeText}>{resumeBusy ? 'RESUMING…' : 'RESUME SCOPE'}</Text>
             </TouchableOpacity>
           )}
           {specification?.status === 'DRAFT' && (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Approve work specification" disabled={busy} onPress={onApprove} style={[styles.actionButton, styles.approveButton, compact && styles.actionButtonCompact]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Approve work specification" disabled={working} onPress={onApprove} style={[styles.actionButton, styles.approveButton, compact && styles.actionButtonCompact]}>
               <Text style={styles.approveText}>{busy ? 'WORKING…' : 'APPROVE'}</Text>
             </TouchableOpacity>
           )}
           {canDraft && (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={specification ? 'Refresh work specification draft' : 'Capture work specification'} disabled={busy} onPress={onDraft} style={[styles.actionButton, compact && styles.actionButtonCompact]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={specification ? 'Refresh work specification draft' : 'Capture work specification'} disabled={working} onPress={onDraft} style={[styles.actionButton, compact && styles.actionButtonCompact]}>
               <Text style={styles.actionText}>{busy ? 'DRAFTING…' : specification ? 'REFRESH DRAFT' : 'CAPTURE SPEC'}</Text>
             </TouchableOpacity>
           )}
@@ -117,6 +150,7 @@ export function WorkSpecificationStatus({
         </Text>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {resumeError ? <Text style={styles.error}>{resumeError}</Text> : null}
 
       {specification && expanded ? (
         <View style={[styles.body, compact && styles.bodyCompact]}>
