@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.6
+Version: 1.7
 Status: Authoritative
 
 ## Design direction
@@ -38,6 +38,7 @@ Core production tokens:
 - Verified/success: `#72E3C4`
 - Dark glass: `rgba(13,16,29,0.70)`
 - Strong glass: `rgba(17,21,37,0.90)`
+- Conversation material: neutral-grey/navy translucency in the approximate range `rgba(118–140, 122–144, 138–153, 0.10–0.15)`
 - Optical border: `rgba(167,151,255,0.18)`
 
 Color hierarchy is intentional:
@@ -72,28 +73,32 @@ Do not stack multiple decorative frames around the same content.
 
 ## Optical workplane
 
-The living surface is an editorial optical workplane, not a HUD, scanner, or decorative liquid wallpaper.
+The living surface is an editorial optical workplane, not a HUD, scanner, or decorative particle field.
+
+The production field may evoke a **calm lava lamp** through large low-frequency optical masses. This is ambient material behavior, not a novelty animation.
 
 Use:
 
 - a deep navy substrate;
-- broad low-frequency violet and indigo ink fields with asymmetric centers;
-- sparse hand-drawn contour ribbons with controlled irregularity;
-- extremely subtle procedural print/paper grain;
-- one low-energy cyan optical focus region tied to response energy;
-- a dark center bias behind conversation copy.
+- three to five large violet and indigo optical masses with non-synchronized paths;
+- soft continuous deformation and drift with perceived cycles measured in tens of seconds;
+- extremely restrained cyan secondary bloom;
+- subtle material grain;
+- a darker central reading field beneath conversation content;
+- activity energy that raises optical presence only modestly.
 
 Avoid:
 
 - obvious drafting grids;
 - scanner/calibration lines;
 - uniform topographic repetition;
-- continuous orbital motion;
-- high-frequency shimmer or neon noise.
+- bouncing or obviously looping blob animation;
+- particles, sparkles, high-frequency shimmer, or bright neon liquid;
+- movement that competes with reading.
 
-At idle, the workplane should read as material atmosphere. During response activity, only the focus region and local optical energy rise modestly.
+At idle, the workplane should feel alive only after a moment of observation. During response activity, local optical energy may rise modestly without changing the page into an animation showcase.
 
-Reduced motion freezes the time-dependent field without changing semantic state.
+Reduced motion freezes the time-dependent field without changing semantic state or visual identity.
 
 ## Editorial trace
 
@@ -111,14 +116,15 @@ Rules:
 
 ## Optical typesetter
 
-The active assistant response is inscribed as illuminated ink:
+The active assistant response is inscribed as **theme-colored optical etching**:
 
 - the optical head follows the active wrapped line;
 - response text arrives continuously with the live SSE stream;
-- fresh glyphs carry a short lavender energy edge;
+- fresh glyphs carry a visible violet/indigo etched edge and short-lived lavender internal energy;
 - a small cyan hot point marks the active inscription position;
-- the beam is intentionally softer and less scanner-like than the original Deep Violet implementation;
-- glyphs cool quickly to normal pale text;
+- the optical head reads as precision inscription rather than scanner/HUD machinery;
+- the hot tail remains perceptible at normal reading speed but cools quickly;
+- settled glyphs return to normal pale narrative text rather than persistent neon;
 - final text remains selectable and accessibility-aware.
 
 The typesetter represents substantive generated response content. It does not run for a `SPEC_AMENDMENT` hand-off that intentionally stops substantive continuation.
@@ -154,13 +160,41 @@ Presentation rules:
 - the trace may indicate active governed state but must never imply a stage transition before server state changes;
 - historical unbound runs remain visually and textually distinguishable.
 
-## Conversation and composer
+## Conversation material
 
-Conversation remains visually dominant. Assistant response surfaces should read as one continuous precision workspace rather than a stack of independent dashboard cards.
+Conversation is the visual center of Parallax and must not resemble a stack of generic dashboard cards.
 
-User content may remain lightly contained, but unnecessary border weight should be avoided. Metadata stays quieter than narrative text.
+### User message
 
-The composer anchors the interaction and may use a strong dark material surface, but it should not become a glossy floating pill or compete with the active response.
+- right aligned;
+- soft neutral-grey/indigo translucent material;
+- approximately 18–22 px corner radius in the production scale;
+- no visible continuous border;
+- no bright glow;
+- metadata remains smaller and quieter than message text;
+- width is constrained so the user turn reads as a conversational object rather than a page panel.
+
+### Assistant message
+
+- left aligned and wider than the user message, but not full-width by default;
+- neutral-grey/navy translucent material with approximately 20–24 px corner radius;
+- no conventional top, bottom, or left rules around ordinary narrative content;
+- faint local violet depth/shadow is allowed instead of a hard outline;
+- assistant identity row remains outside the message material;
+- settled narrative text remains high-contrast, selectable, and calm.
+
+Message grouping is carried by alignment, spacing, material translucency, and metadata—not by four-sided borders.
+
+### Composer
+
+The composer anchors interaction with the same soft rounded material language:
+
+- translucent dark neutral material;
+- approximately 20–24 px radius;
+- no heavy field outline;
+- send action remains the strongest local control;
+- mobile interaction targets remain at least 44 pt;
+- composer must not visually overpower the active assistant response.
 
 ## Specification-amendment state
 
@@ -213,13 +247,13 @@ It preserves:
 
 - Deep Violet + editorial accent palette;
 - display hierarchy;
-- open framing through normal borders/spacing;
+- soft conversation-material grouping through ordinary React Native translucency and spacing;
 - Work Specification revision/approval semantics;
 - bound Code run identity and controls;
 - conversation/composer behavior;
 - all accessibility and state text.
 
-It deliberately omits Skia ink, grain, optical traces, and animated inscription head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
+It deliberately omits Skia lava-field rendering, optical traces, and animated inscription head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
 
 ## Motion state mapping
 
@@ -227,7 +261,7 @@ It deliberately omits Skia ink, grain, optical traces, and animated inscription 
 | --- | ---: | --- | --- | --- |
 | IDLE | 0.18 | calm | off | ready |
 | THINKING | 0.42 | calm | off | resolving objective/context |
-| RESPONDING | 0.72 | calm | active illuminated ink | substantive answer arriving |
+| RESPONDING | 0.72 | calm | active optical etching | substantive answer arriving |
 | VERIFYING | 0.48 | calm | off | protected verification/finalization |
 | COMPLETE | 0.18 | calm | off | response settled |
 | SPEC_AMENDMENT | 0.22 | calm | off | deliberate protected hand-off |
@@ -242,6 +276,7 @@ Governed section traces follow their own product state but remain subordinate to
 - Minimum 44 pt mobile interaction targets remain required.
 - Keyboard and screen-reader semantics are preserved.
 - Reduced motion and reduced graphics remain first-class modes.
-- Grain/ink effects may never lower narrative contrast materially.
+- Grain and ambient optical effects may never lower narrative contrast materially.
 - Editorial traces are decorative and excluded from accessibility navigation.
-- Ambient violet/cyan/peach/sage effects may never obscure narrative text or primary controls.
+- Lava-field motion may never obscure narrative text or primary controls.
+- Final assistant text remains selectable regardless of whether animated inscription was used during generation.
