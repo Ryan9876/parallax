@@ -48,7 +48,22 @@ class WorkSpecificationService:
         specification = self.repository.get(specification_id)
         if specification is None:
             raise HTTPException(status_code=404, detail="Work specification not found")
+
+        conversation = self.conversation(specification.conversation_id)
+        latest = self.repository.latest(specification.conversation_id)
+        releases_amendment = (
+            conversation.status == "SPEC_AMENDMENT"
+            and specification.status == "DRAFT"
+            and latest is not None
+            and latest.id == specification.id
+        )
+
         try:
-            return self.repository.approve(specification)
+            approved = self.repository.approve(specification)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        if releases_amendment:
+            self.conversations.set_status(conversation, "ACTIVE")
+
+        return approved
