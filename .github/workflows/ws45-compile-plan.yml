@@ -30,10 +30,10 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull qwen2.5:0.5b
+          ollama pull qwen2.5:1.5b
       - name: Compile canonical P2-V0.14.3 plan
         env:
-          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_MODEL: ollama_chat/qwen2.5:1.5b
           DSPY_API_BASE: http://127.0.0.1:11434
           DSPY_API_KEY: ''
           DSPY_LOCAL_DEVELOPMENT: '1'
