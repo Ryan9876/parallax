@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 2.0
+Version: 2.1
 Status: Authoritative
 
 ## Design direction
@@ -155,7 +155,8 @@ The conversation thread follows the live response while respecting operator inte
 - sending a new message re-enables live-edge following;
 - when an assistant response begins, its start is automatically brought into the visible thread region;
 - while the operator remains near the live edge, streamed content stays visible as it grows;
-- composer height is measured and used for real bottom clearance so response text is not covered by the input surface;
+- the composer reserves actual layout space as an in-flow dock, and the conversation thread is the flexible shrinkable scroll region above it;
+- conversation content must never rely on estimated composer-height padding as the primary clearance mechanism;
 - if the operator intentionally scrolls materially upward during a response, Parallax stops forcing the thread to the bottom;
 - the next new operator message re-enables live-edge following;
 - this behavior is interaction logic, not animation spectacle.
@@ -219,7 +220,9 @@ Conversation is the visual center of Parallax and must not resemble a stack of g
 - no heavy field outline;
 - send action remains the strongest local control;
 - mobile targets remain at least 44 pt;
-- its measured height participates in conversation-thread bottom clearance.
+- the composer is an in-flow dock below the shrinkable conversation thread, not an absolute overlay over narrative content;
+- newest response and amendment content must remain fully reachable above the composer at the thread's live edge;
+- reduced-graphics mode preserves the same structural composer-clearance behavior.
 
 ### Mobile web viewport and keyboard
 
@@ -230,7 +233,7 @@ Mobile web must remain compositionally stable while the software keyboard is vis
 - when a focused editable field coincides with a materially reduced `visualViewport`, the Parallax root fits the visible viewport rather than remaining behind the keyboard;
 - compensate a non-zero visual-viewport offset so WebKit panning does not displace the workspace away from the visible region;
 - the keyboard-aware adjustment is temporary and resets when the visual viewport recovers or editable focus ends;
-- the persistent composer remains fully above the keyboard, while conversation and governed surfaces yield vertical space naturally;
+- the in-flow composer remains fully above the keyboard, while conversation and governed surfaces yield vertical space naturally;
 - do not hard-code device heights or keyboard sizes; respond to measured viewport geometry;
 - desktop and mobile browsers that already resize the layout viewport correctly should not receive unnecessary compensation.
 
@@ -266,7 +269,7 @@ The non-Skia fallback is not a separate visual product. It preserves:
 - soft conversation/governed material grouping;
 - Work Specification semantics;
 - bound Code run identity/controls;
-- conversation/composer behavior;
+- conversation/composer behavior, including in-flow composer clearance;
 - all accessibility/state text.
 
 It deliberately omits Skia Ambient Chroma Flow and animated engraving head. Reduced graphics removes decorative rendering cost, not product identity, state, or capability.
