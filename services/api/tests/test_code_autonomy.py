@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from sqlalchemy.orm import sessionmaker
 
@@ -123,9 +125,9 @@ def test_autonomy_preflights_executor_advances_plan_then_stops_at_implementation
         assert executor.probes
         assert executor.specs == []
         plan_attempt = [item for item in result.run.attempts if item.stage == "PLAN"][-1]
-        assert "AC-01" in plan_attempt.evidence_json
-        assert "AC-02" in plan_attempt.evidence_json
-        assert '"executor_preflight": "passed"' in plan_attempt.evidence_json
+        evidence = json.loads(plan_attempt.evidence_json)
+        assert evidence["acceptance_ids_covered"] == ["AC-01", "AC-02"]
+        assert evidence["executor_preflight"] == "passed"
     finally:
         session.close()
 
