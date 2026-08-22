@@ -69,7 +69,13 @@ half4 main(float2 pos) {
   ) * 0.055;
   float2 p = q + flow;
 
-  float3 col = mix(abyss, midnight, 0.28 + hazeA * 0.16);
+  float3 col = mix(abyss, midnight, 0.34 + hazeA * 0.17);
+
+  // A low-amplitude blue/violet atmospheric floor keeps the motion legible at idle
+  // without turning the center reading area into a bright gradient.
+  float chromaWave = 0.5 + 0.5 * sin(q.x * 1.35 - q.y * 1.05 + t * 0.18 + hazeB * 0.75);
+  float3 atmospheric = mix(cobalt, violet, chromaWave);
+  col = mix(col, atmospheric, 0.080 + hazeB * 0.060);
 
   // Large, heavily feathered color wells overlap to read as diffused light through liquid glass.
   // Their differing periods avoid a visible short loop while preserving a calm drift.
@@ -81,41 +87,41 @@ half4 main(float2 pos) {
   float2 cWarm = float2(0.53 + 0.10 * cos(t * 0.19), -0.10 + 0.23 * sin(t * 0.22));
   float2 cPeach = float2(-0.36 + 0.10 * sin(t * 0.17), 0.58 + 0.09 * cos(t * 0.20));
 
-  float blueField = softWell(p, cBlue, float2(0.72, 0.58));
-  float indigoField = softWell(p, cIndigo, float2(0.68, 0.62));
-  float violetField = softWell(p, cViolet, float2(0.74, 0.57));
-  float magentaField = softWell(p, cMagenta, float2(0.64, 0.54));
-  float lavenderField = softWell(p, cLavender, float2(0.58, 0.53));
-  float warmField = softWell(p, cWarm, float2(0.46, 0.41));
-  float peachField = softWell(p, cPeach, float2(0.50, 0.44));
+  float blueField = softWell(p, cBlue, float2(0.76, 0.62));
+  float indigoField = softWell(p, cIndigo, float2(0.72, 0.66));
+  float violetField = softWell(p, cViolet, float2(0.78, 0.62));
+  float magentaField = softWell(p, cMagenta, float2(0.70, 0.58));
+  float lavenderField = softWell(p, cLavender, float2(0.62, 0.57));
+  float warmField = softWell(p, cWarm, float2(0.50, 0.45));
+  float peachField = softWell(p, cPeach, float2(0.54, 0.48));
 
-  float lift = 0.86 + energy * 0.18;
-  col = mix(col, cobalt, blueField * 0.33 * lift);
-  col = mix(col, indigo, indigoField * 0.29 * lift);
-  col = mix(col, violet, violetField * 0.27 * lift);
-  col = mix(col, magenta, magentaField * 0.14 * lift);
-  col = mix(col, lavender, lavenderField * 0.12 * lift);
+  float lift = 0.92 + energy * 0.20;
+  col = mix(col, cobalt, blueField * 0.46 * lift);
+  col = mix(col, indigo, indigoField * 0.39 * lift);
+  col = mix(col, violet, violetField * 0.35 * lift);
+  col = mix(col, magenta, magentaField * 0.22 * lift);
+  col = mix(col, lavender, lavenderField * 0.16 * lift);
 
   // Warmth is intentionally sparse: a counterpoint to the violet field, never the dominant palette.
-  float warmGate = smoothstep(0.34, 0.72, warmField) * (0.055 + energy * 0.018);
-  float peachGate = smoothstep(0.40, 0.76, peachField) * 0.040;
+  float warmGate = smoothstep(0.34, 0.72, warmField) * (0.090 + energy * 0.020);
+  float peachGate = smoothstep(0.40, 0.76, peachField) * 0.060;
   col = mix(col, amber, warmGate);
   col = mix(col, peach, peachGate);
 
   // Cyan is a cool optical whisper rather than a full-field wash.
   float2 focus = float2(0.10 + 0.13 * sin(t * 0.20), 0.02 + 0.11 * cos(t * 0.26));
-  float focusBloom = softWell(p, focus, float2(0.32, 0.27));
-  col = mix(col, cyan, focusBloom * (0.018 + energy * 0.035));
+  float focusBloom = softWell(p, focus, float2(0.34, 0.29));
+  col = mix(col, cyan, focusBloom * (0.024 + energy * 0.040));
 
   // A second low-frequency haze blends neighboring chroma so no discrete blob edge reads to the eye.
   float diffusion = fbm(p * 0.72 + float2(t * 0.022, t * 0.017) + 17.0);
-  col = mix(col, col * (0.93 + diffusion * 0.12), 0.42);
+  col = mix(col, col * (0.92 + diffusion * 0.14), 0.42);
 
   // Protect the conversation reading zone while allowing the periphery to remain visibly alive.
   float2 centerScale = float2(0.72, 0.84);
   float2 centerQ = q / centerScale;
   float centerMask = exp(-dot(centerQ, centerQ) * 1.58);
-  col = mix(col, abyss, centerMask * (0.20 - energy * 0.025));
+  col = mix(col, abyss, centerMask * (0.17 - energy * 0.020));
 
   // Fine low-amplitude material grain prevents a flat digital gradient.
   float grain = hash(pos * 0.29 + time * 0.031) - 0.5;
