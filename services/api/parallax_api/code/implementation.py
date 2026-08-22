@@ -116,7 +116,8 @@ class SafeImplementationEngine:
             json.dumps(workspace_projection, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         return {
-            "protected_success": True,
+            "applied": True,
+            "protected_stage_authority": False,
             "engine": "safe-source-implementation-v1",
             "workspace_digest": workspace_digest,
             "file_count": len(prepared),
