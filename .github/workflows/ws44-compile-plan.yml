@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   compile-plan:
@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ws/app-safe-implementation-patch-engine
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -43,6 +45,17 @@ jobs:
         run: |
           python scripts/compile_spec.py specs/P2-V0.14.2.md
           python scripts/validate_spec.py --require-dspy specs/P2-V0.14.2.md
+      - name: Commit generated protected plan evidence
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/compiled/P2-V0.14.2.plan.json
+          if git diff --cached --quiet; then
+            echo 'Generated plan is unchanged.'
+            exit 0
+          fi
+          git commit -m 'spec: record protected DSPy plan evidence for P2-V0.14.2'
+          git push origin HEAD:ws/app-safe-implementation-patch-engine
       - uses: actions/upload-artifact@v4
         with:
           name: ws44-compiled-plan
