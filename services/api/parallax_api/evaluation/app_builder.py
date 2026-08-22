@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -20,6 +20,7 @@ AppBuilderCategory = Literal[
     "interruption_recovery",
     "evidence_hygiene",
 ]
+AppBuilderObservation = Annotated[str, Field(min_length=1, max_length=240)]
 REQUIRED_APP_BUILDER_CATEGORIES = frozenset(
     {
         "project_isolation",
@@ -40,7 +41,7 @@ class AppBuilderStrictModel(BaseModel):
 class AppBuilderObservationRequirement(AppBuilderStrictModel):
     requirement_id: str = Field(pattern=r"^[A-Za-z0-9._-]+$")
     kind: Literal["required", "forbidden"]
-    observation: str = Field(min_length=1, max_length=240)
+    observation: AppBuilderObservation
     critical: bool = True
 
 
@@ -107,7 +108,7 @@ class AppBuilderCaseEvidence(AppBuilderStrictModel):
     spec_revision: int | None = Field(default=None, ge=1)
     spec_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
     run_ref: str | None = Field(default=None, min_length=1, max_length=160)
-    observations: list[str] = Field(default_factory=list, max_length=96)
+    observations: list[AppBuilderObservation] = Field(default_factory=list, max_length=96)
     evidence_digests: list[str] = Field(default_factory=list, max_length=16)
     no_chain_of_thought: Literal[True] = True
 
