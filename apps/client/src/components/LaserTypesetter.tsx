@@ -180,6 +180,7 @@ export function LaserTypesetter({
   const coolEnd = cooled ? text.length : Math.max(0, text.length - HOT_TAIL);
   const coolText = text.slice(0, coolEnd);
   const hotText = text.slice(coolEnd);
+  const hotTailActive = !cooled && Boolean(hotText);
   const beamHeight = Math.max(30, head.lineHeight + 6);
 
   return (
@@ -190,7 +191,7 @@ export function LaserTypesetter({
       <View style={styles.visibleText}>
         <Text selectable accessibilityLiveRegion="polite" style={styles.text}>
           {coolText}
-          <Text style={!cooled && hotText ? styles.hotText : undefined}>{hotText}</Text>
+          <Text testID={hotTailActive ? 'energized-glyph-tail' : undefined} style={hotTailActive ? styles.hotText : undefined}>{hotText}</Text>
         </Text>
       </View>
       {beamVisible && text.length > 0 ? (
@@ -221,6 +222,7 @@ const styles = StyleSheet.create({
   hotText: {
     color: '#F1E5FF',
     textShadowColor: 'rgba(194,126,255,0.92)',
+    textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,
   },
   beam: { position: 'absolute', top: 0, left: 0, width: 48 },
