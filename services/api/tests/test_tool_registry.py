@@ -119,15 +119,19 @@ def test_request_data_cannot_self_grant_an_unregistered_capability():
     assert decision.deny_reason is AuthorityDenyReason.UNKNOWN_CAPABILITY
 
 
-def test_approval_required_action_denies_missing_approval_and_accepts_exact_approval():
-    registry = ToolCapabilityRegistry((capability(),))
+def test_approval_required_action_uses_only_registry_owned_approval():
     candidate = request(action="repository.write")
+    registered = approval(candidate)
+    registry = ToolCapabilityRegistry((capability(),), approvals=(registered,))
 
     missing = registry.authorize(candidate)
-    allowed = registry.authorize(candidate, approval=approval(candidate))
+    unknown = registry.authorize(candidate, approval_id="approval-caller-invented")
+    allowed = registry.authorize(candidate, approval_id=registered.approval_id)
 
     assert missing.allowed is False
     assert missing.deny_reason is AuthorityDenyReason.APPROVAL_REQUIRED
+    assert unknown.allowed is False
+    assert unknown.deny_reason is AuthorityDenyReason.APPROVAL_MISMATCH
     assert allowed.allowed is True
     assert allowed.approval_id == "approval-1"
     assert allowed.consequence is ToolConsequence.MUTATE
@@ -143,23 +147,27 @@ def test_approval_required_action_denies_missing_approval_and_accepts_exact_appr
         ("action", "repository.read"),
     ],
 )
-def test_approval_cannot_be_replayed_for_a_different_authority_tuple(field: str, value: str):
-    registry = ToolCapabilityRegistry((capability(),))
+def test_registered_approval_cannot_be_replayed_for_a_different_authority_tuple(
+    field: str,
+    value: str,
+):
     candidate = request(action="repository.write")
     mismatched = approval(candidate, **{field: value})
+    registry = ToolCapabilityRegistry((capability(),), approvals=(mismatched,))
 
-    decision = registry.authorize(candidate, approval=mismatched)
+    decision = registry.authorize(candidate, approval_id=mismatched.approval_id)
 
     assert decision.allowed is False
     assert decision.deny_reason is AuthorityDenyReason.APPROVAL_MISMATCH
 
 
-def test_destructive_action_requires_and_records_exact_human_approval():
-    registry = ToolCapabilityRegistry((capability(),))
+def test_destructive_action_requires_and_records_exact_registered_human_approval():
     candidate = request(action="deployment.promote")
+    registered = approval(candidate)
+    registry = ToolCapabilityRegistry((capability(),), approvals=(registered,))
 
     denied = registry.authorize(candidate)
-    approved = registry.authorize(candidate, approval=approval(candidate))
+    approved = registry.authorize(candidate, approval_id=registered.approval_id)
 
     assert denied.deny_reason is AuthorityDenyReason.APPROVAL_REQUIRED
     assert approved.allowed is True
@@ -211,7 +219,16 @@ def test_denied_and_failed_tool_outcomes_remain_truthful():
 
 
 def test_audit_contract_has_no_arbitrary_provider_content_fields():
-    prohibited = {"payload", "raw_payload", "raw_error", "error_body", "headers", "body", "environment", "metadata"}
+    prohibited = {
+        "payload",
+        "raw_payload",
+        "raw_error",
+        "error_body",
+        "headers",
+        "body",
+        "environment",
+        "metadata",
+    }
     assert prohibited.isdisjoint({item.name for item in fields(ToolAuditRecord)})
 
 
@@ -237,9 +254,16 @@ def test_decision_and_digests_are_deterministic():
     assert result_a.digest == result_b.digest
 
 
-def test_registry_rejects_duplicate_capability_ids():
+def test_registry_rejects_duplicate_capability_and_approval_ids():
     first = capability()
     second = replace(first, project_ref="project-b")
 
     with pytest.raises(ValueError, match="duplicate capability_id"):
         ToolCapabilityRegistry((first, second))
+
+    candidate = request(action="repository.write")
+    first_approval = approval(candidate)
+    second_approval = replace(first_approval, approved_by="owner-2")
+
+    with pytest.raises(ValueError, match="duplicate approval_id"):
+        ToolCapabilityRegistry((first,), approvals=(first_approval, second_approval))
