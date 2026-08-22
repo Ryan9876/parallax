@@ -47,7 +47,7 @@ jobs:
         run: npm run typecheck
       - name: Run client state tests
         working-directory: apps/client
-        run: npm test -- --runInBand
+        run: npm run test:state
       - name: Export web client
         working-directory: apps/client
         run: npm run export:web
