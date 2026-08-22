@@ -65,7 +65,9 @@ def test_multi_file_implementation_is_successful_and_evidence_is_deterministic(t
     engine = SafeImplementationEngine()
     result = engine.apply(tmp_path, request)
 
-    assert result["protected_success"] is True
+    assert result["applied"] is True
+    assert result["protected_stage_authority"] is False
+    assert "protected_success" not in result
     assert result["external_execution"] is False
     assert result["git_mutation"] is False
     assert result["deployment_mutation"] is False
