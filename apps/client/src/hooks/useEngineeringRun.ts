@@ -1,17 +1,20 @@
 import React from 'react';
 import { api, type EngineeringRunDto } from '../lib/api';
+import { runEngineeringAutonomy } from '../lib/autonomyApi';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
 
 export function useEngineeringRun(conversationId: string | null, enabled: boolean) {
   const [run, setRun] = React.useState<EngineeringRunDto | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [autonomyStopReason, setAutonomyStopReason] = React.useState<string | null>(null);
 
   const activateApproved = React.useCallback(async (specificationId?: string | null) => {
     if (!enabled || !conversationId) return null;
     const activated = await api.activateEngineeringRun(conversationId, specificationId);
     setRun(activated);
     setError(null);
+    setAutonomyStopReason(null);
     return activated;
   }, [conversationId, enabled]);
 
@@ -19,6 +22,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     if (!enabled || !conversationId) {
       setRun(null);
       setError(null);
+      setAutonomyStopReason(null);
       return;
     }
     try {
@@ -63,8 +67,25 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
           ? await api.resumeEngineeringRun(run, key)
           : await api.cancelEngineeringRun(run, key);
       setRun(result.run);
+      setAutonomyStopReason(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : `Code run ${action} failed.`);
+    } finally { setBusy(false); }
+  }, [busy, run]);
+
+  const runAutonomously = React.useCallback(async () => {
+    if (!run || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await runEngineeringAutonomy(
+        run,
+        `autonomous-${run.id}-${run.revision}-${Date.now()}`,
+      );
+      setRun(result.run);
+      setAutonomyStopReason(result.stop_reason);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Autonomous Code run failed.');
     } finally { setBusy(false); }
   }, [busy, run]);
 
@@ -72,9 +93,11 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     run,
     busy,
     error,
+    autonomyStopReason,
     refresh,
     pause: () => mutate('pause'),
     resume: () => mutate('resume'),
     cancel: () => mutate('cancel'),
+    runAutonomously,
   };
 }
