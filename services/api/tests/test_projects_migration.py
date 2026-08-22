@@ -2,7 +2,8 @@ from pathlib import Path
 
 
 def test_project_migration_preserves_owner_uniqueness_and_direct_client_lockdown():
-    migration = Path("services/api/migrations/20260822_0006_projects.sql").read_text(encoding="utf-8").lower()
+    migration_path = Path(__file__).resolve().parents[1] / "migrations" / "20260822_0006_projects.sql"
+    migration = migration_path.read_text(encoding="utf-8").lower()
 
     assert "create table if not exists projects" in migration
     assert "unique (owner_subject, slug)" in migration
