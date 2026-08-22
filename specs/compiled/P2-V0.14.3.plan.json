@@ -1,0 +1,97 @@
+{
+  "architecture_decisions": [
+    "- AC-01 Immutable typed authority contracts: The new tool-authority subsystem exposes frozen typed contracts for capability grants, action policies, requests, approvals, decision, result, and audit contracts."
+  ],
+  "work_items": [
+    "- Establish a small, typed, server-owned tool-authority boundary that can later let Parallax use explicitly authorized external capabilities for one application Project without exposing provider secrets to model-visible state, allowing user/model text to grant itself authority, or turning connector access into arbitrary shell, HTTP, deployment, or database execution."
+  ],
+  "validations": [
+    "- The subsystem proves project/action scoping and negative authority behavior through a deterministic in-memory registry that proves project/action scoping and negative authority behavior.",
+    "AC-02: validate protected requirement — Every capability is bound to exactly one non-empty opaque project reference, and authorization rejects a request whose project reference differs from the registered capability even when capability ID, tool, and action would otherwise match.",
+    "AC-03: validate protected requirement — Authorization succeeds only by resolving an already-registered enabled capability. Unknown capability IDs, disabled grants, or request-supplied lookalike authority are denied; request content cannot create or widen registry authority.",
+    "AC-04: validate protected requirement — Authorization requires exact tool identity and an exact action policy from the registered capability. Tool mismatch and unknown action requests are denied rather than falling back to a broader permission.",
+    "AC-05: validate protected requirement — Each action has an explicit consequence classification. Destructive actions require approval by invariant, and every approval-required action is denied unless immutable approval evidence matches the exact request ID, capability ID, project reference, tool, and action.",
+    "AC-06: validate protected requirement — Capability construction rejects generic shell, command, subprocess, raw HTTP/network, or equivalent reserved tool/action identities, and the authority request contract contains no command, URL, headers, body, environment, or generic payload field.",
+    "AC-07: validate protected requirement — Capability, request, decision, result, and audit contracts expose only bounded identifiers, policy state, normalized result codes, and digests. They contain no provider credential fields, raw payload/error fields, hidden-reasoning fields, or arbitrary metadata map capable of persisting secrets.",
+    "AC-08: validate protected requirement — Audit construction distinguishes DENIED, SUCCEEDED, and FAILED outcomes. A denied authority decision cannot produce an execution-success record, and a provider/tool failure cannot be converted into a successful audit outcome.",
+    "AC-09: validate protected requirement — Equivalent registry state and equivalent authority input produce the same normalized decision and canonical request/result digests independent of Python object identity or unordered collection iteration.",
+    "AC-10: validate protected requirement — The first slice imports no provider SDK, executes no provider call, opens no network/shell escape hatch, adds no API route or database migration, and makes no change to shared authentication, Code/autonomy, or deployment paths.",
+    "AC-11: validate protected requirement — Focused tests prove denial for cross-project use, unknown capability/action, tool mismatch, disabled capability, missing/mismatched approval, generic shell/HTTP escape attempts, and any attempt to treat request data as a self-granted capability.",
+    "AC-12: validate protected requirement — The subsystem treats `project_ref` as an opaque caller-supplied authoritative binding and documents that serialized integration must adapt it to workstream #43's accepted Project identity without introducing a competing persistent project model."
+  ],
+  "risks": [
+    "- The implementation may introduce a risk of exposing project secrets to model-visible state, which could lead to unauthorized access if not properly secured."
+  ],
+  "spec_id": "P2-V0.14.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Immutable typed authority contracts",
+      "protected_requirement": "The new tool-authority subsystem exposes frozen typed contracts for capability grants, action policies, requests, approvals, authority decisions, tool results, and audit records; callers cannot mutate a registered grant through request data after construction."
+    },
+    {
+      "id": "AC-02",
+      "title": "Explicit project-scoped binding",
+      "protected_requirement": "Every capability is bound to exactly one non-empty opaque project reference, and authorization rejects a request whose project reference differs from the registered capability even when capability ID, tool, and action would otherwise match."
+    },
+    {
+      "id": "AC-03",
+      "title": "Server-owned fail-closed registry",
+      "protected_requirement": "Authorization succeeds only by resolving an already-registered enabled capability. Unknown capability IDs, disabled grants, or request-supplied lookalike authority are denied; request content cannot create or widen registry authority."
+    },
+    {
+      "id": "AC-04",
+      "title": "Exact tool and action allowlist",
+      "protected_requirement": "Authorization requires exact tool identity and an exact action policy from the registered capability. Tool mismatch and unknown action requests are denied rather than falling back to a broader permission."
+    },
+    {
+      "id": "AC-05",
+      "title": "Consequence and approval binding",
+      "protected_requirement": "Each action has an explicit consequence classification. Destructive actions require approval by invariant, and every approval-required action is denied unless immutable approval evidence matches the exact request ID, capability ID, project reference, tool, and action."
+    },
+    {
+      "id": "AC-06",
+      "title": "No arbitrary execution or transport escape hatch",
+      "protected_requirement": "Capability construction rejects generic shell, command, subprocess, raw HTTP/network, or equivalent reserved tool/action identities, and the authority request contract contains no command, URL, headers, body, environment, or generic payload field."
+    },
+    {
+      "id": "AC-07",
+      "title": "Secret-safe observable evidence",
+      "protected_requirement": "Capability, request, decision, result, and audit contracts expose only bounded identifiers, policy state, normalized result codes, and digests. They contain no provider credential fields, raw payload/error fields, hidden-reasoning fields, or arbitrary metadata map capable of persisting secrets."
+    },
+    {
+      "id": "AC-08",
+      "title": "Truthful tool-result semantics",
+      "protected_requirement": "Audit construction distinguishes DENIED, SUCCEEDED, and FAILED outcomes. A denied authority decision cannot produce an execution-success record, and a provider/tool failure cannot be converted into a successful audit outcome."
+    },
+    {
+      "id": "AC-09",
+      "title": "Deterministic decision and digest behavior",
+      "protected_requirement": "Equivalent registry state and equivalent authority input produce the same normalized decision and canonical request/result digests independent of Python object identity or unordered collection iteration."
+    },
+    {
+      "id": "AC-10",
+      "title": "Provider-neutral integration seam",
+      "protected_requirement": "The first slice imports no provider SDK, executes no provider call, opens no network/shell escape hatch, adds no API route or database migration, and makes no change to shared authentication, Code/autonomy, or deployment paths."
+    },
+    {
+      "id": "AC-11",
+      "title": "Protected negative authority coverage",
+      "protected_requirement": "Focused tests prove denial for cross-project use, unknown capability/action, tool mismatch, disabled capability, missing/mismatched approval, generic shell/HTTP escape attempts, and any attempt to treat request data as a self-granted capability."
+    },
+    {
+      "id": "AC-12",
+      "title": "Project-contract compatibility",
+      "protected_requirement": "The subsystem treats `project_ref` as an opaque caller-supplied authoritative binding and documents that serialized integration must adapt it to workstream #43's accepted Project identity without introducing a competing persistent project model."
+    }
+  ],
+  "critique": [
+    "The specification does not mention any material implementation risk or omission. The document focuses on the architectural and acceptance criteria, but does not identify any specific material issues related to implementation."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

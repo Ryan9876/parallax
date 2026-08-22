@@ -7,6 +7,7 @@ from .config import settings
 from .auth import require_access
 from .db import Base, engine
 from . import models  # noqa: F401
+from .projects.routes import router as projects_router
 from .routes.access import router as access_router
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
@@ -49,6 +50,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)
     app.include_router(work_specifications_router, dependencies=protected)
+    app.include_router(projects_router, dependencies=protected)
     return app
 
 

@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Implement the lifecycle as an additive `parallax_api.projects` package containing its SQLAlchemy model, Pydantic request/read contracts, owner-scoped repository, service, and FastAPI router."
+  ],
+  "work_items": [
+    "Create a Project with a server-generated UUID, immutable `workspace_ref`, and optional repository reference."
+  ],
+  "validations": [
+    "Ensure the Project model is defined outside the existing shared `models.py` and the repository is scoped by the owner subject.",
+    "AC-01: validate protected requirement — Creating a Project persists a server-generated UUID Project ID and immutable opaque `workspace_ref` equal to `project:<project-id>`. Neither value is derived from user-supplied paths, repository metadata, conversations, or model output, and both remain stable when the Project is read from a later database session.",
+    "AC-02: validate protected requirement — Every Project repository operation is scoped by the server-resolved owner subject. Listing returns only the caller's Projects, the same slug may exist for different owners, and reading another owner's Project through the public contract returns not found without disclosing its metadata.",
+    "AC-03: validate protected requirement — A Project may persist one optional normalized `repository_ref` in bounded `provider:owner/name` form. The field stores identity metadata only, rejects URLs/credentials/path traversal, and grants no repository lookup, network, Git, secret, implementation, or deployment authority.",
+    "AC-04: validate protected requirement — Protected API routes expose `POST /v1/projects`, `GET /v1/projects`, and `GET /v1/projects/{project_id}` with typed request/read contracts. Creation returns the persisted Project, listing uses deterministic creation/id ordering, and reads preserve the same canonical identity and metadata.",
+    "AC-05: validate protected requirement — The additive SQLAlchemy Project model and forward migration define the same durable fields and owner-scoped uniqueness constraints. Focused SQLite tests prove records survive session boundaries, while the migration is committed as integration evidence and is not claimed applied or deployed by this worker.",
+    "AC-06: validate protected requirement — Project names, slugs, descriptions, and repository references are explicitly bounded and normalized before persistence. Invalid request shapes fail validation, duplicate owner/slug or duplicate non-null owner/repository identity fails as conflict, and a missing Project fails as not found without partial state mutation.",
+    "AC-07: validate protected requirement — `workspace_ref` is a stable opaque identity seam only. No code in this slice interprets it as a filesystem path, creates directories, executes commands, invokes Vercel Sandbox, mutates Git, calls provider APIs, grants protected stage authority, or performs deployment.",
+    "AC-08: validate protected requirement — The first slice remains additive except for protected router registration and does not modify shared `models.py`/`schemas.py`, Work Specification or Engineering Run persistence, Code/autonomy internals, tool-authority contracts, app-builder evaluation contracts, client UI, deployment workflows, or authoritative product-state records. Later integration must consume this accepted Project ID rather than invent a competing durable identifier.",
+    "AC-09: validate protected requirement — Focused tests cover create/list/read behavior, persistence across sessions, stable workspace identity, same-owner conflicts, cross-owner slug independence, cross-owner read/list isolation, repository-reference validation, and protected API behavior. The full API regression and Python compile checks must also pass on the worker candidate.",
+    "AC-10: validate protected requirement — The completed candidate includes the approved `P2-V0.14.1` specification, committed compiled-plan evidence, exact validation results, and a pull request from `ws/app-project-lifecycle` to `main`. The worker does not merge, apply the production migration, promote a Vercel deployment, or mark the implementation deployed/deployment-verified; final integration remains serialized through the Control Tower."
+  ],
+  "risks": [
+    "No material risk and mitigation are required."
+  ],
+  "spec_id": "P2-V0.14.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical durable Project identity",
+      "protected_requirement": "Creating a Project persists a server-generated UUID Project ID and immutable opaque `workspace_ref` equal to `project:<project-id>`. Neither value is derived from user-supplied paths, repository metadata, conversations, or model output, and both remain stable when the Project is read from a later database session."
+    },
+    {
+      "id": "AC-02",
+      "title": "Owner-scoped isolation",
+      "protected_requirement": "Every Project repository operation is scoped by the server-resolved owner subject. Listing returns only the caller's Projects, the same slug may exist for different owners, and reading another owner's Project through the public contract returns not found without disclosing its metadata."
+    },
+    {
+      "id": "AC-03",
+      "title": "Stable repository identity metadata",
+      "protected_requirement": "A Project may persist one optional normalized `repository_ref` in bounded `provider:owner/name` form. The field stores identity metadata only, rejects URLs/credentials/path traversal, and grants no repository lookup, network, Git, secret, implementation, or deployment authority."
+    },
+    {
+      "id": "AC-04",
+      "title": "Deterministic create/list/read API",
+      "protected_requirement": "Protected API routes expose `POST /v1/projects`, `GET /v1/projects`, and `GET /v1/projects/{project_id}` with typed request/read contracts. Creation returns the persisted Project, listing uses deterministic creation/id ordering, and reads preserve the same canonical identity and metadata."
+    },
+    {
+      "id": "AC-05",
+      "title": "Durable persistence and schema contract",
+      "protected_requirement": "The additive SQLAlchemy Project model and forward migration define the same durable fields and owner-scoped uniqueness constraints. Focused SQLite tests prove records survive session boundaries, while the migration is committed as integration evidence and is not claimed applied or deployed by this worker."
+    },
+    {
+      "id": "AC-06",
+      "title": "Validation and conflict semantics",
+      "protected_requirement": "Project names, slugs, descriptions, and repository references are explicitly bounded and normalized before persistence. Invalid request shapes fail validation, duplicate owner/slug or duplicate non-null owner/repository identity fails as conflict, and a missing Project fails as not found without partial state mutation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Opaque workspace boundary without authority expansion",
+      "protected_requirement": "`workspace_ref` is a stable opaque identity seam only. No code in this slice interprets it as a filesystem path, creates directories, executes commands, invokes Vercel Sandbox, mutates Git, calls provider APIs, grants protected stage authority, or performs deployment."
+    },
+    {
+      "id": "AC-08",
+      "title": "Integration-safe canonical contract",
+      "protected_requirement": "The first slice remains additive except for protected router registration and does not modify shared `models.py`/`schemas.py`, Work Specification or Engineering Run persistence, Code/autonomy internals, tool-authority contracts, app-builder evaluation contracts, client UI, deployment workflows, or authoritative product-state records. Later integration must consume this accepted Project ID rather than invent a competing durable identifier."
+    },
+    {
+      "id": "AC-09",
+      "title": "Focused regression and isolation evidence",
+      "protected_requirement": "Focused tests cover create/list/read behavior, persistence across sessions, stable workspace identity, same-owner conflicts, cross-owner slug independence, cross-owner read/list isolation, repository-reference validation, and protected API behavior. The full API regression and Python compile checks must also pass on the worker candidate."
+    },
+    {
+      "id": "AC-10",
+      "title": "Worker release boundary",
+      "protected_requirement": "The completed candidate includes the approved `P2-V0.14.1` specification, committed compiled-plan evidence, exact validation results, and a pull request from `ws/app-project-lifecycle` to `main`. The worker does not merge, apply the production migration, promote a Vercel deployment, or mark the implementation deployed/deployment-verified; final integration remains serialized through the Control Tower."
+    }
+  ],
+  "critique": [
+    "The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather than inventing competing durable project identifiers. The first slice establishes the canonical Project identity and persistence contract that later Work Specification, Engineering Run, safe implementation, tool authority, evaluation, UX, and deployment work must consume rather"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

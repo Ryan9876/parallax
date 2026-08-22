@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Separate safe patch preparation from multi-file orchestration; validate before mutation, recheck preimages, rollback failures, and emit deterministic evidence."
+  ],
+  "work_items": [
+    "Create a bounded text-patch engine that safely mutates an isolated workspace and emits deterministic implementation evidence without gaining protected stage or release authority."
+  ],
+  "validations": [
+    "Ensure the engine rejects path escape, stale input, malformed patches, unsupported targets, excessive sizes, and partial multi-file success.",
+    "AC-01: validate protected requirement \u2014 Targets stay inside the declared workspace. Every accepted target is a relative workspace path whose lexical and resolved location remains under the workspace root; absolute paths, traversal, NULs, Git internals, and symlink-based escape are rejected before mutation.",
+    "AC-02: validate protected requirement \u2014 Each patch binds to an exact pre-image digest. Existing-file preparation requires the caller's expected base SHA-256 to equal the current file digest; new-file creation requires the SHA-256 of empty content, and any mismatch fails before mutation.",
+    "AC-03: validate protected requirement \u2014 Only bounded UTF-8 source targets are eligible. Binary content, unsupported target types/extensions, directories, secret-sensitive targets, and source or result sizes beyond configured limits fail closed.",
+    "AC-04: validate protected requirement \u2014 Only a strict single-target unified diff is accepted. Headers must match the declared target and hunks must be ordered, non-overlapping, count-consistent, exact against the base, and produce a real change; malformed, multi-file, conflicting, or no-op patches fail without mutation.",
+    "AC-05: validate protected requirement \u2014 Existing text files may be modified and bounded new text files may be created. New files must be beneath an already-existing safe parent, use `/dev/null` as the old side, and cannot overwrite an existing target through creation semantics.",
+    "AC-06: validate protected requirement \u2014 Successful application returns deterministic observable evidence. Evidence includes target and created state, before/after SHA-256 and byte sizes, patch SHA-256 and size, bounded unified diff, aggregate source/patch/result sizes, and artifact path/digest/size; equivalent inputs produce equivalent evidence.",
+    "AC-07: validate protected requirement \u2014 Multi-file requests are all-or-nothing. Duplicate targets are rejected, every patch is prepared before any mutation, each target is atomically replaced, and already-written targets are restored if a later commit fails; partial application is never reported as protected success.",
+    "AC-08: validate protected requirement \u2014 Per-file and aggregate resource use is explicitly bounded. Maximum patch, source-file, result-file, request-file-count, aggregate-source, aggregate-patch, and aggregate-result limits are checked before mutation so input cannot cause unbounded mutation or evidence growth.",
+    "AC-09: validate protected requirement \u2014 The engine adds no execution or release authority. It exposes no user/model-supplied shell, arbitrary HTTP/network, Git history mutation or push/merge, provider credential handling, Work Specification self-approval, Vercel promotion, or production deployment operation.",
+    "AC-10: validate protected requirement \u2014 Engine evidence is integration-ready but does not authorize IMPLEMENT. The result exposes a deterministic artifact list and workspace digest for later protected mapping while remaining independent of Project persistence and autonomy/service/state-machine internals until #43 and other Wave 1 contracts stabilize."
+  ],
+  "risks": [
+    "This implementation does not connect to the autonomy coordinator or grant Git, shell, network, deployment, Work Specification approval, or production authority."
+  ],
+  "spec_id": "P2-V0.14.2",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Workspace confinement",
+      "protected_requirement": "Targets stay inside the declared workspace. Every accepted target is a relative workspace path whose lexical and resolved location remains under the workspace root; absolute paths, traversal, NULs, Git internals, and symlink-based escape are rejected before mutation."
+    },
+    {
+      "id": "AC-02",
+      "title": "Exact stale-base protection",
+      "protected_requirement": "Each patch binds to an exact pre-image digest. Existing-file preparation requires the caller's expected base SHA-256 to equal the current file digest; new-file creation requires the SHA-256 of empty content, and any mismatch fails before mutation."
+    },
+    {
+      "id": "AC-03",
+      "title": "Bounded UTF-8 source targets",
+      "protected_requirement": "Only bounded UTF-8 source targets are eligible. Binary content, unsupported target types/extensions, directories, secret-sensitive targets, and source or result sizes beyond configured limits fail closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Strict single-target unified diff",
+      "protected_requirement": "Only a strict single-target unified diff is accepted. Headers must match the declared target and hunks must be ordered, non-overlapping, count-consistent, exact against the base, and produce a real change; malformed, multi-file, conflicting, or no-op patches fail without mutation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing-file modification and new-file creation",
+      "protected_requirement": "Existing text files may be modified and bounded new text files may be created. New files must be beneath an already-existing safe parent, use `/dev/null` as the old side, and cannot overwrite an existing target through creation semantics."
+    },
+    {
+      "id": "AC-06",
+      "title": "Deterministic implementation evidence",
+      "protected_requirement": "Successful application returns deterministic observable evidence. Evidence includes target and created state, before/after SHA-256 and byte sizes, patch SHA-256 and size, bounded unified diff, aggregate source/patch/result sizes, and artifact path/digest/size; equivalent inputs produce equivalent evidence."
+    },
+    {
+      "id": "AC-07",
+      "title": "Atomic multi-file implementation",
+      "protected_requirement": "Multi-file requests are all-or-nothing. Duplicate targets are rejected, every patch is prepared before any mutation, each target is atomically replaced, and already-written targets are restored if a later commit fails; partial application is never reported as protected success."
+    },
+    {
+      "id": "AC-08",
+      "title": "Bounded resource behavior",
+      "protected_requirement": "Per-file and aggregate resource use is explicitly bounded. Maximum patch, source-file, result-file, request-file-count, aggregate-source, aggregate-patch, and aggregate-result limits are checked before mutation so input cannot cause unbounded mutation or evidence growth."
+    },
+    {
+      "id": "AC-09",
+      "title": "No authority expansion",
+      "protected_requirement": "The engine adds no execution or release authority. It exposes no user/model-supplied shell, arbitrary HTTP/network, Git history mutation or push/merge, provider credential handling, Work Specification self-approval, Vercel promotion, or production deployment operation."
+    },
+    {
+      "id": "AC-10",
+      "title": "Integration-ready protected contract",
+      "protected_requirement": "Engine evidence is integration-ready but does not authorize IMPLEMENT. The result exposes a deterministic artifact list and workspace digest for later protected mapping while remaining independent of Project persistence and autonomy/service/state-machine internals until #43 and other Wave 1 contracts stabilize."
+    }
+  ],
+  "critique": [
+    "(none)"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
