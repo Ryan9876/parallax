@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
+from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
 from ..db import get_session
@@ -15,6 +18,8 @@ from ..repositories.engineering_runs import EngineeringRunRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
 from ..schemas import (
     EngineeringAdvance,
+    EngineeringAutonomyProbeRead,
+    EngineeringAutonomyRead,
     EngineeringOperation,
     EngineeringOperationRead,
     EngineeringRunActivate,
@@ -90,6 +95,22 @@ def create_run(payload: EngineeringRunCreate, svc: EngineeringRunService = Depen
     return present(invoke(lambda: svc.create_run(**payload.model_dump())), svc)
 
 
+@router.post("/autonomy/probe", response_model=EngineeringAutonomyProbeRead)
+def autonomy_probe():
+    evidence = VercelSandboxExecutor().probe(operation_key=f"probe:{uuid4().hex}")
+    return {
+        "ready": evidence.get("protected_success") is True,
+        "executor": str(evidence.get("executor") or "vercel-sandbox"),
+        "network_policy": str(evidence.get("network_policy") or "deny-all"),
+        "exit_code": evidence.get("exit_code"),
+        "duration_ms": int(evidence.get("duration_ms") or 0),
+        "stdout_excerpt": str(evidence.get("stdout_excerpt") or ""),
+        "stderr_excerpt": str(evidence.get("stderr_excerpt") or ""),
+        "timed_out": bool(evidence.get("timed_out")),
+        "redacted": bool(evidence.get("redacted")),
+    }
+
+
 @router.get("/{run_id}", response_model=EngineeringRunRead)
 def get_run(run_id: str, svc: EngineeringRunService = Depends(service)):
     return present(invoke(lambda: svc.get(run_id)), svc)
@@ -108,6 +129,30 @@ def advance(run_id: str, payload: EngineeringAdvance, svc: EngineeringRunService
         invoke(lambda: svc.complete_stage(run_id=run_id, stage=WorkflowStage(payload.stage), **values)),
         svc,
     )
+
+
+@router.post("/{run_id}/autonomous", response_model=EngineeringAutonomyRead)
+def autonomous(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):
+    result = invoke(
+        lambda: AutonomyCoordinator(svc, VercelSandboxExecutor()).run(
+            run_id=run_id,
+            **payload.model_dump(),
+        )
+    )
+    return {
+        "run": present(result.run, svc),
+        "stop_reason": result.stop_reason.value,
+        "steps": [
+            {
+                "stage": item.stage,
+                "outcome": item.outcome,
+                "attempt_id": item.attempt_id,
+                "replayed": item.replayed,
+                "tool_id": item.tool_id,
+            }
+            for item in result.steps
+        ],
+    }
 
 
 def control(run_id: str, payload: EngineeringOperation, method: str, svc: EngineeringRunService):
