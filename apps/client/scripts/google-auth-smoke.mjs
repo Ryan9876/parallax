@@ -228,14 +228,19 @@ try {
   }
   const accountMenu = page.getByRole('button', { name: 'Parallax access menu' });
   await accountMenu.waitFor({ timeout: 5000 });
-  const workSpec = page.getByLabel('Work specification');
+  const workSpec = page.getByLabel('Work specification', { exact: true });
   await workSpec.waitFor({ timeout: 5000 });
+  const reasonButton = page.getByRole('button', { name: /^reason$/i });
+  const codeButton = page.getByRole('button', { name: /^code$/i });
 
   const accountBox = await accountMenu.boundingBox();
   const workSpecBox = await workSpec.boundingBox();
-  assert(accountBox && workSpecBox, 'Mobile account/spec geometry was unavailable');
+  const reasonBox = await reasonButton.boundingBox();
+  const codeBox = await codeButton.boundingBox();
+  assert(accountBox && workSpecBox && reasonBox && codeBox, 'Mobile top-bar/spec geometry was unavailable');
   assert(workSpecBox.height < 160, `Mobile collapsed Work Specification remained too tall: ${workSpecBox.height}px`);
   assert(!overlaps(accountBox, workSpecBox), `Mobile account launcher overlaps Work Specification: account=${JSON.stringify(accountBox)} spec=${JSON.stringify(workSpecBox)}`);
+  assert(!overlaps(accountBox, reasonBox) && !overlaps(accountBox, codeBox), `Mobile account launcher overlaps mode controls: account=${JSON.stringify(accountBox)} reason=${JSON.stringify(reasonBox)} code=${JSON.stringify(codeBox)}`);
 
   assert(googleExchangeAuthorization === 'Bearer supabase-transient-token', 'Parallax API did not receive the transient Supabase token for exchange');
   assert(sessionMarkerObserved, 'Authenticated browser traffic did not use the Parallax session marker');
@@ -272,6 +277,7 @@ try {
     ownerAccessPanel: true,
     mobileWorkSpecificationCompact: true,
     mobileAccountNoOverlap: true,
+    mobileModeControlsNoOverlap: true,
     mobileAccessPanelFit: true,
     logout: sessionDeleteObserved,
     expectedAuthBoundary401s: authBoundaryErrors.length,
