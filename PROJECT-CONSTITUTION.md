@@ -1,6 +1,6 @@
 # Parallax 2.0 Project Constitution
 
-Version: 1.0
+Version: 1.1
 Status: Authoritative
 
 ## Product purpose
@@ -19,6 +19,7 @@ Parallax 2.0 is an outcome-focused AI reasoning and software-engineering environ
 8. **Accessibility and reduced-motion behavior are first-class.** Visual effects must degrade gracefully without hiding content or blocking work.
 9. **Security boundaries are product requirements, not later hardening.** Secrets, authorization, tool trust, and data isolation are designed deliberately.
 10. **Simplicity wins when outcomes are equivalent.** Complexity must justify itself through measurable quality, reliability, maintainability, capability, or user-experience improvement.
+11. **Parallel development is isolated; integration is serialized.** Concurrent ChatGPT workers use GitHub-authoritative workstream reservations, isolated branches, explicit dependency/path ownership, and validated PRs. Individual chat history does not establish current code ownership or release state. Final integration occurs one candidate at a time against the latest relevant `main`, with applicable gates rerun before merge and production promotion.
 
 ## Required authoritative records
 
@@ -30,3 +31,7 @@ The repository maintains these files as the durable project record:
 - `CURRENT-STATE.md`
 
 `CURRENT-STATE.md` is updated after every meaningful validated release, confirmed deployment, data refresh, or material decision. The other records change only when their durable subject matter changes.
+
+## Concurrent development authority
+
+`PARALLEL-DEVELOPMENT.md` defines the operating protocol for concurrent ChatGPT workstreams. Open GitHub `[WS]` issues, branches, PRs, validation evidence, and deployment evidence are the live coordination record. When chat recollection conflicts with those records, GitHub and the authoritative project files control.
