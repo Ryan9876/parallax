@@ -1,112 +1,91 @@
 # Parallax 2.0 Current State
 
-Version: 0.10.0
+Version: 0.11.0
 Date: 2026-08-21
-Status: DEPLOYED — INFRASTRUCTURE / AUTHORIZATION BOUNDARY VERIFIED; FIRST INTERACTIVE GOOGLE LOGIN NOT YET VERIFIED
+Status: DEPLOYED — PRODUCTION VERIFIED
 Production branch: `main`
-Production application release commit: `e2f266daea0a2caf060a8c061274cb7a3f7ced02`
-Validated release-tree commit: `3927b3137a251f5dadbae29802b1ba7071c37bd0`
-Production web deployment: `dpl_9RiVciErH3hCbejrqVUQ6cVxF1Aj`
-Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`
+Production application release commit: `e87a25ff0ba4cf5d8c71492294da735b13498458`
+Validated release-tree commit: `2414bbe719e41be52d86cc9c5329c1feea371c0c`
+Production web deployment: `dpl_9iQfhzbUMVsvo9twXeSw9oLAdi5Q`
+Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw` (unchanged v0.10 API; v0.11 is client-only)
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
 Production database: dedicated Supabase `Parallax 2.0`
-Production authorized-users migration: `20260821212154_authorized_users`
 
 ## Current deployed release
 
-Parallax 2.0 v0.10.0 — **Google Identity & Access Control** — is deployed through the GitHub → Vercel production pipeline.
+Parallax 2.0 v0.11.0 — **Conversation Material & Optical Etching** — is deployed through the GitHub → Vercel production pipeline.
 
-PR #14 promoted approved spec `P2-V0.10.0`. The exact validated release tree is `3927b3137a251f5dadbae29802b1ba7071c37bd0`; the production application merge commit is `e2f266daea0a2caf060a8c061274cb7a3f7ced02`.
+PR #16 promoted approved specification `P2-V0.11.0`. The exact validated release tree is `2414bbe719e41be52d86cc9c5329c1feea371c0c`; the production merge commit is `e87a25ff0ba4cf5d8c71492294da735b13498458`.
 
-Git comparison between the validated release tree and production application merge reports **zero changed files**. The deployed application tree is therefore the exact validated tree plus merge metadata.
+Git comparison between the validated release tree and production merge reports **zero changed files**. Production therefore contains the exact validated application tree plus merge metadata.
 
-## v0.10.0 outcome
+## v0.11.0 outcome
 
-The normal hosted-web sign-in path no longer asks the operator for a shared Parallax production credential.
+The core conversation experience was refined in response to operator review of the production mobile UI.
 
-v0.10.0 adds:
+The release changes the presentation rather than the product authority boundary:
 
-- Google OAuth through the dedicated Parallax Supabase Auth project;
-- explicit browser-owned PKCE initiation and callback exchange;
-- one-time handoff of the transient Supabase access token to the Parallax API;
-- Parallax-owned signed `HttpOnly` session establishment after server-side identity verification;
-- durable server-owned `authorized_users` application authorization;
-- `owner` / `member` roles and `active` / `revoked` access state;
-- owner-only access-management routes and the Editorial Optical access panel;
-- root bearer compatibility only for break-glass / explicit automation use;
-- no normal hosted-browser persistence of the production root access secret or transient Supabase access token.
+- ordinary user and assistant messages no longer use hard continuous card borders;
+- user messages use softly rounded, translucent neutral-grey/indigo material;
+- assistant responses use wider rounded neutral-grey/navy material with faint local optical depth rather than top/bottom/left panel rules;
+- assistant identity remains outside the response material and subordinate to narrative copy;
+- the composer uses the same softer rounded material language with 44 pt mobile controls;
+- the Skia workplane now uses a calm low-frequency lava-lamp-like field of large violet/indigo optical masses with restrained cyan energy and a deliberately darker central reading field;
+- the active optical typesetter restores a more visible theme-colored inscription signature: violet/indigo etching, lavender fresh-glyph energy, and a restrained cyan focus point;
+- settled assistant text cools back to normal pale selectable narrative text;
+- reduced-motion freezes time-dependent optical motion while preserving meaning;
+- reduced-graphics parity preserves the conversation-material hierarchy without Skia.
 
-## Identity and authorization boundary
+No API, database, OAuth, authorization, session, Work Specification, Engineering Run, or execution-authority behavior changed in v0.11.0.
 
-Google/Supabase proves identity. Parallax decides authorization.
+## Identity and authorization state
 
-The production `authorized_users` table is the authoritative application allowlist. The initial owner record has been seeded directly in production as `owner`, `active`, and intentionally remains unbound to a Google auth user ID until the first successful interactive Google sign-in.
+Google/Supabase proves identity. Parallax decides authorization through the production `authorized_users` allowlist.
+
+The initial owner record is active and the real interactive production Google sign-in path has now been verified by the operator: successful Google authentication reached the live Parallax workspace and displayed the expected owner identity/role state.
 
 The user's email address is deliberately not recorded in this public project-state file.
 
-On first successful Google login, the API binds the seeded allowlist record to the verified provider auth user ID. Subsequent protected requests require the active server-owned row and matching signed-session role. Revocation therefore takes effect even against an otherwise structurally valid older session cookie.
+The production identity boundary remains:
 
-## Database migration evidence
-
-Repository migration: `services/api/migrations/20260821_0005_authorized_users.sql`.
-
-Production Supabase migration history records:
-
-- `20260820165817_initial_parallax_p2_production`;
-- `20260820165849_enable_rls_and_revoke_api_roles`;
-- `20260821131833_work_specifications`;
-- `20260821155808_engineering_work_spec_binding`;
-- `20260821212154_authorized_users`.
-
-Verified production properties for `authorized_users`:
-
-- RLS enabled;
-- direct `anon` SELECT privilege absent;
-- direct `authenticated` SELECT privilege absent;
-- normalized email uniqueness enforced;
-- bound auth user ID uniqueness enforced.
-
-The Supabase security advisor reports the expected informational `rls_enabled_no_policy` notice because direct client access is intentionally disabled and FastAPI is the application data boundary. No client RLS policy is required for this architecture.
+- Google OAuth with PKCE through the dedicated Parallax Supabase Auth project;
+- server-side allowlist authorization;
+- identity-bearing signed Parallax sessions;
+- Secure, HttpOnly, SameSite=Lax, host-only production cookie behavior;
+- owner/member roles and immediate active/revoked authorization checks;
+- root bearer retained only for break-glass / explicit automation compatibility.
 
 ## Release validation evidence
 
-GitHub Actions run `32527836227` completed successfully for exact candidate commit `3927b3137a251f5dadbae29802b1ba7071c37bd0`.
+GitHub Actions run `32539073857` completed successfully for exact candidate commit `2414bbe719e41be52d86cc9c5329c1feea371c0c`.
 
 Passed gates:
 
-- protected specification validation through `P2-V0.10.0`;
+- protected specification validation through `P2-V0.11.0`;
 - Python compilation and full API tests;
 - client TypeScript typecheck;
 - response-state tests;
 - Expo web export;
 - production dependency-audit evidence capture;
 - Playwright browser / Skia acceptance;
+- Google-auth browser acceptance;
 - approved Work Specification → Code binding browser acceptance;
-- hosted Google PKCE browser acceptance under mocked provider boundaries;
-- transient provider-token handoff and Parallax session establishment acceptance;
-- owner access-panel and logout acceptance;
 - protected Engineering / Reason / Code promotion evaluation;
-- DSPy SpecCritic + SpecCompiler release compilation;
-- protected v0.10.0 compiled-plan contract verification.
+- DSPy SpecCritic + SpecCompiler release compilation against `P2-V0.11.0`;
+- protected v0.11.0 compiled-plan contract verification.
 
-The final frontend preview for exact release head was `READY` before promotion.
+The release initially exposed a specification-contract omission (`security` section). The gate correctly rejected that candidate. `P2-V0.11.0` was amended to explicitly inherit and protect the v0.10 identity/security boundary, and the subsequent exact-head run passed all gates. This is recorded as validation evidence rather than hidden release noise.
 
 ## Production verification evidence
 
 ### Web
 
-Vercel deployment `dpl_9RiVciErH3hCbejrqVUQ6cVxF1Aj` is `READY`, targets production, and reports Git commit `e2f266daea0a2caf060a8c061274cb7a3f7ced02`.
-
-Production aliases include:
-
-- `https://parallax-ashy-one-20.vercel.app`;
-- `https://parallax-lew7.vercel.app`;
-- `https://parallax-git-main-lew7.vercel.app`.
+Vercel deployment `dpl_9iQfhzbUMVsvo9twXeSw9oLAdi5Q` is `READY`, targets production, reports Git commit `e87a25ff0ba4cf5d8c71492294da735b13498458`, and owns the active production aliases.
 
 Verified live behavior:
 
-- production web root: HTTP 200 and serves the v0.10 Expo bundle;
+- production web root: HTTP 200;
 - `/p2-api/health`: HTTP 200 with Parallax API health JSON;
 - `/p2-api/ready`: HTTP 200 with database readiness `ok`;
 - unauthenticated `/p2-api/v1/session`: expected HTTP 401 with `WWW-Authenticate: Bearer`;
@@ -114,50 +93,37 @@ Verified live behavior:
 
 ### API
 
-Vercel deployment `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw` is `READY`, targets production, and reports the same production application commit.
+v0.11.0 does not change API code. Path-aware Vercel deployment correctly canceled the redundant API build for the v0.11 production merge.
 
-Verified live behavior:
+The active API production deployment remains `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`, is `READY`, and continues to serve the production aliases.
+
+Verified live behavior through the same-origin web gateway:
 
 - `/health`: HTTP 200;
 - `/ready`: HTTP 200 with database readiness `ok`;
-- `/openapi.json`: HTTP 200 and API version `0.10.0`;
-- deployed OpenAPI contains `POST /v1/session/google`;
-- deployed OpenAPI contains `GET /v1/access/me`;
-- deployed OpenAPI contains owner access-management routes under `/v1/access/users`;
-- protected existing Conversation, Work Specification, and Engineering Run routes remain present;
+- protected session boundary remains enforced;
 - no API runtime-error clusters found in the verification window.
-
-## Verification boundary
-
-The v0.10 application tree, production web and API deployments, schema migration, seeded owner authorization row, same-origin gateway, API health/readiness, unauthenticated protection boundary, deployed access-management route contract, and runtime-error state are verified.
-
-A real interactive production Google OAuth round trip is **not yet separately claimed** because deployment tooling cannot impersonate or authenticate as the operator's Google account. The seeded owner row remains intentionally unbound until that first successful sign-in.
-
-The release becomes fully identity-path deployment-verified when an authorized operator completes Google sign-in on the production web alias and reaches the Parallax workspace. That successful login will bind the owner allowlist record to the verified Google/Supabase auth identity; production evidence can then close the remaining verification gap.
 
 ## Deployment state vocabulary
 
-For v0.10.0:
+For v0.11.0:
 
 - Specification approved: **YES**
 - Implemented: **YES**
-- Full release validation: **YES**
+- Full exact-head release validation: **YES**
 - Browser / Skia acceptance: **YES**
-- Google PKCE browser acceptance: **YES — mocked provider boundary**
+- Google-auth browser acceptance: **YES**
 - Protected Engineering / Reason / Code evaluation: **YES**
-- DSPy release compilation: **YES**
-- Production database migration applied: **YES**
-- Initial owner authorization seeded: **YES**
+- DSPy v0.11 release compilation: **YES**
 - Validated tree equals production application tree: **YES**
 - Production web deployment READY: **YES**
-- Production API deployment READY: **YES**
+- Production API remains READY: **YES — unchanged service**
 - Production aliases active: **YES**
 - Hosted same-origin health/readiness: **YES**
 - Protected unauthenticated boundary: **YES**
-- Deployed v0.10 identity/access API contract: **YES**
+- Real production Google login / owner path: **YES — operator verified**
 - Production runtime errors in verification window: **NONE FOUND**
-- First real Google login / owner identity binding: **NOT YET VERIFIED**
-- Fully identity-path deployment-verified: **NO — one operator Google login remains**
+- v0.11 deployment-verified: **YES**
 
 ## Current product baseline
 
@@ -166,17 +132,19 @@ Parallax now combines:
 1. **Conversation-first Reason** with protected streaming behavior and durable state.
 2. **Durable Work Specifications** with revision history and explicit operator approval.
 3. **Approved-Spec Code execution binding** with immutable run/spec identity and server-owned acceptance authority.
-4. **Editorial Optical presentation** with asymmetric Skia fields, governed traces, strong reading hierarchy, and reduced-graphics parity.
-5. **Hosted-web same-origin resilience** through `/p2-api`.
-6. **Google identity + server-owned authorization** with PKCE, signed Parallax sessions, explicit owner/member roles, revocation, and root bearer retained only as break-glass / automation compatibility.
+4. **Editorial Optical conversation material** with soft translucent message surfaces rather than conventional bordered cards.
+5. **Calm living optical workplane** with slow lava-field motion, dark reading-zone protection, reduced-motion behavior, and reduced-graphics parity.
+6. **Theme-colored optical response inscription** that visibly etches fresh response glyphs and cools into normal selectable text.
+7. **Hosted-web same-origin resilience** through `/p2-api`.
+8. **Google identity + server-owned authorization** with PKCE, signed Parallax sessions, explicit owner/member roles, revocation, and root bearer retained only as break-glass / automation compatibility.
 
 The next consequential engineering phase remains bounded execution evidence. Live unrestricted shell, autonomous Git merge, and autonomous production deployment remain intentionally outside the current execution authority boundary.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for the deployed v0.10 release, exact release/production commits, migration and owner-seeding evidence, Vercel production evidence, runtime verification, and the remaining first-login verification boundary.
-- `ARCHITECTURE.md`: updated from version 1.9 to 2.0 because durable identity, authorization, session-establishment, owner-role, and break-glass boundaries changed.
-- `DESIGN-SYSTEM.md`: remains authoritative at version 1.6; no update required because the access gate/panel use the existing Editorial Optical visual language rather than establishing new durable visual rules.
+- `CURRENT-STATE.md`: updated for deployed and verified v0.11.0, production visual evidence, exact release commit/deployment, preserved security boundary, and successful real Google owner login.
+- `DESIGN-SYSTEM.md`: updated from v1.6 to v1.7 because conversation material, ambient lava-field behavior, and optical inscription treatment are now durable visual rules.
+- `ARCHITECTURE.md`: unchanged at v2.0; v0.11.0 introduces no topology, persistence, trust, identity, or execution-authority change.
 - `PROJECT-CONSTITUTION.md`: unchanged; governing principles did not materially change.
 
 Historical release evidence remains preserved in repository history.
