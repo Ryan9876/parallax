@@ -17,9 +17,25 @@ from parallax_api.repositories.work_specifications import WorkSpecificationRepos
 
 
 class FakeExecutor:
-    def __init__(self, *, fail_stage: WorkflowStage | None = None):
+    def __init__(self, *, fail_stage: WorkflowStage | None = None, probe_ready: bool = True):
         self.fail_stage = fail_stage
+        self.probe_ready = probe_ready
+        self.probes: list[str] = []
         self.specs: list[ExecutionSpec] = []
+
+    def probe(self, *, operation_key: str) -> dict[str, object]:
+        self.probes.append(operation_key)
+        return {
+            "tool_id": "python",
+            "exit_code": 0 if self.probe_ready else None,
+            "duration_ms": 5,
+            "stdout_excerpt": "PARALLAX_SANDBOX_READY" if self.probe_ready else "",
+            "stderr_excerpt": "" if self.probe_ready else "sandbox unavailable",
+            "protected_success": self.probe_ready,
+            "executor": "recorded-test",
+            "network_policy": "deny-all",
+            "persistent": False,
+        }
 
     def execute(self, spec: ExecutionSpec) -> dict[str, object]:
         self.specs.append(spec)
@@ -90,7 +106,7 @@ def implementation_evidence():
     }
 
 
-def test_autonomy_advances_plan_then_stops_at_implementation_boundary(tmp_path):
+def test_autonomy_preflights_executor_advances_plan_then_stops_at_implementation_boundary(tmp_path):
     session, service, conversations, work_specs = service_for(tmp_path)
     try:
         run = activated_run(service, conversations, work_specs)
@@ -103,11 +119,30 @@ def test_autonomy_advances_plan_then_stops_at_implementation_boundary(tmp_path):
 
         assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_REQUIRED
         assert result.run.state == "IMPLEMENT"
-        assert [step.stage for step in result.steps] == ["PLAN"]
+        assert [step.stage for step in result.steps] == ["EXECUTOR", "PLAN"]
+        assert executor.probes
         assert executor.specs == []
         plan_attempt = [item for item in result.run.attempts if item.stage == "PLAN"][-1]
         assert "AC-01" in plan_attempt.evidence_json
         assert "AC-02" in plan_attempt.evidence_json
+        assert '"executor_preflight": "passed"' in plan_attempt.evidence_json
+    finally:
+        session.close()
+
+
+def test_executor_preflight_failure_does_not_mutate_plan(tmp_path):
+    session, service, conversations, work_specs = service_for(tmp_path, "probe-failure.db")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        result = AutonomyCoordinator(service, FakeExecutor(probe_ready=False)).run(
+            run_id=run.id,
+            operation_key="probe-failure",
+            expected_revision=run.revision,
+        )
+        assert result.stop_reason is AutonomyStopReason.EXECUTOR_UNAVAILABLE
+        assert result.run.state == "PLAN"
+        assert result.run.revision == run.revision
+        assert [(step.stage, step.outcome) for step in result.steps] == [("EXECUTOR", "FAILED")]
     finally:
         session.close()
 
@@ -154,6 +189,7 @@ def test_autonomy_runs_build_test_verify_and_stops_before_review(tmp_path):
         assert result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED
         assert result.run.state == "REVIEW"
         assert [step.stage for step in result.steps] == ["BUILD", "TEST", "VERIFY"]
+        assert executor.probes == []
         assert [spec.stage for spec in executor.specs] == [
             WorkflowStage.BUILD,
             WorkflowStage.TEST,
