@@ -127,12 +127,12 @@ jobs:
           print(f'PASS: validated {len(changed)} changed Parallax specification contract(s)')
           PY
 
-  changed-spec-dspy:
-    name: Changed specification DSPy gate
+  protected-plans:
+    name: Changed specification protected plan gate
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     needs: contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     permissions:
       contents: read
     steps:
@@ -145,58 +145,33 @@ jobs:
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
 
-      - id: model
-        name: Select provider-backed or local DSPy model
-        if: needs.contracts.outputs.count != '0'
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          if [ -n "$OPENAI_API_KEY" ]; then
-            echo 'provider=true' >> "$GITHUB_OUTPUT"
-            echo 'name=openai/gpt-5.6-sol' >> "$GITHUB_OUTPUT"
-            echo 'DSPY_MODEL=openai/gpt-5.6-sol' >> "$GITHUB_ENV"
-          else
-            echo 'provider=false' >> "$GITHUB_OUTPUT"
-            echo 'name=ollama_chat/qwen2.5:0.5b' >> "$GITHUB_OUTPUT"
-            echo 'DSPY_MODEL=ollama_chat/qwen2.5:0.5b' >> "$GITHUB_ENV"
-            echo 'DSPY_API_BASE=http://127.0.0.1:11434' >> "$GITHUB_ENV"
-            echo 'DSPY_API_KEY=' >> "$GITHUB_ENV"
-            echo 'DSPY_LOCAL_DEVELOPMENT=1' >> "$GITHUB_ENV"
-          fi
-
-      - name: Install local DSPy development LM
-        if: needs.contracts.outputs.count != '0' && steps.model.outputs.provider == 'false'
-        run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          nohup ollama serve > /tmp/workstream-ollama.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull qwen2.5:0.5b
-
-      - name: Compile and protect changed specification contracts
-        if: needs.contracts.outputs.count != '0'
+      - name: Validate committed DSPy plan evidence for changed specifications
         env:
           CHANGED_SPECS: ${{ needs.contracts.outputs.paths }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CHANGED_COUNT: ${{ needs.contracts.outputs.count }}
         run: |
           set -euo pipefail
+          if [ "${CHANGED_COUNT:-0}" = '0' ]; then
+            echo 'PASS: no changed workstream specifications require protected plan validation.'
+            exit 0
+          fi
+
           while IFS= read -r spec; do
             [ -z "$spec" ] && continue
-            echo "Compiling $spec"
-            python scripts/compile_spec.py "$spec"
+            plan="specs/compiled/$(basename "$spec" .md).plan.json"
+            if [ ! -f "$plan" ]; then
+              echo "FAIL: changed specification is missing its committed compiled plan: $plan"
+              exit 1
+            fi
+            echo "Validating protected DSPy evidence for $spec"
             python scripts/validate_spec.py --require-dspy "$spec"
           done <<< "$CHANGED_SPECS"
 
-      - name: Record changed-spec DSPy status
+      - name: Record changed-spec plan validation status
         if: always()
         env:
           CHANGED_SPECS: ${{ needs.contracts.outputs.paths }}
           CHANGED_COUNT: ${{ needs.contracts.outputs.count }}
-          PROVIDER: ${{ steps.model.outputs.provider }}
-          MODEL: ${{ steps.model.outputs.name }}
         run: |
           python - <<'PY'
           import json
@@ -208,13 +183,12 @@ jobs:
               'executed': bool(specs),
               'changed_count': int(os.environ.get('CHANGED_COUNT') or 0),
               'specifications': specs,
-              'spec_compiler_executed': bool(specs),
-              'spec_critic_executed': bool(specs),
-              'model': os.environ.get('MODEL') or None,
-              'provider_backed': os.environ.get('PROVIDER') == 'true',
+              'committed_dspy_evidence_validated': bool(specs),
+              'fresh_stochastic_compile_executed_in_ci': False,
               'protected_metrics_required': True,
+              'policy': 'deterministic_committed_plan_validation',
           }
-          target = Path('specs/compiled/workstream-dspy-run-status.json')
+          target = Path('specs/compiled/workstream-plan-validation-status.json')
           target.parent.mkdir(parents=True, exist_ok=True)
           target.write_text(json.dumps(status, indent=2) + '\n', encoding='utf-8')
           PY
@@ -225,7 +199,6 @@ jobs:
           name: workstream-spec-evidence
           path: |
             specs/compiled/*.plan.json
-            specs/compiled/workstream-dspy-run-status.json
-            /tmp/workstream-ollama.log
+            specs/compiled/workstream-plan-validation-status.json
           if-no-files-found: warn
           retention-days: 14
