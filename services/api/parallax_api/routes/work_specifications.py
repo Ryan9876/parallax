@@ -13,7 +13,7 @@ from ..intelligence.work_specification import (
 from ..models import WorkSpecification
 from ..repositories.conversations import ConversationRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
-from ..schemas import WorkSpecificationRead
+from ..schemas import ConversationRead, WorkSpecificationRead
 from ..services.work_specifications import WorkSpecificationService
 
 router = APIRouter(prefix="/v1", tags=["work-specifications"])
@@ -111,3 +111,14 @@ def approve_work_specification(
     svc: WorkSpecificationService = Depends(service),
 ):
     return present(svc.approve(specification_id))
+
+
+@router.post(
+    "/conversations/{conversation_id}/work-specifications/resume-approved-scope",
+    response_model=ConversationRead,
+)
+def resume_approved_scope(
+    conversation_id: str,
+    svc: WorkSpecificationService = Depends(service),
+):
+    return svc.resume_approved_scope(conversation_id)
