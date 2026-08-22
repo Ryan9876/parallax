@@ -64,9 +64,11 @@ class AppBuilderBenchmarkCase(AppBuilderStrictModel):
         ids = [item.requirement_id for item in self.requirements]
         if len(ids) != len(set(ids)):
             raise ValueError("observation requirement IDs must be unique within a case")
-        normalized = [f"{item.kind}:{item.observation.strip().casefold()}" for item in self.requirements]
+        normalized = [item.observation.strip().casefold() for item in self.requirements]
+        if any(not value for value in normalized):
+            raise ValueError("observation requirements may not be empty or whitespace-only")
         if len(normalized) != len(set(normalized)):
-            raise ValueError("duplicate observation requirements are not allowed")
+            raise ValueError("observation requirements may not duplicate or contradict one another")
         return self
 
 
