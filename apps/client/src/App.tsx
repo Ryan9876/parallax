@@ -59,7 +59,6 @@ export default function App() {
   const [accessDraft, setAccessDraft] = React.useState('');
   const [accessError, setAccessError] = React.useState('');
   const [accessBusy, setAccessBusy] = React.useState(false);
-  const [composerHeight, setComposerHeight] = React.useState(86);
   const pendingRefreshRef = React.useRef<string | null>(null);
   const threadRef = React.useRef<ScrollView>(null);
   const liveEdgeRef = React.useRef(true);
@@ -527,7 +526,7 @@ export default function App() {
             <ScrollView
               ref={threadRef}
               style={styles.threadScroll}
-              contentContainerStyle={[styles.thread, { paddingBottom: Math.max(118, composerHeight + 34) }]}
+              contentContainerStyle={styles.thread}
               keyboardShouldPersistTaps="handled"
               onScroll={handleThreadScroll}
               onContentSizeChange={handleThreadContentSizeChange}
@@ -596,10 +595,7 @@ export default function App() {
               {state.phase === 'ERROR' && <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text>}
             </ScrollView>
 
-            <View
-              onLayout={(event) => setComposerHeight(Math.ceil(event.nativeEvent.layout.height))}
-              style={styles.composerWrap}
-            >
+            <View style={styles.composerWrap}>
               <View style={styles.composer}>
                 {compact && (
                   <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation">
@@ -672,7 +668,7 @@ const styles = StyleSheet.create({
   railMuted: { fontSize: 7.5, color: palette.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.65 },
   railBottom: { gap: 4, paddingTop: 13, paddingHorizontal: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
   railStatus: { fontSize: 8, color: palette.indigo, letterSpacing: 0.9, fontWeight: '700' },
-  main: { flex: 1, minWidth: 0 },
+  main: { flex: 1, minWidth: 0, minHeight: 0 },
   topbar: {
     position: 'relative',
     minHeight: 66,
@@ -694,8 +690,8 @@ const styles = StyleSheet.create({
   modeButtonActive: { backgroundColor: 'rgba(143,99,216,0.82)' },
   modeText: { fontSize: 8, textTransform: 'uppercase', color: palette.textSecondary, fontWeight: '700', letterSpacing: 0.8 },
   modeTextActive: { color: palette.text },
-  threadScroll: { flex: 1 },
-  thread: { width: '100%', maxWidth: 860, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 34 },
+  threadScroll: { flex: 1, minHeight: 0 },
+  thread: { width: '100%', maxWidth: 860, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 34, paddingBottom: 28 },
   emptyState: { maxWidth: 540, alignSelf: 'center', alignItems: 'center', paddingTop: 92, paddingHorizontal: 24 },
   emptyTitle: { color: palette.text, fontSize: 24, fontWeight: '500', marginTop: 16, letterSpacing: -0.7 },
   emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
@@ -747,7 +743,7 @@ const styles = StyleSheet.create({
   amendmentTitle: { color: palette.text, fontSize: 10, fontWeight: '800', marginBottom: 5, letterSpacing: 0.45 },
   amendmentText: { color: palette.textSecondary, fontSize: 11, lineHeight: 17 },
   errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingBottom: 16, paddingTop: 8, backgroundColor: 'rgba(8,11,18,0.08)' },
+  composerWrap: { flexShrink: 0, paddingHorizontal: 18, paddingBottom: 16, paddingTop: 8, backgroundColor: 'rgba(8,11,18,0.08)' },
   composer: {
     maxWidth: 820,
     width: '100%',

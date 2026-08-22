@@ -193,7 +193,7 @@ export default function FallbackApp() {
             />
           )}
 
-          <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
+          <ScrollView style={styles.threadScroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
             {messages.length === 0 && (
               <View style={styles.empty}>
                 <StaticMark size={44} />
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   railItemActive: { padding: 10, marginBottom: 3, borderRadius: 12, backgroundColor: palette.indigoWash, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
   railItemText: { color: palette.textSoft, fontSize: 12 },
   railMuted: { color: palette.muted, fontSize: 10, textTransform: 'capitalize', marginTop: 3 },
-  main: { flex: 1, minWidth: 0 },
+  main: { flex: 1, minWidth: 0, minHeight: 0 },
   topbar: { minHeight: 64, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, backgroundColor: 'rgba(8,11,18,0.58)' },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   title: { color: palette.text, fontSize: 16, fontWeight: '600' },
@@ -260,7 +260,8 @@ const styles = StyleSheet.create({
   modeActive: { backgroundColor: palette.violetDeep },
   modeText: { fontSize: 10, color: palette.textSecondary, textTransform: 'uppercase' },
   modeTextActive: { color: palette.text },
-  thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 150 },
+  threadScroll: { flex: 1, minHeight: 0 },
+  thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 28 },
   empty: { maxWidth: 560, alignSelf: 'center', alignItems: 'center', paddingTop: 90 },
   emptyTitle: { color: palette.text, fontSize: 20, fontWeight: '600', marginTop: 14, textAlign: 'center' },
   emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, marginTop: 8, textAlign: 'center' },
@@ -270,7 +271,7 @@ const styles = StyleSheet.create({
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   assistantName: { color: palette.indigo, fontSize: 12, fontWeight: '700' },
   assistantText: { color: palette.text, fontSize: 17, lineHeight: 27 },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
+  composerWrap: { flexShrink: 0, padding: 16 },
   composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.glassStrong },
   input: { flex: 1, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: palette.text, fontSize: 14 },
   send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.violetDeep },
