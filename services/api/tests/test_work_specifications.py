@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
@@ -107,6 +109,45 @@ def test_current_draft_approval_releases_amendment_but_old_approval_cannot(tmp_p
         assert conversation_service.get(conversation.id).status == "ACTIVE"
 
 
+def test_explicit_resume_uses_only_current_approved_scope_and_never_bypasses_draft(tmp_path):
+    engine = make_engine(f"sqlite:///{tmp_path / 'approved-scope-resume.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as session:
+        conversations = ConversationRepository(session)
+        conversation_service = ConversationService(conversations, active_spec_id="P2-V0.13.0")
+        conversation = conversation_service.create("code")
+        conversation_service.append_message(conversation.id, "user", "Build the approved objective.")
+        specs = WorkSpecificationService(WorkSpecificationRepository(session), conversations)
+
+        approved = specs.create_draft(conversation_id=conversation.id, draft=draft("Approved scope"), model_id="test")
+        approved = specs.approve(approved.id)
+        approved_updated_at = approved.updated_at
+        conversation_service.set_status(conversation.id, "SPEC_AMENDMENT")
+
+        resumed = specs.resume_approved_scope(conversation.id)
+        assert resumed.status == "ACTIVE"
+        unchanged = specs.repository.get(approved.id)
+        assert unchanged.status == "APPROVED"
+        assert unchanged.updated_at == approved_updated_at
+
+        conversation_service.set_status(conversation.id, "SPEC_AMENDMENT")
+        replacement = specs.create_draft(conversation_id=conversation.id, draft=draft("Replacement draft"), model_id="test")
+        assert replacement.status == "DRAFT"
+
+        with pytest.raises(HTTPException) as blocked:
+            specs.resume_approved_scope(conversation.id)
+        assert blocked.value.status_code == 422
+        assert conversation_service.get(conversation.id).status == "SPEC_AMENDMENT"
+
+        specs.approve(replacement.id)
+        assert conversation_service.get(conversation.id).status == "ACTIVE"
+        with pytest.raises(HTTPException) as not_waiting:
+            specs.resume_approved_scope(conversation.id)
+        assert not_waiting.value.status_code == 409
+
+
 def test_conversation_context_requires_user_turn_and_prefers_latest_user_objective():
     coordinator = WorkSpecificationCoordinator()
     messages = [
@@ -162,6 +203,19 @@ def test_work_specification_routes_use_explicit_draft_then_approval():
             stored.approved_at = now
             return stored
 
+        def resume_approved_scope(self, conversation_id):
+            assert conversation_id == "conversation-test"
+            return SimpleNamespace(
+                id="conversation-test",
+                title="Captured objective",
+                mode="reason",
+                status="ACTIVE",
+                spec_id="P2-V0.13.0",
+                created_at=now,
+                updated_at=now,
+                messages=[],
+            )
+
     class FakeCoordinator:
         async def draft(self, messages):
             assert messages[0].role == "user"
@@ -192,3 +246,7 @@ def test_work_specification_routes_use_explicit_draft_then_approval():
     approved = client.post("/v1/work-specifications/spec-1/approve")
     assert approved.status_code == 200
     assert approved.json()["status"] == "APPROVED"
+
+    resumed = client.post("/v1/conversations/conversation-test/work-specifications/resume-approved-scope")
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "ACTIVE"
