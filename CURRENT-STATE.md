@@ -1,18 +1,18 @@
 # Parallax 2.0 Current State
 
-Version: 0.13.6 production
+Version: 0.13.7 production
 Date: 2026-08-22
-Status: DEPLOYMENT-VERIFIED — ON-DEVICE iOS KEYBOARD CHECK AND FIRST REAL OPERATOR SANDBOX EXECUTION PENDING
+Status: DEPLOYMENT-VERIFIED — REAL-DEVICE COMPOSER CHECK AND FIRST REAL OPERATOR SANDBOX EXECUTION PENDING
 Production branch: `main`
-Production application commit: `db25306a4aa76ce367ae7b4a5ab2dddccb3f6f40`
+Production application commit: `c3901d01eb5dedb0f791b9750c39520a979be39d`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
-Production web deployment: `dpl_8xQehA2gv25HC3ChuWQCfHmADFAs`
+Production web deployment: `dpl_7dHwT7QB7t9XvJ8rdk8SQeiAyTt3`
 Production API deployment: `dpl_G5hz69cCs877NE2kkuPGLMweaHuK`
 
 ## Current production baseline
 
-Parallax 2.0 v0.13.6 is merged to `main` and deployment-verified on the production web project. The current baseline combines the v0.13 bounded-autonomy pilot, v0.13.1 active-spec production guard, v0.13.2 visual integration, v0.13.3 amendment-approval lifecycle repair, v0.13.4 explicit approved-scope recovery, v0.13.5 mobile Work Specification review correction, and v0.13.6 iOS keyboard-visible workspace correction.
+Parallax 2.0 v0.13.7 is merged to `main` and deployment-verified on the production web project. The current baseline combines the v0.13 bounded-autonomy pilot, v0.13.1 active-spec production guard, v0.13.2 visual integration, v0.13.3 amendment-approval lifecycle repair, v0.13.4 explicit approved-scope recovery, v0.13.5 mobile Work Specification review correction, v0.13.6 iOS keyboard-visible workspace correction, and v0.13.7 structural composer-clearance correction.
 
 The production Code path includes:
 
@@ -37,10 +37,9 @@ The production workspace uses the approved Parallax visual language:
 - rounded translucent Work Specification material;
 - compact stream-synchronized optical engraving treatment for active assistant responses;
 - response-follow behavior that keeps live output visible while respecting intentional upward scrolling;
-- composer-height clearance so active content is not hidden behind the input surface;
 - mobile geometry and controls validated without horizontal overflow.
 
-The durable knot, ambient-motion, Work Specification material, optical-typesetter, response-follow, and mobile keyboard rules are recorded in `DESIGN-SYSTEM.md`.
+The durable knot, ambient-motion, Work Specification material, optical-typesetter, response-follow, mobile keyboard, and composer-clearance rules are recorded in `DESIGN-SYSTEM.md`.
 
 ## v0.13.3 amendment approval lifecycle — live
 
@@ -62,45 +61,45 @@ For persisted `SPEC_AMENDMENT` conversations whose latest Work Specification is 
 
 A production phone screenshot exposed a layout regression on an expanded Work Specification: the governed surface could consume most of a 390×844-class viewport and visually collide with the persistent composer.
 
-v0.13.5 corrects that behavior without changing specification authority or lifecycle semantics:
+v0.13.5 height-bounds expanded Work Specification details on compact viewports, keeps the summary/actions visible, allows long contract content to scroll inside the specification body, and preserves 44 px phone targets.
 
-- expanded Work Specification details are height-bounded on compact viewports;
-- long contract content scrolls inside the specification body instead of extending through the conversation workspace;
-- title, status, revision, approval/refresh controls, and disclosure control remain visible while the details scroll;
-- the redundant compact objective preview is suppressed while expanded, reducing vertical waste;
-- approval collapses the expanded review state;
-- phone controls remain at least 44 px;
-- the Work Specification surface remains above and separate from the persistent composer.
-
-A dedicated 390×844 Playwright acceptance test asserts non-overlap, internal scrolling, and control-target geometry.
-
-The `P2-V0.13.0` text visible in the workspace header is the active product specification identifier for the conversation, not the deployed application release number. Its presence in a v0.13.6 UI is expected and is not version drift.
+The `P2-V0.13.0` text visible in the workspace header is the active product specification identifier for the conversation, not the deployed application release number.
 
 ## v0.13.6 iOS keyboard-visible workspace — live
 
-A second production phone screenshot exposed two WebKit-specific mobile problems when the composer received focus:
+A production iPhone screenshot exposed two WebKit-specific problems when the composer received focus: the software keyboard could overlay the composer, and 14 px input text could trigger Safari automatic focus zoom.
 
-1. the iOS software keyboard overlaid the layout viewport and could cover Parallax's persistent composer;
-2. the 14 px composer text could trigger Safari automatic focus zoom, enlarging/cropping the workspace while typing.
+v0.13.6 corrected those behaviors without changing application authority semantics:
 
-v0.13.6 introduces a web-only correction without changing application state or authority semantics:
-
-- phone-sized web editable text is forced to at least 16 CSS px, preventing Safari focus zoom while leaving normal user zoom enabled;
-- a lightweight visual-viewport guard activates only when an editable field is focused and WebKit reports a materially reduced visible viewport;
-- the Parallax root temporarily fits `visualViewport.height` and compensates `visualViewport.offsetTop`, keeping the workspace aligned with the actually visible region;
-- the persistent composer therefore remains above the overlaid software keyboard;
-- the guard restores the original root geometry as soon as the visual viewport recovers or editable focus ends;
-- browsers that already resize their layout viewport correctly do not receive unnecessary compensation;
+- phone-sized web editable text is forced to at least 16 CSS px;
+- a measured `visualViewport` guard fits the Parallax root to the visible area when the keyboard overlays WebKit content;
+- non-zero visual viewport offsets are compensated;
+- the adjustment resets when the viewport recovers or editable focus ends;
 - no hard-coded iPhone or keyboard height is used.
 
-The durable rule is now recorded in `DESIGN-SYSTEM.md` v2.0: phone web editables remain at least 16 CSS px, and keyboard-visible layout follows measured visual-viewport geometry rather than disabling zoom or assuming a device height.
+The v0.13.6 keyboard regression remains part of the protected browser suite and continues to pass under v0.13.7.
+
+## v0.13.7 in-flow composer clearance — live
+
+A subsequent production iPhone screenshot with the keyboard closed exposed the deeper layout problem: the composer itself was still absolutely positioned over the conversation thread. The client attempted to avoid overlap by measuring composer height and adding estimated bottom padding, but newest assistant/amendment content could still render underneath the composer after governed-surface and state changes.
+
+v0.13.7 replaces that estimation model with structural layout ownership:
+
+- the composer is an in-flow dock that reserves actual vertical space in both the normal Skia workspace and reduced-graphics fallback;
+- the conversation thread is the flexible, shrinkable scroll region between governed surfaces and the composer;
+- the main/thread flex regions explicitly permit shrinking so an expanded Work Specification does not push the composer over narrative content;
+- estimated composer-height padding is no longer the primary clearance mechanism;
+- at the thread live edge, newest assistant and amendment content remains reachable above the composer;
+- v0.13.6 keyboard-visible visual-viewport handling remains unchanged and continues to operate around the in-flow composer.
+
+This is the stronger structural correction: layout geometry now prevents overlap rather than attempting to compensate for an overlay after measurement.
 
 ## Validation evidence
 
-PR `#27`, head `b6aecd5ea4b62755ba89a50a866f3a4c0801a8b8`, passed both protected workflows before merge:
+PR `#28`, head `3a8a7d5ba6293800601fa053b30a036bb106cc3a`, passed both protected workflows before merge:
 
-- `Parallax P2 CI` run `32589040037` — SUCCESS;
-- `Bounded Autonomy Pilot` run `32589040034` — SUCCESS.
+- `Parallax P2 CI` run `32589939080` — SUCCESS;
+- `Bounded Autonomy Pilot` run `32589939139` — SUCCESS.
 
 The passing gate covered:
 
@@ -111,28 +110,21 @@ The passing gate covered:
 - web export;
 - browser / Skia acceptance;
 - existing mobile Work Specification geometry acceptance;
-- new iOS keyboard-visible viewport acceptance;
+- existing iOS keyboard-visible viewport acceptance;
+- new 390×844 composer-clearance acceptance;
 - protected Engineering / Reason / Code promotion evaluation;
 - DSPy release compilation;
 - bounded-autonomy authority-boundary regressions.
 
-The new keyboard acceptance simulates a 390×844 layout viewport with a 480 px visible visual viewport and a 72 px visual-viewport offset while the composer is focused. It verifies:
+The new composer-clearance regression uses an expanded draft Work Specification plus a user turn and newest assistant response, scrolls the conversation to the live edge, and asserts that neither the response nor governed surface intersects the composer. The passing client build-evidence artifact is `9480060187` and includes `mobile-composer-clearance.png` alongside the existing mobile keyboard/spec evidence.
 
-- mobile editable computed font size is at least 16 px;
-- the Parallax root fits the 480 px visible viewport;
-- the 72 px offset is compensated;
-- the composer remains entirely inside the visible region above the simulated keyboard;
-- normal root geometry is restored after the viewport recovers.
-
-The passing client build-evidence artifact is `9479833204` and contains `mobile-keyboard-visible.png` plus the existing visual evidence set.
-
-PR `#27` was squash-merged to `main` as `db25306a4aa76ce367ae7b4a5ab2dddccb3f6f40`.
+PR `#28` was squash-merged to `main` as application commit `c3901d01eb5dedb0f791b9750c39520a979be39d`.
 
 ## Deployment verification
 
 ### Web
 
-Production deployment `dpl_8xQehA2gv25HC3ChuWQCfHmADFAs` is READY, targets production, and carries main application commit `db25306a4aa76ce367ae7b4a5ab2dddccb3f6f40`.
+Production deployment `dpl_7dHwT7QB7t9XvJ8rdk8SQeiAyTt3` is READY, targets production, and carries application commit `c3901d01eb5dedb0f791b9750c39520a979be39d`.
 
 Its aliases include:
 
@@ -140,19 +132,21 @@ Its aliases include:
 - `parallax-lew7.vercel.app`;
 - `parallax-git-main-lew7.vercel.app`.
 
-A direct request to `https://parallax-ashy-one-20.vercel.app/` returned HTTP 200 after deployment and served the new production web bundle (`index-0a892c7b98c23432a3a42202da83d302.js`).
+A direct request to `https://parallax-ashy-one-20.vercel.app/` returned HTTP 200 after deployment and served the new production web bundle `index-5713fb3fa9aaa53907ce61b0c2fc97e3.js`.
+
+Later documentation-only commits update authoritative records but do not replace the production application commit above.
 
 ### API
 
-v0.13.6 contains no API implementation change. The deployment-verified v0.13.4 API deployment `dpl_G5hz69cCs877NE2kkuPGLMweaHuK` remains the production API behind `parallax-api-tan.vercel.app`.
+v0.13.7 contains no API implementation change. The deployment-verified v0.13.4 API deployment `dpl_G5hz69cCs877NE2kkuPGLMweaHuK` remains the production API behind `parallax-api-tan.vercel.app`.
 
-Its authentication, amendment recovery endpoint, Engineering Run behavior, and bounded-autonomy authority are unchanged by v0.13.5 and v0.13.6.
+Authentication, amendment recovery, Engineering Run behavior, and bounded-autonomy authority are unchanged by v0.13.5–v0.13.7.
 
 ## Remaining operator verification
 
 Automated validation and production deployment verification are complete. Two user-driven checks remain intentionally unclaimed:
 
-1. **On-device iOS keyboard check:** reload production on the iPhone, tap the composer, and confirm the page no longer zooms/crops and the full composer remains immediately above the keyboard.
+1. **Real-device mobile composition:** reload production on the iPhone and confirm the newest response remains fully scrollable above the composer with the keyboard closed, then focus the composer and confirm the v0.13.6 keyboard-visible behavior still feels correct on-device.
 2. **First real isolated Sandbox execution:** complete the bounded-autonomy operator path below.
 
 Expected autonomy path:
@@ -174,20 +168,21 @@ Expected autonomy path:
 - v0.13.4 explicit approved-scope recovery: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - v0.13.5 mobile Work Specification review correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - v0.13.6 iOS keyboard-visible workspace correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
+- v0.13.7 in-flow composer-clearance correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - Automated CI validation: **PASS**
 - Merged application release to `main`: **YES**
 - Production web: **READY / HTTP 200 VERIFIED**
 - Production API: **UNCHANGED FROM v0.13.4 / READY**
 - Private production authentication: **UNCHANGED / FAIL-CLOSED**
-- Real-device iOS keyboard behavior after v0.13.6: **PENDING OPERATOR CHECK**
+- Real-device v0.13.7 mobile composition: **PENDING OPERATOR CHECK**
 - First real operator Sandbox execution: **PENDING**
 - Full bounded-autonomy pilot deployment verification: **PENDING operator execution evidence**
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the v0.13.6 iOS keyboard-visible correction, validation evidence, merge commit, production deployment, and remaining real-device/operator checks.
-- `DESIGN-SYSTEM.md`: advanced to v2.0 because v0.13.6 introduces durable mobile-web rules for 16 px editable text, visual-viewport keyboard handling, preservation of user zoom, and measured keyboard-visible geometry.
-- `ARCHITECTURE.md`: unchanged; the correction is a web presentation/runtime viewport adaptation and does not change persistence, state ownership, trust boundaries, authentication, Code binding, or bounded-autonomy architecture.
+- `CURRENT-STATE.md`: updated for the v0.13.7 structural composer-clearance correction, passing validation evidence, merge commit, production deployment, and remaining on-device/operator checks.
+- `DESIGN-SYSTEM.md`: advanced to v2.1 because v0.13.7 establishes a durable interaction/layout rule: the composer is an in-flow dock, the thread is the shrinkable scroll region, and narrative clearance is structural rather than estimated from overlay height.
+- `ARCHITECTURE.md`: unchanged; v0.13.7 changes client layout ownership but not persistence, service boundaries, authentication, state ownership, Code binding, or bounded-autonomy architecture.
 - `PROJECT-CONSTITUTION.md`: unchanged; the release remains consistent with existing accessibility, human-control, fail-closed, evidence, and authority principles.
 
 Historical candidate, preview, CI, deployment, and visual evidence remains preserved in GitHub Actions and Vercel history.
