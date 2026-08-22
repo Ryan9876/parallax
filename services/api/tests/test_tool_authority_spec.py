@@ -21,5 +21,5 @@ def test_tool_authority_spec_and_compiled_plan_pass_protected_contract():
     spec_result = evaluate_spec_contract(spec_text)
     assert spec_result.passed, spec_result.failures
 
-    plan_result = evaluate_compiled_plan(spec_text, plan, require_metadata=False)
+    plan_result = evaluate_compiled_plan(spec_text, plan, require_metadata=True)
     assert plan_result.passed, plan_result.failures
