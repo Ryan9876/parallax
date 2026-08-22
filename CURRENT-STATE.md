@@ -1,53 +1,50 @@
 # Parallax 2.0 Current State
 
-Version: 0.11.0
+Version: 0.11.1
 Date: 2026-08-21
 Status: DEPLOYED — PRODUCTION VERIFIED
 Production branch: `main`
-Production application release commit: `e87a25ff0ba4cf5d8c71492294da735b13498458`
-Validated release-tree commit: `2414bbe719e41be52d86cc9c5329c1feea371c0c`
-Production web deployment: `dpl_9iQfhzbUMVsvo9twXeSw9oLAdi5Q`
-Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw` (unchanged v0.10 API; v0.11 is client-only)
+Production application release commit: `1780fd42c2ce5a42a620ae1da2e0ce8c01a45e34`
+Validated release-tree commit: `19e0ea740322e2d69e5007212da934edae474515`
+Production web deployment: `dpl_F9k1NMott4agcRkHtbRx54MUDErD`
+Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw` (unchanged v0.10 API; v0.11.1 is client-only)
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
 Production database: dedicated Supabase `Parallax 2.0`
 
 ## Current deployed release
 
-Parallax 2.0 v0.11.0 — **Conversation Material & Optical Etching** — is deployed through the GitHub → Vercel production pipeline.
+Parallax 2.0 v0.11.1 — **Mobile Viewport Polish** — is deployed through the GitHub → Vercel production pipeline.
 
-PR #16 promoted approved specification `P2-V0.11.0`. The exact validated release tree is `2414bbe719e41be52d86cc9c5329c1feea371c0c`; the production merge commit is `e87a25ff0ba4cf5d8c71492294da735b13498458`.
+PR #17 promoted approved specification `P2-V0.11.1`. The exact validated release tree is `19e0ea740322e2d69e5007212da934edae474515`; the production application merge commit is `1780fd42c2ce5a42a620ae1da2e0ce8c01a45e34`.
 
-Git comparison between the validated release tree and production merge reports **zero changed files**. Production therefore contains the exact validated application tree plus merge metadata.
+Git comparison between the validated release tree and production application merge reports **zero changed files**. Production therefore contains the exact validated application tree plus merge metadata.
 
-## v0.11.0 outcome
+v0.11.1 is a screenshot-driven corrective client release following operator review of the production phone layout. It preserves the v0.11.0 Editorial Optical conversation material and all existing product authority boundaries while correcting mobile governed-surface density and control overlap.
 
-The core conversation experience was refined in response to operator review of the production mobile UI.
+## v0.11.1 outcome
 
-The release changes the presentation rather than the product authority boundary:
+The production mobile screenshot exposed two material responsive defects: the collapsed Work Specification surface consumed too much of the phone viewport, and the signed-in account control floated across governed content.
 
-- ordinary user and assistant messages no longer use hard continuous card borders;
-- user messages use softly rounded, translucent neutral-grey/indigo material;
-- assistant responses use wider rounded neutral-grey/navy material with faint local optical depth rather than top/bottom/left panel rules;
-- assistant identity remains outside the response material and subordinate to narrative copy;
-- the composer uses the same softer rounded material language with 44 pt mobile controls;
-- the Skia workplane now uses a calm low-frequency lava-lamp-like field of large violet/indigo optical masses with restrained cyan energy and a deliberately darker central reading field;
-- the active optical typesetter restores a more visible theme-colored inscription signature: violet/indigo etching, lavender fresh-glyph energy, and a restrained cyan focus point;
-- settled assistant text cools back to normal pale selectable narrative text;
-- reduced-motion freezes time-dependent optical motion while preserving meaning;
-- reduced-graphics parity preserves the conversation-material hierarchy without Skia.
+v0.11.1 corrects those defects:
 
-No API, database, OAuth, authorization, session, Work Specification, Engineering Run, or execution-authority behavior changed in v0.11.0.
+- the collapsed Work Specification surface uses compact phone margins, padding, typography, and spacing;
+- the Work Specification explanatory subtitle is withheld while collapsed on phone viewports and returns when the governed surface is explicitly expanded;
+- the title and actions no longer compete in the same narrow horizontal row on phones;
+- specification capture, refresh, approve, and disclosure controls preserve accessible mobile interaction targets;
+- the signed-in account presentation becomes a compact 44 pt launcher on phone viewports rather than the full name/role pill;
+- the account launcher occupies reserved top-bar space and no longer overlaps the Work Specification surface or Reason/Code controls;
+- the access-management panel is bounded to the available phone viewport with safe side margins;
+- desktop/tablet Work Specification and account presentation remain materially unchanged;
+- the v0.11.0 conversation material, calm Skia workplane, optical response inscription, reduced-motion behavior, and reduced-graphics parity remain intact.
+
+No API, database, OAuth, authorization, session, Work Specification semantics, Engineering Run semantics, persistence, or execution-authority behavior changed in v0.11.1.
 
 ## Identity and authorization state
 
 Google/Supabase proves identity. Parallax decides authorization through the production `authorized_users` allowlist.
 
-The initial owner record is active and the real interactive production Google sign-in path has now been verified by the operator: successful Google authentication reached the live Parallax workspace and displayed the expected owner identity/role state.
-
-The user's email address is deliberately not recorded in this public project-state file.
-
-The production identity boundary remains:
+The production identity boundary remains unchanged from v0.10.0:
 
 - Google OAuth with PKCE through the dedicated Parallax Supabase Auth project;
 - server-side allowlist authorization;
@@ -56,36 +53,47 @@ The production identity boundary remains:
 - owner/member roles and immediate active/revoked authorization checks;
 - root bearer retained only for break-glass / explicit automation compatibility.
 
+The v0.11.1 account-control changes are presentation-only. Owner/member authorization and server-side enforcement are unchanged.
+
 ## Release validation evidence
 
-GitHub Actions run `32539073857` completed successfully for exact candidate commit `2414bbe719e41be52d86cc9c5329c1feea371c0c`.
+GitHub Actions run `32541506003` completed successfully for exact candidate commit `19e0ea740322e2d69e5007212da934edae474515`.
 
 Passed gates:
 
-- protected specification validation through `P2-V0.11.0`;
+- protected specification validation through `P2-V0.11.1`;
 - Python compilation and full API tests;
 - client TypeScript typecheck;
 - response-state tests;
 - Expo web export;
 - production dependency-audit evidence capture;
 - Playwright browser / Skia acceptance;
-- Google-auth browser acceptance;
 - approved Work Specification → Code binding browser acceptance;
+- hosted Google PKCE browser acceptance;
 - protected Engineering / Reason / Code promotion evaluation;
-- DSPy SpecCritic + SpecCompiler release compilation against `P2-V0.11.0`;
-- protected v0.11.0 compiled-plan contract verification.
+- DSPy SpecCritic + SpecCompiler release compilation against `P2-V0.11.1`;
+- protected v0.11.1 compiled-plan contract verification.
 
-The release initially exposed a specification-contract omission (`security` section). The gate correctly rejected that candidate. `P2-V0.11.0` was amended to explicitly inherit and protect the v0.10 identity/security boundary, and the subsequent exact-head run passed all gates. This is recorded as validation evidence rather than hidden release noise.
+The Google-auth browser suite now includes explicit 390×844 mobile geometry acceptance. It verifies:
+
+- collapsed Work Specification height remains below the protected mobile ceiling;
+- the account launcher does not overlap the Work Specification surface;
+- the account launcher does not overlap the Reason or Code mode controls;
+- the opened access-management panel remains within safe phone viewport bounds.
+
+The new gate caught an additional small account/Reason-control overlap during implementation. That geometry was corrected before the final exact-head run was allowed to pass.
+
+The final exact-head Vercel preview `dpl_8HVHMGKBhPxTXnoBJgZ4BfUMzScB` was `READY` before production promotion.
 
 ## Production verification evidence
 
 ### Web
 
-Vercel deployment `dpl_9iQfhzbUMVsvo9twXeSw9oLAdi5Q` is `READY`, targets production, reports Git commit `e87a25ff0ba4cf5d8c71492294da735b13498458`, and owns the active production aliases.
+Vercel deployment `dpl_F9k1NMott4agcRkHtbRx54MUDErD` is `READY`, targets production, reports Git commit `1780fd42c2ce5a42a620ae1da2e0ce8c01a45e34`, and owns the active production aliases.
 
 Verified live behavior:
 
-- production web root: HTTP 200;
+- production web root: HTTP 200 and serves the v0.11.1 production bundle;
 - `/p2-api/health`: HTTP 200 with Parallax API health JSON;
 - `/p2-api/ready`: HTTP 200 with database readiness `ok`;
 - unauthenticated `/p2-api/v1/session`: expected HTTP 401 with `WWW-Authenticate: Bearer`;
@@ -93,9 +101,7 @@ Verified live behavior:
 
 ### API
 
-v0.11.0 does not change API code. Path-aware Vercel deployment correctly canceled the redundant API build for the v0.11 production merge.
-
-The active API production deployment remains `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`, is `READY`, and continues to serve the production aliases.
+v0.11.1 does not change API code. The active API production deployment remains `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`, is `READY`, and continues to serve the production aliases.
 
 Verified live behavior through the same-origin web gateway:
 
@@ -106,24 +112,26 @@ Verified live behavior through the same-origin web gateway:
 
 ## Deployment state vocabulary
 
-For v0.11.0:
+For v0.11.1:
 
 - Specification approved: **YES**
 - Implemented: **YES**
 - Full exact-head release validation: **YES**
+- 390×844 mobile geometry acceptance: **YES**
 - Browser / Skia acceptance: **YES**
 - Google-auth browser acceptance: **YES**
+- Approved Work Specification → Code binding acceptance: **YES**
 - Protected Engineering / Reason / Code evaluation: **YES**
-- DSPy v0.11 release compilation: **YES**
+- DSPy v0.11.1 release compilation: **YES**
 - Validated tree equals production application tree: **YES**
+- Exact-head preview READY before promotion: **YES**
 - Production web deployment READY: **YES**
 - Production API remains READY: **YES — unchanged service**
 - Production aliases active: **YES**
 - Hosted same-origin health/readiness: **YES**
 - Protected unauthenticated boundary: **YES**
-- Real production Google login / owner path: **YES — operator verified**
 - Production runtime errors in verification window: **NONE FOUND**
-- v0.11 deployment-verified: **YES**
+- v0.11.1 deployment-verified: **YES**
 
 ## Current product baseline
 
@@ -135,16 +143,17 @@ Parallax now combines:
 4. **Editorial Optical conversation material** with soft translucent message surfaces rather than conventional bordered cards.
 5. **Calm living optical workplane** with slow lava-field motion, dark reading-zone protection, reduced-motion behavior, and reduced-graphics parity.
 6. **Theme-colored optical response inscription** that visibly etches fresh response glyphs and cools into normal selectable text.
-7. **Hosted-web same-origin resilience** through `/p2-api`.
-8. **Google identity + server-owned authorization** with PKCE, signed Parallax sessions, explicit owner/member roles, revocation, and root bearer retained only as break-glass / automation compatibility.
+7. **Mobile governed-surface discipline** with compact Work Specification presentation, non-overlapping identity/mode controls, and viewport-safe access management.
+8. **Hosted-web same-origin resilience** through `/p2-api`.
+9. **Google identity + server-owned authorization** with PKCE, signed Parallax sessions, explicit owner/member roles, revocation, and root bearer retained only as break-glass / automation compatibility.
 
 The next consequential engineering phase remains bounded execution evidence. Live unrestricted shell, autonomous Git merge, and autonomous production deployment remain intentionally outside the current execution authority boundary.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for deployed and verified v0.11.0, production visual evidence, exact release commit/deployment, preserved security boundary, and successful real Google owner login.
-- `DESIGN-SYSTEM.md`: updated from v1.6 to v1.7 because conversation material, ambient lava-field behavior, and optical inscription treatment are now durable visual rules.
-- `ARCHITECTURE.md`: unchanged at v2.0; v0.11.0 introduces no topology, persistence, trust, identity, or execution-authority change.
+- `CURRENT-STATE.md`: updated for deployed and verified v0.11.1, the screenshot-driven mobile corrective release, exact validated/production commits, mobile browser geometry evidence, Vercel production evidence, protected boundary checks, and runtime verification.
+- `DESIGN-SYSTEM.md`: remains authoritative at v1.7; no update required because v0.11.1 corrects responsive application of the existing Editorial Optical rules rather than establishing a new durable visual language.
+- `ARCHITECTURE.md`: unchanged at v2.0; v0.11.1 introduces no topology, persistence, trust, identity, or execution-authority change.
 - `PROJECT-CONSTITUTION.md`: unchanged; governing principles did not materially change.
 
 Historical release evidence remains preserved in repository history.
