@@ -246,9 +246,9 @@ def evaluate_app_builder_case(
     evidence: AppBuilderCaseEvidence,
 ) -> AppBuilderCaseResult:
     checks = _binding_checks(case, evidence)
-    observations = {item.casefold() for item in evidence.observations}
+    observations = {item.strip().casefold() for item in evidence.observations}
     for requirement in case.requirements:
-        present = requirement.observation.casefold() in observations
+        present = requirement.observation.strip().casefold() in observations
         if requirement.kind == "required":
             checks.append((f"missing_required:{requirement.requirement_id}", present, requirement.critical))
         else:
