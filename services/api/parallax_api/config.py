@@ -16,7 +16,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _active_spec_id() -> str:
-    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", "P2-V0.5.0").strip()
+    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", "P2-V0.13.0").strip()
     if not _SPEC_ID.fullmatch(value):
         raise ValueError("PARALLAX_ACTIVE_SPEC_ID must use the P2-Vx.y.z format")
     return value

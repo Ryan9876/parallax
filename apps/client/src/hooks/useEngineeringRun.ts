@@ -1,9 +1,13 @@
 import React from 'react';
 import { api, type EngineeringRunDto } from '../lib/api';
+import { runEngineeringAutonomy } from '../lib/autonomyApi';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
 
+const AUTONOMOUS_STAGES = new Set(['PLAN', 'BUILD', 'TEST', 'VERIFY']);
+type EngineeringRunView = EngineeringRunDto & { autonomy_stop_reason?: string | null };
+
 export function useEngineeringRun(conversationId: string | null, enabled: boolean) {
-  const [run, setRun] = React.useState<EngineeringRunDto | null>(null);
+  const [run, setRun] = React.useState<EngineeringRunView | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -68,13 +72,41 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     } finally { setBusy(false); }
   }, [busy, run]);
 
+  const runAutonomously = React.useCallback(async () => {
+    if (!run || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await runEngineeringAutonomy(
+        run,
+        `autonomous-${run.id}-${run.revision}-${Date.now()}`,
+      );
+      setRun({ ...result.run, autonomy_stop_reason: result.stop_reason });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Autonomous Code run failed.');
+    } finally { setBusy(false); }
+  }, [busy, run]);
+
+  const continueRun = React.useCallback(async () => {
+    if (!run) return;
+    if (AUTONOMOUS_STAGES.has(run.state)) {
+      await runAutonomously();
+      return;
+    }
+    await mutate('resume');
+  }, [mutate, run, runAutonomously]);
+
   return {
     run,
     busy,
     error,
     refresh,
     pause: () => mutate('pause'),
-    resume: () => mutate('resume'),
+    // Existing App wiring uses the resume callback. In active protected stages,
+    // continuation now means the bounded autonomous cycle; PAUSED/FAILED retains
+    // the original explicit resume behavior.
+    resume: continueRun,
     cancel: () => mutate('cancel'),
+    runAutonomously,
   };
 }

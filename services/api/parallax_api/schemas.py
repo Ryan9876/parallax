@@ -129,6 +129,32 @@ class EngineeringOperationRead(BaseModel):
     replayed: bool
 
 
+class EngineeringAutonomyStepRead(BaseModel):
+    stage: str
+    outcome: str
+    attempt_id: str | None = None
+    replayed: bool = False
+    tool_id: str | None = None
+
+
+class EngineeringAutonomyRead(BaseModel):
+    run: EngineeringRunRead
+    stop_reason: str
+    steps: list[EngineeringAutonomyStepRead] = Field(default_factory=list)
+
+
+class EngineeringAutonomyProbeRead(BaseModel):
+    ready: bool
+    executor: str
+    network_policy: str
+    exit_code: int | None
+    duration_ms: int
+    stdout_excerpt: str
+    stderr_excerpt: str
+    timed_out: bool
+    redacted: bool
+
+
 class AuthorizedUserRead(BaseModel):
     id: str
     email: str | None

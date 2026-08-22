@@ -29,7 +29,7 @@ function staticServer({ failSkia = false } = {}) {
     const rawPath = new URL(request.url ?? '/', 'http://localhost').pathname;
     if (failSkia && rawPath === '/canvaskit.wasm') {
       response.writeHead(503, { 'content-type': 'text/plain' });
-      response.end('CanvasKit intentionally unavailable for v0.8 Code binding parity');
+      response.end('CanvasKit intentionally unavailable for Code binding parity');
       return;
     }
     const relative = rawPath === '/' ? 'index.html' : rawPath.replace(/^\/+/, '');
@@ -58,7 +58,7 @@ function apiServer() {
       title: 'New conversation',
       mode,
       status: 'ACTIVE',
-      spec_id: 'P2-V0.8.0',
+      spec_id: 'P2-V0.13.0',
       created_at: '2026-08-21T10:00:00Z',
       updated_at: '2026-08-21T10:00:00Z',
       messages: [],
@@ -71,10 +71,10 @@ function apiServer() {
     response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
   }
 
-  function json(response, status, body, origin) {
+  function json(response, status, payload, origin) {
     cors(response, origin);
     response.writeHead(status, { 'content-type': 'application/json' });
-    response.end(JSON.stringify(body));
+    response.end(JSON.stringify(payload));
   }
 
   async function body(request) {
@@ -194,6 +194,23 @@ function apiServer() {
       json(response, 200, engineeringRun, origin);
       return;
     }
+    if (/^\/v1\/engineering-runs\/[^/]+\/autonomous$/.test(pathname) && request.method === 'POST') {
+      const payload = await body(request);
+      assert(payload.expected_revision === engineeringRun?.revision, 'autonomy request used a stale run revision');
+      assert(typeof payload.operation_key === 'string' && payload.operation_key.startsWith('autonomous-'), 'autonomy request omitted operation identity');
+      json(response, 200, {
+        run: engineeringRun,
+        stop_reason: 'EXECUTOR_UNAVAILABLE',
+        steps: [{
+          stage: 'EXECUTOR',
+          outcome: 'FAILED',
+          attempt_id: null,
+          replayed: false,
+          tool_id: 'python',
+        }],
+      }, origin);
+      return;
+    }
     if (/^\/v1\/conversations\/[^/]+\/responses$/.test(pathname) && request.method === 'POST') {
       const payload = await body(request);
       const now = new Date().toISOString();
@@ -227,6 +244,11 @@ async function exerciseCodeBinding(page) {
   await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
   await page.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
   await page.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
+  const autonomy = page.getByLabel('Run autonomously');
+  await autonomy.waitFor({ timeout: 5000 });
+  await autonomy.click();
+  await page.getByText(/isolated executor unavailable; no plan state was changed/).waitFor({ timeout: 5000 });
+  await page.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
 }
 
 const normal = staticServer();
@@ -247,10 +269,11 @@ try {
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
   await reduced.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
   await reduced.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
+  await reduced.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
   await reduced.close();
 
-  console.log(JSON.stringify({ codeSpecBinding: true, reducedGraphicsParity: true }, null, 2));
+  console.log(JSON.stringify({ codeSpecBinding: true, boundedAutonomyStopState: true, reducedGraphicsParity: true }, null, 2));
 } finally {
   await browser?.close();
   normal.close();
