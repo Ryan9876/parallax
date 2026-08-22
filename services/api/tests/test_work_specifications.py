@@ -71,6 +71,42 @@ def test_work_specification_revisions_preserve_approved_work_until_new_approval(
         assert "persists across" in latest.acceptance_criteria_json
 
 
+def test_current_draft_approval_releases_amendment_but_old_approval_cannot(tmp_path):
+    engine = make_engine(f"sqlite:///{tmp_path / 'amendment-resume.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as session:
+        conversations = ConversationRepository(session)
+        conversation_service = ConversationService(conversations, active_spec_id="P2-V0.13.0")
+        conversation = conversation_service.create("code")
+        conversation_service.append_message(conversation.id, "user", "Build the first approved objective.")
+        specs = WorkSpecificationService(WorkSpecificationRepository(session), conversations)
+
+        first = specs.create_draft(conversation_id=conversation.id, draft=draft("First approved objective"), model_id="test")
+        specs.approve(first.id)
+        conversation_service.set_status(conversation.id, "SPEC_AMENDMENT")
+
+        # Re-approving an already-approved prior contract is not a shortcut through
+        # a newer material-scope stop.
+        specs.approve(first.id)
+        assert conversation_service.get(conversation.id).status == "SPEC_AMENDMENT"
+
+        conversation_service.append_message(conversation.id, "user", "Replace the objective with the amended request.")
+        replacement = specs.create_draft(
+            conversation_id=conversation.id,
+            draft=draft("Approved amended objective"),
+            model_id="test",
+        )
+        assert replacement.status == "DRAFT"
+        assert conversation_service.get(conversation.id).status == "SPEC_AMENDMENT"
+
+        approved = specs.approve(replacement.id)
+        assert approved.status == "APPROVED"
+        assert specs.repository.latest_approved(conversation.id).id == replacement.id
+        assert conversation_service.get(conversation.id).status == "ACTIVE"
+
+
 def test_conversation_context_requires_user_turn_and_prefers_latest_user_objective():
     coordinator = WorkSpecificationCoordinator()
     messages = [
