@@ -22,6 +22,13 @@ function body(route) {
   return JSON.stringify(route);
 }
 
+function overlaps(a, b) {
+  return a.x < b.x + b.width
+    && a.x + a.width > b.x
+    && a.y < b.y + b.height
+    && a.y + a.height > b.y;
+}
+
 function supabaseCorsHeaders(extra = {}) {
   return {
     'access-control-allow-origin': origin,
@@ -48,13 +55,28 @@ const owner = {
 
 const conversation = {
   id: '11111111-1111-4111-8111-111111111111',
-  title: 'New conversation',
+  title: 'Mobile layout check',
   mode: 'reason',
   status: 'ACTIVE',
-  spec_id: 'P2-V0.10.0',
+  spec_id: 'P2-V0.11.1',
   created_at: '2026-08-21T00:00:00Z',
   updated_at: '2026-08-21T00:00:00Z',
-  messages: [],
+  messages: [
+    {
+      id: 'mobile-user',
+      role: 'user',
+      content: 'Hello',
+      status: 'complete',
+      created_at: '2026-08-21T00:00:00Z',
+    },
+    {
+      id: 'mobile-assistant',
+      role: 'assistant',
+      content: 'Hello! How can I help you today?',
+      status: 'complete',
+      created_at: '2026-08-21T00:00:01Z',
+    },
+  ],
 };
 
 let authenticated = false;
@@ -64,7 +86,7 @@ let sessionDeleteObserved = false;
 const observedRequests = [];
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ ignoreHTTPSErrors: true });
+const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
 const page = await context.newPage();
 const browserErrors = [];
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
@@ -204,7 +226,21 @@ try {
     const diagnostics = await page.evaluate(() => ({ body: document.body.innerText.slice(0, 2000), sessionStorageKeys: Object.keys(sessionStorage), localStorageKeys: Object.keys(localStorage), href: location.href }));
     throw new Error(`Google callback did not reach the workspace. diagnostics=${JSON.stringify({ diagnostics, googleSessionExchangeObserved: Boolean(googleExchangeAuthorization), sessionMarkerObserved, observedRequests: observedRequests.slice(-30), browserErrors: browserErrors.slice(-20) })}`, { cause: error });
   }
-  await page.getByRole('button', { name: 'Parallax access menu' }).waitFor({ timeout: 5000 });
+  const accountMenu = page.getByRole('button', { name: 'Parallax access menu' });
+  await accountMenu.waitFor({ timeout: 5000 });
+  const workSpec = page.getByLabel('Work specification', { exact: true });
+  await workSpec.waitFor({ timeout: 5000 });
+  const reasonButton = page.getByRole('button', { name: /^reason$/i });
+  const codeButton = page.getByRole('button', { name: /^code$/i });
+
+  const accountBox = await accountMenu.boundingBox();
+  const workSpecBox = await workSpec.boundingBox();
+  const reasonBox = await reasonButton.boundingBox();
+  const codeBox = await codeButton.boundingBox();
+  assert(accountBox && workSpecBox && reasonBox && codeBox, 'Mobile top-bar/spec geometry was unavailable');
+  assert(workSpecBox.height < 160, `Mobile collapsed Work Specification remained too tall: ${workSpecBox.height}px`);
+  assert(!overlaps(accountBox, workSpecBox), `Mobile account launcher overlaps Work Specification: account=${JSON.stringify(accountBox)} spec=${JSON.stringify(workSpecBox)}`);
+  assert(!overlaps(accountBox, reasonBox) && !overlaps(accountBox, codeBox), `Mobile account launcher overlaps mode controls: account=${JSON.stringify(accountBox)} reason=${JSON.stringify(reasonBox)} code=${JSON.stringify(codeBox)}`);
 
   assert(googleExchangeAuthorization === 'Bearer supabase-transient-token', 'Parallax API did not receive the transient Supabase token for exchange');
   assert(sessionMarkerObserved, 'Authenticated browser traffic did not use the Parallax session marker');
@@ -215,9 +251,14 @@ try {
   assert(!storedSecrets.session.some((value) => value.includes('supabase-transient-token')), 'Supabase access token persisted in sessionStorage');
   assert(!storedSecrets.sessionKeys.includes('parallax:google:pkce-verifier'), 'PKCE verifier remained after callback exchange');
 
-  await page.getByRole('button', { name: 'Parallax access menu' }).click();
+  await accountMenu.click();
   await page.getByText('Authorized people').waitFor();
   await page.getByText(owner.email).first().waitFor();
+  const accessPanelBox = await page.getByLabel('Parallax access panel').boundingBox();
+  assert(accessPanelBox, 'Mobile access panel geometry was unavailable');
+  assert(accessPanelBox.x >= 10, `Mobile access panel clipped left: ${JSON.stringify(accessPanelBox)}`);
+  assert(accessPanelBox.x + accessPanelBox.width <= 380, `Mobile access panel clipped right: ${JSON.stringify(accessPanelBox)}`);
+
   await page.getByRole('button', { name: 'Sign out of Parallax' }).click();
   await page.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 10000 });
   assert(sessionDeleteObserved, 'Parallax session logout was not sent to the API');
@@ -227,7 +268,20 @@ try {
   const unexpectedErrors = browserErrors.filter((entry) => !entry.includes('favicon') && !entry.includes('Failed to load resource: the server responded with a status of 401 (Unauthorized)'));
   assert(unexpectedErrors.length === 0, `Hosted Google auth browser errors: ${unexpectedErrors.join(' | ')}`);
 
-  console.log(JSON.stringify({ googleAuthorizeRequest: true, pkce: true, transientSupabaseToken: true, parallaxSessionExchange: true, sessionMarkerObserved, ownerAccessPanel: true, logout: sessionDeleteObserved, expectedAuthBoundary401s: authBoundaryErrors.length }, null, 2));
+  console.log(JSON.stringify({
+    googleAuthorizeRequest: true,
+    pkce: true,
+    transientSupabaseToken: true,
+    parallaxSessionExchange: true,
+    sessionMarkerObserved,
+    ownerAccessPanel: true,
+    mobileWorkSpecificationCompact: true,
+    mobileAccountNoOverlap: true,
+    mobileModeControlsNoOverlap: true,
+    mobileAccessPanelFit: true,
+    logout: sessionDeleteObserved,
+    expectedAuthBoundary401s: authBoundaryErrors.length,
+  }, null, 2));
 } finally {
   await browser.close();
 }

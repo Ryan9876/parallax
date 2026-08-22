@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -94,6 +95,9 @@ function AccessGate({
 }
 
 function AccessControl({ profile, onSignedOut }: { profile: AccessUserDto; onSignedOut(): void }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 760;
+  const panelWidth = Math.min(390, Math.max(280, width - 24));
   const [open, setOpen] = React.useState(false);
   const [users, setUsers] = React.useState<AccessUserDto[]>([]);
   const [email, setEmail] = React.useState('');
@@ -152,17 +156,29 @@ function AccessControl({ profile, onSignedOut }: { profile: AccessUserDto; onSig
   }
 
   const label = profile.display_name || profile.email || (profile.auth_method === 'bearer' ? 'Break-glass' : 'Google user');
+  const compactInitial = label.trim().slice(0, 1).toUpperCase() || 'P';
 
   return (
-    <View pointerEvents="box-none" style={styles.accountLayer}>
-      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Parallax access menu" onPress={() => setOpen((value) => !value)} style={styles.accountPill}>
-        <View style={[styles.accountDot, profile.role === 'owner' ? styles.ownerDot : styles.memberDot]} />
-        <Text numberOfLines={1} style={styles.accountLabel}>{label}</Text>
-        <Text style={styles.accountRole}>{profile.role.toUpperCase()}</Text>
+    <View pointerEvents="box-none" style={[styles.accountLayer, compact && styles.accountLayerCompact]}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Parallax access menu"
+        onPress={() => setOpen((value) => !value)}
+        style={[styles.accountPill, compact && styles.accountPillCompact]}
+      >
+        <View style={[styles.accountDot, profile.role === 'owner' ? styles.ownerDot : styles.memberDot, compact && styles.accountDotCompact]} />
+        {compact ? (
+          <Text style={styles.accountInitial}>{compactInitial}</Text>
+        ) : (
+          <>
+            <Text numberOfLines={1} style={styles.accountLabel}>{label}</Text>
+            <Text style={styles.accountRole}>{profile.role.toUpperCase()}</Text>
+          </>
+        )}
       </TouchableOpacity>
 
       {open ? (
-        <View style={styles.accessPanel}>
+        <View accessibilityLabel="Parallax access panel" style={[styles.accessPanel, { width: panelWidth }, compact && styles.accessPanelCompact]}>
           <View style={styles.accessPanelHeader}>
             <View>
               <Text style={styles.accessKicker}>PARALLAX ACCESS</Text>
@@ -175,7 +191,7 @@ function AccessControl({ profile, onSignedOut }: { profile: AccessUserDto; onSig
 
           {profile.role === 'owner' ? (
             <>
-              <View style={styles.addRow}>
+              <View style={[styles.addRow, compact && styles.addRowCompact]}>
                 <TextInput
                   accessibilityLabel="Google email to authorize"
                   autoCapitalize="none"
@@ -340,20 +356,26 @@ const styles = StyleSheet.create({
   googleButtonText: { color: '#171521', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
   gateHint: { color: palette.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 16 },
   accountLayer: { position: 'absolute', top: 70, right: 18, zIndex: 50, alignItems: 'flex-end' },
+  accountLayerCompact: { top: 9, right: 148 },
   accountPill: { maxWidth: 300, height: 34, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, borderRadius: 17, backgroundColor: 'rgba(11,16,25,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  accountPillCompact: { width: 44, height: 44, borderRadius: 22, paddingHorizontal: 0, justifyContent: 'center', gap: 0 },
   accountDot: { width: 7, height: 7, borderRadius: 4 },
+  accountDotCompact: { position: 'absolute', top: 7, right: 7, width: 6, height: 6, borderRadius: 3 },
   ownerDot: { backgroundColor: palette.sage },
   memberDot: { backgroundColor: palette.indigo },
+  accountInitial: { color: palette.textSoft, fontSize: 13, fontWeight: '700' },
   accountLabel: { maxWidth: 150, color: palette.textSoft, fontSize: 10 },
   accountRole: { color: palette.muted, fontSize: 7, fontWeight: '800', letterSpacing: 0.7 },
   accessPanel: { width: 390, maxHeight: 590, marginTop: 9, padding: 19, borderRadius: 22, backgroundColor: 'rgba(11,16,25,0.98)', borderWidth: 1, borderColor: palette.borderStrong },
+  accessPanelCompact: { position: 'absolute', top: 53, right: -136, maxHeight: 560, marginTop: 0, padding: 16, borderRadius: 20 },
   accessPanelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   accessKicker: { color: palette.peach, fontSize: 8, fontWeight: '800', letterSpacing: 1.2 },
   accessTitle: { color: palette.cream, fontSize: 22, fontWeight: '600', letterSpacing: -0.5, marginTop: 4 },
   close: { color: palette.textSecondary, fontSize: 24, lineHeight: 26 },
   profileLine: { color: palette.textSecondary, fontSize: 10, marginTop: 8, marginBottom: 16 },
   addRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  emailInput: { flex: 1, minHeight: 42, borderRadius: 13, paddingHorizontal: 12, color: palette.text, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  addRowCompact: { flexWrap: 'wrap' },
+  emailInput: { flex: 1, minWidth: 180, minHeight: 42, borderRadius: 13, paddingHorizontal: 12, color: palette.text, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   addButton: { minHeight: 42, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: palette.violetDeep },
   addButtonText: { color: palette.text, fontSize: 8, fontWeight: '800', letterSpacing: 0.7 },
   userList: { maxHeight: 330 },
