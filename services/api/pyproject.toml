@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "parallax-api"
-version = "0.10.0"
+version = "0.13.0"
 description = "Parallax 2.0 intelligence and persistence service"
 requires-python = ">=3.11,<3.15"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
   "pydantic-settings>=2.10,<3",
   "dspy>=3.3,<4",
   "httpx>=0.28,<1",
+  "vercel-sandbox>=0.4,<0.5",
 ]
 
 [project.optional-dependencies]
