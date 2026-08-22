@@ -6,6 +6,7 @@ import { EditorialTrace } from './EditorialTrace';
 
 const STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
 const AUTONOMOUS_STAGES = ['PLAN', 'BUILD', 'TEST', 'VERIFY'];
+type EngineeringRunView = EngineeringRunDto & { autonomy_stop_reason?: string | null };
 
 function autonomyBoundary(run: EngineeringRunDto, stopReason?: string | null): string | null {
   const reported = {
@@ -31,10 +32,9 @@ function autonomyBoundary(run: EngineeringRunDto, stopReason?: string | null): s
   return null;
 }
 
-export function EngineeringRunStatus({ run, busy, autonomyStopReason, onPause, onResume, onCancel, reducedGraphics = false }: {
+export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, reducedGraphics = false }: {
   run: EngineeringRunDto;
   busy: boolean;
-  autonomyStopReason?: string | null;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
@@ -46,7 +46,7 @@ export function EngineeringRunStatus({ run, busy, autonomyStopReason, onPause, o
   const canResume = bound && (run.state === 'PAUSED' || run.state === 'FAILED');
   const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state);
   const evidence = ['BUILD', 'TEST', 'VERIFY', 'REVIEW'].filter((stage) => passed.has(stage));
-  const boundary = autonomyBoundary(run, autonomyStopReason);
+  const boundary = autonomyBoundary(run, (run as EngineeringRunView).autonomy_stop_reason);
 
   return (
     <View style={styles.card} accessibilityLabel={`Engineering run ${run.state}`}>
