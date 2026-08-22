@@ -6,6 +6,7 @@ import re
 
 
 _SPEC_ID = re.compile(r"^P2-V\d+\.\d+\.\d+$")
+_ACTIVE_SPEC_BASELINE = "P2-V0.13.0"
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -15,10 +16,20 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _spec_version(value: str) -> tuple[int, int, int]:
+    version = value.removeprefix("P2-V")
+    major, minor, patch = version.split(".")
+    return int(major), int(minor), int(patch)
+
+
 def _active_spec_id() -> str:
-    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", "P2-V0.13.0").strip()
+    value = os.getenv("PARALLAX_ACTIVE_SPEC_ID", _ACTIVE_SPEC_BASELINE).strip()
     if not _SPEC_ID.fullmatch(value):
         raise ValueError("PARALLAX_ACTIVE_SPEC_ID must use the P2-Vx.y.z format")
+
+    environment = os.getenv("PARALLAX_ENV", "development").strip().lower()
+    if environment == "production" and _spec_version(value) < _spec_version(_ACTIVE_SPEC_BASELINE):
+        return _ACTIVE_SPEC_BASELINE
     return value
 
 
