@@ -246,6 +246,8 @@ class TextPatchEngine:
             creating=not existed,
         )
         after = after_text.encode("utf-8")
+        if additions == 0 and deletions == 0 or after == before:
+            raise PatchConflictError("unified diff does not produce a source-content change")
         if len(after) > self.max_result_bytes:
             raise PatchLimitError("patched file exceeds the configured result-size limit")
         self._reject_secret_content(after_text)
