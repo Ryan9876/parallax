@@ -15,6 +15,8 @@ from .state_machine import RevisionConflict
 class AutonomousExecutor(Protocol):
     def execute(self, spec: ExecutionSpec) -> dict[str, object]: ...
 
+    def probe(self, *, operation_key: str) -> dict[str, object]: ...
+
 
 class AutonomyStopReason(str, Enum):
     IMPLEMENTATION_REQUIRED = "IMPLEMENTATION_REQUIRED"
@@ -24,6 +26,7 @@ class AutonomyStopReason(str, Enum):
     COMPLETE = "COMPLETE"
     CANCELLED = "CANCELLED"
     SPEC_AMENDMENT = "SPEC_AMENDMENT"
+    EXECUTOR_UNAVAILABLE = "EXECUTOR_UNAVAILABLE"
     EXECUTION_FAILED = "EXECUTION_FAILED"
     MAX_STEPS_REACHED = "MAX_STEPS_REACHED"
 
@@ -85,6 +88,23 @@ class AutonomyCoordinator:
                 return AutonomyResult(run=run, stop_reason=terminal_reason, steps=tuple(steps))
 
             if stage is WorkflowStage.PLAN:
+                probe_key = f"{operation_key[:130]}:executor-probe:{run.revision}"
+                probe = self.executor.probe(operation_key=probe_key)
+                probe_passed = probe.get("protected_success") is True
+                steps.append(
+                    AutonomyStep(
+                        stage="EXECUTOR",
+                        outcome="PASSED" if probe_passed else "FAILED",
+                        tool_id=str(probe.get("tool_id") or "python"),
+                    )
+                )
+                if not probe_passed:
+                    return AutonomyResult(
+                        run=run,
+                        stop_reason=AutonomyStopReason.EXECUTOR_UNAVAILABLE,
+                        steps=tuple(steps),
+                    )
+
                 required = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
                 evidence: dict[str, object] = {
                     "acceptance_ids_covered": required,
@@ -97,6 +117,7 @@ class AutonomyCoordinator:
                         for acceptance_id in required
                     ],
                     "planner": "protected-deterministic-v0.13.0",
+                    "executor_preflight": "passed",
                 }
                 result = self.service.complete_stage(
                     run_id=run.id,
