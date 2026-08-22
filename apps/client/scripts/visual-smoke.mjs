@@ -340,7 +340,7 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
     await page.getByLabel('Capture work specification').click();
     await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
-    const specSurface = page.getByLabel('Work specification');
+    const specSurface = page.getByLabel('Work specification', { exact: true });
     const specStyle = await specSurface.evaluate((node) => {
       const style = getComputedStyle(node);
       return {
