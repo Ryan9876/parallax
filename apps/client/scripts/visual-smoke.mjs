@@ -331,9 +331,9 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.waitForTimeout(650);
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
-    const hotGlyphCount = await page.locator('span').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).textShadow !== 'none').length);
+    const hotGlyphCount = await page.getByTestId('energized-glyph-tail').count();
     assert(respondingCanvasCount >= idleCanvasCount, `desktop: responding state lost a required canvas (${respondingCanvasCount} < ${idleCanvasCount})`);
-    assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
+    assert(hotGlyphCount > 0, 'desktop: energized fresh-glyph tail was not rendered while responding');
 
     await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response is being inscribed line by line/).first().waitFor();
