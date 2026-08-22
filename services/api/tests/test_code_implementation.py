@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 from hashlib import sha256
+from pathlib import Path
 
 import pytest
 
@@ -13,6 +14,7 @@ from parallax_api.code.implementation import (
     SafeImplementationEngine,
 )
 from parallax_api.code.patching import EMPTY_SHA256, SourcePatch, TextPatchEngine
+from scripts.validate_spec import validate
 
 
 def digest(value: str) -> str:
@@ -36,6 +38,12 @@ def source_patch(path: str, before: str, after: str, *, creating: bool = False) 
         expected_base_sha256=EMPTY_SHA256 if creating else digest(before),
         unified_diff=unified(path, before, after, creating=creating),
     )
+
+
+def test_workstream_spec_and_compiled_plan_pass_protected_validator():
+    repository_root = Path(__file__).resolve().parents[3]
+    errors = validate(repository_root / "specs" / "P2-WS-APP-SAFE-IMPLEMENTATION.md")
+    assert errors == []
 
 
 def test_multi_file_implementation_is_successful_and_evidence_is_deterministic(tmp_path):
