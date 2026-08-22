@@ -1,161 +1,181 @@
 # Parallax 2.0 Current State
 
-Version: 0.12.0
-Date: 2026-08-21
-Status: DEPLOYED — PRODUCTION VERIFIED
+Version: 0.13.0 preview candidate
+Date: 2026-08-22
+Status: VALIDATED PREVIEW — OPERATOR SANDBOX TEST PENDING
+Candidate branch: `p2/v0.13.0-bounded-autonomy`
+Candidate head: `7f5178cec5cac755ff15e8369629e6127bff57e8`
+Pull request: `#19` — ready for review, mergeable, not merged
+Production release: v0.12.0 remains unchanged and deployment-verified
 Production branch: `main`
 Production application release commit: `7d86aa3e9ae1dd096cf4712b786ccf4c2534b6a5`
-Validated release-tree commit: `07610e2ba22b63f8fd9f1ab6df42dc7fcd45449b`
 Production web deployment: `dpl_9RZi4PQzYZpezwGcG4vUhiC7fQib`
-Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw` (unchanged v0.10 API; v0.12.0 is client-only)
+Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
-Production database: dedicated Supabase `Parallax 2.0`
 
-## Current deployed release
+## Current candidate
 
-Parallax 2.0 v0.12.0 — **Ambient Chroma Flow** — is deployed through the GitHub → Vercel production pipeline.
+Parallax 2.0 v0.13.0 — **Bounded Autonomy Pilot** — is implemented and deployed to Vercel preview for operator testing. It is not merged to `main` and has not been promoted to production.
 
-PR #18 promoted approved specification `P2-V0.12.0`. The exact validated release tree is `07610e2ba22b63f8fd9f1ab6df42dc7fcd45449b`; the production application merge commit is `7d86aa3e9ae1dd096cf4712b786ccf4c2534b6a5`.
+The approved product specification is `P2-V0.13.0`. The candidate introduces the first live isolated execution plane for Code while preserving explicit authority boundaries. A user can request a bounded autonomous cycle from the existing Code run surface; the server, not the client or model, owns the executable command registry, acceptance map, stage transitions, and stop conditions.
 
-Git comparison between the validated release tree and production application merge reports **zero changed files**. Production therefore contains the exact validated application tree plus merge metadata.
+The pilot grants autonomous authority only for protected planning plus registered BUILD / TEST / VERIFY execution. It deliberately stops at IMPLEMENT when real implementation evidence is required and at REVIEW when independent review authority is required. It does not grant autonomous source editing, arbitrary shell access, Work Specification self-approval, Git commit/push/merge, Vercel production promotion, or production deployment authority.
 
-v0.12.0 is a reference-informed visual refinement requested by the operator. The supplied motion reference was used only to identify motion principles: broad diffused color, liquid-light blending, low-frequency drift, and occasional warm counterpoints. The reference video itself, its frames, watermark, assets, or exact color sequence are not embedded, copied, or shipped by Parallax.
+## v0.13.0 implementation outcome
 
-## v0.12.0 outcome
+The candidate now includes:
 
-The living workplane now uses **Ambient Chroma Flow** rather than discrete lava-style masses.
+- a protected `AutonomyCoordinator` bound to the existing Engineering Run state machine and optimistic run revisions;
+- an isolated Vercel Sandbox executor using deployment-scoped Vercel identity;
+- non-persistent sandboxes with deny-all network policy and no forwarded application environment or product secrets;
+- a server-owned protected command registry for BUILD, TEST, and VERIFY;
+- repository-backed sandbox initialization for protected execution stages;
+- bounded observable execution evidence including invocation/output digests, exit status, duration, bounded excerpts, timeout/redaction state, executor identity, and network policy identity;
+- deterministic protected PLAN evidence derived from the immutable server-owned acceptance map;
+- executor preflight before PLAN mutation;
+- fail-closed `EXECUTOR_UNAVAILABLE` behavior that leaves a recoverable PLAN run and revision unchanged;
+- durable protected failure behavior for BUILD / TEST / VERIFY failures;
+- explicit stop reasons for IMPLEMENT, REVIEW, PAUSED, FAILED, COMPLETE, CANCELLED, SPEC_AMENDMENT, executor unavailability, execution failure, and maximum bounded steps;
+- a compact accessible `Run autonomously` control on eligible Code stages;
+- visible autonomy stop-state feedback without allowing the client to mutate durable backend authority fields;
+- browser acceptance coverage for the autonomy control, safe executor-unavailable behavior, unchanged PLAN state, and reduced-graphics parity;
+- v0.13 API/client release metadata and default active product-spec identity.
 
-The production treatment:
+No new database table or migration is required. Existing Engineering Run / attempt persistence remains the evidence store.
 
-- uses broad, heavily feathered chroma fields that overlap like light diffusing through liquid glass;
-- keeps dark indigo, violet, midnight blue, and cobalt as the dominant Parallax color family;
-- introduces restrained magenta and lavender atmosphere without turning the experience into a neon gradient;
-- permits sparse amber/peach blooms as a small warm counterpoint rather than a dominant field;
-- retains cyan as a restrained optical accent;
-- uses low-frequency warped haze to blend neighboring color regions so the eye does not read separate hard-edged blobs;
-- changes composition over tens of seconds rather than using short loops, bouncing movement, particles, or directional sweeps;
-- keeps the central conversation reading region materially darker than the perimeter chroma;
-- modestly increases chroma presence during active reasoning without materially increasing animation speed;
-- retains fine low-amplitude grain to avoid a flat digital gradient;
-- freezes time-dependent motion when reduced motion is enabled while retaining a coherent static field;
-- preserves reduced-graphics functional parity.
+## Preview topology and routing
 
-The v0.11 conversation-material system, v0.11.1 mobile viewport corrections, and the theme-colored optical response etching remain unchanged. Fresh assistant glyphs still carry violet/indigo etched energy, lavender heat, and a restrained cyan inscription point before cooling into normal selectable narrative text.
+The candidate uses the existing two-project Vercel topology:
 
-No API, database, OAuth, authorization, session, Reason, Code, Work Specification semantics, Engineering Run semantics, persistence, or execution-authority behavior changed in v0.12.0.
+1. Web project `parallax`.
+2. API project `parallax-api`.
 
-## Identity and authorization state
+The bounded Sandbox is runtime execution infrastructure used by the API, not a third application deployment.
 
-Google/Supabase proves identity. Parallax decides authorization through the production `authorized_users` allowlist.
+Preview web deployment:
 
-The production identity boundary remains unchanged from v0.10.0:
+- deployment: `dpl_288XuPaFzCHHjS7tYdzEV7H9bPT4`;
+- unique URL: `https://parallax-9iqolf056-lew7.vercel.app`;
+- Git commit: `7f5178cec5cac755ff15e8369629e6127bff57e8`;
+- state: `READY`;
+- branch alias: `https://parallax-git-p2-v0130-bounded-autonomy-lew7.vercel.app`.
 
-- Google OAuth with PKCE through the dedicated Parallax Supabase Auth project;
-- server-side allowlist authorization;
-- identity-bearing signed Parallax sessions;
-- Secure, HttpOnly, SameSite=Lax, host-only production cookie behavior;
-- owner/member roles and immediate active/revoked authorization checks;
-- root bearer retained only for break-glass / explicit automation compatibility.
+Preview API deployment carrying the latest API-affecting candidate state:
 
-The real interactive production Google owner path was previously verified and remains part of the production baseline.
+- deployment: `dpl_tCFVW4WreM8fBvT6nkiC1U8Mm5Nu`;
+- unique URL: `https://parallax-qvtn2fey8-lew7.vercel.app`;
+- Git commit: `0e6302ea1180b7fa085f3740ab906420033d7dae`;
+- state: `READY`;
+- branch alias: `https://parallax-api-git-p2-v0130-bounded-autonomy-lew7.vercel.app`.
 
-## Release validation evidence
+The later candidate commit changes only web preview routing, so the API project correctly does not need a newer successful application build for that change.
 
-GitHub Actions run `32544031923` completed successfully for exact candidate commit `07610e2ba22b63f8fd9f1ab6df42dc7fcd45449b`.
+The web configuration now routes `/p2-api/*` on the bounded-autonomy **branch alias only** to the bounded-autonomy API branch alias. All other web hosts retain the existing production API fallback. This fixes the prior test flaw where a preview web client would otherwise exercise the production API instead of the v0.13 API candidate.
+
+Vercel preview authentication and the cross-project preview rewrite still require interactive operator verification. Vercel reports both relevant deployments as READY, but the automated connector cannot complete the browser SSO/cookie flow required to prove the protected preview end-to-end.
+
+## Exact-head validation evidence
+
+Candidate head `7f5178cec5cac755ff15e8369629e6127bff57e8` passed both exact-head workflows.
+
+### Bounded Autonomy Pilot
+
+GitHub Actions run `32556123923` completed **SUCCESS**.
 
 Passed gates:
 
-- protected specification validation through `P2-V0.12.0`;
-- Python compilation and full API tests;
-- client TypeScript typecheck;
+- approved `P2-V0.13.0` specification validation;
+- API dependency installation and Python compilation;
+- protected execution/autonomy test subset;
+- full API regression suite;
+- client dependency installation;
+- TypeScript typecheck;
 - response-state tests;
-- Expo web export;
-- production dependency-audit evidence capture;
-- Playwright browser / Skia acceptance;
-- approved Work Specification → Code binding browser acceptance;
-- hosted Google PKCE browser acceptance;
-- v0.11.1 protected mobile geometry acceptance at 390×844;
-- protected Engineering / Reason / Code promotion evaluation;
-- DSPy SpecCritic + SpecCompiler release compilation against `P2-V0.12.0`;
-- protected v0.12.0 compiled-plan contract verification.
+- Expo web export.
 
-Browser/Skia evidence confirms the full-screen Skia frame changes over time, the conversation and composer remain within viewport bounds across mobile/tablet/desktop, the optical response inscription continues to activate during streaming, and reduced-graphics parity remains functional.
+### Parallax P2 release CI
 
-The implementation was deliberately tuned after first-pass visual evidence showed the initial diffused field was too subtle. The final candidate strengthens violet/blue/magenta atmospheric presence while retaining the protected dark reading zone and restrained warm accents. The final exact-head candidate then passed the complete release gate.
+GitHub Actions run `32556123942` completed **SUCCESS**.
 
-## Production verification evidence
+Passed gates:
 
-### Web
+- Fast API + contract checks;
+- full API tests;
+- Fast client checks;
+- TypeScript and response-state tests;
+- Expo web build;
+- dependency-audit evidence capture;
+- Playwright browser / Skia acceptance, including the v0.13 Code/autonomy stop-state browser scenario;
+- protected Engineering / Reason / Code promotion evaluation and regression-rejection checks;
+- existing DSPy release-compilation safety gate.
 
-Vercel deployment `dpl_9RZi4PQzYZpezwGcG4vUhiC7fQib` is `READY`, targets production, reports Git commit `7d86aa3e9ae1dd096cf4712b786ccf4c2534b6a5`, and owns the active production aliases including `parallax-ashy-one-20.vercel.app`.
+The inherited general release workflow still names its DSPy compile/verification target as `P2-V0.12.0`; therefore this record does **not** claim a DSPy-compiled v0.13 plan. v0.13 itself is validated by the dedicated exact-head bounded-autonomy specification and implementation workflow. Aligning the shared release workflow to the next production spec remains a release-hardening task before production promotion.
 
-Verified live behavior:
+## Failure-safety state
 
-- production web root: HTTP 200 and serves the v0.12.0 production bundle;
-- `/p2-api/health`: HTTP 200 with Parallax API health JSON;
-- `/p2-api/ready`: HTTP 200 with database readiness `ok`;
-- unauthenticated `/p2-api/v1/session`: expected HTTP 401 with `WWW-Authenticate: Bearer`;
-- no frontend runtime-error clusters found in the one-hour verification window.
+The validated behavior is intentionally fail closed:
 
-### API
+- executor unavailable during PLAN preflight → return `EXECUTOR_UNAVAILABLE`; preserve PLAN and its revision;
+- stale caller revision → reject rather than silently retarget;
+- missing/extra/duplicated acceptance coverage → protected validator rejects the stage;
+- BUILD / TEST / VERIFY command failure or timeout → record failed protected evidence and stop;
+- IMPLEMENT → stop and require real implementation evidence rather than fabricate artifacts;
+- REVIEW → stop and require independent review authority;
+- PAUSED / FAILED / CANCELLED / SPEC_AMENDMENT → no silent autonomous continuation;
+- application/provider secrets are not forwarded into the sandbox;
+- client/model input cannot supply executable command strings.
 
-v0.12.0 does not change API code. Vercel correctly canceled the redundant production API deployment `dpl_A8VQQfZm63hL2F9LAtirfiYoA2WF` through the path-aware build optimization.
+## Operator preview test required
 
-The active API production deployment remains `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`, is unchanged, and continues to serve the production aliases.
+The remaining release question is whether the real protected Vercel preview can create and execute the isolated Sandbox under the API preview's deployment identity and whether the web branch alias can reach the protected API branch alias through the cross-project preview route.
 
-Verified live behavior through the same-origin web gateway:
+Expected first interactive path:
 
-- `/health`: HTTP 200;
-- `/ready`: HTTP 200 with database readiness `ok`;
-- protected session boundary remains enforced;
-- no API runtime-error clusters found in the one-hour verification window.
+1. Open the bounded-autonomy web branch preview and complete Vercel/Parallax sign-in if requested.
+2. Start a fresh Code conversation.
+3. Capture and approve its Work Specification.
+4. Confirm the Code run is `PLAN`, bound to the approved revision, and shows `Run autonomously`.
+5. Invoke `Run autonomously`.
+6. If Sandbox is available, the executor preflight passes and protected PLAN advances to `IMPLEMENT`, where Parallax intentionally stops with `IMPLEMENTATION_REQUIRED`.
+7. If Sandbox identity/provider access is unavailable, Parallax must remain at `PLAN` and show `Autonomy stopped · isolated executor unavailable; no plan state was changed`.
+
+A fresh UI-driven pilot does not progress beyond IMPLEMENT because v0.13 intentionally lacks autonomous source-editing authority and refuses to fabricate implementation evidence. BUILD / TEST / VERIFY autonomous execution is covered by protected automated tests and becomes available only when valid implementation evidence exists.
 
 ## Deployment state vocabulary
 
-For v0.12.0:
+For v0.13.0 candidate:
 
 - Specification approved: **YES**
 - Implemented: **YES**
-- Reference used as inspiration rather than embedded asset: **YES**
-- Full exact-head release validation: **YES**
-- Browser / Skia acceptance: **YES**
-- Google-auth browser acceptance: **YES**
-- v0.11.1 mobile geometry regression protection: **YES**
-- Approved Work Specification → Code binding acceptance: **YES**
-- Protected Engineering / Reason / Code evaluation: **YES**
-- DSPy v0.12.0 release compilation: **YES**
-- Validated tree equals production application tree: **YES**
-- Production web deployment READY: **YES**
-- Production API remains READY: **YES — unchanged service**
-- Redundant API production deployment correctly skipped: **YES**
-- Production aliases active: **YES**
-- Hosted same-origin health/readiness: **YES**
-- Protected unauthenticated boundary: **YES**
-- Production runtime errors in verification window: **NONE FOUND**
-- v0.12.0 deployment-verified: **YES**
+- Exact-head bounded-autonomy workflow: **PASS**
+- Exact-head API regression suite: **PASS**
+- Exact-head client typecheck/export: **PASS**
+- Browser / Skia acceptance: **PASS**
+- Bounded-autonomy browser stop-state acceptance: **PASS**
+- Protected Engineering / Reason / Code evaluation: **PASS**
+- Shared inherited DSPy release gate: **PASS — still targets v0.12.0**
+- Preview web deployment READY: **YES**
+- Preview API deployment READY: **YES**
+- Preview branch web → preview branch API routing configured: **YES**
+- Interactive protected cross-project preview routing verified: **PENDING**
+- Live Vercel Sandbox preflight verified by operator: **PENDING**
+- Merged to `main`: **NO**
+- Production promoted: **NO**
+- v0.13.0 deployment-verified: **NO — preview operator test pending**
+- Production v0.12.0 remains deployment-verified: **YES**
 
 ## Current product baseline
 
-Parallax now combines:
+Production remains v0.12.0, including conversation-first Reason, durable approved Work Specifications, immutable approved-spec Code binding, Editorial Optical conversation material, Ambient Chroma Flow, optical response inscription, mobile governed-surface discipline, same-origin hosted-web resilience, and Google identity with server-owned authorization.
 
-1. **Conversation-first Reason** with protected streaming behavior and durable state.
-2. **Durable Work Specifications** with revision history and explicit operator approval.
-3. **Approved-Spec Code execution binding** with immutable run/spec identity and server-owned acceptance authority.
-4. **Editorial Optical conversation material** with soft translucent message surfaces rather than conventional bordered cards.
-5. **Ambient Chroma Flow workplane** with broad diffused liquid-light color, indigo/violet dominance, restrained warm counterpoints, central reading-zone protection, reduced-motion behavior, and reduced-graphics parity.
-6. **Theme-colored optical response inscription** that visibly etches fresh response glyphs and cools into normal selectable text.
-7. **Mobile governed-surface discipline** with compact Work Specification presentation, non-overlapping identity/mode controls, and viewport-safe access management.
-8. **Hosted-web same-origin resilience** through `/p2-api`.
-9. **Google identity + server-owned authorization** with PKCE, signed Parallax sessions, explicit owner/member roles, revocation, and root bearer retained only as break-glass / automation compatibility.
-
-The next consequential engineering phase remains bounded execution evidence. Live unrestricted shell, autonomous Git merge, and autonomous production deployment remain intentionally outside the current execution authority boundary.
+The v0.13 preview extends that baseline with a bounded execution plane rather than replacing those capabilities.
 
 ## Governance status
 
-- `CURRENT-STATE.md`: updated for deployed and verified v0.12.0, the reference-informed Ambient Chroma Flow release, exact validated/production commits, release-gate evidence, Vercel production evidence, unchanged API boundary, protected-route checks, and runtime verification.
-- `DESIGN-SYSTEM.md`: advanced to v1.8 because Ambient Chroma Flow establishes a durable replacement for the previous discrete lava-mass workplane rule.
-- `ARCHITECTURE.md`: unchanged at v2.0; v0.12.0 introduces no topology, persistence, trust, identity, or execution-authority change.
-- `PROJECT-CONSTITUTION.md`: unchanged; governing principles did not materially change.
+- `CURRENT-STATE.md`: advanced to the v0.13.0 validated-preview candidate, exact-head CI evidence, Vercel preview evidence, production separation, and remaining operator verification boundary.
+- `ARCHITECTURE.md`: advanced to v2.1 because v0.13.0 adds a durable bounded-autonomy coordinator, protected command registry, and Vercel Sandbox execution plane/trust boundary.
+- `DESIGN-SYSTEM.md`: unchanged; the new control and stop-state treatment remain within the established conversation-native visual language and do not establish a new durable design rule.
+- `PROJECT-CONSTITUTION.md`: unchanged; authority, human-control, evidence, safety, and release principles remain consistent with the existing constitution.
 
 Historical release evidence remains preserved in repository history.
