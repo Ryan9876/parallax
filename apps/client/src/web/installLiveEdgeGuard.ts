@@ -1,13 +1,17 @@
 const RESPONSE_SELECTOR = '[aria-label="Parallax response"]';
 const INPUT_SELECTOR = '[aria-label="Message Parallax"]';
 const SEND_SELECTOR = '[aria-label="Send message"]';
+const NEW_CONVERSATION_SELECTOR = '[aria-label="New conversation"]';
 const LIVE_EDGE_THRESHOLD = 120;
+const SETTLE_DELAY_MS = 120;
 
 type GuardState = {
   thread: HTMLElement | null;
   armed: boolean;
   pinQueued: boolean;
   resizeObserver: ResizeObserver | null;
+  scrollHandler: (() => void) | null;
+  settleTimer: number;
 };
 
 const state: GuardState = {
@@ -15,6 +19,8 @@ const state: GuardState = {
   armed: true,
   pinQueued: false,
   resizeObserver: null,
+  scrollHandler: null,
+  settleTimer: 0,
 };
 
 function isScrollable(element: HTMLElement) {
@@ -41,12 +47,17 @@ function distanceFromEnd(thread: HTMLElement) {
 function bindThread(thread: HTMLElement | null) {
   if (!thread || thread === state.thread) return;
 
+  if (state.thread && state.scrollHandler) {
+    state.thread.removeEventListener('scroll', state.scrollHandler);
+  }
   state.resizeObserver?.disconnect();
   state.thread = thread;
 
-  thread.addEventListener('scroll', () => {
-    state.armed = distanceFromEnd(thread) < LIVE_EDGE_THRESHOLD;
-  }, { passive: true });
+  state.scrollHandler = () => {
+    if (!state.thread) return;
+    state.armed = distanceFromEnd(state.thread) < LIVE_EDGE_THRESHOLD;
+  };
+  thread.addEventListener('scroll', state.scrollHandler, { passive: true });
 
   state.resizeObserver = new ResizeObserver(() => {
     if (state.armed) queuePin();
@@ -62,12 +73,20 @@ function pinToLiveEdge() {
 }
 
 function queuePin() {
-  if (state.pinQueued) return;
-  state.pinQueued = true;
-  requestAnimationFrame(() => {
-    state.pinQueued = false;
+  if (!state.pinQueued) {
+    state.pinQueued = true;
+    requestAnimationFrame(() => {
+      state.pinQueued = false;
+      pinToLiveEdge();
+      requestAnimationFrame(pinToLiveEdge);
+    });
+  }
+
+  if (state.settleTimer) window.clearTimeout(state.settleTimer);
+  state.settleTimer = window.setTimeout(() => {
+    state.settleTimer = 0;
     pinToLiveEdge();
-  });
+  }, SETTLE_DELAY_MS);
 }
 
 function rearm() {
@@ -96,13 +115,20 @@ if (typeof document !== 'undefined') {
 
     document.addEventListener('click', (event) => {
       const target = event.target as Element | null;
-      if (target?.closest(SEND_SELECTOR)) rearm();
+      if (target?.closest(SEND_SELECTOR) || target?.closest(NEW_CONVERSATION_SELECTOR)) rearm();
     }, true);
 
     document.addEventListener('keydown', (event) => {
       const target = event.target as Element | null;
-      if (event.key === 'Enter' && target?.matches(INPUT_SELECTOR)) rearm();
+      if (event.key === 'Enter' && !event.shiftKey && target?.matches(INPUT_SELECTOR)) rearm();
     }, true);
+
+    window.addEventListener('resize', () => {
+      if (state.armed) queuePin();
+    });
+    window.addEventListener('orientationchange', () => {
+      if (state.armed) queuePin();
+    });
 
     bindThread(findThread());
     queuePin();

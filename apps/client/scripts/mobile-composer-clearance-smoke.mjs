@@ -146,6 +146,23 @@ function apiServer() {
   });
 }
 
+function threadGeometry(node) {
+  let current = node.parentElement;
+  while (current) {
+    const style = getComputedStyle(current);
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      return {
+        scrollTop: current.scrollTop,
+        scrollHeight: current.scrollHeight,
+        clientHeight: current.clientHeight,
+        distanceFromEnd: Math.max(0, current.scrollHeight - current.clientHeight - current.scrollTop),
+      };
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 const staticSite = staticServer();
 const api = apiServer();
 let browser;
@@ -165,29 +182,11 @@ try {
   const response = page.getByLabel('Parallax response').last();
   await response.waitFor({ timeout: 5000 });
 
-  // Expanding the governed surface reduces the conversation viewport. The app must
-  // preserve the live edge automatically; this test deliberately does not scroll it.
   await page.getByLabel('Expand work specification').click();
   await page.getByLabel('Work specification details').waitFor({ timeout: 5000 });
-  await page.waitForTimeout(140);
+  await page.waitForTimeout(160);
 
-  const geometry = await response.evaluate((node) => {
-    let current = node.parentElement;
-    while (current) {
-      const style = getComputedStyle(current);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-        return {
-          scrollTop: current.scrollTop,
-          scrollHeight: current.scrollHeight,
-          clientHeight: current.clientHeight,
-          distanceFromEnd: Math.max(0, current.scrollHeight - current.clientHeight - current.scrollTop),
-        };
-      }
-      current = current.parentElement;
-    }
-    return null;
-  });
-
+  const geometry = await response.evaluate(threadGeometry);
   const responseBox = await response.boundingBox();
   const inputBox = await page.getByLabel('Message Parallax').boundingBox();
   const specBox = await page.getByLabel('Work specification', { exact: true }).boundingBox();
@@ -203,6 +202,49 @@ try {
   assert(errors.length === 0, `live edge continuity: browser errors: ${errors.join(' | ')}`);
 
   await page.screenshot({ path: `${evidenceDir}/mobile-composer-clearance.png` });
+
+  await response.evaluate((node) => {
+    let thread = node.parentElement;
+    while (thread) {
+      const style = getComputedStyle(thread);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') break;
+      thread = thread.parentElement;
+    }
+    if (!thread) throw new Error('conversation scroll container not found');
+    thread.scrollTop = thread.scrollHeight;
+    const extra = document.createElement('div');
+    extra.dataset.liveEdgeFixture = 'follow';
+    extra.textContent = Array.from({ length: 18 }, (_, index) => `Settled state update line ${index + 1}.`).join(' ');
+    node.appendChild(extra);
+  });
+  await page.waitForTimeout(220);
+  const afterSettledMutation = await response.evaluate(threadGeometry);
+  assert(afterSettledMutation && afterSettledMutation.distanceFromEnd <= 4,
+    `live edge continuity: settled state mutation was not followed (${afterSettledMutation?.distanceFromEnd}px from end)`);
+
+  await response.evaluate((node) => {
+    let thread = node.parentElement;
+    while (thread) {
+      const style = getComputedStyle(thread);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') break;
+      thread = thread.parentElement;
+    }
+    if (!thread) throw new Error('conversation scroll container not found');
+    thread.scrollTop = Math.max(0, thread.scrollHeight - thread.clientHeight - 180);
+    thread.dispatchEvent(new Event('scroll'));
+  });
+  await page.waitForTimeout(80);
+  await response.evaluate((node) => {
+    const extra = document.createElement('div');
+    extra.dataset.liveEdgeFixture = 'preserve-scroll-away';
+    extra.textContent = Array.from({ length: 8 }, (_, index) => `Later state update ${index + 1}.`).join(' ');
+    node.appendChild(extra);
+  });
+  await page.waitForTimeout(220);
+  const afterScrollAwayMutation = await response.evaluate(threadGeometry);
+  assert(afterScrollAwayMutation && afterScrollAwayMutation.distanceFromEnd >= 100,
+    `live edge continuity: deliberate scroll-away was overridden (${afterScrollAwayMutation?.distanceFromEnd}px from end)`);
+
   console.log(JSON.stringify({
     viewport: { width: 390, height: 844 },
     specBox,
@@ -211,7 +253,10 @@ try {
     thread: geometry,
     responseClearance: inputBox.y - (responseBox.y + responseBox.height),
     specificationClearance: inputBox.y - (specBox.y + specBox.height),
+    settledMutationDistanceFromEnd: afterSettledMutation.distanceFromEnd,
+    preservedScrollAwayDistanceFromEnd: afterScrollAwayMutation.distanceFromEnd,
     liveEdgePreserved: true,
+    operatorScrollAwayPreserved: true,
   }, null, 2));
 
   await page.close();
