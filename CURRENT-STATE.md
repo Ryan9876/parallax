@@ -2,7 +2,7 @@
 
 Version: 0.13.9 production
 Date: 2026-08-22
-Status: DEPLOYMENT-VERIFIED — REAL-DEVICE LIVE-EDGE CHECK AND FIRST REAL OPERATOR SANDBOX EXECUTION PENDING
+Status: DEPLOYMENT-VERIFIED — APP-BUILDER WAVE 1 ACTIVE; REAL-DEVICE LIVE-EDGE CHECK AND FIRST REAL OPERATOR SANDBOX EXECUTION PENDING
 Production branch: `main`
 Production application commit: `0938296be2c8b488340717fd5f6dbffad65d3856`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
@@ -77,7 +77,7 @@ v0.13.9 hardens the v0.13.8 behavior for delayed mobile layout settling and thre
 - resize and orientation changes schedule a live-edge correction only while following is armed;
 - keyboard viewport handling, Work Specification authority, amendment semantics, Engineering Runs, authentication, and bounded-autonomy authority are unchanged.
 
-The protected 390×844 browser acceptance now verifies three distinct conditions:
+The protected 390×844 browser acceptance verifies three distinct conditions:
 
 1. Work Specification expansion preserves the live edge automatically;
 2. a later non-streaming settled state/content mutation remains pinned to the live edge;
@@ -85,27 +85,59 @@ The protected 390×844 browser acceptance now verifies three distinct conditions
 
 ## Parallel ChatGPT development foundation — active
 
-Parallax now has a GitHub-authoritative concurrency model for development from multiple ChatGPT project conversations. The foundation was validated in PR `#39` and squash-merged as `b1d8679770e310f70f27628329855733f6b4ac80`.
+Parallax has a GitHub-authoritative concurrency model for development from multiple ChatGPT project conversations. The foundation was validated in PR `#39` and squash-merged as `b1d8679770e310f70f27628329855733f6b4ac80`.
 
 The durable development-control model is:
 
 - `PROJECT-CONSTITUTION.md` v1.1 establishes that parallel implementation is isolated and final integration is serialized;
 - `PARALLEL-DEVELOPMENT.md` is the operating protocol for worker chats and the Integration / Control Tower chat;
-- open GitHub `[WS]` issues are the live scope/ownership ledger;
+- GitHub `[WS]` issues are the live scope/ownership ledger;
 - each ACTIVE worker uses one bounded workstream and one isolated branch, declares owned/shared paths and dependencies before substantive implementation, and prepares a validated PR without merging/deploying by default;
 - GitHub authoritative records, workstream issues, branches/PRs, CI/evaluation evidence, and deployment evidence outrank individual chat recollection for current development state;
 - the Integration / Control Tower role is tracked in issue `#31` and serializes final merges, latest-main revalidation, deployment, and release-state maintenance.
 
 The parallel-development foundation is governance/development infrastructure only. It does **not** change the v0.13.9 runtime, API, authentication, authorization, persistence, Code authority, database schema, or production deployment state.
 
-The app-builder acceleration program is tracked in issue `#32`. Its initial parallel Wave 1 workstreams are planned as:
+## Dynamic workstream specification validation — active
 
-- `#43` — App project lifecycle foundation;
-- `#44` — Safe source implementation and patch engine;
-- `#45` — Project-scoped tool authority contracts;
-- `#46` — App-builder evaluation and observability spine.
+Parallel development exposed a material validation gap in the historical `Parallax P2 CI` workflow: its specification checks were a hard-coded list and its DSPy release compilation still targeted `P2-V0.12.0`, so a new worker specification could receive otherwise-green repository checks without that new specification itself being protected-validated and DSPy-compiled.
 
-These workstreams are intentionally additive and separable where possible. Workers must still refresh their exact path reservations against current open work before changing code. The immediate critical path to usable app-building is first-class Project isolation plus safe bounded source implementation; tool authority and protected app-builder evaluation can advance alongside those contracts.
+PR `#52` closed that gap by adding `.github/workflows/workstream-spec-validation.yml`, the independent **Parallax Workstream Spec Validation** gate. The gate now:
+
+- detects changed/new `specs/P2-*.md` files relative to the PR or push base;
+- rejects changed workstream specifications that do not use the semantic `P2-Vx.y.z.md` identity convention;
+- rejects deletion of versioned Parallax specification records;
+- applies the protected specification contract to every changed semantic specification;
+- for non-draft PRs and `main` pushes, executes DSPy SpecCritic + SpecCompiler for each changed specification and requires protected DSPy plan evidence;
+- uploads changed-spec evidence for integration review;
+- leaves historical specification records intact instead of retroactively requiring older patch-spec formats to satisfy a newer full-contract schema.
+
+The first candidate intentionally attempted full historical-catalog validation and exposed that older patch-spec records predate the current protected contract. The corrected gate validates changed/new workstream specifications, preserving historical evidence while making all future parallel work fail closed on its own specification contract.
+
+PR `#52` exact head `32522276f87466f4e1f468a04eb32dbac853ccec` passed all three repository workflows before squash merge as `83b6b6b418b9f2c87608b46a38cfe2026a4c0b25`:
+
+- `Parallax Workstream Spec Validation` run `32599261876` — SUCCESS;
+- `Parallax P2 CI` run `32599261852` — SUCCESS;
+- `Bounded Autonomy Pilot` run `32599261860` — SUCCESS.
+
+This is CI/governance infrastructure only; no Vercel deployment is required. Wave 1 worker PRs must refresh against `main` containing this gate and pass it before they are eligible for integration.
+
+## App-builder Wave 1 — active
+
+The app-builder acceleration program is tracked in issue `#32`, with Integration / Control Tower sequencing in issue `#31`. All four initial foundation workstreams are active:
+
+- `#43` — App project lifecycle foundation — reserved spec `P2-V0.14.1`; owns canonical durable Project/App identity and persistence;
+- `#44` — Safe source implementation and patch engine — reserved spec `P2-V0.14.2`; additive bounded source mutation/evidence primitive;
+- `#45` — Project-scoped tool authority contracts — spec `P2-V0.14.3`; additive fail-closed capability and audit contracts;
+- `#46` — App-builder evaluation and observability spine — spec `P2-V0.14.4`; additive protected app-builder benchmark/evidence contracts.
+
+The scopes are intentionally separable. #44 and #45 may use temporary filesystem/opaque project references in isolated tests, but final production integration must bind to the canonical Project identity accepted from #43. #46 must reconcile its fixtures and observable field mappings to the accepted #43/#44/#45 contracts before protected app-builder CI integration.
+
+Preferred Wave 1 integration order is #43 → #44 → #45 → #46. Every interacting candidate must refresh against latest relevant `main`, pass Parallax Workstream Spec Validation, P2 CI, and Bounded Autonomy Pilot, and receive Control Tower contract/diff review before merge.
+
+Historical superseded PRs `#20`, `#15`, `#9`, `#4`, `#3`, and `#2` have been closed so they cannot be mistaken for current ownership or integration candidates.
+
+GitHub `main` is still not branch-protected. Repository instructions, isolated workstream branches, PR discipline, dynamic workstream-spec validation, and CI provide the current enforcement layer; Control Tower continues to treat worker merge/deploy actions as prohibited until a GitHub-side ruleset can be enabled.
 
 ## Validation evidence
 
@@ -114,33 +146,22 @@ PR `#41`, head `43335654a7408594d7ff9a7ace8d509054ded80c`, passed both protected
 - `Parallax P2 CI` run `32591203005` — SUCCESS;
 - `Bounded Autonomy Pilot` run `32591202996` — SUCCESS.
 
-The passing gate covered:
-
-- specification validation;
-- full API regression tests;
-- client typecheck;
-- response-state tests;
-- web export;
-- browser / Skia acceptance;
-- mobile Work Specification geometry acceptance;
-- iOS keyboard-visible viewport acceptance;
-- in-flow composer/live-edge acceptance;
-- settled non-streaming live-edge follow acceptance;
-- deliberate operator scroll-away preservation;
-- protected Engineering / Reason / Code promotion evaluation;
-- DSPy release compilation;
-- bounded-autonomy authority-boundary regressions.
+The passing v0.13.9 gate covered specification validation, full API regression tests, client typecheck/state/export, browser/Skia acceptance, mobile Work Specification geometry, iOS keyboard-visible viewport behavior, in-flow composer/live-edge acceptance, settled non-streaming live-edge following, deliberate operator scroll-away preservation, protected Engineering/Reason/Code promotion evaluation, DSPy release compilation, and bounded-autonomy authority regressions.
 
 The passing client build-evidence artifact is `9480385338`. Evaluation evidence is `9480375194`, and DSPy development evidence is `9480389182`.
 
 PR `#41` was squash-merged to `main` as application commit `0938296be2c8b488340717fd5f6dbffad65d3856`.
 
-Parallel-development foundation PR `#39`, head `fb392b476a45795a059da09edebb0f84e57fc68e`, also passed both repository workflows before merge:
+Parallel-development foundation PR `#39`, head `fb392b476a45795a059da09edebb0f84e57fc68e`, passed both repository workflows before merge:
 
 - `Parallax P2 CI` run `32590999199` — SUCCESS across API/contracts, client/typecheck/state/export/browser/Skia, protected promotion evaluation, and DSPy release compilation;
 - `Bounded Autonomy Pilot` run `32590999173` — SUCCESS across protected execution/autonomy API regression and client validation.
 
-Because PR `#39` changed only governance, documentation, issue/PR templates, and the approved `P2-V0.14.0` development-control specification, no runtime deployment was required for that material decision.
+PR `#48` then recorded the governance decision in this authoritative state record after full repository validation and was squash-merged as `f4b318d7fc1e772dfce2054321661f320e0f1336`.
+
+Dynamic workstream-spec validation PR `#52` passed Workstream Spec Validation `32599261876`, P2 CI `32599261852`, and Bounded Autonomy Pilot `32599261860` before merge as `83b6b6b418b9f2c87608b46a38cfe2026a4c0b25`.
+
+Because PRs `#39`, `#48`, and `#52` change development governance/validation records rather than application runtime, no production deployment is required for those material decisions.
 
 ## Deployment verification
 
@@ -160,11 +181,11 @@ A direct request to `https://parallax-ashy-one-20.vercel.app/` returned HTTP 200
 
 v0.13.9 contains no API implementation change. The deployment-verified v0.13.4 API deployment `dpl_G5hz69cCs877NE2kkuPGLMweaHuK` remains the production API behind `parallax-api-tan.vercel.app`.
 
-Authentication, amendment recovery, Engineering Run behavior, and bounded-autonomy authority are unchanged by v0.13.5–v0.13.9.
+Authentication, amendment recovery, Engineering Run behavior, and bounded-autonomy authority are unchanged by v0.13.5–v0.13.9 and by the parallel-development governance/CI work.
 
 ## Remaining operator verification
 
-Automated validation and production deployment verification are complete. Two user-driven checks remain intentionally unclaimed:
+Automated v0.13.9 validation and production deployment verification are complete. Two user-driven checks remain intentionally unclaimed:
 
 1. **Real-device live-edge composition:** reload production on the iPhone and confirm the newest assistant response automatically remains visible above the composer after Work Specification/amendment state changes, while intentional upward scrolling remains respected.
 2. **First real isolated Sandbox execution:** complete the bounded-autonomy operator path below.
@@ -192,8 +213,10 @@ Expected autonomy path:
 - v0.13.8 live-edge continuity correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - v0.13.9 live-edge hardening: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - Parallel ChatGPT development foundation: **VALIDATED / MERGED / GOVERNANCE-ACTIVE**
-- Automated CI validation: **PASS**
-- Merged application release to `main`: **YES**
+- Dynamic workstream specification validation: **VALIDATED / MERGED / CI-ACTIVE**
+- App-builder Wave 1 foundations: **ACTIVE / NOT YET INTEGRATED**
+- Automated runtime CI validation: **PASS**
+- Merged application release to `main`: **YES — v0.13.9**
 - Production web: **READY / HTTP 200 VERIFIED**
 - Production API: **UNCHANGED FROM v0.13.4 / READY**
 - Private production authentication: **UNCHANGED / FAIL-CLOSED**
@@ -203,9 +226,9 @@ Expected autonomy path:
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the v0.13.9 deployment-verified runtime baseline and the validated/merged parallel ChatGPT development governance decision, including the app-builder Wave 1 control plan. The production application version remains v0.13.9 because the parallel-development foundation does not change runtime behavior.
-- `PROJECT-CONSTITUTION.md`: v1.1; updated by PR #39 to make GitHub-authoritative isolated parallel development and serialized integration a durable governing principle.
-- `DESIGN-SYSTEM.md`: unchanged by the parallel-development foundation; v0.13.9 only hardens the existing documented conversation-follow rule.
-- `ARCHITECTURE.md`: unchanged by the parallel-development foundation; concurrency control is a development-governance concern and does not change runtime persistence, service boundaries, authentication, state ownership, Code binding, or bounded-autonomy architecture.
+- `CURRENT-STATE.md`: updated for the deployment-verified v0.13.9 runtime baseline, validated/merged parallel ChatGPT development governance, dynamic workstream-spec validation, and active app-builder Wave 1 control state. The production application version remains v0.13.9 because the governance/CI changes do not alter runtime behavior.
+- `PROJECT-CONSTITUTION.md`: v1.1; unchanged by the dynamic spec gate. PR #39 already established GitHub-authoritative isolated parallel development and serialized integration as a durable governing principle.
+- `DESIGN-SYSTEM.md`: unchanged; no visual or interaction principle changed.
+- `ARCHITECTURE.md`: unchanged at v2.1; the dynamic spec gate and Wave 1 control state are development-governance/validation concerns and do not yet change deployed runtime persistence, service boundaries, authentication, Code binding, or bounded-autonomy architecture. Architecture should change when accepted Wave 1 runtime contracts are integrated.
 
 Historical candidate, preview, CI, deployment, workstream, and visual evidence remains preserved in GitHub Actions, GitHub issues/PRs, and Vercel history.
