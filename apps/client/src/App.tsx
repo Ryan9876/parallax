@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
   },
   topbarAura: { position: 'absolute', width: 380, height: 110, borderRadius: 190, right: 100, top: -58, backgroundColor: 'rgba(117,72,211,0.10)' },
   topbarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  topTitle: { fontSize: 15, fontWeight: '650', color: palette.text, letterSpacing: -0.2 },
+  topTitle: { fontSize: 15, fontWeight: '600', color: palette.text, letterSpacing: -0.2 },
   topSub: { fontSize: 7.5, color: palette.textSecondary, marginTop: 3, letterSpacing: 0.58 },
   modeSwitch: { flexDirection: 'row', borderRadius: 15, padding: 3, backgroundColor: 'rgba(92,81,135,0.15)', shadowColor: '#8F63D8', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   modeButton: { minHeight: 34, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
