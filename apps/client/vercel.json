@@ -6,6 +6,16 @@
   "routes": [
     {
       "src": "/p2-api/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "parallax-git-p2-v0130-bounded-autonomy-lew7.vercel.app"
+        }
+      ],
+      "dest": "https://parallax-api-git-p2-v0130-bounded-autonomy-lew7.vercel.app/$1"
+    },
+    {
+      "src": "/p2-api/(.*)",
       "dest": "https://parallax-api-tan.vercel.app/$1"
     },
     {
