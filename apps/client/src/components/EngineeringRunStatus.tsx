@@ -7,18 +7,34 @@ import { EditorialTrace } from './EditorialTrace';
 const STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
 const AUTONOMOUS_STAGES = ['PLAN', 'BUILD', 'TEST', 'VERIFY'];
 
-function autonomyBoundary(run: EngineeringRunDto): string | null {
-  if (run.state === 'IMPLEMENT') return 'Autonomy boundary · implementation evidence required';
-  if (run.state === 'REVIEW') return 'Autonomy boundary · independent review required';
+function autonomyBoundary(run: EngineeringRunDto, stopReason?: string | null): string | null {
+  const reported = {
+    EXECUTOR_UNAVAILABLE: 'Autonomy stopped · isolated executor unavailable; no plan state was changed',
+    IMPLEMENTATION_REQUIRED: 'Autonomy boundary · implementation evidence required',
+    REVIEW_REQUIRED: 'Autonomy boundary · independent review required',
+    EXECUTION_FAILED: 'Autonomy stopped · protected execution failed; review the recorded evidence before resuming',
+    PAUSED: 'Autonomy stopped · run is paused',
+    FAILED: 'Autonomy stopped · run requires an explicit resume after failure',
+    COMPLETE: 'Autonomy complete · no further execution is required',
+    CANCELLED: 'Autonomy stopped · run was cancelled',
+    SPEC_AMENDMENT: 'Autonomy stopped · Work Specification amendment required',
+    MAX_STEPS_REACHED: 'Autonomy stopped · bounded cycle limit reached',
+  } as const;
+  if (stopReason && stopReason in reported) {
+    return reported[stopReason as keyof typeof reported];
+  }
+  if (run.state === 'IMPLEMENT') return reported.IMPLEMENTATION_REQUIRED;
+  if (run.state === 'REVIEW') return reported.REVIEW_REQUIRED;
   if (run.state === 'FAILED' && run.last_failure_code?.startsWith('AUTONOMOUS_')) {
     return `Autonomy stopped · ${run.last_failure_code.toLowerCase().split('_').join(' ')}`;
   }
   return null;
 }
 
-export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, reducedGraphics = false }: {
+export function EngineeringRunStatus({ run, busy, autonomyStopReason, onPause, onResume, onCancel, reducedGraphics = false }: {
   run: EngineeringRunDto;
   busy: boolean;
+  autonomyStopReason?: string | null;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
@@ -30,7 +46,7 @@ export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, r
   const canResume = bound && (run.state === 'PAUSED' || run.state === 'FAILED');
   const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state);
   const evidence = ['BUILD', 'TEST', 'VERIFY', 'REVIEW'].filter((stage) => passed.has(stage));
-  const boundary = autonomyBoundary(run);
+  const boundary = autonomyBoundary(run, autonomyStopReason);
 
   return (
     <View style={styles.card} accessibilityLabel={`Engineering run ${run.state}`}>
