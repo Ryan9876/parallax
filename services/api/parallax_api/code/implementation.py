@@ -9,6 +9,8 @@ from .patching import PatchError, PreparedPatch, SourcePatch, TextPatchEngine
 
 
 DEFAULT_MAX_PATCHES = 32
+DEFAULT_MAX_TOTAL_SOURCE_BYTES = 4_000_000
+DEFAULT_MAX_TOTAL_PATCH_BYTES = 4_000_000
 DEFAULT_MAX_TOTAL_RESULT_BYTES = 4_000_000
 
 
@@ -43,12 +45,16 @@ class SafeImplementationEngine:
         patch_engine: TextPatchEngine | None = None,
         *,
         max_patches: int = DEFAULT_MAX_PATCHES,
+        max_total_source_bytes: int = DEFAULT_MAX_TOTAL_SOURCE_BYTES,
+        max_total_patch_bytes: int = DEFAULT_MAX_TOTAL_PATCH_BYTES,
         max_total_result_bytes: int = DEFAULT_MAX_TOTAL_RESULT_BYTES,
     ) -> None:
-        if max_patches <= 0 or max_total_result_bytes <= 0:
+        if min(max_patches, max_total_source_bytes, max_total_patch_bytes, max_total_result_bytes) <= 0:
             raise ValueError("implementation limits must be positive")
         self.patch_engine = patch_engine or TextPatchEngine()
         self.max_patches = max_patches
+        self.max_total_source_bytes = max_total_source_bytes
+        self.max_total_patch_bytes = max_total_patch_bytes
         self.max_total_result_bytes = max_total_result_bytes
 
     def apply(self, workspace_root: str | Path, request: ImplementationRequest) -> dict[str, object]:
@@ -67,10 +73,18 @@ class SafeImplementationEngine:
         # Preparation is intentionally side-effect free: every target, digest,
         # diff, and limit is validated before the first filesystem mutation.
         prepared: list[PreparedPatch] = []
+        total_source_bytes = 0
+        total_patch_bytes = 0
         total_result_bytes = 0
         for patch in patches:
             candidate = self.patch_engine.prepare(workspace_root, patch)
+            total_source_bytes += len(candidate.before)
+            total_patch_bytes += len(candidate.patch_bytes)
             total_result_bytes += len(candidate.after)
+            if total_source_bytes > self.max_total_source_bytes:
+                raise ImplementationLimitError("implementation sources exceed the aggregate byte limit")
+            if total_patch_bytes > self.max_total_patch_bytes:
+                raise ImplementationLimitError("implementation patches exceed the aggregate byte limit")
             if total_result_bytes > self.max_total_result_bytes:
                 raise ImplementationLimitError("implementation result exceeds the aggregate byte limit")
             prepared.append(candidate)
@@ -106,6 +120,8 @@ class SafeImplementationEngine:
             "engine": "safe-source-implementation-v1",
             "workspace_digest": workspace_digest,
             "file_count": len(prepared),
+            "total_source_bytes": total_source_bytes,
+            "total_patch_bytes": total_patch_bytes,
             "total_result_bytes": total_result_bytes,
             "artifacts": artifacts,
             "patches": patch_evidence,
