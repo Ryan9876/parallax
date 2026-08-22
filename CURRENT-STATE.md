@@ -1,181 +1,101 @@
 # Parallax 2.0 Current State
 
-Version: 0.13.0 preview candidate
+Version: 0.13.1 production
 Date: 2026-08-22
-Status: VALIDATED PREVIEW — OPERATOR SANDBOX TEST PENDING
-Candidate branch: `p2/v0.13.0-bounded-autonomy`
-Candidate head: `7f5178cec5cac755ff15e8369629e6127bff57e8`
-Pull request: `#19` — ready for review, mergeable, not merged
-Production release: v0.12.0 remains unchanged and deployment-verified
+Status: DEPLOYED AND AUTOMATED-VALIDATED — OPERATOR AUTONOMY EXECUTION TEST PENDING
 Production branch: `main`
-Production application release commit: `7d86aa3e9ae1dd096cf4712b786ccf4c2534b6a5`
-Production web deployment: `dpl_9RZi4PQzYZpezwGcG4vUhiC7fQib`
-Production API deployment: `dpl_AfNZbFj2dMeYKKjGr6v9s3yhMgMw`
+Production application commit: `6e42c14fc1ce90144387297a3e39f3202a0e1a98`
 Production web alias: `https://parallax-ashy-one-20.vercel.app`
 Production API alias: `https://parallax-api-tan.vercel.app`
+Production web deployment carrying the v0.13 autonomy UI: `dpl_3aytnFCs34WqJgjxiUz6YbZqdZ6o`
+Production API deployment carrying the v0.13.1 active-spec guard: `dpl_Gg7Ps1SJc5KuqgRnm1LNymRtKCy8`
 
-## Current candidate
+## Current production baseline
 
-Parallax 2.0 v0.13.0 — **Bounded Autonomy Pilot** — is implemented and deployed to Vercel preview for operator testing. It is not merged to `main` and has not been promoted to production.
+Parallax 2.0 v0.13 is now merged to `main` and deployed to the production-authenticated origin. The bounded-autonomy pilot is therefore available through the normal Parallax production URL instead of a separate preview host.
 
-The approved product specification is `P2-V0.13.0`. The candidate introduces the first live isolated execution plane for Code while preserving explicit authority boundaries. A user can request a bounded autonomous cycle from the existing Code run surface; the server, not the client or model, owns the executable command registry, acceptance map, stage transitions, and stop conditions.
+The production Code path now includes:
 
-The pilot grants autonomous authority only for protected planning plus registered BUILD / TEST / VERIFY execution. It deliberately stops at IMPLEMENT when real implementation evidence is required and at REVIEW when independent review authority is required. It does not grant autonomous source editing, arbitrary shell access, Work Specification self-approval, Git commit/push/merge, Vercel production promotion, or production deployment authority.
+- persistent Work Specifications with explicit approval;
+- immutable approved-spec binding for Engineering Runs;
+- bounded autonomous PLAN / BUILD / TEST / VERIFY coordination;
+- isolated Vercel Sandbox execution for registered protected commands;
+- fail-closed execution when the isolated executor is unavailable;
+- server-owned acceptance criteria, stage transitions, command registry, and stop reasons;
+- a `Run autonomously` control on eligible bound Engineering Run stages;
+- explicit stops at IMPLEMENT when real implementation evidence is required and at REVIEW when independent review authority is required.
 
-## v0.13.0 implementation outcome
+The pilot still does **not** grant autonomous source editing, arbitrary shell access, Work Specification self-approval, Git commit/push/merge, or autonomous production deployment authority.
 
-The candidate now includes:
+## v0.13.1 production hardening
 
-- a protected `AutonomyCoordinator` bound to the existing Engineering Run state machine and optimistic run revisions;
-- an isolated Vercel Sandbox executor using deployment-scoped Vercel identity;
-- non-persistent sandboxes with deny-all network policy and no forwarded application environment or product secrets;
-- a server-owned protected command registry for BUILD, TEST, and VERIFY;
-- repository-backed sandbox initialization for protected execution stages;
-- bounded observable execution evidence including invocation/output digests, exit status, duration, bounded excerpts, timeout/redaction state, executor identity, and network policy identity;
-- deterministic protected PLAN evidence derived from the immutable server-owned acceptance map;
-- executor preflight before PLAN mutation;
-- fail-closed `EXECUTOR_UNAVAILABLE` behavior that leaves a recoverable PLAN run and revision unchanged;
-- durable protected failure behavior for BUILD / TEST / VERIFY failures;
-- explicit stop reasons for IMPLEMENT, REVIEW, PAUSED, FAILED, COMPLETE, CANCELLED, SPEC_AMENDMENT, executor unavailability, execution failure, and maximum bounded steps;
-- a compact accessible `Run autonomously` control on eligible Code stages;
-- visible autonomy stop-state feedback without allowing the client to mutate durable backend authority fields;
-- browser acceptance coverage for the autonomy control, safe executor-unavailable behavior, unchanged PLAN state, and reduced-graphics parity;
-- v0.13 API/client release metadata and default active product-spec identity.
+The first production operator attempt exposed configuration drift: the deployed v0.13 API code was live, but newly created conversations still reported `P2-V0.5.0` because a stale production `PARALLAX_ACTIVE_SPEC_ID` environment override superseded the repository's `P2-V0.13.0` release baseline.
 
-No new database table or migration is required. Existing Engineering Run / attempt persistence remains the evidence store.
+v0.13.1 adds a production-only regression guard:
 
-## Preview topology and routing
+- production may not resolve an active product specification older than the release baseline compiled into the application;
+- a valid equal or newer production specification remains allowed;
+- development and test environments can still deliberately select older specifications for regression testing;
+- invalid specification identifiers continue to fail validation.
 
-The candidate uses the existing two-project Vercel topology:
+This behavior is defined by `specs/P2-V0.13.1.md` and is covered by deterministic API tests.
 
-1. Web project `parallax`.
-2. API project `parallax-api`.
+## Validation evidence
 
-The bounded Sandbox is runtime execution infrastructure used by the API, not a third application deployment.
+PR `#21` head `2388acb0c44666f85c01cc3c2c2057b087918bcf` passed:
 
-Preview web deployment:
-
-- deployment: `dpl_288XuPaFzCHHjS7tYdzEV7H9bPT4`;
-- unique URL: `https://parallax-9iqolf056-lew7.vercel.app`;
-- Git commit: `7f5178cec5cac755ff15e8369629e6127bff57e8`;
-- state: `READY`;
-- branch alias: `https://parallax-git-p2-v0130-bounded-autonomy-lew7.vercel.app`.
-
-Preview API deployment carrying the latest API-affecting candidate state:
-
-- deployment: `dpl_tCFVW4WreM8fBvT6nkiC1U8Mm5Nu`;
-- unique URL: `https://parallax-qvtn2fey8-lew7.vercel.app`;
-- Git commit: `0e6302ea1180b7fa085f3740ab906420033d7dae`;
-- state: `READY`;
-- branch alias: `https://parallax-api-git-p2-v0130-bounded-autonomy-lew7.vercel.app`.
-
-The later candidate commit changes only web preview routing, so the API project correctly does not need a newer successful application build for that change.
-
-The web configuration now routes `/p2-api/*` on the bounded-autonomy **branch alias only** to the bounded-autonomy API branch alias. All other web hosts retain the existing production API fallback. This fixes the prior test flaw where a preview web client would otherwise exercise the production API instead of the v0.13 API candidate.
-
-Vercel preview authentication and the cross-project preview rewrite still require interactive operator verification. Vercel reports both relevant deployments as READY, but the automated connector cannot complete the browser SSO/cookie flow required to prove the protected preview end-to-end.
-
-## Exact-head validation evidence
-
-Candidate head `7f5178cec5cac755ff15e8369629e6127bff57e8` passed both exact-head workflows.
-
-### Bounded Autonomy Pilot
-
-GitHub Actions run `32556123923` completed **SUCCESS**.
-
-Passed gates:
-
-- approved `P2-V0.13.0` specification validation;
-- API dependency installation and Python compilation;
-- protected execution/autonomy test subset;
+- `Bounded Autonomy Pilot` workflow run `32560701010` — SUCCESS;
+- `Parallax P2 CI` workflow run `32560701012` — SUCCESS;
 - full API regression suite;
-- client dependency installation;
-- TypeScript typecheck;
-- response-state tests;
-- Expo web export.
+- client typecheck and web export;
+- browser / Skia acceptance;
+- protected Engineering / Reason / Code promotion evaluation;
+- DSPy release compilation gate.
 
-### Parallax P2 release CI
+PR `#21` was then squash-merged to `main` as `6e42c14fc1ce90144387297a3e39f3202a0e1a98`.
 
-GitHub Actions run `32556123942` completed **SUCCESS**.
+## Deployment evidence
 
-Passed gates:
+The v0.13.1 API production deployment `dpl_Gg7Ps1SJc5KuqgRnm1LNymRtKCy8` is READY and was created from main commit `6e42c14fc1ce90144387297a3e39f3202a0e1a98`.
 
-- Fast API + contract checks;
-- full API tests;
-- Fast client checks;
-- TypeScript and response-state tests;
-- Expo web build;
-- dependency-audit evidence capture;
-- Playwright browser / Skia acceptance, including the v0.13 Code/autonomy stop-state browser scenario;
-- protected Engineering / Reason / Code promotion evaluation and regression-rejection checks;
-- existing DSPy release-compilation safety gate.
+The web project correctly skipped a new production build for v0.13.1 because the patch changes API/configuration/test/spec files only. The existing production web deployment `dpl_3aytnFCs34WqJgjxiUz6YbZqdZ6o` remains the deployed v0.13 autonomy UI and is aliased to `parallax-ashy-one-20.vercel.app`.
 
-The inherited general release workflow still names its DSPy compile/verification target as `P2-V0.12.0`; therefore this record does **not** claim a DSPy-compiled v0.13 plan. v0.13 itself is validated by the dedicated exact-head bounded-autonomy specification and implementation workflow. Aligning the shared release workflow to the next production spec remains a release-hardening task before production promotion.
+The prior v0.13 API production deployment was `dpl_5hwaNBhsYDDbKwJB6sCk23D6YuRG`. Runtime logs confirmed authenticated production requests were reaching that deployment before the v0.13.1 hardening release.
 
-## Failure-safety state
+## Remaining operator verification
 
-The validated behavior is intentionally fail closed:
+The production application is deployed and automated validation is complete, but the first real user-driven isolated Sandbox execution is still pending.
 
-- executor unavailable during PLAN preflight → return `EXECUTOR_UNAVAILABLE`; preserve PLAN and its revision;
-- stale caller revision → reject rather than silently retarget;
-- missing/extra/duplicated acceptance coverage → protected validator rejects the stage;
-- BUILD / TEST / VERIFY command failure or timeout → record failed protected evidence and stop;
-- IMPLEMENT → stop and require real implementation evidence rather than fabricate artifacts;
-- REVIEW → stop and require independent review authority;
-- PAUSED / FAILED / CANCELLED / SPEC_AMENDMENT → no silent autonomous continuation;
-- application/provider secrets are not forwarded into the sandbox;
-- client/model input cannot supply executable command strings.
+Expected operator path:
 
-## Operator preview test required
+1. Reload the production Parallax URL.
+2. Switch to Code.
+3. Start a fresh Code conversation and enter a small coding objective.
+4. Capture and approve its Work Specification.
+5. Confirm the Engineering Run reaches PLAN and shows `Run autonomously`.
+6. Invoke `Run autonomously`.
+7. Expected success path: protected PLAN evidence is created and the run advances to IMPLEMENT, then stops with `IMPLEMENTATION_REQUIRED`.
+8. Expected safe-failure path: the run remains at PLAN with `EXECUTOR_UNAVAILABLE`, proving fail-closed Sandbox behavior.
 
-The remaining release question is whether the real protected Vercel preview can create and execute the isolated Sandbox under the API preview's deployment identity and whether the web branch alias can reach the protected API branch alias through the cross-project preview route.
-
-Expected first interactive path:
-
-1. Open the bounded-autonomy web branch preview and complete Vercel/Parallax sign-in if requested.
-2. Start a fresh Code conversation.
-3. Capture and approve its Work Specification.
-4. Confirm the Code run is `PLAN`, bound to the approved revision, and shows `Run autonomously`.
-5. Invoke `Run autonomously`.
-6. If Sandbox is available, the executor preflight passes and protected PLAN advances to `IMPLEMENT`, where Parallax intentionally stops with `IMPLEMENTATION_REQUIRED`.
-7. If Sandbox identity/provider access is unavailable, Parallax must remain at `PLAN` and show `Autonomy stopped · isolated executor unavailable; no plan state was changed`.
-
-A fresh UI-driven pilot does not progress beyond IMPLEMENT because v0.13 intentionally lacks autonomous source-editing authority and refuses to fabricate implementation evidence. BUILD / TEST / VERIFY autonomous execution is covered by protected automated tests and becomes available only when valid implementation evidence exists.
+Because the autonomy control is conditional on a bound Engineering Run, a fresh empty Code screen does not show the button before a coding objective, Work Specification, approval, and PLAN run exist.
 
 ## Deployment state vocabulary
 
-For v0.13.0 candidate:
+- v0.13 bounded-autonomy implementation: **IMPLEMENTED**
+- v0.13.1 active-spec guard: **IMPLEMENTED**
+- Automated CI validation: **PASS**
+- Merged to `main`: **YES**
+- Production web autonomy UI: **DEPLOYED / READY**
+- Production API v0.13.1: **DEPLOYED / READY**
+- Production active-spec regression guard: **DEPLOYED**
+- First real operator Sandbox execution: **PENDING**
+- Full bounded-autonomy pilot deployment verification: **PENDING operator execution evidence**
 
-- Specification approved: **YES**
-- Implemented: **YES**
-- Exact-head bounded-autonomy workflow: **PASS**
-- Exact-head API regression suite: **PASS**
-- Exact-head client typecheck/export: **PASS**
-- Browser / Skia acceptance: **PASS**
-- Bounded-autonomy browser stop-state acceptance: **PASS**
-- Protected Engineering / Reason / Code evaluation: **PASS**
-- Shared inherited DSPy release gate: **PASS — still targets v0.12.0**
-- Preview web deployment READY: **YES**
-- Preview API deployment READY: **YES**
-- Preview branch web → preview branch API routing configured: **YES**
-- Interactive protected cross-project preview routing verified: **PENDING**
-- Live Vercel Sandbox preflight verified by operator: **PENDING**
-- Merged to `main`: **NO**
-- Production promoted: **NO**
-- v0.13.0 deployment-verified: **NO — preview operator test pending**
-- Production v0.12.0 remains deployment-verified: **YES**
+## Authoritative record status
 
-## Current product baseline
+- `CURRENT-STATE.md`: updated for the v0.13 production promotion, v0.13.1 hardening release, validation evidence, deployment evidence, and remaining operator test.
+- `ARCHITECTURE.md`: unchanged; v0.13.1 hardens release configuration without changing the bounded-autonomy architecture or trust boundaries.
+- `DESIGN-SYSTEM.md`: unchanged; no visual-language rule changed.
+- `PROJECT-CONSTITUTION.md`: unchanged; the release remains consistent with existing authority, evidence, security, and human-control principles.
 
-Production remains v0.12.0, including conversation-first Reason, durable approved Work Specifications, immutable approved-spec Code binding, Editorial Optical conversation material, Ambient Chroma Flow, optical response inscription, mobile governed-surface discipline, same-origin hosted-web resilience, and Google identity with server-owned authorization.
-
-The v0.13 preview extends that baseline with a bounded execution plane rather than replacing those capabilities.
-
-## Governance status
-
-- `CURRENT-STATE.md`: advanced to the v0.13.0 validated-preview candidate, exact-head CI evidence, Vercel preview evidence, production separation, and remaining operator verification boundary.
-- `ARCHITECTURE.md`: advanced to v2.1 because v0.13.0 adds a durable bounded-autonomy coordinator, protected command registry, and Vercel Sandbox execution plane/trust boundary.
-- `DESIGN-SYSTEM.md`: unchanged; the new control and stop-state treatment remain within the established conversation-native visual language and do not establish a new durable design rule.
-- `PROJECT-CONSTITUTION.md`: unchanged; authority, human-control, evidence, safety, and release principles remain consistent with the existing constitution.
-
-Historical release evidence remains preserved in repository history.
+Historical candidate and preview evidence remains preserved in Git history.
