@@ -14,7 +14,7 @@ from parallax_api.code.implementation import (
     ImplementationRequest,
     SafeImplementationEngine,
 )
-from parallax_api.code.patching import EMPTY_SHA256, SourcePatch, TextPatchEngine
+from parallax_api.code.patching import EMPTY_SHA256, SourcePatch, StaleBaseError, TextPatchEngine
 from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract
 
 
@@ -70,6 +70,8 @@ def test_multi_file_implementation_is_successful_and_evidence_is_deterministic(t
     assert result["git_mutation"] is False
     assert result["deployment_mutation"] is False
     assert result["file_count"] == 2
+    assert result["total_source_bytes"] == len("a = 1\n") + len("b = 1\n")
+    assert result["total_patch_bytes"] == sum(len(patch.unified_diff.encode()) for patch in request.patches)
     assert len(result["workspace_digest"]) == 64
     assert [item["path"] for item in result["artifacts"]] == ["src/a.py", "src/b.py"]
     assert (tmp_path / "src" / "a.py").read_text(encoding="utf-8") == "a = 2\n"
@@ -98,7 +100,7 @@ def test_all_patches_prepare_before_first_mutation(tmp_path):
         )
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(StaleBaseError):
         SafeImplementationEngine().apply(tmp_path, request)
     assert a.read_text(encoding="utf-8") == "a = 1\n"
     assert b.read_text(encoding="utf-8") == "b = 1\n"
@@ -115,23 +117,31 @@ def test_duplicate_targets_are_rejected_before_mutation(tmp_path):
     assert target.read_text(encoding="utf-8") == "x = 1\n"
 
 
-def test_empty_patch_count_and_aggregate_result_limits_are_enforced(tmp_path):
+def test_empty_patch_count_and_aggregate_resource_limits_are_enforced(tmp_path):
     with pytest.raises(ImplementationLimitError):
         SafeImplementationEngine().apply(tmp_path, ImplementationRequest(patches=()))
 
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "a.py").write_text("a = 1\n", encoding="utf-8")
-    (tmp_path / "src" / "b.py").write_text("b = 1\n", encoding="utf-8")
+    a = tmp_path / "src" / "a.py"
+    b = tmp_path / "src" / "b.py"
+    a.write_text("a = 1\n", encoding="utf-8")
+    b.write_text("b = 1\n", encoding="utf-8")
     request = ImplementationRequest(
         patches=(
             source_patch("src/a.py", "a = 1\n", "a = 'abcdefghij'\n"),
             source_patch("src/b.py", "b = 1\n", "b = 'abcdefghij'\n"),
         )
     )
+
+    with pytest.raises(ImplementationLimitError):
+        SafeImplementationEngine(max_total_source_bytes=8).apply(tmp_path, request)
+    with pytest.raises(ImplementationLimitError):
+        SafeImplementationEngine(max_total_patch_bytes=40).apply(tmp_path, request)
     with pytest.raises(ImplementationLimitError):
         SafeImplementationEngine(max_total_result_bytes=20).apply(tmp_path, request)
-    assert (tmp_path / "src" / "a.py").read_text(encoding="utf-8") == "a = 1\n"
-    assert (tmp_path / "src" / "b.py").read_text(encoding="utf-8") == "b = 1\n"
+
+    assert a.read_text(encoding="utf-8") == "a = 1\n"
+    assert b.read_text(encoding="utf-8") == "b = 1\n"
 
 
 class FailSecondCommitEngine(TextPatchEngine):
