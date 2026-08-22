@@ -83,6 +83,30 @@ The protected 390×844 browser acceptance now verifies three distinct conditions
 2. a later non-streaming settled state/content mutation remains pinned to the live edge;
 3. deliberate operator scroll-away remains preserved after another state/content mutation.
 
+## Parallel ChatGPT development foundation — active
+
+Parallax now has a GitHub-authoritative concurrency model for development from multiple ChatGPT project conversations. The foundation was validated in PR `#39` and squash-merged as `b1d8679770e310f70f27628329855733f6b4ac80`.
+
+The durable development-control model is:
+
+- `PROJECT-CONSTITUTION.md` v1.1 establishes that parallel implementation is isolated and final integration is serialized;
+- `PARALLEL-DEVELOPMENT.md` is the operating protocol for worker chats and the Integration / Control Tower chat;
+- open GitHub `[WS]` issues are the live scope/ownership ledger;
+- each ACTIVE worker uses one bounded workstream and one isolated branch, declares owned/shared paths and dependencies before substantive implementation, and prepares a validated PR without merging/deploying by default;
+- GitHub authoritative records, workstream issues, branches/PRs, CI/evaluation evidence, and deployment evidence outrank individual chat recollection for current development state;
+- the Integration / Control Tower role is tracked in issue `#31` and serializes final merges, latest-main revalidation, deployment, and release-state maintenance.
+
+The parallel-development foundation is governance/development infrastructure only. It does **not** change the v0.13.9 runtime, API, authentication, authorization, persistence, Code authority, database schema, or production deployment state.
+
+The app-builder acceleration program is tracked in issue `#32`. Its initial parallel Wave 1 workstreams are planned as:
+
+- `#43` — App project lifecycle foundation;
+- `#44` — Safe source implementation and patch engine;
+- `#45` — Project-scoped tool authority contracts;
+- `#46` — App-builder evaluation and observability spine.
+
+These workstreams are intentionally additive and separable where possible. Workers must still refresh their exact path reservations against current open work before changing code. The immediate critical path to usable app-building is first-class Project isolation plus safe bounded source implementation; tool authority and protected app-builder evaluation can advance alongside those contracts.
+
 ## Validation evidence
 
 PR `#41`, head `43335654a7408594d7ff9a7ace8d509054ded80c`, passed both protected workflows before merge:
@@ -110,6 +134,13 @@ The passing gate covered:
 The passing client build-evidence artifact is `9480385338`. Evaluation evidence is `9480375194`, and DSPy development evidence is `9480389182`.
 
 PR `#41` was squash-merged to `main` as application commit `0938296be2c8b488340717fd5f6dbffad65d3856`.
+
+Parallel-development foundation PR `#39`, head `fb392b476a45795a059da09edebb0f84e57fc68e`, also passed both repository workflows before merge:
+
+- `Parallax P2 CI` run `32590999199` — SUCCESS across API/contracts, client/typecheck/state/export/browser/Skia, protected promotion evaluation, and DSPy release compilation;
+- `Bounded Autonomy Pilot` run `32590999173` — SUCCESS across protected execution/autonomy API regression and client validation.
+
+Because PR `#39` changed only governance, documentation, issue/PR templates, and the approved `P2-V0.14.0` development-control specification, no runtime deployment was required for that material decision.
 
 ## Deployment verification
 
@@ -160,6 +191,7 @@ Expected autonomy path:
 - v0.13.7 in-flow composer-clearance correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - v0.13.8 live-edge continuity correction: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - v0.13.9 live-edge hardening: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
+- Parallel ChatGPT development foundation: **VALIDATED / MERGED / GOVERNANCE-ACTIVE**
 - Automated CI validation: **PASS**
 - Merged application release to `main`: **YES**
 - Production web: **READY / HTTP 200 VERIFIED**
@@ -171,9 +203,9 @@ Expected autonomy path:
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the v0.13.9 live-edge hardening, passing validation evidence, merge commit, production deployment, and remaining real-device/operator checks.
-- `DESIGN-SYSTEM.md`: unchanged; v0.13.9 hardens the existing documented conversation-follow rule and does not introduce a new durable visual or interaction principle.
-- `ARCHITECTURE.md`: unchanged; v0.13.9 is a client web interaction hardening and does not change persistence, service boundaries, authentication, state ownership, Code binding, or bounded-autonomy architecture.
-- `PROJECT-CONSTITUTION.md`: unchanged by v0.13.9; the release remains consistent with existing accessibility, human-control, fail-closed, evidence, and authority principles.
+- `CURRENT-STATE.md`: updated for the v0.13.9 deployment-verified runtime baseline and the validated/merged parallel ChatGPT development governance decision, including the app-builder Wave 1 control plan. The production application version remains v0.13.9 because the parallel-development foundation does not change runtime behavior.
+- `PROJECT-CONSTITUTION.md`: v1.1; updated by PR #39 to make GitHub-authoritative isolated parallel development and serialized integration a durable governing principle.
+- `DESIGN-SYSTEM.md`: unchanged by the parallel-development foundation; v0.13.9 only hardens the existing documented conversation-follow rule.
+- `ARCHITECTURE.md`: unchanged by the parallel-development foundation; concurrency control is a development-governance concern and does not change runtime persistence, service boundaries, authentication, state ownership, Code binding, or bounded-autonomy architecture.
 
-Historical candidate, preview, CI, deployment, and visual evidence remains preserved in GitHub Actions and Vercel history.
+Historical candidate, preview, CI, deployment, workstream, and visual evidence remains preserved in GitHub Actions, GitHub issues/PRs, and Vercel history.
