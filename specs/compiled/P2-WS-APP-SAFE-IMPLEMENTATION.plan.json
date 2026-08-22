@@ -1,0 +1,100 @@
+{
+  "spec_id": "P2-V0.15.44",
+  "architecture_decisions": [
+    {
+      "id": "AD-01",
+      "acceptance": ["AC-01", "AC-03", "AC-09", "AC-10"],
+      "decision": "Implement source mutation as additive code/patching.py and code/implementation.py modules that accept an explicit filesystem workspace root and expose no shell, Git, network, provider, or deployment authority."
+    },
+    {
+      "id": "AD-02",
+      "acceptance": ["AC-02", "AC-04", "AC-05", "AC-06"],
+      "decision": "Use a strict single-target unified-diff parser with exact SHA-256 pre-image binding and deterministic observable before/after evidence."
+    },
+    {
+      "id": "AD-03",
+      "acceptance": ["AC-07", "AC-08"],
+      "decision": "Separate preparation from mutation, bound request/file/result sizes, prepare all targets first, then commit atomically per file with rollback of prior writes on later failure."
+    }
+  ],
+  "work_items": [
+    {
+      "id": "WI-01",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
+      "paths": ["services/api/parallax_api/code/patching.py"],
+      "action": "Implement immutable patch request/prepared-patch contracts, safe path validation, UTF-8/target policy, strict unified diff parsing/application, resource bounds, deterministic evidence, atomic commit, and restoration helpers."
+    },
+    {
+      "id": "WI-02",
+      "acceptance": ["AC-07", "AC-08", "AC-09", "AC-10"],
+      "paths": ["services/api/parallax_api/code/implementation.py"],
+      "action": "Implement the multi-file SafeImplementationEngine that rejects duplicate targets, prepares every patch before mutation, enforces aggregate limits, commits in deterministic order, rolls back committed targets on failure, and returns artifact/workspace evidence without claiming release authority."
+    },
+    {
+      "id": "WI-03",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
+      "paths": ["services/api/tests/test_code_patching.py"],
+      "action": "Add focused positive and protected-negative patch tests for valid modification/creation, traversal, symlink escape, malformed or mismatched diff, stale base, hunk mismatch, unsupported/binary/secret-sensitive targets, and resource bounds."
+    },
+    {
+      "id": "WI-04",
+      "acceptance": ["AC-07", "AC-08", "AC-09", "AC-10"],
+      "paths": ["services/api/tests/test_code_implementation.py"],
+      "action": "Add multi-file success, deterministic evidence, duplicate-target, prepare-before-mutate, aggregate-bound, and simulated later-commit rollback tests."
+    }
+  ],
+  "validations": [
+    {
+      "id": "VAL-01",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10"],
+      "check": "Run python scripts/validate_spec.py specs/P2-WS-APP-SAFE-IMPLEMENTATION.md and require PASS."
+    },
+    {
+      "id": "VAL-02",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08"],
+      "check": "Run pytest -q services/api/tests/test_code_patching.py."
+    },
+    {
+      "id": "VAL-03",
+      "acceptance": ["AC-07", "AC-08", "AC-09", "AC-10"],
+      "check": "Run pytest -q services/api/tests/test_code_implementation.py."
+    },
+    {
+      "id": "VAL-04",
+      "acceptance": ["AC-09", "AC-10"],
+      "check": "Run the relevant repository API regression and protected CI gates on the worker PR; verify the diff does not touch autonomy.py, service.py, sandbox_execution.py, state_machine.py, shared API wiring, or deployment workflows."
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-01",
+      "acceptance": ["AC-04"],
+      "risk": "Unified diff edge cases could be interpreted inconsistently.",
+      "mitigation": "Support a deliberately strict subset and reject unsupported/multi-file/ambiguous syntax instead of guessing."
+    },
+    {
+      "id": "R-02",
+      "acceptance": ["AC-01", "AC-03"],
+      "risk": "Filesystem symlinks or special files could redirect writes outside the workspace or into unsafe targets.",
+      "mitigation": "Reject symlink components and non-regular existing targets, enforce lexical/resolved workspace containment, and re-check before commit."
+    },
+    {
+      "id": "R-03",
+      "acceptance": ["AC-02", "AC-07"],
+      "risk": "A target can change between preparation and commit or a later write can fail after earlier commits.",
+      "mitigation": "Revalidate the pre-image before commit and roll back prior commits; never report protected success when commit or rollback fails."
+    },
+    {
+      "id": "R-04",
+      "acceptance": ["AC-08", "AC-09"],
+      "risk": "Attacker-controlled patch/file volume could cause excessive memory or evidence growth.",
+      "mitigation": "Enforce per-patch, per-source, per-result, request-count, and aggregate-result limits without invoking external processes."
+    },
+    {
+      "id": "R-05",
+      "acceptance": ["AC-10"],
+      "risk": "This worker could invent a Project identity that conflicts with #43 or couple prematurely to autonomy internals.",
+      "mitigation": "Use only an explicit workspace root in the standalone engine and defer durable project/IMPLEMENT wiring to serialized integration."
+    }
+  ]
+}
