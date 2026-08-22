@@ -355,6 +355,10 @@ export const api = {
     json<WorkSpecificationDto>(`/v1/work-specifications/${specificationId}/approve`, {
       method: 'POST',
     }),
+  resumeApprovedScope: (conversationId: string) =>
+    json<ConversationDto>(`/v1/conversations/${conversationId}/work-specifications/resume-approved-scope`, {
+      method: 'POST',
+    }),
   streamResponse,
   latestEngineeringRun: (conversationId: string) =>
     json<EngineeringRunDto | null>(`/v1/engineering-runs/conversation/${conversationId}/latest`),
