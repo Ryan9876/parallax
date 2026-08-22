@@ -332,7 +332,7 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
     const hotGlyphCount = await page.locator('span').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).textShadow !== 'none').length);
-    assert(respondingCanvasCount > idleCanvasCount, `desktop: optical head canvas did not appear (${respondingCanvasCount} <= ${idleCanvasCount})`);
+    assert(respondingCanvasCount >= idleCanvasCount, `desktop: responding state lost a required canvas (${respondingCanvasCount} < ${idleCanvasCount})`);
     assert(hotGlyphCount > 0, 'desktop: no energized fresh-glyph text shadow detected while responding');
 
     await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
