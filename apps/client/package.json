@@ -10,7 +10,7 @@
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test:state": "tsc src/state/responseState.ts --target ES2022 --module commonjs --outDir .tmp-state && node scripts/test-response-state.cjs",
-    "test:visual": "node scripts/visual-smoke.mjs && node scripts/code-binding-smoke.mjs && node scripts/google-auth-smoke.mjs"
+    "test:visual": "node scripts/visual-smoke.mjs && node scripts/mobile-spec-smoke.mjs && node scripts/code-binding-smoke.mjs && node scripts/google-auth-smoke.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.9",
