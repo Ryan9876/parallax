@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.7
+Version: 1.8
 Status: Authoritative
 
 ## Design direction
@@ -73,32 +73,38 @@ Do not stack multiple decorative frames around the same content.
 
 ## Optical workplane
 
-The living surface is an editorial optical workplane, not a HUD, scanner, or decorative particle field.
+The living surface is an editorial optical workplane, not a HUD, scanner, particle field, or literal lava-lamp simulation.
 
-The production field may evoke a **calm lava lamp** through large low-frequency optical masses. This is ambient material behavior, not a novelty animation.
+The production field uses **Ambient Chroma Flow**: large, heavily feathered regions of violet, indigo, blue, and restrained magenta move through one another like diffused light behind liquid glass. The treatment is reference-informed motion language translated into Parallax's own palette, contrast, and reading behavior.
 
 Use:
 
-- a deep navy substrate;
-- three to five large violet and indigo optical masses with non-synchronized paths;
-- soft continuous deformation and drift with perceived cycles measured in tens of seconds;
-- extremely restrained cyan secondary bloom;
+- a deep navy/near-black substrate;
+- broad overlapping chroma fields rather than discrete bounded blobs;
+- dominant indigo, violet, midnight blue, and cobalt presence;
+- restrained magenta and lavender as secondary atmosphere;
+- sparse warm amber/peach blooms as occasional counterpoints, never dominant color fields;
+- cyan only as a restrained optical accent;
+- low-frequency warped haze that blends neighboring color regions rather than drawing edges around them;
+- continuous drift with perceived composition changes measured in tens of seconds;
 - subtle material grain;
-- a darker central reading field beneath conversation content;
-- activity energy that raises optical presence only modestly.
+- a materially darker central reading field beneath conversation content;
+- activity energy that raises chroma presence only modestly and does not materially increase speed.
 
 Avoid:
 
 - obvious drafting grids;
 - scanner/calibration lines;
 - uniform topographic repetition;
-- bouncing or obviously looping blob animation;
+- discrete hard-edged or obviously separated lava blobs;
+- bouncing or obviously looping motion;
 - particles, sparkles, high-frequency shimmer, or bright neon liquid;
+- a warm field large enough to displace the violet/indigo identity;
 - movement that competes with reading.
 
-At idle, the workplane should feel alive only after a moment of observation. During response activity, local optical energy may rise modestly without changing the page into an animation showcase.
+At idle, the workplane should feel alive after a moment of observation while still being visibly dimensional. During response activity, local optical energy may rise modestly without changing the page into an animation showcase.
 
-Reduced motion freezes the time-dependent field without changing semantic state or visual identity.
+Reduced motion freezes the time-dependent field without changing semantic state or visual identity. Reduced graphics preserves the layout and material hierarchy without requiring Skia.
 
 ## Editorial trace
 
@@ -253,7 +259,7 @@ It preserves:
 - conversation/composer behavior;
 - all accessibility and state text.
 
-It deliberately omits Skia lava-field rendering, optical traces, and animated inscription head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
+It deliberately omits Skia ambient chroma-flow rendering, optical traces, and animated inscription head. A user requiring reduced graphics loses decorative rendering cost, not product identity, content, state information, or capability.
 
 ## Motion state mapping
 
@@ -278,5 +284,5 @@ Governed section traces follow their own product state but remain subordinate to
 - Reduced motion and reduced graphics remain first-class modes.
 - Grain and ambient optical effects may never lower narrative contrast materially.
 - Editorial traces are decorative and excluded from accessibility navigation.
-- Lava-field motion may never obscure narrative text or primary controls.
+- Ambient chroma-flow motion may never obscure narrative text or primary controls.
 - Final assistant text remains selectable regardless of whether animated inscription was used during generation.
