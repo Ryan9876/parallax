@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 import json
 import os
+import re
 import time
 from typing import Protocol
 
@@ -98,8 +99,15 @@ class VercelSandboxUnavailable(RuntimeError):
     pass
 
 
-def _bounded_evidence(spec: ExecutionSpec, *, exit_code: int | None, duration_ms: int,
-                      stdout: str, stderr: str, timed_out: bool = False) -> dict[str, object]:
+def _bounded_evidence(
+    spec: ExecutionSpec,
+    *,
+    exit_code: int | None,
+    duration_ms: int,
+    stdout: str,
+    stderr: str,
+    timed_out: bool = False,
+) -> dict[str, object]:
     stdout_excerpt = stdout[:2_000]
     stderr_excerpt = stderr[:2_000]
     invocation = json.dumps(
@@ -123,6 +131,20 @@ def _bounded_evidence(spec: ExecutionSpec, *, exit_code: int | None, duration_ms
         "network_policy": "deny-all",
         "persistent": False,
     }
+
+
+_SECRET_PATTERN = re.compile(
+    r"(?i)(bearer\s+|(?:access[_ -]?token|oidc[_ -]?token|vercel[_ -]?token)\s*[=:]\s*)[^\s,;]+"
+)
+
+
+def _sanitized_provider_error(exc: Exception) -> str:
+    name = type(exc).__name__
+    lowered = name.casefold()
+    if any(marker in lowered for marker in ("credential", "auth", "token")):
+        return f"{name}: sandbox provider credentials are unavailable"
+    message = _SECRET_PATTERN.sub(r"\1[REDACTED]", str(exc))[:1_000]
+    return f"{name}: {message}" if message else f"{name}: sandbox provider unavailable"
 
 
 class VercelSandboxExecutor:
@@ -164,7 +186,7 @@ class VercelSandboxExecutor:
     def _require_identity(self) -> None:
         if not self.project_id:
             raise VercelSandboxUnavailable("Vercel project identity is unavailable")
-        # The SDK resolves project-scoped credentials from Vercel runtime identity.
+        # The SDK resolves project-scoped credentials from the Vercel runtime.
         # Never copy VERCEL_OIDC_TOKEN or VERCEL_TOKEN into the sandbox environment.
 
     def execute(self, spec: ExecutionSpec) -> dict[str, object]:
@@ -206,15 +228,15 @@ class VercelSandboxExecutor:
         args: tuple[str, ...],
         source_repository: bool,
     ) -> dict[str, object]:
-        self._require_identity()
-        session, GitSource, NetworkPolicy, sandbox = self._sdk()
-        source = (
-            GitSource(url=self.repository_url, revision=self.revision, depth=1)
-            if source_repository
-            else None
-        )
         started = time.monotonic()
         try:
+            self._require_identity()
+            session, GitSource, NetworkPolicy, sandbox = self._sdk()
+            source = (
+                GitSource(url=self.repository_url, revision=self.revision, depth=1)
+                if source_repository
+                else None
+            )
             with session():
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
@@ -243,15 +265,14 @@ class VercelSandboxExecutor:
                 stderr=result.stderr or "",
             )
         except Exception as exc:
-            # Provider/API errors are observable failures, never passing evidence.
+            # Provider/API errors remain observable non-successes. Never persist
+            # raw credentials or fabricate a passing execution result.
             duration_ms = int((time.monotonic() - started) * 1_000)
-            name = type(exc).__name__
-            message = str(exc)[:1_000]
             return _bounded_evidence(
                 spec,
                 exit_code=None,
                 duration_ms=duration_ms,
                 stdout="",
-                stderr=f"{name}: {message}",
-                timed_out="timeout" in name.lower(),
+                stderr=_sanitized_provider_error(exc),
+                timed_out="timeout" in type(exc).__name__.lower(),
             )
