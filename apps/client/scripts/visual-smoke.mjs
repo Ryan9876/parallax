@@ -286,8 +286,11 @@ async function inspectViewport(browser, name, width, height, report) {
   await page.getByLabel('Message Parallax').waitFor();
   await page.waitForTimeout(500);
 
+  const logoCount = await page.getByLabel('Parallax animated knot mark').count();
+  assert(logoCount > 0, `${name}: approved knot identity was not rendered`);
+
   const first = await page.screenshot({ path: `${evidenceDir}/${name}-idle-a.png` });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(1100);
   const second = await page.screenshot({ path: `${evidenceDir}/${name}-idle-b.png` });
   const geometry = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
@@ -304,19 +307,27 @@ async function inspectViewport(browser, name, width, height, report) {
   assert(hash(first) !== hash(second), `${name}: living surface/logo frames did not change over time`);
   assert(errors.length === 0, `${name}: browser errors: ${errors.join(' | ')}`);
 
-  report.viewports.push({ name, width, height, ...geometry, composerBox, animatedFrameChanged: true });
+  report.viewports.push({ name, width, height, ...geometry, composerBox, logoCount, animatedFrameChanged: true });
 
   if (name === 'desktop') {
     const idleCanvasCount = geometry.canvasCount;
     await page.getByLabel('Message Parallax').fill('Show the optical printing behavior on a wrapped response.');
     await page.getByLabel('Send message').click();
-    await page.getByText('Optical renderer active').waitFor({ timeout: 5000 });
+    await page.getByText('OPTICAL ENGRAVING ACTIVE').waitFor({ timeout: 5000 });
     await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
 
     assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live optical inscription was observed');
     assert(mockStreamState.chunksSent >= 1 && mockStreamState.chunksSent < 3, `desktop: expected an intermediate streamed chunk, observed ${mockStreamState.chunksSent}`);
-    await page.screenshot({ path: `${evidenceDir}/desktop-responding-early.png` });
 
+    const headCount = await page.getByLabel('Optical engraving head').count();
+    assert(headCount > 0, 'desktop: compact optical engraving head was not rendered');
+    const responseBox = await page.getByLabel('Parallax response').last().boundingBox();
+    const inputBox = await page.getByLabel('Message Parallax').boundingBox();
+    assert(responseBox && inputBox && responseBox.y < inputBox.y, 'desktop: response start was not automatically brought above the composer');
+    const viewportBottomGuard = inputBox.y + 2;
+    assert(responseBox.y < viewportBottomGuard, 'desktop: active response is hidden behind composer');
+
+    await page.screenshot({ path: `${evidenceDir}/desktop-responding-early.png` });
     await page.waitForTimeout(650);
     await page.screenshot({ path: `${evidenceDir}/desktop-responding-mid.png` });
     const respondingCanvasCount = await page.locator('canvas').count();
@@ -331,6 +342,17 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
     await page.getByLabel('Capture work specification').click();
     await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
+    const specSurface = page.getByLabel('Work specification');
+    const specStyle = await specSurface.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        borderLeftWidth: parseFloat(style.borderLeftWidth || '0'),
+        borderRadius: parseFloat(style.borderTopLeftRadius || '0'),
+        backgroundColor: style.backgroundColor,
+      };
+    });
+    assert(specStyle.borderLeftWidth <= 1, `desktop: Work Specification retained a heavy left rule (${specStyle.borderLeftWidth}px)`);
+    assert(specStyle.borderRadius >= 14, `desktop: Work Specification is not using rounded optical material (${specStyle.borderRadius}px)`);
     await page.getByLabel('Expand work specification').click();
     await page.getByText('The work specification persists as a durable draft.').waitFor({ timeout: 5000 });
     await page.getByLabel('Approve work specification').click();
@@ -341,11 +363,16 @@ async function inspectViewport(browser, name, width, height, report) {
       idleCanvasCount,
       respondingCanvasCount,
       hotGlyphCount,
+      engravingHeadRendered: true,
+      streamedTextVisibleImmediately: true,
+      responseFollowedAboveComposer: true,
       liveChunkObservedBeforeStreamCompletion: true,
       completed: true,
     };
     report.workSpecification = {
       captured: true,
+      roundedOpticalMaterial: true,
+      heavyLeftRuleRemoved: true,
       expanded: true,
       operatorApproved: true,
     };
@@ -412,7 +439,7 @@ const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
 const report = {
-  releaseSpecId: 'P2-V0.7.0',
+  releaseSpecId: 'P2-V0.13.0',
   conversationPolicySpecId: 'P2-V0.5.0',
   viewports: [],
   opticalTypesetter: null,
