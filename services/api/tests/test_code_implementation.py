@@ -49,7 +49,8 @@ def test_workstream_spec_and_compiled_plan_pass_protected_validator():
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
 
     assert evaluate_spec_contract(spec_text).passed is True
-    assert evaluate_compiled_plan(spec_text, plan, require_metadata=False).passed is True
+    assert evaluate_compiled_plan(spec_text, plan, require_metadata=True).passed is True
+    assert plan["dspy_run"]["executed"] is True
 
 
 def test_multi_file_implementation_is_successful_and_evidence_is_deterministic(tmp_path):
