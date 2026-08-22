@@ -5,20 +5,50 @@ import { palette } from '../theme';
 import { EditorialTrace } from './EditorialTrace';
 
 const STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
+const AUTONOMOUS_STAGES = ['PLAN', 'BUILD', 'TEST', 'VERIFY'];
 
-export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, reducedGraphics = false }: {
+function autonomyLabel(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  const labels: Record<string, string> = {
+    IMPLEMENTATION_REQUIRED: 'Autonomy stopped · implementation authority required',
+    REVIEW_REQUIRED: 'Autonomy stopped · independent review required',
+    PAUSED: 'Autonomy stopped · run is paused',
+    FAILED: 'Autonomy stopped · failed run requires resume',
+    EXECUTION_FAILED: 'Autonomy stopped · protected execution failed',
+    COMPLETE: 'Autonomy complete',
+    CANCELLED: 'Autonomy stopped · run cancelled',
+    SPEC_AMENDMENT: 'Autonomy stopped · specification amendment required',
+    MAX_STEPS_REACHED: 'Autonomy stopped · bounded step limit reached',
+  };
+  return labels[reason] ?? `Autonomy stopped · ${reason.toLowerCase().replaceAll('_', ' ')}`;
+}
+
+export function EngineeringRunStatus({
+  run,
+  busy,
+  onPause,
+  onResume,
+  onCancel,
+  onAutonomous,
+  autonomyStopReason,
+  reducedGraphics = false,
+}: {
   run: EngineeringRunDto;
   busy: boolean;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
+  onAutonomous?(): void;
+  autonomyStopReason?: string | null;
   reducedGraphics?: boolean;
 }) {
   const passed = new Set(run.attempts.filter((item) => item.status === 'PASSED').map((item) => item.stage));
   const bound = run.binding_status === 'APPROVED_SPEC_BOUND';
   const canPause = bound && STAGES.includes(run.state);
   const canResume = bound && (run.state === 'PAUSED' || run.state === 'FAILED');
+  const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state) && !!onAutonomous;
   const evidence = ['BUILD', 'TEST', 'VERIFY', 'REVIEW'].filter((stage) => passed.has(stage));
+  const autonomyStatus = autonomyLabel(autonomyStopReason);
 
   return (
     <View style={styles.card} accessibilityLabel={`Engineering run ${run.state}`}>
@@ -39,12 +69,25 @@ export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel, r
       </View>
       <Text style={styles.progress}>{STAGES.map((stage) => passed.has(stage) ? '●' : stage === run.state ? '◉' : '○').join('  ')}</Text>
       <Text style={styles.caption}>Evidence: {evidence.length ? evidence.join(' · ') : 'none yet'}{run.last_failure_code ? ` · ${run.last_failure_code}` : ''}</Text>
+      {autonomyStatus ? <Text style={styles.autonomyStatus} accessibilityLiveRegion="polite">{autonomyStatus}</Text> : null}
       {bound ? (
-        <Text style={styles.boundary}>Locked to this approved Work Specification revision. Newer drafts cannot retarget this run.</Text>
+        <Text style={styles.boundary}>Locked to this approved Work Specification revision. Autonomous execution can advance only protected stages and stops at implementation or review authority boundaries.</Text>
       ) : (
         <Text style={styles.warning}>Historical runs remain readable but cannot resume as approved-spec execution evidence.</Text>
       )}
       <View style={styles.actions}>
+        {canRunAutonomously && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Run autonomously"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={onAutonomous}
+            style={[styles.actionButton, styles.autonomyButton]}
+          >
+            <Text style={styles.autonomyAction}>{busy ? 'Running…' : 'Run autonomously'}</Text>
+          </TouchableOpacity>
+        )}
         {canPause && <TouchableOpacity disabled={busy} onPress={onPause} style={styles.actionButton}><Text style={styles.action}>Pause</Text></TouchableOpacity>}
         {canResume && <TouchableOpacity disabled={busy} onPress={onResume} style={styles.actionButton}><Text style={styles.action}>Resume</Text></TouchableOpacity>}
         {bound && !['COMPLETE', 'CANCELLED', 'SPEC_AMENDMENT'].includes(run.state) && <TouchableOpacity disabled={busy} onPress={onCancel} style={styles.actionButton}><Text style={styles.action}>Cancel</Text></TouchableOpacity>}
@@ -65,9 +108,12 @@ const styles = StyleSheet.create({
   bindingWarning: { color: palette.warning },
   progress: { color: palette.indigo, marginTop: 15, letterSpacing: 1.6, fontSize: 13 },
   caption: { color: palette.textSecondary, marginTop: 9, fontSize: 11 },
+  autonomyStatus: { color: palette.cyan, marginTop: 8, fontSize: 10, lineHeight: 15, fontWeight: '600' },
   boundary: { color: palette.indigo, marginTop: 9, fontSize: 10, lineHeight: 16, maxWidth: 740 },
   warning: { color: palette.warning, marginTop: 9, fontSize: 10, lineHeight: 16, maxWidth: 740 },
-  actions: { flexDirection: 'row', gap: 9, marginTop: 15 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 15 },
   actionButton: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.indigoWash },
+  autonomyButton: { borderColor: 'rgba(159,185,165,0.48)', backgroundColor: 'rgba(159,185,165,0.10)' },
   action: { color: palette.cyan, fontSize: 10, fontWeight: '700' },
+  autonomyAction: { color: palette.sage, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
 });
