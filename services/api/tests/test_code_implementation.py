@@ -43,8 +43,8 @@ def source_patch(path: str, before: str, after: str, *, creating: bool = False) 
 
 def test_workstream_spec_and_compiled_plan_pass_protected_validator():
     repository_root = Path(__file__).resolve().parents[3]
-    spec_path = repository_root / "specs" / "P2-WS-APP-SAFE-IMPLEMENTATION.md"
-    plan_path = repository_root / "specs" / "compiled" / "P2-WS-APP-SAFE-IMPLEMENTATION.plan.json"
+    spec_path = repository_root / "specs" / "P2-V0.14.2.md"
+    plan_path = repository_root / "specs" / "compiled" / "P2-V0.14.2.plan.json"
     spec_text = spec_path.read_text(encoding="utf-8")
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
 
