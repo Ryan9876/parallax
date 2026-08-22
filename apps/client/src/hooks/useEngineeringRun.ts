@@ -9,12 +9,14 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
   const [run, setRun] = React.useState<EngineeringRunDto | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [autonomyStopReason, setAutonomyStopReason] = React.useState<string | null>(null);
 
   const activateApproved = React.useCallback(async (specificationId?: string | null) => {
     if (!enabled || !conversationId) return null;
     const activated = await api.activateEngineeringRun(conversationId, specificationId);
     setRun(activated);
     setError(null);
+    setAutonomyStopReason(null);
     return activated;
   }, [conversationId, enabled]);
 
@@ -22,6 +24,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     if (!enabled || !conversationId) {
       setRun(null);
       setError(null);
+      setAutonomyStopReason(null);
       return;
     }
     try {
@@ -29,6 +32,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       if (latest) {
         setRun(latest);
         setError(null);
+        setAutonomyStopReason(null);
         return;
       }
       const approved = await api.latestApprovedWorkSpecification(conversationId);
@@ -37,9 +41,11 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       } else {
         setRun(null);
         setError(null);
+        setAutonomyStopReason(null);
       }
     } catch (caught) {
       setRun(null);
+      setAutonomyStopReason(null);
       setError(caught instanceof Error ? caught.message : 'Code run status unavailable.');
     }
   }, [activateApproved, conversationId, enabled]);
@@ -58,6 +64,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     if (!run || busy) return;
     setBusy(true);
     setError(null);
+    setAutonomyStopReason(null);
     try {
       const key = `${action}-${run.id}-${run.revision}-${Date.now()}`;
       const result = action === 'pause'
@@ -81,7 +88,9 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
         `autonomous-${run.id}-${run.revision}-${Date.now()}`,
       );
       setRun(result.run);
+      setAutonomyStopReason(result.stop_reason);
     } catch (caught) {
+      setAutonomyStopReason(null);
       setError(caught instanceof Error ? caught.message : 'Autonomous Code run failed.');
     } finally { setBusy(false); }
   }, [busy, run]);
@@ -99,6 +108,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     run,
     busy,
     error,
+    autonomyStopReason,
     refresh,
     pause: () => mutate('pause'),
     // Existing App wiring uses the resume callback. In active protected stages,
