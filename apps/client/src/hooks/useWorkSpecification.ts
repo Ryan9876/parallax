@@ -1,5 +1,5 @@
 import React from 'react';
-import { api, type WorkSpecificationDto } from '../lib/api';
+import { api, type ConversationDto, type WorkSpecificationDto } from '../lib/api';
 import { publishApprovedWorkSpecification } from '../lib/workSpecEvents';
 
 export function useWorkSpecification(conversationId: string | null) {
@@ -68,5 +68,28 @@ export function useWorkSpecification(conversationId: string | null) {
     }
   }, [busy, specification]);
 
-  return { specification, approvedSpecification, busy, error, refresh, draft, approve };
+  const resumeApprovedScope = React.useCallback(async (): Promise<ConversationDto | null> => {
+    if (!conversationId || busy || specification?.status !== 'APPROVED') return null;
+    setBusy(true);
+    setError(null);
+    try {
+      return await api.resumeApprovedScope(conversationId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Approved scope could not be resumed.');
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, conversationId, specification?.status]);
+
+  return {
+    specification,
+    approvedSpecification,
+    busy,
+    error,
+    refresh,
+    draft,
+    approve,
+    resumeApprovedScope,
+  };
 }
