@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 1.9
+Version: 2.0
 Status: Authoritative
 
 ## Design direction
@@ -221,6 +221,19 @@ Conversation is the visual center of Parallax and must not resemble a stack of g
 - mobile targets remain at least 44 pt;
 - its measured height participates in conversation-thread bottom clearance.
 
+### Mobile web viewport and keyboard
+
+Mobile web must remain compositionally stable while the software keyboard is visible, including on iOS WebKit where the keyboard may overlay rather than resize the layout viewport.
+
+- editable text on phone-sized web layouts uses at least 16 CSS px so focusing an input does not trigger Safari focus zoom or horizontal cropping;
+- do not disable user zoom globally to solve focus zoom; accessibility zoom remains available;
+- when a focused editable field coincides with a materially reduced `visualViewport`, the Parallax root fits the visible viewport rather than remaining behind the keyboard;
+- compensate a non-zero visual-viewport offset so WebKit panning does not displace the workspace away from the visible region;
+- the keyboard-aware adjustment is temporary and resets when the visual viewport recovers or editable focus ends;
+- the persistent composer remains fully above the keyboard, while conversation and governed surfaces yield vertical space naturally;
+- do not hard-code device heights or keyboard sizes; respond to measured viewport geometry;
+- desktop and mobile browsers that already resize the layout viewport correctly should not receive unnecessary compensation.
+
 ## Specification-amendment state
 
 `SPEC_AMENDMENT` is a first-class protected hand-off state, not a generic error.
@@ -277,6 +290,7 @@ Reduced motion freezes knot rotation and time-dependent workplane motion.
 - Core narrative text targets WCAG AA contrast against rendered material.
 - State is communicated with explicit text/shape in addition to color.
 - Minimum 44 pt mobile interaction targets remain required.
+- Mobile editable text remains at least 16 CSS px while preserving user-controlled page zoom.
 - Keyboard and screen-reader semantics are preserved.
 - Reduced motion and reduced graphics remain first-class modes.
 - Grain/ambient optical effects may never materially reduce narrative contrast.
