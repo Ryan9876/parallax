@@ -6,7 +6,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[3]
-SPEC = ROOT / "specs" / "P2-WS-APP-EVAL-OBSERVABILITY.md"
+SPEC = ROOT / "specs" / "P2-V0.14.4.md"
 VALIDATOR = ROOT / "scripts" / "validate_spec.py"
 
 
