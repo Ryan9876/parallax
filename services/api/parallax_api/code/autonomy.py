@@ -91,50 +91,23 @@ class AutonomyCoordinator:
                 probe_key = f"{operation_key[:130]}:executor-probe:{run.revision}"
                 probe = self.executor.probe(operation_key=probe_key)
                 probe_passed = probe.get("protected_success") is True
-                if not probe_passed:
-                    result = self.service.complete_stage(
-                        run_id=run.id,
-                        stage=WorkflowStage.PLAN,
-                        operation_key=self._stage_key(operation_key, stage, run.revision),
-                        expected_revision=run.revision,
-                        passed=False,
-                        evidence={
-                            "executor_preflight": "failed",
-                            "executor": probe.get("executor"),
-                            "network_policy": probe.get("network_policy"),
-                            "exit_code": probe.get("exit_code"),
-                            "duration_ms": probe.get("duration_ms"),
-                            "stdout_excerpt": probe.get("stdout_excerpt"),
-                            "stderr_excerpt": probe.get("stderr_excerpt"),
-                            "timed_out": probe.get("timed_out"),
-                            "redacted": probe.get("redacted"),
-                        },
-                        failure_code="AUTONOMOUS_EXECUTOR_UNAVAILABLE",
-                        program_id="bounded-autonomy-v0.13.0",
+                steps.append(
+                    AutonomyStep(
+                        stage="EXECUTOR",
+                        outcome="PASSED" if probe_passed else "FAILED",
                         tool_id=str(probe.get("tool_id") or "python"),
                     )
-                    steps.append(
-                        AutonomyStep(
-                            stage="EXECUTOR",
-                            outcome="FAILED",
-                            attempt_id=result.attempt_id,
-                            replayed=result.replayed,
-                            tool_id=str(probe.get("tool_id") or "python"),
-                        )
-                    )
+                )
+                if not probe_passed:
+                    # Executor readiness is a prerequisite to planning, not PLAN
+                    # evidence. Fail closed without turning a recoverable provider
+                    # outage into a durable engineering-run failure.
                     return AutonomyResult(
-                        run=result.run,
+                        run=run,
                         stop_reason=AutonomyStopReason.EXECUTOR_UNAVAILABLE,
                         steps=tuple(steps),
                     )
 
-                steps.append(
-                    AutonomyStep(
-                        stage="EXECUTOR",
-                        outcome="PASSED",
-                        tool_id=str(probe.get("tool_id") or "python"),
-                    )
-                )
                 required = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
                 evidence: dict[str, object] = {
                     "acceptance_ids_covered": required,
