@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import type { WorkSpecificationDto } from '../lib/api';
 import { palette } from '../theme';
-import { EditorialTrace } from './EditorialTrace';
 
 function Section({ label, items }: { label: string; items: string[] }) {
   if (!items.length) return null;
@@ -43,13 +42,16 @@ export function WorkSpecificationStatus({
 
   const approved = specification?.status === 'APPROVED';
   const statusLabel = specification ? `SPEC · ${specification.status}` : 'SPEC · NOT CAPTURED';
-  const traceTone = approved ? 'sage' : 'peach';
+  void reducedGraphics;
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]} accessibilityLabel="Work specification">
-      {!reducedGraphics && !compact && <EditorialTrace active={busy || Boolean(specification)} tone={traceTone} />}
+      <View pointerEvents="none" style={styles.softGlow} />
       <View style={[styles.kickerRow, compact && styles.kickerRowCompact]}>
-        <Text style={[styles.status, approved && styles.statusApproved]}>{statusLabel}</Text>
+        <View style={[styles.statusPill, approved && styles.statusPillApproved]}>
+          <View style={[styles.statusDot, approved && styles.statusDotApproved]} />
+          <Text style={[styles.status, approved && styles.statusApproved]}>{statusLabel}</Text>
+        </View>
         {specification ? <Text style={styles.revision}>REVISION {specification.revision}</Text> : null}
       </View>
 
@@ -112,36 +114,94 @@ export function WorkSpecificationStatus({
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'relative', marginLeft: 34, marginRight: 52, marginTop: 24, paddingTop: 16, paddingRight: 18, paddingBottom: 18, paddingLeft: 22, borderLeftWidth: 3, borderLeftColor: 'rgba(223,167,143,0.82)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(240,228,207,0.18)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.borderStrong, backgroundColor: 'rgba(18,18,35,0.46)', overflow: 'hidden' },
-  wrapCompact: { marginLeft: 12, marginRight: 12, marginTop: 10, paddingTop: 10, paddingRight: 12, paddingBottom: 11, paddingLeft: 14, borderLeftWidth: 2, borderTopColor: 'rgba(240,228,207,0.10)', borderBottomColor: 'rgba(167,151,255,0.20)', backgroundColor: 'rgba(18,18,35,0.34)' },
-  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 9 },
-  kickerRowCompact: { marginBottom: 4 },
-  status: { color: palette.peach, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  wrap: {
+    position: 'relative',
+    marginLeft: 28,
+    marginRight: 40,
+    marginTop: 18,
+    paddingTop: 16,
+    paddingRight: 18,
+    paddingBottom: 17,
+    paddingLeft: 18,
+    borderRadius: 24,
+    borderWidth: 0,
+    backgroundColor: 'rgba(115, 108, 139, 0.12)',
+    shadowColor: '#8F63D8',
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    overflow: 'hidden',
+  },
+  wrapCompact: {
+    marginLeft: 10,
+    marginRight: 10,
+    marginTop: 8,
+    paddingTop: 10,
+    paddingRight: 12,
+    paddingBottom: 11,
+    paddingLeft: 12,
+    borderRadius: 19,
+    backgroundColor: 'rgba(115, 108, 139, 0.10)',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  softGlow: {
+    position: 'absolute',
+    width: 180,
+    height: 90,
+    borderRadius: 90,
+    right: -40,
+    top: -36,
+    backgroundColor: 'rgba(139,156,255,0.08)',
+  },
+  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  kickerRowCompact: { marginBottom: 5 },
+  statusPill: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(209,139,255,0.10)',
+  },
+  statusPillApproved: { backgroundColor: 'rgba(159,185,165,0.11)' },
+  statusDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.violet },
+  statusDotApproved: { backgroundColor: palette.sage },
+  status: { color: '#D9B6FF', fontSize: 8, fontWeight: '800', letterSpacing: 1.05 },
   statusApproved: { color: palette.sage },
   revision: { color: palette.muted, fontSize: 8, letterSpacing: 0.9 },
-  header: { minHeight: 66, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20 },
+  header: { minHeight: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20 },
   headerCompact: { minHeight: 0, flexDirection: 'column', alignItems: 'stretch', gap: 8 },
   identity: { flex: 1, minWidth: 0 },
   identityCopy: { flex: 1, minWidth: 0 },
-  title: { color: palette.cream, fontSize: 22, lineHeight: 26, fontWeight: '600', letterSpacing: -0.55 },
+  title: { color: palette.text, fontSize: 20, lineHeight: 25, fontWeight: '600', letterSpacing: -0.48 },
   titleCompact: { fontSize: 16, lineHeight: 20, letterSpacing: -0.3 },
-  subtitle: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 680 },
+  subtitle: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 680 },
   subtitleCompact: { fontSize: 10, lineHeight: 15, marginTop: 4 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   actionsCompact: { width: '100%', justifyContent: 'flex-end', gap: 7 },
-  actionButton: { minHeight: 38, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.indigoWash },
+  actionButton: {
+    minHeight: 38,
+    paddingHorizontal: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 0,
+    backgroundColor: 'rgba(139,156,255,0.12)',
+  },
   actionButtonCompact: { minHeight: 44, paddingHorizontal: 12, borderRadius: 14 },
-  approveButton: { backgroundColor: palette.sageWash, borderColor: 'rgba(159,185,165,0.52)' },
+  approveButton: { backgroundColor: 'rgba(159,185,165,0.13)' },
   actionText: { color: palette.cyan, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
   approveText: { color: palette.sage, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
-  disclosure: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  disclosure: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.035)' },
   disclosureCompact: { width: 44, height: 44 },
-  disclosureText: { color: palette.cream, fontSize: 20, lineHeight: 22 },
+  disclosureText: { color: palette.textSoft, fontSize: 20, lineHeight: 22 },
   error: { color: palette.danger, fontSize: 10, lineHeight: 15, paddingTop: 8 },
-  body: { marginTop: 16, paddingTop: 18, paddingRight: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(240,228,207,0.18)' },
+  body: { marginTop: 14, paddingTop: 16, paddingRight: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
   bodyCompact: { marginTop: 10, paddingTop: 12, paddingRight: 0 },
   section: { marginBottom: 18 },
-  sectionLabel: { color: palette.peach, fontSize: 8, fontWeight: '800', letterSpacing: 1.1, marginBottom: 7 },
+  sectionLabel: { color: palette.indigo, fontSize: 8, fontWeight: '800', letterSpacing: 1.1, marginBottom: 7 },
   objective: { color: palette.text, fontSize: 14, lineHeight: 22, maxWidth: 740 },
   item: { color: palette.textSecondary, fontSize: 12, lineHeight: 20, marginBottom: 4, maxWidth: 740 },
   meta: { color: palette.muted, fontSize: 8, letterSpacing: 0.5, marginTop: 2 },
