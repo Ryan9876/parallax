@@ -1,0 +1,42 @@
+{
+  "spec_id": "P2-V0.14.3",
+  "architecture_decisions": [
+    "AC-01: use frozen dataclasses and string enums for provider-neutral authority contracts.",
+    "AC-02 AC-03: keep project_ref opaque and authorize only through a pre-registered server-owned capability ID.",
+    "AC-04: require exact tool identity plus exact finite action-policy membership; never infer broader permission.",
+    "AC-05: model consequence and approval requirements explicitly, with destructive operations requiring exact request-bound approval.",
+    "AC-06: reject reserved generic execution and transport identifiers and expose no executable payload surface.",
+    "AC-07 AC-08: audit only safe identifiers, normalized result codes, and canonical digests while preserving denied/failed/succeeded truth.",
+    "AC-09: canonicalize digest inputs using sorted deterministic JSON and tuple-based policies.",
+    "AC-10 AC-12: keep the first slice provider-free and persistence-free so later serialized integration can bind #43 Project identity without a competing model."
+  ],
+  "work_items": [
+    "AC-01 AC-02 AC-04 AC-05: add immutable capability, action-policy, request, approval, decision, result, and audit contracts under parallax_api.tools.",
+    "AC-03 AC-04 AC-05: add a deterministic ToolCapabilityRegistry with fail-closed authorization and exact approval matching.",
+    "AC-06: enforce reserved generic shell/command/subprocess/raw-HTTP/network tool/action rejection at contract construction.",
+    "AC-07 AC-08 AC-09: add canonical request/result digest helpers and audit constructors that cannot convert denial or failure into success.",
+    "AC-11: add focused negative tests for project, capability, tool, action, enabled-state, approval, self-grant, and escape-hatch failures.",
+    "AC-10 AC-12: keep shared auth/routes/models/migrations/autonomy/provider paths untouched and document the #43 integration seam."
+  ],
+  "validations": [
+    "AC-01: assert dataclass contracts are frozen and reject mutation.",
+    "AC-02: assert cross-project use is denied.",
+    "AC-03: assert unknown and disabled capabilities fail closed and request data cannot self-register authority.",
+    "AC-04: assert exact tool/action mismatches are denied.",
+    "AC-05: assert destructive and approval-required actions require an exact matching approval record and reject replay/mismatch.",
+    "AC-06: assert generic shell, command, subprocess, raw HTTP/network capability identities are rejected and request fields contain no executable payload.",
+    "AC-07: inspect serialized audit contracts for bounded safe fields only and absence of raw provider content or private-reasoning fields.",
+    "AC-08: assert denied decisions and failed tool results produce DENIED/FAILED audit outcomes and never SUCCEEDED.",
+    "AC-09: assert equivalent requests/results produce stable canonical digests and deterministic decisions.",
+    "AC-10: inspect imports and changed paths to confirm provider-neutral additive scope with no routes, migrations, shared auth, or autonomy edits.",
+    "AC-11: run the focused negative authority and registry test suites.",
+    "AC-12: verify project_ref remains opaque and no durable Project model/repository is introduced."
+  ],
+  "risks": [
+    "AC-12: #43 may finalize a different Project identity shape; mitigate by adapting the opaque project_ref seam only during serialized integration.",
+    "AC-06: a generic identifier could become an execution tunnel; mitigate with explicit reserved transport/execution identity rejection and no arbitrary payload field.",
+    "AC-05: approval evidence could be replayed; mitigate by exact request/capability/project/tool/action binding.",
+    "AC-07 AC-08: provider data could leak or failures could be misreported; mitigate by digest-only evidence plus explicit normalized outcome semantics.",
+    "AC-10: premature shared-path integration could collide with parallel workers; mitigate by keeping this PR additive and requiring latest-main revalidation before merge."
+  ]
+}
