@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 from hashlib import sha256
+import json
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from parallax_api.code.implementation import (
     SafeImplementationEngine,
 )
 from parallax_api.code.patching import EMPTY_SHA256, SourcePatch, TextPatchEngine
-from scripts.validate_spec import validate
+from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract
 
 
 def digest(value: str) -> str:
@@ -42,8 +43,13 @@ def source_patch(path: str, before: str, after: str, *, creating: bool = False) 
 
 def test_workstream_spec_and_compiled_plan_pass_protected_validator():
     repository_root = Path(__file__).resolve().parents[3]
-    errors = validate(repository_root / "specs" / "P2-WS-APP-SAFE-IMPLEMENTATION.md")
-    assert errors == []
+    spec_path = repository_root / "specs" / "P2-WS-APP-SAFE-IMPLEMENTATION.md"
+    plan_path = repository_root / "specs" / "compiled" / "P2-WS-APP-SAFE-IMPLEMENTATION.plan.json"
+    spec_text = spec_path.read_text(encoding="utf-8")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+
+    assert evaluate_spec_contract(spec_text).passed is True
+    assert evaluate_compiled_plan(spec_text, plan, require_metadata=False).passed is True
 
 
 def test_multi_file_implementation_is_successful_and_evidence_is_deterministic(tmp_path):
