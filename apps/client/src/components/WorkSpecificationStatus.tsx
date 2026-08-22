@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { api, type WorkSpecificationDto } from '../lib/api';
 import { palette } from '../theme';
 
@@ -32,14 +32,15 @@ export function WorkSpecificationStatus({
   onApprove(): void;
   reducedGraphics?: boolean;
 }) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const compact = width < 760;
+  const compactBodyMaxHeight = Math.max(190, Math.min(340, height * 0.36));
   const [expanded, setExpanded] = React.useState(false);
   const [conversationStatus, setConversationStatus] = React.useState<string | null>(null);
   const [resumeBusy, setResumeBusy] = React.useState(false);
   const [resumeError, setResumeError] = React.useState<string | null>(null);
 
-  React.useEffect(() => { setExpanded(false); }, [specification?.id]);
+  React.useEffect(() => { setExpanded(false); }, [specification?.id, specification?.status]);
 
   React.useEffect(() => {
     if (!specification || specification.status !== 'APPROVED') {
@@ -82,6 +83,20 @@ export function WorkSpecificationStatus({
     }
   };
 
+  const specificationBody = specification ? (
+    <>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>OBJECTIVE</Text>
+        <Text selectable style={styles.objective}>{specification.objective}</Text>
+      </View>
+      <Section label="ACCEPTANCE" items={specification.acceptance_criteria} />
+      <Section label="CONSTRAINTS" items={specification.constraints} />
+      <Section label="OPEN QUESTIONS" items={specification.open_questions} />
+      <Section label="RISKS" items={specification.risks} />
+      <Text style={styles.meta}>Confidence {Math.round(specification.confidence * 100)}% · {specification.status === 'APPROVED' ? 'operator approved' : 'operator approval required'}</Text>
+    </>
+  ) : null;
+
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]} accessibilityLabel="Work specification">
       <View pointerEvents="none" style={styles.softGlow} />
@@ -105,7 +120,7 @@ export function WorkSpecificationStatus({
             <Text numberOfLines={compact ? 1 : 2} style={[styles.title, compact && styles.titleCompact]}>
               {specification ? specification.title : 'Capture the implementation contract'}
             </Text>
-            {(!compact || expanded) ? (
+            {(!compact || !expanded) ? (
               <Text numberOfLines={compact ? 1 : 2} style={[styles.subtitle, compact && styles.subtitleCompact]}>
                 {specification ? specification.objective : 'Turn the current objective into a durable specification before implementation.'}
               </Text>
@@ -153,17 +168,19 @@ export function WorkSpecificationStatus({
       {resumeError ? <Text style={styles.error}>{resumeError}</Text> : null}
 
       {specification && expanded ? (
-        <View style={[styles.body, compact && styles.bodyCompact]}>
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>OBJECTIVE</Text>
-            <Text selectable style={styles.objective}>{specification.objective}</Text>
-          </View>
-          <Section label="ACCEPTANCE" items={specification.acceptance_criteria} />
-          <Section label="CONSTRAINTS" items={specification.constraints} />
-          <Section label="OPEN QUESTIONS" items={specification.open_questions} />
-          <Section label="RISKS" items={specification.risks} />
-          <Text style={styles.meta}>Confidence {Math.round(specification.confidence * 100)}% · {specification.status === 'APPROVED' ? 'operator approved' : 'operator approval required'}</Text>
-        </View>
+        compact ? (
+          <ScrollView
+            accessibilityLabel="Work specification details"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            style={[styles.bodyScroll, { maxHeight: compactBodyMaxHeight }]}
+            contentContainerStyle={styles.bodyScrollContent}
+          >
+            {specificationBody}
+          </ScrollView>
+        ) : (
+          <View style={styles.body}>{specificationBody}</View>
+        )
       ) : null}
     </View>
   );
@@ -258,7 +275,8 @@ const styles = StyleSheet.create({
   resumeHint: { color: palette.textSecondary, fontSize: 9, lineHeight: 14, paddingTop: 8, maxWidth: 720 },
   error: { color: palette.danger, fontSize: 10, lineHeight: 15, paddingTop: 8 },
   body: { marginTop: 14, paddingTop: 16, paddingRight: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
-  bodyCompact: { marginTop: 10, paddingTop: 12, paddingRight: 0 },
+  bodyScroll: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
+  bodyScrollContent: { paddingTop: 12, paddingRight: 2, paddingBottom: 8 },
   section: { marginBottom: 18 },
   sectionLabel: { color: palette.indigo, fontSize: 8, fontWeight: '800', letterSpacing: 1.1, marginBottom: 7 },
   objective: { color: palette.text, fontSize: 14, lineHeight: 22, maxWidth: 740 },
