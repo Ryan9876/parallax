@@ -178,7 +178,7 @@ function AccessControl({ profile, onSignedOut }: { profile: AccessUserDto; onSig
       </TouchableOpacity>
 
       {open ? (
-        <View style={[styles.accessPanel, { width: panelWidth }, compact && styles.accessPanelCompact]}>
+        <View accessibilityLabel="Parallax access panel" style={[styles.accessPanel, { width: panelWidth }, compact && styles.accessPanelCompact]}>
           <View style={styles.accessPanelHeader}>
             <View>
               <Text style={styles.accessKicker}>PARALLAX ACCESS</Text>
