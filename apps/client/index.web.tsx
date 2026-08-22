@@ -1,4 +1,5 @@
 import '@expo/metro-runtime';
+import './src/web/installMobileViewportGuard';
 import React from 'react';
 import { registerRootComponent } from 'expo';
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
