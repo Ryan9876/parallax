@@ -237,7 +237,7 @@ async function exerciseCodeBinding(page) {
   await page.getByText('code', { exact: true }).click();
   await page.getByLabel('Message Parallax').fill('Implement the approved Code objective.');
   await page.getByLabel('Send message').click();
-  await page.getByText(/The Code objective is captured/).waitFor({ timeout: 10000 });
+  await page.getByText(/The Code objective is captured/).first().waitFor({ timeout: 10000 });
   await page.getByLabel('Capture work specification').click();
   await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
   await page.getByLabel('Approve work specification').click();
