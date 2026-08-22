@@ -20,16 +20,20 @@ export function WorkSpecificationStatus({
   busy,
   error,
   canDraft,
+  canResumeApprovedScope = false,
   onDraft,
   onApprove,
+  onResumeApprovedScope,
   reducedGraphics = false,
 }: {
   specification: WorkSpecificationDto | null;
   busy: boolean;
   error: string | null;
   canDraft: boolean;
+  canResumeApprovedScope?: boolean;
   onDraft(): void;
   onApprove(): void;
+  onResumeApprovedScope?(): void;
   reducedGraphics?: boolean;
 }) {
   const { width } = useWindowDimensions();
@@ -41,6 +45,7 @@ export function WorkSpecificationStatus({
   if (!specification && !canDraft && !error) return null;
 
   const approved = specification?.status === 'APPROVED';
+  const resumable = approved && canResumeApprovedScope && Boolean(onResumeApprovedScope);
   const statusLabel = specification ? `SPEC · ${specification.status}` : 'SPEC · NOT CAPTURED';
   void reducedGraphics;
 
@@ -76,6 +81,18 @@ export function WorkSpecificationStatus({
         </TouchableOpacity>
 
         <View style={[styles.actions, compact && styles.actionsCompact]}>
+          {resumable && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Resume approved scope"
+              accessibilityHint="Return this conversation to its current approved work specification"
+              disabled={busy}
+              onPress={onResumeApprovedScope}
+              style={[styles.actionButton, styles.resumeButton, compact && styles.actionButtonCompact]}
+            >
+              <Text style={styles.resumeText}>{busy ? 'WORKING…' : 'RESUME SCOPE'}</Text>
+            </TouchableOpacity>
+          )}
           {specification?.status === 'DRAFT' && (
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Approve work specification" disabled={busy} onPress={onApprove} style={[styles.actionButton, styles.approveButton, compact && styles.actionButtonCompact]}>
               <Text style={styles.approveText}>{busy ? 'WORKING…' : 'APPROVE'}</Text>
@@ -94,6 +111,11 @@ export function WorkSpecificationStatus({
         </View>
       </View>
 
+      {resumable ? (
+        <Text style={styles.resumeHint}>
+          This conversation is paused at a specification amendment. Resume only if this approved scope is the contract you want Parallax to continue against.
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {specification && expanded ? (
@@ -180,7 +202,7 @@ const styles = StyleSheet.create({
   subtitle: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 680 },
   subtitleCompact: { fontSize: 10, lineHeight: 15, marginTop: 4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  actionsCompact: { width: '100%', justifyContent: 'flex-end', gap: 7 },
+  actionsCompact: { width: '100%', justifyContent: 'flex-end', gap: 7, flexWrap: 'wrap' },
   actionButton: {
     minHeight: 38,
     paddingHorizontal: 13,
@@ -191,12 +213,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139,156,255,0.12)',
   },
   actionButtonCompact: { minHeight: 44, paddingHorizontal: 12, borderRadius: 14 },
+  resumeButton: { backgroundColor: 'rgba(125,231,255,0.10)' },
   approveButton: { backgroundColor: 'rgba(159,185,165,0.13)' },
   actionText: { color: palette.cyan, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
+  resumeText: { color: palette.cyan, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
   approveText: { color: palette.sage, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
   disclosure: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.035)' },
   disclosureCompact: { width: 44, height: 44 },
   disclosureText: { color: palette.textSoft, fontSize: 20, lineHeight: 22 },
+  resumeHint: { color: palette.textSecondary, fontSize: 9, lineHeight: 14, paddingTop: 8, maxWidth: 720 },
   error: { color: palette.danger, fontSize: 10, lineHeight: 15, paddingTop: 8 },
   body: { marginTop: 14, paddingTop: 16, paddingRight: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
   bodyCompact: { marginTop: 10, paddingTop: 12, paddingRight: 0 },
