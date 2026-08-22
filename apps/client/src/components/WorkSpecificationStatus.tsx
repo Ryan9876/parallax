@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import type { WorkSpecificationDto } from '../lib/api';
+import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { api, type WorkSpecificationDto } from '../lib/api';
 import { palette } from '../theme';
 
 function Section({ label, items }: { label: string; items: string[] }) {
@@ -35,14 +35,52 @@ export function WorkSpecificationStatus({
   const { width } = useWindowDimensions();
   const compact = width < 760;
   const [expanded, setExpanded] = React.useState(false);
+  const [conversationStatus, setConversationStatus] = React.useState<string | null>(null);
+  const [resumeBusy, setResumeBusy] = React.useState(false);
+  const [resumeError, setResumeError] = React.useState<string | null>(null);
 
   React.useEffect(() => { setExpanded(false); }, [specification?.id]);
+
+  React.useEffect(() => {
+    if (!specification || specification.status !== 'APPROVED') {
+      setConversationStatus(null);
+      setResumeError(null);
+      return;
+    }
+
+    let cancelled = false;
+    void api.getConversation(specification.conversation_id).then((conversation) => {
+      if (!cancelled) setConversationStatus(conversation.status);
+    }).catch(() => {
+      if (!cancelled) setConversationStatus(null);
+    });
+    return () => { cancelled = true; };
+  }, [specification?.conversation_id, specification?.id, specification?.status]);
 
   if (!specification && !canDraft && !error) return null;
 
   const approved = specification?.status === 'APPROVED';
+  const resumable = approved && conversationStatus === 'SPEC_AMENDMENT';
+  const working = busy || resumeBusy;
   const statusLabel = specification ? `SPEC · ${specification.status}` : 'SPEC · NOT CAPTURED';
   void reducedGraphics;
+
+  const resumeApprovedScope = async () => {
+    if (!specification || !resumable || working) return;
+    setResumeBusy(true);
+    setResumeError(null);
+    try {
+      const conversation = await api.resumeApprovedScope(specification.conversation_id);
+      setConversationStatus(conversation.status);
+      if (Platform.OS === 'web' && typeof globalThis.location?.reload === 'function') {
+        globalThis.location.reload();
+      }
+    } catch (caught) {
+      setResumeError(caught instanceof Error ? caught.message : 'Approved scope could not be resumed.');
+    } finally {
+      setResumeBusy(false);
+    }
+  };
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]} accessibilityLabel="Work specification">
@@ -76,13 +114,25 @@ export function WorkSpecificationStatus({
         </TouchableOpacity>
 
         <View style={[styles.actions, compact && styles.actionsCompact]}>
+          {resumable && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Resume approved scope"
+              accessibilityHint="Return this conversation to its current approved work specification"
+              disabled={working}
+              onPress={() => void resumeApprovedScope()}
+              style={[styles.actionButton, styles.resumeButton, compact && styles.actionButtonCompact]}
+            >
+              <Text style={styles.resumeText}>{resumeBusy ? 'RESUMING…' : 'RESUME SCOPE'}</Text>
+            </TouchableOpacity>
+          )}
           {specification?.status === 'DRAFT' && (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Approve work specification" disabled={busy} onPress={onApprove} style={[styles.actionButton, styles.approveButton, compact && styles.actionButtonCompact]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Approve work specification" disabled={working} onPress={onApprove} style={[styles.actionButton, styles.approveButton, compact && styles.actionButtonCompact]}>
               <Text style={styles.approveText}>{busy ? 'WORKING…' : 'APPROVE'}</Text>
             </TouchableOpacity>
           )}
           {canDraft && (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={specification ? 'Refresh work specification draft' : 'Capture work specification'} disabled={busy} onPress={onDraft} style={[styles.actionButton, compact && styles.actionButtonCompact]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={specification ? 'Refresh work specification draft' : 'Capture work specification'} disabled={working} onPress={onDraft} style={[styles.actionButton, compact && styles.actionButtonCompact]}>
               <Text style={styles.actionText}>{busy ? 'DRAFTING…' : specification ? 'REFRESH DRAFT' : 'CAPTURE SPEC'}</Text>
             </TouchableOpacity>
           )}
@@ -94,7 +144,13 @@ export function WorkSpecificationStatus({
         </View>
       </View>
 
+      {resumable ? (
+        <Text style={styles.resumeHint}>
+          This conversation is paused at a specification amendment. Resume only if this approved scope is the contract you want Parallax to continue against.
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {resumeError ? <Text style={styles.error}>{resumeError}</Text> : null}
 
       {specification && expanded ? (
         <View style={[styles.body, compact && styles.bodyCompact]}>
@@ -180,7 +236,7 @@ const styles = StyleSheet.create({
   subtitle: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 680 },
   subtitleCompact: { fontSize: 10, lineHeight: 15, marginTop: 4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  actionsCompact: { width: '100%', justifyContent: 'flex-end', gap: 7 },
+  actionsCompact: { width: '100%', justifyContent: 'flex-end', gap: 7, flexWrap: 'wrap' },
   actionButton: {
     minHeight: 38,
     paddingHorizontal: 13,
@@ -191,12 +247,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139,156,255,0.12)',
   },
   actionButtonCompact: { minHeight: 44, paddingHorizontal: 12, borderRadius: 14 },
+  resumeButton: { backgroundColor: 'rgba(125,231,255,0.10)' },
   approveButton: { backgroundColor: 'rgba(159,185,165,0.13)' },
   actionText: { color: palette.cyan, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
+  resumeText: { color: palette.cyan, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
   approveText: { color: palette.sage, fontSize: 8, fontWeight: '800', letterSpacing: 0.75 },
   disclosure: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.035)' },
   disclosureCompact: { width: 44, height: 44 },
   disclosureText: { color: palette.textSoft, fontSize: 20, lineHeight: 22 },
+  resumeHint: { color: palette.textSecondary, fontSize: 9, lineHeight: 14, paddingTop: 8, maxWidth: 720 },
   error: { color: palette.danger, fontSize: 10, lineHeight: 15, paddingTop: 8 },
   body: { marginTop: 14, paddingTop: 16, paddingRight: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(167,151,255,0.12)' },
   bodyCompact: { marginTop: 10, paddingTop: 12, paddingRight: 0 },

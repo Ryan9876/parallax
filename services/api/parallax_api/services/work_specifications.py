@@ -67,3 +67,20 @@ class WorkSpecificationService:
             self.conversations.set_status(conversation, "ACTIVE")
 
         return approved
+
+    def resume_approved_scope(self, conversation_id: str):
+        conversation = self.conversation(conversation_id)
+        if conversation.status != "SPEC_AMENDMENT":
+            raise HTTPException(
+                status_code=409,
+                detail="conversation is not waiting for a specification amendment",
+            )
+
+        latest = self.repository.latest(conversation_id)
+        if latest is None or latest.status != "APPROVED":
+            raise HTTPException(
+                status_code=422,
+                detail="approve the current work specification before resuming its scope",
+            )
+
+        return self.conversations.set_status(conversation, "ACTIVE")
