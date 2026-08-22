@@ -88,10 +88,10 @@ const workSpecification = {
     'The page is usable with standard keyboard navigation and has an informative page title.',
     'The page renders without console errors or broken links.',
   ],
-  risks: ['A fixed composer must never obscure the newest response.'],
+  risks: ['The conversation live edge must remain visible after governed surfaces resize the workspace.'],
   open_questions: ['What exact About page metadata should be displayed?'],
   confidence: 0.94,
-  program_version: 'composer-clearance-smoke',
+  program_version: 'live-edge-continuity-smoke',
   model_id: 'test-model',
   created_at: '2026-08-22T14:00:10Z',
   updated_at: '2026-08-22T14:00:10Z',
@@ -162,34 +162,45 @@ try {
 
   await page.goto('http://127.0.0.1:8767', { waitUntil: 'networkidle' });
   await page.getByText('SPEC · DRAFT').waitFor({ timeout: 10000 });
-  await page.getByLabel('Expand work specification').click();
-  await page.getByLabel('Work specification details').waitFor({ timeout: 5000 });
   const response = page.getByLabel('Parallax response').last();
   await response.waitFor({ timeout: 5000 });
 
-  await response.evaluate((node) => {
+  // Expanding the governed surface reduces the conversation viewport. The app must
+  // preserve the live edge automatically; this test deliberately does not scroll it.
+  await page.getByLabel('Expand work specification').click();
+  await page.getByLabel('Work specification details').waitFor({ timeout: 5000 });
+  await page.waitForTimeout(140);
+
+  const geometry = await response.evaluate((node) => {
     let current = node.parentElement;
     while (current) {
       const style = getComputedStyle(current);
-      if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
-        current.scrollTop = current.scrollHeight;
-        return;
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        return {
+          scrollTop: current.scrollTop,
+          scrollHeight: current.scrollHeight,
+          clientHeight: current.clientHeight,
+          distanceFromEnd: Math.max(0, current.scrollHeight - current.clientHeight - current.scrollTop),
+        };
       }
       current = current.parentElement;
     }
+    return null;
   });
-  await page.waitForTimeout(80);
 
   const responseBox = await response.boundingBox();
   const inputBox = await page.getByLabel('Message Parallax').boundingBox();
   const specBox = await page.getByLabel('Work specification', { exact: true }).boundingBox();
 
-  assert(responseBox && inputBox && specBox, 'composer clearance: required geometry was not measurable');
+  assert(responseBox && inputBox && specBox && geometry,
+    'live edge continuity: required geometry was not measurable');
+  assert(geometry.distanceFromEnd <= 4,
+    `live edge continuity: thread did not remain pinned after spec resize (${geometry.distanceFromEnd}px from end)`);
   assert(responseBox.y + responseBox.height <= inputBox.y - 8,
-    `composer clearance: newest response intersects composer (${responseBox.y + responseBox.height} > ${inputBox.y - 8})`);
+    `live edge continuity: newest response intersects composer (${responseBox.y + responseBox.height} > ${inputBox.y - 8})`);
   assert(specBox.y + specBox.height <= inputBox.y - 8,
-    `composer clearance: specification intersects composer (${specBox.y + specBox.height} > ${inputBox.y - 8})`);
-  assert(errors.length === 0, `composer clearance: browser errors: ${errors.join(' | ')}`);
+    `live edge continuity: specification intersects composer (${specBox.y + specBox.height} > ${inputBox.y - 8})`);
+  assert(errors.length === 0, `live edge continuity: browser errors: ${errors.join(' | ')}`);
 
   await page.screenshot({ path: `${evidenceDir}/mobile-composer-clearance.png` });
   console.log(JSON.stringify({
@@ -197,9 +208,10 @@ try {
     specBox,
     responseBox,
     inputBox,
+    thread: geometry,
     responseClearance: inputBox.y - (responseBox.y + responseBox.height),
     specificationClearance: inputBox.y - (specBox.y + specBox.height),
-    nonOverlapping: true,
+    liveEdgePreserved: true,
   }, null, 2));
 
   await page.close();
