@@ -4,20 +4,22 @@ from dataclasses import dataclass
 from hashlib import sha256
 import re
 from typing import Protocol
+from urllib.parse import urlparse
 
 from .common import (
     AcceptedSourceLineage,
     AuthorizedProviderExecutor,
-    ProviderActionFailed,
     ProviderActionSuccess,
     ProviderClientError,
     ProviderInvocation,
     ProviderProjectBinding,
+    require_app_branch,
     require_https_url,
     require_opaque_ref,
     require_repository_ref,
     require_sha256,
     require_source_revision,
+    safe_provider_call,
 )
 from ..registry import ToolCapabilityRegistry
 
@@ -39,7 +41,6 @@ MAX_COMMIT_TOTAL_BYTES = 2_000_000
 MAX_PR_TITLE = 160
 MAX_PR_BODY = 8_000
 
-_BRANCH = re.compile(r"^parallax/[A-Za-z0-9][A-Za-z0-9._/-]{0,110}$")
 _PATH = re.compile(r"^[A-Za-z0-9._-](?:[A-Za-z0-9._/ -]{0,238}[A-Za-z0-9._-])?$")
 _SECRET_VALUE = re.compile(
     r"(?i)(api[_-]?key|secret|token|authorization|password)\s*[:=]\s*['\"]?[A-Za-z0-9_./+\-=]{16,}"
@@ -47,19 +48,12 @@ _SECRET_VALUE = re.compile(
 _SECRET_PATH_PARTS = frozenset({".env", ".env.local", ".env.production", "secrets", "credentials"})
 
 
-def _require_branch(value: str) -> str:
-    if not isinstance(value, str) or not _BRANCH.fullmatch(value):
-        raise ValueError("app-builder branch must use bounded parallax/... form")
-    if ".." in value.split("/") or "//" in value:
-        raise ValueError("app-builder branch contains unsafe path segments")
-    return value
-
-
 def _require_path(value: str) -> str:
     if not isinstance(value, str) or not _PATH.fullmatch(value):
         raise ValueError("source path must be a bounded relative text path")
     parts = value.split("/")
-    if value.startswith("/") or ".." in parts or any(part in _SECRET_PATH_PARTS for part in parts):
+    lowered_parts = {part.casefold() for part in parts}
+    if value.startswith("/") or ".." in parts or lowered_parts & _SECRET_PATH_PARTS:
         raise ValueError("source path is outside the safe publication boundary")
     return value
 
@@ -80,6 +74,18 @@ def _reject_secret_literal(value: str, *, field: str) -> None:
         raise ValueError(f"{field} contains possible secret-bearing content")
 
 
+def _require_pull_request_url(repository_ref: str, number: int, url: str) -> str:
+    require_https_url(url, field="url", allowed_suffix="github.com")
+    parsed = urlparse(url)
+    if parsed.query:
+        raise ValueError("pull request URL must not contain query parameters")
+    owner_repo = repository_ref.removeprefix("github:")
+    expected_path = f"/{owner_repo}/pull/{number}"
+    if parsed.path.rstrip("/") != expected_path:
+        raise ValueError("pull request URL does not match repository and pull request identity")
+    return url
+
+
 @dataclass(frozen=True, slots=True)
 class GitHubRepositoryState:
     repository_ref: str
@@ -88,7 +94,7 @@ class GitHubRepositoryState:
 
     def __post_init__(self) -> None:
         require_repository_ref(self.repository_ref)
-        _require_bounded_text(self.default_branch, field="default_branch", maximum=128)
+        require_source_revision(self.default_branch, field="default_branch")
         require_source_revision(self.head_revision, field="head_revision")
 
 
@@ -167,7 +173,7 @@ class GitHubBranchResult:
 
     def __post_init__(self) -> None:
         require_repository_ref(self.repository_ref)
-        _require_branch(self.branch_name)
+        require_app_branch(self.branch_name)
         require_source_revision(self.base_revision, field="base_revision")
         require_source_revision(self.head_revision, field="head_revision")
 
@@ -183,7 +189,7 @@ class GitHubCommitResult:
 
     def __post_init__(self) -> None:
         require_repository_ref(self.repository_ref)
-        _require_branch(self.branch_name)
+        require_app_branch(self.branch_name)
         require_source_revision(self.parent_revision, field="parent_revision")
         require_source_revision(self.commit_revision, field="commit_revision")
         require_opaque_ref(self.lineage_ref, field="lineage_ref")
@@ -195,6 +201,7 @@ class GitHubPullRequestResult:
     repository_ref: str
     number: int
     head_branch: str
+    head_revision: str
     base_branch: str
     state: str
     url: str
@@ -203,11 +210,12 @@ class GitHubPullRequestResult:
         require_repository_ref(self.repository_ref)
         if not isinstance(self.number, int) or isinstance(self.number, bool) or not 1 <= self.number <= 2_147_483_647:
             raise ValueError("pull request number is invalid")
-        _require_branch(self.head_branch)
-        _require_bounded_text(self.base_branch, field="base_branch", maximum=128)
+        require_app_branch(self.head_branch)
+        require_source_revision(self.head_revision, field="head_revision")
+        require_source_revision(self.base_branch, field="base_branch")
         if self.state not in {"OPEN", "CLOSED"}:
             raise ValueError("pull request state must be OPEN or CLOSED")
-        require_https_url(self.url, field="url", allowed_suffix="github.com")
+        _require_pull_request_url(self.repository_ref, self.number, self.url)
 
 
 class GitHubProviderClient(Protocol):
@@ -250,6 +258,7 @@ class GitHubProviderClient(Protocol):
         self,
         repository_ref: str,
         head_branch: str,
+        expected_head_revision: str,
         base_branch: str,
         title: str,
         body: str,
@@ -294,7 +303,7 @@ class GitHubProviderActions:
     ) -> ProviderActionSuccess[GitHubRepositoryState]:
         request, decision = self._authorize(ACTION_REPOSITORY_RESOLVE, binding, invocation)
         try:
-            value = self.client.resolve_repository(binding.repository_ref)
+            value = safe_provider_call(lambda: self.client.resolve_repository(binding.repository_ref))
             self._verify_repository(binding, value.repository_ref)
         except ProviderClientError as exc:
             raise self.executor.fail(
@@ -325,10 +334,12 @@ class GitHubProviderActions:
         require_source_revision(source_revision)
         request, decision = self._authorize(ACTION_SOURCE_TREE_READ, binding, invocation)
         try:
-            value = self.client.read_tree(
-                binding.repository_ref,
-                source_revision,
-                max_entries=MAX_TREE_ENTRIES,
+            value = safe_provider_call(
+                lambda: self.client.read_tree(
+                    binding.repository_ref,
+                    source_revision,
+                    max_entries=MAX_TREE_ENTRIES,
+                )
             )
             self._verify_repository(binding, value.repository_ref)
             if value.source_revision != source_revision:
@@ -365,11 +376,13 @@ class GitHubProviderActions:
         _require_path(path)
         request, decision = self._authorize(ACTION_SOURCE_FILE_READ, binding, invocation)
         try:
-            value = self.client.read_file(
-                binding.repository_ref,
-                source_revision,
-                path,
-                max_bytes=MAX_FILE_BYTES,
+            value = safe_provider_call(
+                lambda: self.client.read_file(
+                    binding.repository_ref,
+                    source_revision,
+                    path,
+                    max_bytes=MAX_FILE_BYTES,
+                )
             )
             self._verify_repository(binding, value.repository_ref)
             if value.source_revision != source_revision or value.path != path:
@@ -402,11 +415,13 @@ class GitHubProviderActions:
         branch_name: str,
         base_revision: str,
     ) -> ProviderActionSuccess[GitHubBranchResult]:
-        _require_branch(branch_name)
+        require_app_branch(branch_name)
         require_source_revision(base_revision, field="base_revision")
         request, decision = self._authorize(ACTION_BRANCH_CREATE, binding, invocation)
         try:
-            value = self.client.create_branch(binding.repository_ref, branch_name, base_revision)
+            value = safe_provider_call(
+                lambda: self.client.create_branch(binding.repository_ref, branch_name, base_revision)
+            )
             self._verify_repository(binding, value.repository_ref)
             if value.branch_name != branch_name or value.base_revision != base_revision:
                 raise ProviderClientError("SOURCE_MISMATCH")
@@ -440,7 +455,7 @@ class GitHubProviderActions:
         lineage: AcceptedSourceLineage,
         files: tuple[GitHubCommitFile, ...],
     ) -> ProviderActionSuccess[GitHubCommitResult]:
-        _require_branch(branch_name)
+        require_app_branch(branch_name)
         require_source_revision(expected_parent_revision, field="expected_parent_revision")
         if not isinstance(lineage, AcceptedSourceLineage):
             raise TypeError("lineage must be AcceptedSourceLineage")
@@ -455,12 +470,14 @@ class GitHubProviderActions:
 
         request, decision = self._authorize(ACTION_COMMIT_WRITE, binding, invocation)
         try:
-            value = self.client.commit_files(
-                binding.repository_ref,
-                branch_name,
-                expected_parent_revision,
-                lineage,
-                files,
+            value = safe_provider_call(
+                lambda: self.client.commit_files(
+                    binding.repository_ref,
+                    branch_name,
+                    expected_parent_revision,
+                    lineage,
+                    files,
+                )
             )
             self._verify_repository(binding, value.repository_ref)
             if (
@@ -498,27 +515,39 @@ class GitHubProviderActions:
         invocation: ProviderInvocation,
         *,
         head_branch: str,
+        expected_head_revision: str,
         base_branch: str,
+        lineage: AcceptedSourceLineage,
         title: str,
         body: str = "",
     ) -> ProviderActionSuccess[GitHubPullRequestResult]:
-        _require_branch(head_branch)
-        _require_bounded_text(base_branch, field="base_branch", maximum=128)
+        require_app_branch(head_branch)
+        require_source_revision(expected_head_revision, field="expected_head_revision")
+        require_source_revision(base_branch, field="base_branch")
+        if not isinstance(lineage, AcceptedSourceLineage):
+            raise TypeError("lineage must be AcceptedSourceLineage")
         _require_bounded_text(title, field="title", maximum=MAX_PR_TITLE)
         _require_bounded_text(body, field="body", maximum=MAX_PR_BODY, allow_empty=True)
         _reject_secret_literal(title, field="title")
         _reject_secret_literal(body, field="body")
         request, decision = self._authorize(ACTION_PULL_REQUEST_CREATE, binding, invocation)
         try:
-            value = self.client.create_pull_request(
-                binding.repository_ref,
-                head_branch,
-                base_branch,
-                title,
-                body,
+            value = safe_provider_call(
+                lambda: self.client.create_pull_request(
+                    binding.repository_ref,
+                    head_branch,
+                    expected_head_revision,
+                    base_branch,
+                    title,
+                    body,
+                )
             )
             self._verify_repository(binding, value.repository_ref)
-            if value.head_branch != head_branch or value.base_branch != base_branch:
+            if (
+                value.head_branch != head_branch
+                or value.head_revision != expected_head_revision
+                or value.base_branch != base_branch
+            ):
                 raise ProviderClientError("SOURCE_MISMATCH")
         except ProviderClientError as exc:
             raise self.executor.fail(
@@ -527,6 +556,8 @@ class GitHubProviderActions:
                 binding=binding,
                 action=ACTION_PULL_REQUEST_CREATE,
                 error=exc,
+                source_revision=expected_head_revision,
+                lineage=lineage,
             ) from exc
         return self.executor.succeed(
             request=request,
@@ -536,6 +567,8 @@ class GitHubProviderActions:
             value=value,
             result_code="PULL_REQUEST_CREATED",
             result_identity=f"pr:{value.number}",
+            source_revision=expected_head_revision,
+            lineage=lineage,
             safe_url=value.url,
         )
 
@@ -550,7 +583,7 @@ class GitHubProviderActions:
             raise ValueError("pull request number is invalid")
         request, decision = self._authorize(ACTION_PULL_REQUEST_READ, binding, invocation)
         try:
-            value = self.client.read_pull_request(binding.repository_ref, number)
+            value = safe_provider_call(lambda: self.client.read_pull_request(binding.repository_ref, number))
             self._verify_repository(binding, value.repository_ref)
             if value.number != number:
                 raise ProviderClientError("PULL_REQUEST_MISMATCH")
@@ -570,5 +603,6 @@ class GitHubProviderActions:
             value=value,
             result_code="PULL_REQUEST_READ",
             result_identity=f"pr:{value.number}",
+            source_revision=value.head_revision,
             safe_url=value.url,
         )
