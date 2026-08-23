@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: wave2-vercel-provision-run
@@ -32,6 +33,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Require opaque Vercel management credential
+        id: credential
         shell: bash
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
@@ -40,6 +42,22 @@ jobs:
           fi
           echo 'PASS: opaque Vercel credential is available to the runner.'
       - name: Install pinned Vercel CLI
+        id: install_cli
+        if: steps.credential.outcome == 'success'
         run: npm install --global vercel@58.4.4
       - name: Provision and verify Wave 2 Vercel prerequisites
+        id: provision
+        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success'
         run: python scripts/provision_wave2_vercel.py --provision --api-dir services/api
+      - name: Record provisioning evidence in Control Tower
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CREDENTIAL_OUTCOME: ${{ steps.credential.outcome }}
+          CLI_OUTCOME: ${{ steps.install_cli.outcome }}
+          PROVISION_OUTCOME: ${{ steps.provision.outcome }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential availability check: **$CREDENTIAL_OUTCOME**. Pinned CLI install: **$CLI_OUTCOME**. Provision + verify helper: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
