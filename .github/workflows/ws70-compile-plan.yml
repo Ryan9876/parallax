@@ -1,17 +1,18 @@
 name: WS70 Compile Protected Plan
 
 on:
-  push:
+  pull_request:
     branches:
-      - ws/app-provider-clients
+      - integration/wave2-app-builder
+    types: [opened, synchronize, reopened]
     paths:
       - 'specs/P2-V0.15.7.md'
       - '.github/workflows/ws70-compile-plan.yml'
+      - 'services/api/tests/test_provider_client_spec.py'
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 jobs:
   compile-plan:
@@ -19,8 +20,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -47,31 +46,9 @@ jobs:
         run: |
           python scripts/compile_spec.py specs/P2-V0.15.7.md
           python scripts/validate_spec.py specs/P2-V0.15.7.md --require-dspy
-      - name: Commit generated protected plan to worker branch
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add specs/compiled/P2-V0.15.7.plan.json
-          if git diff --cached --quiet; then
-            echo 'Generated plan is already committed.'
-            exit 0
-          fi
-          git commit -m 'spec: compile P2-V0.15.7 protected plan'
-          git push origin HEAD:ws/app-provider-clients
       - uses: actions/upload-artifact@v4
         with:
           name: ws70-compiled-plan
           path: specs/compiled/P2-V0.15.7.plan.json
           if-no-files-found: error
           retention-days: 14
-      - name: Record successful compiler status
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue comment 70 --body "WS70 temporary compiler: SUCCESS on ${GITHUB_SHA}; generated P2-V0.15.7 plan committed by workflow."
-      - name: Record failed compiler status
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue comment 70 --body "WS70 temporary compiler: FAILED on ${GITHUB_SHA}. See the WS70 Compile Protected Plan workflow for the failing bounded stage; no provider implementation was authorized by this run."
