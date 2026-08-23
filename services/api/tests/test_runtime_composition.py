@@ -13,10 +13,11 @@ from parallax_api.code.implementation_runtime import WorkspaceLineageError
 from parallax_api.code.runtime_composition import (
     AllocatorWorkspaceLineageGateway,
     EngineeringRuntimeComposition,
+    production_durable_lineage_allocator,
 )
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
-from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourcePackage
+from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
 from parallax_api.db import Base, make_engine
 from parallax_api.intelligence.implementation_generation import GeneratedSourcePatch, ImplementationProposal
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
@@ -93,12 +94,39 @@ class LineageExecutor:
         }
 
 
+def test_allocator(root):
+    """Use #68 durable fakes when serialized, else the accepted #60 store."""
+
+    try:
+        from parallax_api.code.lineage_persistence import (
+            InMemoryImmutableObjectStore,
+            InMemoryLineageMetadataStore,
+        )
+    except ImportError:
+        return ProjectWorkspaceAllocator(root)
+
+    lineage_store = SourceLineageStore(
+        InMemoryImmutableObjectStore(),
+        InMemoryLineageMetadataStore(),
+    )
+    return ProjectWorkspaceAllocator(root, lineage_store=lineage_store)
+
+
 def allocator_with_source(tmp_path, identity: ProjectRunIdentity, files=None):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "allocator")
+    allocator = test_allocator(tmp_path / "allocator")
     lease = allocator.initialize(identity, StaticSourceProvider(files or {"app.py": b"value = 1\n"}))
     base = lease.lineage
     allocator.cleanup(lease)
     return allocator, base
+
+
+def test_pre68_production_builder_fails_closed_instead_of_creating_filesystem_durability(tmp_path):
+    try:
+        import parallax_api.code.lineage_persistence  # noqa: F401
+    except ImportError:
+        assert production_durable_lineage_allocator(object(), materialization_root=tmp_path / "live") is None
+    else:
+        pytest.skip("#68 durable persistence is already serialized on this base")
 
 
 def test_gateway_binds_canonical_identity_accepts_exact_artifacts_and_separates_digests(tmp_path):
@@ -228,6 +256,25 @@ def runtime_service(tmp_path):
     return session, service, project, run
 
 
+def proposal_for_value_change():
+    return ImplementationProposal(
+        acceptance_ids_covered=["AC-01", "AC-02"],
+        patches=[
+            GeneratedSourcePatch(
+                path="app.py",
+                expected_base_sha256=sha256(b"value = 1\n").hexdigest(),
+                unified_diff=(
+                    "--- a/app.py\n"
+                    "+++ b/app.py\n"
+                    "@@ -1 +1 @@\n"
+                    "-value = 1\n"
+                    "+value = 2\n"
+                ),
+            )
+        ],
+    )
+
+
 def test_composed_runtime_uses_one_accepted_lineage_for_implement_build_test_verify(tmp_path):
     session, service, project, run = runtime_service(tmp_path)
     try:
@@ -235,29 +282,13 @@ def test_composed_runtime_uses_one_accepted_lineage_for_implement_build_test_ver
         allocator, base = allocator_with_source(tmp_path, identity)
         legacy = LegacyExecutor()
         lineage_executor = LineageExecutor()
-        proposal = ImplementationProposal(
-            acceptance_ids_covered=["AC-01", "AC-02"],
-            patches=[
-                GeneratedSourcePatch(
-                    path="app.py",
-                    expected_base_sha256=sha256(b"value = 1\n").hexdigest(),
-                    unified_diff=(
-                        "--- a/app.py\n"
-                        "+++ b/app.py\n"
-                        "@@ -1 +1 @@\n"
-                        "-value = 1\n"
-                        "+value = 2\n"
-                    ),
-                )
-            ],
-        )
         runtime = EngineeringRuntimeComposition(
             service,
             allocator,
             legacy,
             lineage_executor=lineage_executor,
         )
-        runtime.implementation_runtime.generator = FixedGenerator(proposal)
+        runtime.implementation_runtime.generator = FixedGenerator(proposal_for_value_change())
 
         result = runtime.run(
             run_id=run.id,
