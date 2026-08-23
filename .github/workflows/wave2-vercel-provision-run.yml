@@ -62,3 +62,5 @@ jobs:
         shell: bash
         run: |
           gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential availability check: **$CREDENTIAL_OUTCOME**. Pinned CLI install: **$CLI_OUTCOME**. Provision + verify helper: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
+
+# Triggered after VERCEL_TOKEN bootstrap secret was provisioned on 2026-08-23.
