@@ -1,0 +1,54 @@
+name: WS71 Integration Validation
+
+on:
+  pull_request:
+    branches: [integration/wave2-app-builder]
+
+permissions:
+  contents: read
+
+jobs:
+  spec-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - run: pip install -e 'services/api[dev]'
+      - name: Validate P2-V0.15.8 protected spec and plan
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.15.8.md
+      - name: Compile API
+        run: python -m compileall -q services/api/parallax_api scripts
+      - name: Run complete API regression
+        run: python -m pytest services/api/tests -q
+
+  client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install client dependencies
+        working-directory: apps/client
+        run: npm install
+      - name: Typecheck
+        working-directory: apps/client
+        run: npm run typecheck
+      - name: Deterministic client state tests
+        working-directory: apps/client
+        run: npm run test:state
+      - name: Export web client
+        working-directory: apps/client
+        run: npm run export:web
+      - name: Install browser runtime
+        working-directory: apps/client
+        run: npx playwright install --with-deps chromium
+      - name: Run complete browser/Skia acceptance suite
+        working-directory: apps/client
+        run: npm run test:visual
