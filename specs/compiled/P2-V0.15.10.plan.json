@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- Ensure the evidence adapter is read-only and does not alter the Project identity, source lineage, provider authority, audit storage, release state, or stage-success state."
+  ],
+  "work_items": [
+    "- Implement a bounded validation that checks the evidence adapter's read-only nature and ensures it does not modify the Project identity, source lineage, provider authority, audit storage, release state, or stage-success state."
+  ],
+  "validations": [
+    "- The evidence adapter is read-only, and it does not create alternate Project identity, source lineage, provider authority, audit storage, release state, or stage-success state."
+  ],
+  "risks": [
+    "- The risk is that the evidence adapter could potentially modify the Project identity, source lineage, provider authority, audit storage, release state, or stage-success state, which would violate the AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-10, AC-11, and AC-12 acceptance criteria. This could lead to a failure in the proof of the deterministic protected reference-app flow."
+  ],
+  "spec_id": "P2-V0.15.10",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Persisted canonical Project/run binding",
+      "protected_requirement": "The adapter accepts only a persisted Project-bound Engineering Run whose owner-scoped canonical `Project.id` matches `EngineeringRun.project_id`, whose Project is active, and whose repository identity matches the persisted delivery record. `workspace_ref`, caller/model input, filesystem paths, or provider metadata cannot substitute for Project identity."
+    },
+    {
+      "id": "AC-02",
+      "title": "Exact approved Work Specification binding",
+      "protected_requirement": "The adapter proves the persisted Work Specification ID, Conversation ownership, APPROVED/SUPERSEDED status, revision, and canonical digest exactly match the Engineering Run binding. Wrong/stale spec identity, revision, or digest fails closed and cannot yield passing `spec.binding` evidence."
+    },
+    {
+      "id": "AC-03",
+      "title": "Accepted IMPLEMENT lineage truth",
+      "protected_requirement": "Passing IMPLEMENT evidence must identify the same Project/run, bounded safe-patch artifacts/workspace/proposal/source-context digests, no external/Git/deployment mutation authority, and one accepted child lineage. The durable current lineage must match that child identity/content digest and parent relationship; stale/unrelated lineage fails closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Same-lineage BUILD/TEST/VERIFY truth",
+      "protected_requirement": "Durable passing BUILD, TEST, and VERIFY attempts must each prove protected success against the exact accepted lineage/content digest, server-owned Project identity, same-lineage execution, no fresh repository checkout, and exact acceptance coverage. False stage evidence or unrelated source cannot be promoted."
+    },
+    {
+      "id": "AC-05",
+      "title": "Persisted provider publication/preview audit truth",
+      "protected_requirement": "GitHub publication and Vercel Preview observations are derived only from the accepted #79 persisted delivery record containing bounded #62/#70 provider evidence plus matching Wave 1 tool audits. DENIED, FAILED, stale-parent/source mismatch, missing preview, and non-READY preview remain distinct non-success conditions."
+    },
+    {
+      "id": "AC-06",
+      "title": "Bounded observable-only #46 evidence",
+      "protected_requirement": "Constructed `AppBuilderRecordedEvidence` contains only bounded canonical IDs, normalized observations, and canonical digests. Raw source, provider payloads, credentials/tokens/headers/cookies/environment, hidden reasoning/scratchpad, arbitrary logs, and local filesystem roots are rejected or excluded."
+    },
+    {
+      "id": "AC-07",
+      "title": "IMPLEMENT recreation/retry idempotency",
+      "protected_requirement": "After accepted IMPLEMENT, recreating Session/service/runtime composition and retrying the exact IMPLEMENT operation returns the persisted accepted result without a second source mutation or a new lineage. A different/stale operation or lineage cannot be treated as replay."
+    },
+    {
+      "id": "AC-08",
+      "title": "Provider recreation/retry idempotency",
+      "protected_requirement": "After verified publication/preview, recreating #79 delivery/provider composition and retrying the same verified-source delivery reuses the persisted commit/PR/preview identities without another provider mutation. Different Project/run/lineage/provider parent cannot reuse that delivery."
+    },
+    {
+      "id": "AC-09",
+      "title": "Protected reference-app loop + operator REVIEW ceiling",
+      "protected_requirement": "The deterministic reference harness exercises Project \u2192 approved Work Spec \u2192 PLAN \u2192 bootstrap \u2192 typed proposal \u2192 safe mutation \u2192 durable lineage \u2192 exact-lineage BUILD/TEST/VERIFY \u2192 GitHub publication \u2192 READY Vercel Preview \u2192 unchanged #46 protected evaluation \u2192 explicit operator REVIEW. Evaluation/provider success alone cannot merge, production-promote, deploy, or complete REVIEW."
+    },
+    {
+      "id": "AC-10",
+      "title": "Deliberate negative protected rejection",
+      "protected_requirement": "Wrong Project/spec, stale lineage/provider parent, false stage evidence, provider denial/failure, interrupted/retry edge cases, missing/non-ready preview, secret-bearing evidence, duplicate retries, and unrelated/fresh source are covered deterministically. Each fails evidence construction or yields `protected_pass=false` under unchanged #46 semantics."
+    },
+    {
+      "id": "AC-11",
+      "title": "#46 scoring and authority remain unchanged",
+      "protected_requirement": "No #46 evaluator scoring, category, minimum threshold, critical-failure, evaluator-version, or protected promotion logic is weakened or special-cased for P2-V0.15.10. The reference runtime suite uses the accepted evaluator with 1.0 aggregate/category floors and critical core requirements."
+    },
+    {
+      "id": "AC-12",
+      "title": "Reconciled #79 contract and exact-head integration readiness",
+      "protected_requirement": "Before READY FOR INTEGRATION, the provisional narrow delivery protocol is reconciled to accepted #79 without a competing persistence/authority path. P2-V0.15.10 spec + authentic compiled DSPy plan, focused reference/evidence tests, full API regression, deterministic Workstream Spec Validation, Parallax P2 CI, and Bounded Autonomy Pilot all pass on the same exact head targeting `integration/wave2-app-builder`, with no merge/deploy/migration/provisioning."
+    }
+  ],
+  "critique": [
+    "The single most material implementation risk or omission in the approved software specification is the absence of a clear and consistent approach to evidence verification and publication. The specification does not provide a detailed mechanism for verifying and publishing evidence, which is crucial for ensuring the integrity and reliability of the software. This oversight could lead to issues such as duplicate evidence publication, incorrect evidence publication, and failure to meet the required evidence hygiene standards. Without a robust evidence verification and publication process, the software may not meet the critical-failure/threshold semantics and could potentially fail under the unchanged #46 critical-failure/threshold semantics."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
