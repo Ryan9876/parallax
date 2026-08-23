@@ -73,7 +73,7 @@ def _probe_existing_connectors(repo: Path) -> None:
     for connector in ("github/alizarin-feather", "github/alizarin-grass"):
         attach = _run(
             repo,
-            ["vercel", "connect", "attach", connector, "--project", project, "--environment", "preview"],
+            ["vercel", "connect", "attach", connector, "--project", project, "--environment", "preview", "--yes"],
         )
         if attach.returncode != 0:
             detail = _safe_detail((attach.stderr or "") + " " + (attach.stdout or ""))
@@ -134,10 +134,6 @@ def _probe_existing_connectors(repo: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Team-scoped bootstrap access tokens can manage the known project resources
-    # but Vercel CLI `link` may still try to resolve a user identity first. The
-    # workflow seeds the exact server-owned project link, so CI verifies that
-    # immutable binding and skips only the redundant identity-resolution call.
     helper._ensure_link = _ensure_seeded_link
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--api-dir", default="services/api")
