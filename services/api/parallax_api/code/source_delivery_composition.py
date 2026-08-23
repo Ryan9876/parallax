@@ -33,6 +33,7 @@ from ..tools.providers import (
 from .domain import AttemptStatus, WorkflowStage
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import (
+    LineageIdentityError,
     LineageNotFoundError,
     ProjectRunIdentity,
     SourceLineage,
@@ -58,19 +59,11 @@ class VerifiedDeliveryError(SourceDeliveryCompositionError):
 
 
 class DurableSourceAllocator(Protocol):
-    def initialize(
-        self,
-        identity: ProjectRunIdentity,
-        provider: SourceProvider,
-    ) -> MaterializedWorkspace: ...
+    def initialize(self, identity: ProjectRunIdentity, provider: SourceProvider) -> MaterializedWorkspace: ...
 
     def current_lineage(self, identity: ProjectRunIdentity) -> SourceLineage: ...
 
-    def reconstruct(
-        self,
-        identity: ProjectRunIdentity,
-        lineage_id: str,
-    ) -> MaterializedWorkspace: ...
+    def reconstruct(self, identity: ProjectRunIdentity, lineage_id: str) -> MaterializedWorkspace: ...
 
     def cleanup(self, workspace: MaterializedWorkspace) -> None: ...
 
@@ -84,21 +77,77 @@ class PreviewTargetResolver(Protocol):
 
 
 class ProviderInvocationFactory(Protocol):
-    def for_action(
+    def for_action(self, *, tool: str, action: str, operation_key: str) -> ProviderInvocation: ...
+
+
+_GITHUB_ACTIONS = frozenset(
+    {
+        ACTION_REPOSITORY_RESOLVE,
+        ACTION_SOURCE_TREE_READ,
+        ACTION_SOURCE_FILE_READ,
+        ACTION_BRANCH_CREATE,
+        ACTION_COMMIT_WRITE,
+        ACTION_PULL_REQUEST_CREATE,
+        ACTION_PULL_REQUEST_READ,
+    }
+)
+_VERCEL_ACTIONS = frozenset({ACTION_PREVIEW_CREATE, ACTION_PREVIEW_READ})
+
+
+class ScopedProviderInvocationFactory:
+    """Server-owned mapping from fixed provider actions to fixed capability IDs."""
+
+    def __init__(
         self,
         *,
-        tool: str,
-        action: str,
-        operation_key: str,
-    ) -> ProviderInvocation: ...
+        github_capability_id: str,
+        vercel_capability_id: str,
+        actor_ref: str,
+    ) -> None:
+        self.github_capability_id = github_capability_id
+        self.vercel_capability_id = vercel_capability_id
+        self.actor_ref = actor_ref
+        ProviderInvocation("request:validation", github_capability_id, actor_ref)
+        ProviderInvocation("request:validation", vercel_capability_id, actor_ref)
+
+    def for_action(self, *, tool: str, action: str, operation_key: str) -> ProviderInvocation:
+        if tool == GITHUB_TOOL and action in _GITHUB_ACTIONS:
+            capability_id = self.github_capability_id
+        elif tool == VERCEL_TOOL and action in _VERCEL_ACTIONS:
+            capability_id = self.vercel_capability_id
+        else:
+            raise ValueError("provider action is outside the source-delivery composition boundary")
+        if not isinstance(operation_key, str) or not operation_key.strip():
+            raise ValueError("operation_key is required")
+        request_digest = sha256(f"{operation_key}|{tool}|{action}".encode("utf-8")).hexdigest()[:48]
+        return ProviderInvocation(
+            request_id=f"request:{request_digest}",
+            capability_id=capability_id,
+            actor_ref=self.actor_ref,
+        )
+
+
+class RegisteredPreviewTargetResolver:
+    """Resolve Preview targets only from a server-owned exact registry."""
+
+    def __init__(self, targets: tuple[VercelPreviewTarget, ...]) -> None:
+        if not targets or not all(isinstance(target, VercelPreviewTarget) for target in targets):
+            raise ValueError("at least one registered Vercel Preview target is required")
+        if len({target.project_ref for target in targets}) != len(targets):
+            raise ValueError("Preview targets must be unique per Project")
+        self._targets = {target.project_ref: target for target in targets}
+
+    def resolve(self, binding: ProviderProjectBinding) -> VercelPreviewTarget:
+        target = self._targets.get(binding.project_ref)
+        if target is None or target.repository_ref != binding.repository_ref:
+            raise VerifiedDeliveryError("no registered Preview target matches canonical Project repository")
+        return target
 
 
 class OwnerScopedProjectBindingResolver:
     """Resolve canonical Project repository metadata inside one owner scope."""
 
     def __init__(self, repository: ProjectRepository, *, owner_subject: str) -> None:
-        if not isinstance(repository, ProjectRepository):
-            raise TypeError("ProjectRepository is required")
         if not isinstance(owner_subject, str) or not owner_subject.strip():
             raise ValueError("owner_subject is required")
         self.repository = repository
@@ -113,10 +162,7 @@ class OwnerScopedProjectBindingResolver:
         if not project.repository_ref:
             raise ProjectRepositoryBindingError("canonical Project has no repository binding")
         try:
-            return ProviderProjectBinding(
-                project_ref=project.id,
-                repository_ref=project.repository_ref,
-            )
+            return ProviderProjectBinding(project_ref=project.id, repository_ref=project.repository_ref)
         except (TypeError, ValueError) as exc:
             raise ProjectRepositoryBindingError("canonical Project repository binding is invalid") from exc
 
@@ -153,7 +199,6 @@ class RepositoryBoundSourceProvider:
     def load(self, identity: ProjectRunIdentity) -> SourcePackage:
         if identity != self.identity:
             raise SourceBootstrapError("repository source provider Project/run identity mismatch")
-
         repository = self.github.resolve_repository(
             self.binding,
             self._invocation(ACTION_REPOSITORY_RESOLVE),
@@ -164,7 +209,6 @@ class RepositoryBoundSourceProvider:
             self._invocation(ACTION_SOURCE_TREE_READ),
             source_revision=revision,
         ).value
-
         files: dict[str, bytes] = {}
         for index, entry in enumerate(sorted(tree.entries, key=lambda item: item.path)):
             if entry.kind != "file":
@@ -175,11 +219,10 @@ class RepositoryBoundSourceProvider:
                 source_revision=revision,
                 path=entry.path,
             ).value
-            encoded = source.content.encode("utf-8")
-            if sha256(encoded).hexdigest() != source.content_sha256:
+            raw = source.content.encode("utf-8")
+            if sha256(raw).hexdigest() != source.content_sha256:
                 raise SourceBootstrapError("repository file digest changed inside protected read boundary")
-            files[source.path] = encoded
-
+            files[source.path] = raw
         if not files:
             raise SourceBootstrapError("repository bootstrap returned no publishable source files")
         return SourcePackage(
@@ -225,11 +268,10 @@ class RepositoryLineageBootstrap:
         identity = self.identity_for_run(run)
         try:
             current = self.allocator.current_lineage(identity)
-        except LineageNotFoundError:
+        except (LineageIdentityError, LineageNotFoundError):
             current = None
         except Exception as exc:
             raise SourceBootstrapError("durable source-lineage head could not be resolved") from exc
-
         if current is not None:
             if current.project_id != identity.project_id or current.run_id != identity.run_id:
                 raise SourceBootstrapError("durable source lineage belongs to a different Project/run")
@@ -281,12 +323,8 @@ class VerifiedDeliveryResult:
     pull_request_url: str
     preview_deployment_id: str
     preview_status: str
-    preview_url: str
+    preview_url: str | None
     evidence: tuple[ProviderActionEvidence, ...]
-
-    def __post_init__(self) -> None:
-        if any("credential" in str(value).casefold() or "authorization" in str(value).casefold() for value in self.evidence):
-            raise ValueError("delivery evidence must remain secret-safe")
 
 
 class VerifiedLineageDelivery:
@@ -333,7 +371,6 @@ class VerifiedLineageDelivery:
     def _verified_lineage_id(cls, run: EngineeringRun, identity: ProjectRunIdentity) -> str:
         if run.state != WorkflowStage.REVIEW.value:
             raise VerifiedDeliveryError("verified source may be delivered only at operator review")
-
         implementation: dict[str, object] | None = None
         verification: dict[str, object] | None = None
         for attempt in reversed(tuple(run.attempts)):
@@ -346,10 +383,8 @@ class VerifiedLineageDelivery:
                 implementation = cls._attempt_evidence(attempt)
             if implementation is not None and verification is not None:
                 break
-
         if implementation is None or verification is None:
             raise VerifiedDeliveryError("accepted IMPLEMENT and VERIFY evidence are required before delivery")
-
         lineage_id = implementation.get("source_lineage_ref")
         if not isinstance(lineage_id, str):
             raise VerifiedDeliveryError("accepted IMPLEMENT lineage identity is unavailable")
@@ -363,10 +398,8 @@ class VerifiedLineageDelivery:
             raise VerifiedDeliveryError("VERIFY evidence belongs to a different Engineering Run")
         if verification.get("source_lineage_ref") != lineage_id:
             raise VerifiedDeliveryError("VERIFY did not execute on the accepted IMPLEMENT lineage")
-        if verification.get("lineage_bound_execution") is not True:
-            raise VerifiedDeliveryError("VERIFY evidence is not same-lineage protected execution")
-        if verification.get("protected_success") is not True:
-            raise VerifiedDeliveryError("VERIFY did not succeed")
+        if verification.get("lineage_bound_execution") is not True or verification.get("protected_success") is not True:
+            raise VerifiedDeliveryError("VERIFY did not succeed on the exact accepted lineage")
         return lineage_id
 
     def _invocation(self, tool: str, action: str, operation_key: str) -> ProviderInvocation:
@@ -424,7 +457,6 @@ class VerifiedLineageDelivery:
                 or lineage.parent_lineage_id is None
             ):
                 raise VerifiedDeliveryError("only an accepted non-root implementation lineage may be delivered")
-
             root = workspace.path.resolve(strict=True)
             commit_files: list[GitHubCommitFile] = []
             for entry in lineage.files:
@@ -445,7 +477,6 @@ class VerifiedLineageDelivery:
                 except UnicodeDecodeError as exc:
                     raise VerifiedDeliveryError("accepted lineage contains non-text content outside provider boundary") from exc
                 commit_files.append(GitHubCommitFile(entry.path, text, entry.sha256))
-
             if not commit_files:
                 raise VerifiedDeliveryError("accepted lineage has no publishable files")
             return lineage, tuple(commit_files)
@@ -591,8 +622,10 @@ __all__ = [
     "ProjectBindingResolver",
     "ProjectRepositoryBindingError",
     "ProviderInvocationFactory",
+    "RegisteredPreviewTargetResolver",
     "RepositoryBoundSourceProvider",
     "RepositoryLineageBootstrap",
+    "ScopedProviderInvocationFactory",
     "SourceBootstrapError",
     "SourceDeliveryComposition",
     "SourceDeliveryCompositionError",
