@@ -58,9 +58,10 @@ def _token_from_json(text: str) -> str | None:
 
     def walk(value):
         if isinstance(value, dict):
-            token = value.get("token")
-            if isinstance(token, str) and token:
-                return token
+            for key in ("bearerToken", "access_token", "token", "value", "secret"):
+                token = value.get(key)
+                if isinstance(token, str) and 8 <= len(token) <= 8192 and token.strip() == token:
+                    return token
             for child in value.values():
                 found = walk(child)
                 if found:
@@ -73,6 +74,13 @@ def _token_from_json(text: str) -> str | None:
         return None
 
     return walk(payload)
+
+
+def _json_token(text: str) -> str:
+    token = _token_from_json(text)
+    if token is None:
+        raise helper.ProvisioningError("Vercel token JSON did not contain a plaintext access token")
+    return token
 
 
 def _probe_existing_connectors(repo: Path) -> None:
@@ -143,6 +151,7 @@ def _probe_existing_connectors(repo: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     helper._ensure_link = _ensure_seeded_link
     helper._connector_present = _team_connector_present
+    helper._json_token = _json_token
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--api-dir", default="services/api")
     known, _ = parser.parse_known_args(argv)
