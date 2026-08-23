@@ -18,6 +18,22 @@ class ProviderCredentialKind(str, Enum):
     VERCEL_SCOPED = "VERCEL_SCOPED"
 
 
+_PROVIDER_KINDS = {
+    "github": frozenset(
+        {
+            ProviderCredentialKind.GITHUB_APP_INSTALLATION,
+            ProviderCredentialKind.GITHUB_FINE_GRAINED,
+        }
+    ),
+    "vercel": frozenset(
+        {
+            ProviderCredentialKind.VERCEL_OIDC,
+            ProviderCredentialKind.VERCEL_SCOPED,
+        }
+    ),
+}
+
+
 class ScopedBearerCredential:
     """Server-internal bearer credential lease with deliberately redacted display."""
 
@@ -32,12 +48,14 @@ class ScopedBearerCredential:
         secret: str,
         expires_at: datetime | None,
     ) -> None:
-        if provider not in {"github", "vercel"}:
+        if provider not in _PROVIDER_KINDS:
             raise ValueError("credential provider must be github or vercel")
         if not isinstance(resource_ref, str) or not _RESOURCE.fullmatch(resource_ref):
             raise ValueError("credential resource identity must be bounded")
         if not isinstance(kind, ProviderCredentialKind):
             raise TypeError("credential kind must be ProviderCredentialKind")
+        if kind not in _PROVIDER_KINDS[provider]:
+            raise ValueError("credential kind does not match provider")
         if not isinstance(secret, str) or secret != secret.strip() or not 8 <= len(secret) <= 8_192:
             raise ValueError("credential bearer material is invalid")
         if any(ord(character) < 0x21 or ord(character) > 0x7E for character in secret):
