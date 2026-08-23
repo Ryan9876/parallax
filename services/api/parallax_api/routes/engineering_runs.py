@@ -9,6 +9,11 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
+from ..code.runtime_composition import (
+    DurableLineageAllocator,
+    EngineeringRuntimeComposition,
+    production_durable_lineage_allocator,
+)
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
@@ -44,6 +49,21 @@ def service(
         owner_subject=principal.subject,
         require_project_binding=True,
     )
+
+
+def runtime_lineage_allocator(
+    session: Session = Depends(get_session),
+) -> DurableLineageAllocator | None:
+    """Construct #68 durable lineage from server-owned persistence config.
+
+    On the current pre-#68 integration base the durable persistence module is
+    intentionally absent, so the factory returns ``None`` and the existing
+    fail-closed Wave 1 behavior remains. Once #68 is serialized this dependency
+    builds private Blob + transactional metadata persistence; local disk remains
+    disposable materialization only.
+    """
+
+    return production_durable_lineage_allocator(session.get_bind())
 
 
 def present(run: EngineeringRun, svc: EngineeringRunService) -> dict:
@@ -142,9 +162,20 @@ def advance(run_id: str, payload: EngineeringAdvance, svc: EngineeringRunService
 
 
 @router.post("/{run_id}/autonomous", response_model=EngineeringAutonomyRead)
-def autonomous(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):
+def autonomous(
+    run_id: str,
+    payload: EngineeringOperation,
+    svc: EngineeringRunService = Depends(service),
+    allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
+):
+    legacy_executor = VercelSandboxExecutor()
+    runtime = (
+        AutonomyCoordinator(svc, legacy_executor)
+        if allocator is None
+        else EngineeringRuntimeComposition(svc, allocator, legacy_executor)
+    )
     result = invoke(
-        lambda: AutonomyCoordinator(svc, VercelSandboxExecutor()).run(
+        lambda: runtime.run(
             run_id=run_id,
             **payload.model_dump(),
         )
