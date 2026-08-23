@@ -16,11 +16,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install API dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r services/api/requirements.txt
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
       - name: Install local proof model
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
