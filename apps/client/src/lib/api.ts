@@ -9,12 +9,33 @@ export type MessageDto = {
   created_at: string;
 };
 
+export type ProjectBindingStatus = 'PROJECT_BOUND' | 'HISTORICAL_UNBOUND';
+
+export type ProjectDto = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  repository_ref: string | null;
+  workspace_ref: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectCreateRequest = {
+  name: string;
+  repository_ref?: string | null;
+};
+
 export type ConversationDto = {
   id: string;
   title: string;
   mode: 'reason' | 'code';
   status: string;
   spec_id: string;
+  project_id: string | null;
+  project_binding_status: ProjectBindingStatus;
   created_at: string;
   updated_at: string;
   messages: MessageDto[];
@@ -81,6 +102,8 @@ export type EngineeringRunDto = {
   id: string;
   conversation_id: string;
   spec_id: string;
+  project_id: string | null;
+  project_binding_status: ProjectBindingStatus;
   work_specification_id: string | null;
   work_specification_revision: number | null;
   work_specification_digest: string | null;
@@ -116,6 +139,12 @@ export type AccessUserDto = {
   last_login_at: string | null;
 };
 
+export type ProjectCompatibilityResolver = {
+  resolveCodeProject(): Promise<string>;
+  invalidateProject(projectId: string, message: string): void;
+  observeConversation(conversation: ConversationDto): void;
+};
+
 const configuredApiBase = process.env.EXPO_PUBLIC_PARALLAX_API_URL ?? 'http://localhost:8010';
 const hostedHttpsWeb = Platform.OS === 'web'
   && typeof globalThis.location !== 'undefined'
@@ -128,9 +157,27 @@ const apiBase = hostedHttpsWeb
     : configuredApiBase;
 const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
 let transientAccessToken = '';
+let projectCompatibilityResolver: ProjectCompatibilityResolver | null = null;
 
 export class AuthenticationRequiredError extends Error {}
 export class AuthorizationDeniedError extends Error {}
+export class ApiRequestError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
+export function installProjectCompatibilityResolver(resolver: ProjectCompatibilityResolver): () => void {
+  projectCompatibilityResolver = resolver;
+  return () => {
+    if (projectCompatibilityResolver === resolver) projectCompatibilityResolver = null;
+  };
+}
+
+function observeConversation(conversation: ConversationDto | null | undefined): void {
+  if (conversation) projectCompatibilityResolver?.observeConversation(conversation);
+}
 
 function requestCredentials(): RequestCredentials {
   return secureSessionTransport ? 'include' : 'same-origin';
@@ -162,7 +209,7 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
-  if (!response.ok) throw new Error(await responseDetail(response));
+  if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as T;
 }
 
@@ -180,7 +227,7 @@ async function establishSession(token: string): Promise<SessionDto> {
   });
   transientAccessToken = '';
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
-  if (!response.ok) throw new Error(await responseDetail(response));
+  if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
 
@@ -198,7 +245,7 @@ async function establishGoogleSession(accessToken: string): Promise<SessionDto> 
   });
   if (response.status === 401) throw new AuthenticationRequiredError(await responseDetail(response));
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
-  if (!response.ok) throw new Error(await responseDetail(response));
+  if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
 
@@ -215,7 +262,7 @@ async function endSession(): Promise<SessionDto> {
     credentials: requestCredentials(),
     headers: { ...sessionHeaders },
   });
-  if (!response.ok) throw new Error(await responseDetail(response));
+  if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
 
@@ -254,7 +301,7 @@ async function streamResponse(
 
   if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
-  if (!response.ok) throw new Error(await responseDetail(response));
+  if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   if (!response.body) throw new Error('Parallax response stream unavailable');
 
   const reader = response.body.getReader();
@@ -315,6 +362,43 @@ async function streamResponse(
   return { text, messageId, confidence, trace, phase, scopeDecision };
 }
 
+async function createConversation(mode: 'reason' | 'code'): Promise<ConversationDto> {
+  let projectId: string | null = null;
+  if (mode === 'code') {
+    if (!projectCompatibilityResolver) {
+      throw new Error('Select a Project before starting Code work.');
+    }
+    projectId = (await projectCompatibilityResolver.resolveCodeProject()).trim();
+    if (!projectId) throw new Error('Select a Project before starting Code work.');
+  }
+
+  try {
+    const conversation = await json<ConversationDto>('/v1/conversations', {
+      method: 'POST',
+      body: JSON.stringify(mode === 'code' ? { mode, project_id: projectId } : { mode }),
+    });
+    observeConversation(conversation);
+    return conversation;
+  } catch (error) {
+    if (mode === 'code' && projectId && error instanceof ApiRequestError && [404, 422].includes(error.status)) {
+      projectCompatibilityResolver?.invalidateProject(projectId, error.message);
+    }
+    throw error;
+  }
+}
+
+async function getConversation(id: string): Promise<ConversationDto> {
+  const conversation = await json<ConversationDto>(`/v1/conversations/${id}`);
+  observeConversation(conversation);
+  return conversation;
+}
+
+async function listConversations(): Promise<ConversationDto[]> {
+  const conversations = await json<ConversationDto[]>('/v1/conversations');
+  observeConversation(conversations[0]);
+  return conversations;
+}
+
 export const api = {
   setAccessToken: (token: string) => { transientAccessToken = token.trim(); },
   establishSession,
@@ -331,13 +415,17 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   }),
-  createConversation: (mode: 'reason' | 'code') =>
-    json<ConversationDto>('/v1/conversations', {
-      method: 'POST',
-      body: JSON.stringify({ mode }),
+  listProjects: () => json<ProjectDto[]>('/v1/projects'),
+  createProject: (request: ProjectCreateRequest) => json<ProjectDto>('/v1/projects', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: request.name,
+      ...(request.repository_ref ? { repository_ref: request.repository_ref } : {}),
     }),
-  getConversation: (id: string) => json<ConversationDto>(`/v1/conversations/${id}`),
-  listConversations: () => json<ConversationDto[]>('/v1/conversations'),
+  }),
+  createConversation,
+  getConversation,
+  listConversations,
   appendMessage: (id: string, role: 'user' | 'assistant', content: string) =>
     json<MessageDto>(`/v1/conversations/${id}/messages`, {
       method: 'POST',
