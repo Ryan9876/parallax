@@ -1,0 +1,45 @@
+name: Wave 2 Vercel Provision Run
+
+on:
+  push:
+    branches: [ops/wave2-provision-run]
+    paths:
+      - '.github/workflows/wave2-vercel-provision-run.yml'
+      - 'scripts/provision_wave2_vercel.py'
+      - 'services/api/tests/test_wave2_vercel_provisioning.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave2-vercel-provision-run
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      CI: '1'
+      NO_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Require opaque Vercel management credential
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo 'BLOCKED: repository Actions secret VERCEL_TOKEN is not configured.'
+            exit 78
+          fi
+          echo 'PASS: opaque Vercel credential is available to the runner.'
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@58.4.4
+      - name: Provision and verify Wave 2 Vercel prerequisites
+        run: python scripts/provision_wave2_vercel.py --provision --api-dir services/api
