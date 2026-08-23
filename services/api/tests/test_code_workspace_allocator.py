@@ -7,6 +7,10 @@ from uuid import uuid4
 
 import pytest
 
+from parallax_api.code.lineage_persistence import (
+    InMemoryImmutableObjectStore,
+    InMemoryLineageMetadataStore,
+)
 from parallax_api.code.workspace_allocator import (
     MaterializedWorkspace,
     ProjectWorkspaceAllocator,
@@ -14,6 +18,7 @@ from parallax_api.code.workspace_allocator import (
 )
 from parallax_api.code.workspace_lineage import (
     ProjectRunIdentity,
+    SourceLineageStore,
     SourcePackage,
     SourceProvider,
     StaleLineageError,
@@ -37,6 +42,13 @@ class RepositoryProvider:
 
 def identity() -> ProjectRunIdentity:
     return ProjectRunIdentity(str(uuid4()), str(uuid4()))
+
+
+def make_allocator(root: Path, *, objects=None, metadata=None):
+    objects = objects or InMemoryImmutableObjectStore()
+    metadata = metadata or InMemoryLineageMetadataStore()
+    lineage_store = SourceLineageStore(objects, metadata)
+    return ProjectWorkspaceAllocator(root, lineage_store=lineage_store), objects, metadata
 
 
 def test_workstream_spec_and_compiled_plan_require_protected_dspy_metadata():
@@ -64,7 +76,7 @@ def test_allocator_public_operations_accept_no_caller_filesystem_root():
 
 
 def test_allocator_generates_server_owned_workspace_path_from_hashed_identity(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     run_identity = identity()
     provider = RepositoryProvider({"src/app.py": b"print('hello')\n"})
 
@@ -83,7 +95,7 @@ def test_allocator_generates_server_owned_workspace_path_from_hashed_identity(tm
 
 
 def test_forged_or_out_of_root_workspace_lease_is_rejected(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     run_identity = identity()
     workspace = allocator.initialize(run_identity, RepositoryProvider({"app.py": b"x = 1\n"}))
     outside = tmp_path / "caller-selected"
@@ -97,28 +109,19 @@ def test_forged_or_out_of_root_workspace_lease_is_rejected(tmp_path):
     )
 
     with pytest.raises(WorkspaceLeaseError):
-        allocator.accept_implementation(
-            forged,
-            expected_parent_lineage_id=workspace.lineage.lineage_id,
-        )
+        allocator.accept_implementation(forged, expected_parent_lineage_id=workspace.lineage.lineage_id)
     assert allocator.current_lineage(run_identity) == workspace.lineage
 
 
 def test_implementation_advances_lineage_and_retry_is_idempotent_through_lease(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     run_identity = identity()
     workspace = allocator.initialize(run_identity, RepositoryProvider({"app.py": b"x = 1\n"}))
     parent = workspace.lineage
     (workspace.path / "app.py").write_bytes(b"x = 2\n")
 
-    accepted = allocator.accept_implementation(
-        workspace,
-        expected_parent_lineage_id=parent.lineage_id,
-    )
-    retry = allocator.accept_implementation(
-        workspace,
-        expected_parent_lineage_id=parent.lineage_id,
-    )
+    accepted = allocator.accept_implementation(workspace, expected_parent_lineage_id=parent.lineage_id)
+    retry = allocator.accept_implementation(workspace, expected_parent_lineage_id=parent.lineage_id)
 
     assert retry == accepted
     assert accepted.parent_lineage_id == parent.lineage_id
@@ -126,15 +129,12 @@ def test_implementation_advances_lineage_and_retry_is_idempotent_through_lease(t
 
     (workspace.path / "app.py").write_bytes(b"x = 3\n")
     with pytest.raises(StaleLineageError):
-        allocator.accept_implementation(
-            workspace,
-            expected_parent_lineage_id=parent.lineage_id,
-        )
+        allocator.accept_implementation(workspace, expected_parent_lineage_id=parent.lineage_id)
     assert allocator.current_lineage(run_identity) == accepted
 
 
 def test_cleanup_removes_only_live_lease_and_exact_lineage_reconstructs_for_later_stages(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     run_identity = identity()
     implementation_workspace = allocator.initialize(
         run_identity,
@@ -167,8 +167,8 @@ def test_cleanup_removes_only_live_lease_and_exact_lineage_reconstructs_for_late
     assert (historical_workspace.path / "src/app.py").read_bytes() == b"before\n"
 
 
-def test_cleanup_is_idempotent_and_does_not_delete_lineage_state(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+def test_cleanup_is_idempotent_and_does_not_delete_durable_lineage(tmp_path):
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     run_identity = identity()
     workspace = allocator.initialize(run_identity, RepositoryProvider({"app.py": b"stable\n"}))
     lineage_id = workspace.lineage.lineage_id
@@ -181,31 +181,30 @@ def test_cleanup_is_idempotent_and_does_not_delete_lineage_state(tmp_path):
     assert (restored.path / "app.py").read_bytes() == b"stable\n"
 
 
-def test_lineage_state_survives_allocator_recreation_for_resume(tmp_path):
-    protected_root = tmp_path / "protected"
+def test_durable_lineage_survives_allocator_and_local_root_recreation(tmp_path):
+    objects = InMemoryImmutableObjectStore()
+    metadata = InMemoryLineageMetadataStore()
     run_identity = identity()
-    first_allocator = ProjectWorkspaceAllocator(protected_root)
+    first_allocator, _, _ = make_allocator(tmp_path / "instance-a", objects=objects, metadata=metadata)
     workspace = first_allocator.initialize(run_identity, RepositoryProvider({"app.py": b"before\n"}))
     initial = workspace.lineage
     (workspace.path / "app.py").write_bytes(b"accepted\n")
-    accepted = first_allocator.accept_implementation(
-        workspace,
-        expected_parent_lineage_id=initial.lineage_id,
-    )
+    accepted = first_allocator.accept_implementation(workspace, expected_parent_lineage_id=initial.lineage_id)
     first_allocator.cleanup(workspace)
 
-    resumed_allocator = ProjectWorkspaceAllocator(protected_root)
+    resumed_allocator, _, _ = make_allocator(tmp_path / "instance-b", objects=objects, metadata=metadata)
     assert resumed_allocator.current_lineage(run_identity) == accepted
     resumed = resumed_allocator.resolve(run_identity)
     historical = resumed_allocator.reconstruct(run_identity, initial.lineage_id)
 
+    assert resumed.path.is_relative_to(tmp_path / "instance-b")
     assert resumed.lineage.lineage_id == accepted.lineage_id
     assert (resumed.path / "app.py").read_bytes() == b"accepted\n"
     assert (historical.path / "app.py").read_bytes() == b"before\n"
 
 
 def test_workspace_lease_cannot_claim_lineage_from_another_project_run(tmp_path):
-    allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
+    allocator, _, _ = make_allocator(tmp_path / "protected")
     first_identity = identity()
     second_identity = identity()
     first = allocator.initialize(first_identity, RepositoryProvider({"app.py": b"one\n"}))
@@ -218,7 +217,4 @@ def test_workspace_lease_cannot_claim_lineage_from_another_project_run(tmp_path)
     )
 
     with pytest.raises(StaleLineageError):
-        allocator.accept_implementation(
-            forged,
-            expected_parent_lineage_id=second.lineage.lineage_id,
-        )
+        allocator.accept_implementation(forged, expected_parent_lineage_id=second.lineage.lineage_id)

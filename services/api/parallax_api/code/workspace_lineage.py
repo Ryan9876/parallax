@@ -7,10 +7,16 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
-import tempfile
-from threading import RLock
 from typing import Mapping, Protocol
 from uuid import UUID
+
+from .lineage_persistence import (
+    DurableLineagePersistenceError,
+    ImmutableObjectStore,
+    LineageMetadataStore,
+    MetadataCASConflict,
+    ObjectMissingError,
+)
 
 
 LINEAGE_VERSION = 1
@@ -150,9 +156,17 @@ class _PreparedTree:
 
 
 class SourceLineageStore:
+    """Canonical #60 lineage semantics over explicit durable persistence adapters.
+
+    Accepted source bytes and lineage/head metadata never depend on a local
+    filesystem path. Local paths enter only when an accepted lineage is scanned
+    from or materialized into a disposable protected workspace lease.
+    """
+
     def __init__(
         self,
-        state_root: str | Path,
+        object_store: ImmutableObjectStore,
+        metadata_store: LineageMetadataStore,
         *,
         max_files: int = 2_000,
         max_file_bytes: int = 4_000_000,
@@ -161,23 +175,12 @@ class SourceLineageStore:
     ) -> None:
         if max_files < 1 or max_file_bytes < 1 or max_total_bytes < 1 or max_source_ref_bytes < 1:
             raise ValueError("lineage resource bounds must be positive")
-        root = Path(state_root)
-        root.mkdir(parents=True, exist_ok=True)
-        if root.is_symlink():
-            raise SourcePolicyError("lineage state root cannot be a symlink")
-        self.state_root = root.resolve(strict=True)
-        self.blobs_root = self.state_root / "blobs"
-        self.lineages_root = self.state_root / "lineages"
-        self.runs_root = self.state_root / "runs"
-        for directory in (self.blobs_root, self.lineages_root, self.runs_root):
-            directory.mkdir(exist_ok=True)
-            if directory.is_symlink() or not directory.is_dir():
-                raise SourcePolicyError("lineage state directories must be protected directories")
+        self.object_store = object_store
+        self.metadata_store = metadata_store
         self.max_files = max_files
         self.max_file_bytes = max_file_bytes
         self.max_total_bytes = max_total_bytes
         self.max_source_ref_bytes = max_source_ref_bytes
-        self._lock = RLock()
 
     def initialize(self, identity: ProjectRunIdentity, provider: SourceProvider) -> SourceLineage:
         try:
@@ -188,6 +191,7 @@ class SourceLineageStore:
             raise SourceProviderError("trusted source provider failed") from exc
         if not isinstance(package, SourcePackage):
             raise SourceProviderError("trusted source provider returned an invalid package")
+
         source_kind = self._source_kind(package.source_kind, allow_implementation=False)
         source_ref_digest = self._source_ref_digest(package.source_ref)
         prepared = self._prepare_mapping(package.files)
@@ -199,16 +203,25 @@ class SourceLineageStore:
             source_ref_digest=source_ref_digest,
         )
 
-        with self._lock:
-            current = self.current(identity, required=False)
-            if current is not None:
-                if current.parent_lineage_id is None and current.lineage_id == candidate.lineage_id:
-                    return current
-                raise StaleLineageError("source lineage is already initialized for this Project/run")
-            self._persist_prepared(prepared)
-            self._persist_manifest(candidate)
-            self._write_current(identity, candidate.lineage_id)
-        return candidate
+        self._persist_prepared(prepared)
+        try:
+            result = self.metadata_store.commit_manifest_and_advance(
+                project_id=identity.project_id,
+                run_id=identity.run_id,
+                lineage_id=candidate.lineage_id,
+                manifest=self._serialized_manifest(candidate),
+                expected_current_lineage_id=None,
+            )
+        except MetadataCASConflict as exc:
+            if exc.current_lineage_id == candidate.lineage_id:
+                return self.resolve(identity, candidate.lineage_id)
+            raise StaleLineageError("source lineage is already initialized for this Project/run") from exc
+        except DurableLineagePersistenceError as exc:
+            raise LineageIntegrityError("durable source-lineage metadata could not be committed") from exc
+
+        if result.lineage_id != candidate.lineage_id:
+            raise LineageIntegrityError("durable metadata returned a different lineage identity")
+        return self.resolve(identity, candidate.lineage_id)
 
     def capture_implementation(
         self,
@@ -219,60 +232,73 @@ class SourceLineageStore:
     ) -> SourceLineage:
         self._validate_lineage_id(expected_parent_lineage_id)
         prepared = self._prepare_workspace(workspace_root)
+        current = self.current(identity)
+        if current is None:  # defensive for type narrowing
+            raise LineageNotFoundError("Project/run source lineage is not initialized")
 
-        with self._lock:
-            current = self.current(identity)
-            if current.lineage_id != expected_parent_lineage_id:
-                if (
-                    current.parent_lineage_id == expected_parent_lineage_id
-                    and current.content_digest == prepared.content_digest
-                ):
-                    return current
-                raise StaleLineageError("expected parent lineage is not current for this Project/run")
-            if current.content_digest == prepared.content_digest:
-                raise NoSourceChangeError("implementation result did not change the accepted source tree")
+        if current.lineage_id != expected_parent_lineage_id:
+            if current.parent_lineage_id == expected_parent_lineage_id and current.content_digest == prepared.content_digest:
+                return current
+            raise StaleLineageError("expected parent lineage is not current for this Project/run")
+        if current.content_digest == prepared.content_digest:
+            raise NoSourceChangeError("implementation result did not change the accepted source tree")
 
-            candidate = self._lineage(
-                identity,
-                prepared,
-                parent_lineage_id=current.lineage_id,
-                source_kind="implementation",
-                source_ref_digest=None,
+        candidate = self._lineage(
+            identity,
+            prepared,
+            parent_lineage_id=current.lineage_id,
+            source_kind="implementation",
+            source_ref_digest=None,
+        )
+        self._persist_prepared(prepared)
+        try:
+            result = self.metadata_store.commit_manifest_and_advance(
+                project_id=identity.project_id,
+                run_id=identity.run_id,
+                lineage_id=candidate.lineage_id,
+                manifest=self._serialized_manifest(candidate),
+                expected_current_lineage_id=current.lineage_id,
             )
-            self._persist_prepared(prepared)
-            self._persist_manifest(candidate)
-            self._write_current(identity, candidate.lineage_id)
-            return candidate
+        except MetadataCASConflict as exc:
+            if exc.current_lineage_id is not None:
+                durable_current = self.resolve(identity, exc.current_lineage_id)
+                if (
+                    durable_current.parent_lineage_id == expected_parent_lineage_id
+                    and durable_current.content_digest == prepared.content_digest
+                ):
+                    return durable_current
+            raise StaleLineageError("expected parent lineage lost the durable advancement race") from exc
+        except DurableLineagePersistenceError as exc:
+            raise LineageIntegrityError("durable source-lineage metadata could not be advanced") from exc
+
+        if result.lineage_id != candidate.lineage_id:
+            raise LineageIntegrityError("durable metadata returned a different implementation lineage")
+        return self.resolve(identity, candidate.lineage_id)
 
     def current(self, identity: ProjectRunIdentity, *, required: bool = True) -> SourceLineage | None:
-        pointer = self._pointer_path(identity)
-        if not pointer.exists():
+        try:
+            lineage_id = self.metadata_store.get_current(identity.project_id, identity.run_id)
+        except DurableLineagePersistenceError as exc:
+            raise LineageIntegrityError("durable current-lineage metadata could not be read") from exc
+        if lineage_id is None:
             if required:
                 raise LineageNotFoundError("Project/run source lineage is not initialized")
             return None
-        if pointer.is_symlink() or not pointer.is_file():
-            raise LineageIntegrityError("current-lineage pointer is not a protected file")
-        try:
-            payload = json.loads(pointer.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise LineageIntegrityError("current-lineage pointer is invalid") from exc
-        if payload.get("project_id") != identity.project_id or payload.get("run_id") != identity.run_id:
-            raise LineageIntegrityError("current-lineage pointer identity mismatch")
-        lineage_id = payload.get("lineage_id")
         if not isinstance(lineage_id, str):
-            raise LineageIntegrityError("current-lineage pointer is missing lineage identity")
+            raise LineageIntegrityError("durable current-lineage metadata is invalid")
         return self.resolve(identity, lineage_id)
 
     def resolve(self, identity: ProjectRunIdentity, lineage_id: str) -> SourceLineage:
-        digest = self._validate_lineage_id(lineage_id)
-        manifest_path = self.lineages_root / f"{digest}.json"
-        if not manifest_path.exists():
-            raise LineageNotFoundError("source lineage does not exist")
-        if manifest_path.is_symlink() or not manifest_path.is_file():
-            raise LineageIntegrityError("source lineage manifest is not a protected file")
+        self._validate_lineage_id(lineage_id)
         try:
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            serialized = self.metadata_store.get_manifest(lineage_id)
+        except DurableLineagePersistenceError as exc:
+            raise LineageIntegrityError("durable source-lineage manifest could not be read") from exc
+        if serialized is None:
+            raise LineageNotFoundError("source lineage does not exist")
+        try:
+            payload = json.loads(serialized.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise LineageIntegrityError("source lineage manifest is invalid") from exc
         lineage = self._lineage_from_manifest(payload)
         if lineage.lineage_id != lineage_id:
@@ -280,7 +306,7 @@ class SourceLineageStore:
         if lineage.project_id != identity.project_id or lineage.run_id != identity.run_id:
             raise LineageIntegrityError("source lineage belongs to a different Project/run")
         self._verify_lineage_identity(lineage)
-        self._verify_blobs(lineage.files)
+        self._verify_objects(lineage.files)
         return lineage
 
     def materialize(self, identity: ProjectRunIdentity, lineage_id: str, target_root: str | Path) -> SourceLineage:
@@ -294,9 +320,9 @@ class SourceLineageStore:
             for item in lineage.files:
                 destination = target / item.path
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                content = self._read_blob(item.sha256)
+                content = self._read_object(item.sha256)
                 if len(content) != item.size:
-                    raise LineageIntegrityError("source blob size mismatch")
+                    raise LineageIntegrityError("source object size mismatch")
                 destination.write_bytes(content)
             reconstructed = self._prepare_workspace(target)
             if reconstructed.content_digest != lineage.content_digest:
@@ -329,6 +355,7 @@ class SourceLineageStore:
             raise SourcePolicyError("source workspace does not exist") from exc
         if not resolved_root.is_dir():
             raise SourcePolicyError("source workspace must be a directory")
+
         contents: dict[str, bytes] = {}
         for current, directories, filenames in os.walk(resolved_root, followlinks=False):
             current_path = Path(current)
@@ -410,42 +437,14 @@ class SourceLineageStore:
         )
 
     def _persist_prepared(self, prepared: _PreparedTree) -> None:
-        for item in prepared.files:
-            self._persist_blob(item.sha256, prepared.contents[item.path])
-
-    def _persist_blob(self, digest: str, content: bytes) -> None:
-        path = self._blob_path(digest)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.parent.is_symlink():
-            raise LineageIntegrityError("source blob directory is not protected")
-        if path.exists():
-            if path.is_symlink() or not path.is_file() or sha256(path.read_bytes()).hexdigest() != digest:
-                raise LineageIntegrityError("existing source blob failed integrity verification")
-            return
-        self._atomic_write_bytes(path, content)
-
-    def _persist_manifest(self, lineage: SourceLineage) -> None:
-        digest = self._validate_lineage_id(lineage.lineage_id)
-        path = self.lineages_root / f"{digest}.json"
-        payload = self._manifest_payload(lineage)
-        serialized = self._canonical_json(payload) + b"\n"
-        if path.exists():
-            if path.is_symlink() or path.read_bytes() != serialized:
-                raise LineageIntegrityError("existing lineage manifest differs from immutable lineage")
-            return
-        self._atomic_write_bytes(path, serialized)
-
-    def _write_current(self, identity: ProjectRunIdentity, lineage_id: str) -> None:
-        run_dir = self.runs_root / identity.storage_key
-        run_dir.mkdir(exist_ok=True)
-        if run_dir.is_symlink() or not run_dir.is_dir():
-            raise LineageIntegrityError("Project/run lineage directory is not protected")
-        payload = {
-            "project_id": identity.project_id,
-            "run_id": identity.run_id,
-            "lineage_id": lineage_id,
-        }
-        self._atomic_write_bytes(run_dir / "current.json", self._canonical_json(payload) + b"\n")
+        try:
+            for item in prepared.files:
+                self.object_store.put_if_absent(item.sha256, prepared.contents[item.path])
+        except DurableLineagePersistenceError as exc:
+            # Immutable objects written before a later failure may remain as
+            # harmless unreferenced content, but accepted metadata/head state is
+            # never advanced until every object write succeeds.
+            raise LineageIntegrityError("durable source object persistence failed") from exc
 
     def _lineage_from_manifest(self, payload: object) -> SourceLineage:
         if not isinstance(payload, dict) or payload.get("version") != LINEAGE_VERSION:
@@ -489,8 +488,10 @@ class SourceLineageStore:
                 raise LineageIntegrityError("source lineage file evidence is not deterministic")
             file_count = payload.get("file_count")
             total_bytes = payload.get("total_bytes")
-            if file_count != len(file_tuple) or file_count > self.max_files:
+            if not isinstance(file_count, int) or isinstance(file_count, bool) or file_count != len(file_tuple):
                 raise LineageIntegrityError("source lineage file count mismatch")
+            if file_count > self.max_files:
+                raise LineageIntegrityError("source lineage file count exceeds protected bound")
             expected_total = sum(item.size for item in file_tuple)
             if total_bytes != expected_total or expected_total > self.max_total_bytes:
                 raise LineageIntegrityError("source lineage byte count mismatch")
@@ -514,35 +515,32 @@ class SourceLineageStore:
         )
 
     def _verify_lineage_identity(self, lineage: SourceLineage) -> None:
-        core = self._manifest_core(lineage)
-        expected = f"src:{sha256(self._canonical_json(core)).hexdigest()}"
+        expected = f"src:{sha256(self._canonical_json(self._manifest_core(lineage))).hexdigest()}"
         if expected != lineage.lineage_id:
             raise LineageIntegrityError("source lineage manifest was modified")
 
-    def _verify_blobs(self, files: tuple[LineageFile, ...]) -> None:
+    def _verify_objects(self, files: tuple[LineageFile, ...]) -> None:
         for item in files:
-            content = self._read_blob(item.sha256)
+            content = self._read_object(item.sha256)
             if len(content) != item.size:
-                raise LineageIntegrityError("source blob size mismatch")
+                raise LineageIntegrityError("source object size mismatch")
 
-    def _read_blob(self, digest: str) -> bytes:
-        path = self._blob_path(digest)
-        if not path.exists():
-            raise LineageIntegrityError("source lineage blob is missing")
-        if path.is_symlink() or not path.is_file():
-            raise LineageIntegrityError("source lineage blob is not a protected file")
-        content = path.read_bytes()
-        if sha256(content).hexdigest() != digest:
-            raise LineageIntegrityError("source lineage blob digest mismatch")
-        return content
-
-    def _pointer_path(self, identity: ProjectRunIdentity) -> Path:
-        return self.runs_root / identity.storage_key / "current.json"
-
-    def _blob_path(self, digest: str) -> Path:
+    def _read_object(self, digest: str) -> bytes:
         if not HEX_SHA256.fullmatch(digest):
-            raise LineageIntegrityError("source blob digest is invalid")
-        return self.blobs_root / digest[:2] / digest
+            raise LineageIntegrityError("source object digest is invalid")
+        try:
+            content = self.object_store.get(digest)
+        except ObjectMissingError as exc:
+            raise LineageIntegrityError("source lineage object is missing") from exc
+        except DurableLineagePersistenceError as exc:
+            raise LineageIntegrityError("durable source object could not be read") from exc
+        payload = bytes(content)
+        if sha256(payload).hexdigest() != digest:
+            raise LineageIntegrityError("source lineage object digest mismatch")
+        return payload
+
+    def _serialized_manifest(self, lineage: SourceLineage) -> bytes:
+        return self._canonical_json(self._manifest_payload(lineage)) + b"\n"
 
     def _manifest_payload(self, lineage: SourceLineage) -> dict[str, object]:
         payload = self._manifest_core(lineage)
@@ -620,21 +618,6 @@ class SourceLineageStore:
         if not isinstance(lineage_id, str) or not LINEAGE_PATTERN.fullmatch(lineage_id):
             raise LineageIdentityError("source lineage identity is invalid")
         return lineage_id.removeprefix("src:")
-
-    @staticmethod
-    def _atomic_write_bytes(path: Path, content: bytes) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        handle = tempfile.NamedTemporaryFile(dir=path.parent, prefix=".tmp-", delete=False)
-        temporary = Path(handle.name)
-        try:
-            with handle:
-                handle.write(content)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.chmod(temporary, 0o600)
-            os.replace(temporary, path)
-        finally:
-            temporary.unlink(missing_ok=True)
 
 
 __all__ = [

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
+from parallax_api.code.lineage_persistence import (
+    InMemoryImmutableObjectStore,
+    InMemoryLineageMetadataStore,
+)
 from parallax_api.code.workspace_lineage import (
     LineageIdentityError,
     LineageIntegrityError,
@@ -19,7 +22,13 @@ from parallax_api.code.workspace_lineage import (
 
 
 class StaticProvider:
-    def __init__(self, files: dict[str, bytes], *, source_kind: str = "repository", source_ref: str = "github:owner/repo@abc123"):
+    def __init__(
+        self,
+        files: dict[str, bytes],
+        *,
+        source_kind: str = "repository",
+        source_ref: str = "github:owner/repo@abc123",
+    ) -> None:
         self.files = files
         self.source_kind = source_kind
         self.source_ref = source_ref
@@ -32,6 +41,12 @@ class StaticProvider:
 
 def identity() -> ProjectRunIdentity:
     return ProjectRunIdentity(str(uuid4()), str(uuid4()))
+
+
+def make_store(**bounds: int):
+    objects = InMemoryImmutableObjectStore()
+    metadata = InMemoryLineageMetadataStore()
+    return SourceLineageStore(objects, metadata, **bounds), objects, metadata
 
 
 def test_project_run_identity_is_canonical_and_never_workspace_ref_or_path():
@@ -53,8 +68,8 @@ def test_project_run_identity_is_canonical_and_never_workspace_ref_or_path():
         ProjectRunIdentity(project_id.upper(), run_id)
 
 
-def test_trusted_source_initialization_is_bounded_idempotent_and_hides_raw_provenance(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+def test_trusted_source_initialization_is_bounded_idempotent_and_hides_raw_provenance():
+    store, _, _ = make_store()
     run_identity = identity()
     provider = StaticProvider({"src/app.py": b"print('hello')\n", "assets/logo.bin": b"\x00\x01"})
 
@@ -87,9 +102,9 @@ def test_trusted_source_initialization_is_bounded_idempotent_and_hides_raw_prove
     assert store.current(run_identity) == first
 
 
-def test_source_provider_output_rejects_paths_secrets_urls_and_resource_overflow(tmp_path):
+def test_source_provider_output_rejects_paths_secrets_urls_and_resource_overflow():
     run_identity = identity()
-    store = SourceLineageStore(tmp_path / "state", max_files=2, max_file_bytes=8, max_total_bytes=12)
+    store, _, _ = make_store(max_files=2, max_file_bytes=8, max_total_bytes=12)
 
     for files in (
         {"../escape.py": b"x"},
@@ -116,7 +131,7 @@ def test_source_provider_output_rejects_paths_secrets_urls_and_resource_overflow
 
 
 def test_implementation_lineage_advances_once_retry_is_idempotent_and_stale_tree_is_denied(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+    store, _, _ = make_store()
     run_identity = identity()
     initial = store.initialize(run_identity, StaticProvider({"src/app.py": b"value = 1\n"}))
     workspace = tmp_path / "workspace"
@@ -150,7 +165,7 @@ def test_implementation_lineage_advances_once_retry_is_idempotent_and_stale_tree
 
 
 def test_no_change_cannot_manufacture_new_lineage(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+    store, _, _ = make_store()
     run_identity = identity()
     initial = store.initialize(run_identity, StaticProvider({"app.py": b"x = 1\n"}))
     workspace = tmp_path / "workspace"
@@ -166,7 +181,7 @@ def test_no_change_cannot_manufacture_new_lineage(tmp_path):
 
 
 def test_historical_lineage_reconstructs_exact_content_after_later_mutation(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+    store, _, _ = make_store()
     run_identity = identity()
     initial = store.initialize(
         run_identity,
@@ -194,8 +209,8 @@ def test_historical_lineage_reconstructs_exact_content_after_later_mutation(tmp_
     assert store.resolve(run_identity, accepted.lineage_id) == accepted
 
 
-def test_different_source_tree_or_identity_cannot_be_mislabeled_as_accepted_lineage(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+def test_different_source_tree_or_identity_cannot_be_mislabeled_as_accepted_lineage():
+    store, _, metadata = make_store()
     run_identity = identity()
     accepted = store.initialize(run_identity, StaticProvider({"app.py": b"accepted\n"}))
     other_identity = identity()
@@ -203,22 +218,22 @@ def test_different_source_tree_or_identity_cannot_be_mislabeled_as_accepted_line
     with pytest.raises(LineageIntegrityError):
         store.resolve(other_identity, accepted.lineage_id)
 
-    manifest = store.lineages_root / f"{accepted.lineage_id.removeprefix('src:')}.json"
-    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload = json.loads(metadata.manifests[accepted.lineage_id].decode("utf-8"))
     payload["content_digest"] = "0" * 64
-    manifest.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    metadata.manifests[accepted.lineage_id] = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
 
     with pytest.raises(LineageIntegrityError):
         store.resolve(run_identity, accepted.lineage_id)
 
 
-def test_blob_tampering_is_detected_before_reconstruction(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+def test_object_tampering_is_detected_before_reconstruction(tmp_path):
+    store, objects, _ = make_store()
     run_identity = identity()
     accepted = store.initialize(run_identity, StaticProvider({"app.py": b"safe\n"}))
-    blob_digest = accepted.files[0].sha256
-    blob = store.blobs_root / blob_digest[:2] / blob_digest
-    blob.write_bytes(b"tampered\n")
+    digest = accepted.files[0].sha256
+    objects.objects[digest] = b"tampered\n"
 
     with pytest.raises(LineageIntegrityError):
         store.resolve(run_identity, accepted.lineage_id)
@@ -227,7 +242,7 @@ def test_blob_tampering_is_detected_before_reconstruction(tmp_path):
 
 
 def test_workspace_capture_rejects_symlinks_and_secret_sensitive_files(tmp_path):
-    store = SourceLineageStore(tmp_path / "state")
+    store, _, _ = make_store()
     run_identity = identity()
     initial = store.initialize(run_identity, StaticProvider({"app.py": b"x = 1\n"}))
     workspace = tmp_path / "workspace"
