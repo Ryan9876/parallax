@@ -12,12 +12,19 @@ class WorkSpecificationService:
         self,
         repository: WorkSpecificationRepository,
         conversations: ConversationRepository,
+        *,
+        owner_subject: str | None = None,
     ):
         self.repository = repository
         self.conversations = conversations
+        self.owner_subject = owner_subject.strip() if owner_subject else None
 
     def conversation(self, conversation_id: str):
-        conversation = self.conversations.get(conversation_id)
+        conversation = (
+            self.conversations.get_for_owner(conversation_id, self.owner_subject)
+            if self.owner_subject
+            else self.conversations.get(conversation_id)
+        )
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
