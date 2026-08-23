@@ -12,12 +12,11 @@ from .common import (
     ProviderClientError,
     ProviderInvocation,
     ProviderProjectBinding,
+    require_app_branch,
     require_https_url,
-    require_opaque_ref,
     require_repository_ref,
     require_source_revision,
 )
-from .github import _require_branch
 from ..registry import ToolCapabilityRegistry
 
 
@@ -72,7 +71,7 @@ class VercelPreviewResult:
         if not isinstance(self.status, VercelPreviewStatus):
             raise TypeError("status must be VercelPreviewStatus")
         if self.url is not None:
-            require_https_url(self.url, field="url", allowed_suffix=".vercel.app")
+            require_https_url(self.url, field="url", allowed_suffix="vercel.app")
         if self.status is VercelPreviewStatus.READY and self.url is None:
             raise ValueError("ready preview must expose its safe preview URL")
 
@@ -126,7 +125,7 @@ class VercelPreviewActions:
     ) -> ProviderActionSuccess[VercelPreviewResult]:
         binding = self._binding(target)
         require_source_revision(source_revision)
-        _require_branch(branch_name)
+        require_app_branch(branch_name)
         if not isinstance(lineage, AcceptedSourceLineage):
             raise TypeError("lineage must be AcceptedSourceLineage")
 
@@ -147,6 +146,11 @@ class VercelPreviewActions:
             self._verify_target(target, value)
             if value.source_revision != source_revision:
                 raise ProviderClientError("SOURCE_MISMATCH", result_identity=value.deployment_id)
+            if value.status in {VercelPreviewStatus.ERROR, VercelPreviewStatus.CANCELED}:
+                raise ProviderClientError(
+                    f"PREVIEW_{value.status.value}",
+                    result_identity=value.deployment_id,
+                )
         except ProviderClientError as exc:
             raise self.executor.fail(
                 request=request,
@@ -158,14 +162,13 @@ class VercelPreviewActions:
                 lineage=lineage,
             ) from exc
 
-        result_code = "PREVIEW_READY" if value.status is VercelPreviewStatus.READY else "PREVIEW_CREATED"
         return self.executor.succeed(
             request=request,
             decision=decision,
             binding=binding,
             action=ACTION_PREVIEW_CREATE,
             value=value,
-            result_code=result_code,
+            result_code=f"PREVIEW_{value.status.value}",
             result_identity=value.deployment_id,
             source_revision=source_revision,
             lineage=lineage,
@@ -214,7 +217,7 @@ class VercelPreviewActions:
             binding=binding,
             action=ACTION_PREVIEW_READ,
             value=value,
-            result_code=f"PREVIEW_{value.status.value}",
+            result_code=f"PREVIEW_STATUS_{value.status.value}",
             result_identity=value.deployment_id,
             source_revision=value.source_revision,
             safe_url=value.url,
