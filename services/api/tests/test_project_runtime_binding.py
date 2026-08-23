@@ -43,7 +43,10 @@ def approved_spec(work_specs: WorkSpecificationRepository, conversation_id: str,
             title=label,
             objective="Implement only the Project-bound approved objective.",
             constraints=["Preserve Project isolation."],
-            acceptance_criteria=["Project identity remains consistent."],
+            acceptance_criteria=[
+                "Project identity remains consistent.",
+                "Cross-Project execution remains denied.",
+            ],
             risks=["Cross-Project execution would violate isolation."],
             open_questions=[],
             confidence=0.98,
@@ -139,8 +142,8 @@ def test_new_engineering_run_derives_project_from_conversation_and_rejects_misma
         conversation_a = conversations.create("code", project_a.id)
         conversation_b = conversations.create("code", project_b.id)
         work_specs = WorkSpecificationRepository(session)
-        spec_a = approved_spec(work_specs, conversation_a.id, "A")
-        spec_b = approved_spec(work_specs, conversation_b.id, "B")
+        spec_a = approved_spec(work_specs, conversation_a.id, "Project A contract")
+        spec_b = approved_spec(work_specs, conversation_b.id, "Project B contract")
         runs = strict_runs(session, "owner-a")
 
         run = runs.activate_run(
