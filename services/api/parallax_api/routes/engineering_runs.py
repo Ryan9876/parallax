@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
-from ..code.runtime_composition import DurableLineageAllocator, EngineeringRuntimeComposition
+from ..code.runtime_composition import (
+    DurableLineageAllocator,
+    EngineeringRuntimeComposition,
+    production_durable_lineage_allocator,
+)
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
@@ -47,16 +51,19 @@ def service(
     )
 
 
-def runtime_lineage_allocator() -> DurableLineageAllocator | None:
-    """#68 production binding seam.
+def runtime_lineage_allocator(
+    session: Session = Depends(get_session),
+) -> DurableLineageAllocator | None:
+    """Construct #68 durable lineage from server-owned persistence config.
 
-    Returning None preserves the existing fail-closed Wave 1 behavior while
-    #68 is developed in parallel. Before #69 can be READY FOR INTEGRATION this
-    dependency must be reconciled to #68's production-safe durable allocator.
-    Tests may override this FastAPI dependency with a deterministic allocator.
+    On the current pre-#68 integration base the durable persistence module is
+    intentionally absent, so the factory returns ``None`` and the existing
+    fail-closed Wave 1 behavior remains. Once #68 is serialized this dependency
+    builds private Blob + transactional metadata persistence; local disk remains
+    disposable materialization only.
     """
 
-    return None
+    return production_durable_lineage_allocator(session.get_bind())
 
 
 def present(run: EngineeringRun, svc: EngineeringRunService) -> dict:
