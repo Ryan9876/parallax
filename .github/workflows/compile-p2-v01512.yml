@@ -1,0 +1,64 @@
+name: Compile P2-V0.15.12 DSPy Plan
+
+on:
+  push:
+    branches:
+      - p2/production-target-credentials-compile
+    paths:
+      - specs/P2-V0.15.12.md
+      - .github/workflows/compile-p2-v01512.yml
+      - scripts/compile_spec.py
+      - scripts/validate_spec.py
+      - services/api/parallax_api/intelligence/**
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - run: python scripts/validate_spec.py specs/P2-V0.15.12.md --spec-only
+      - id: credentials
+        name: Select DSPy model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+          else
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+          fi
+      - name: Install local DSPy LM
+        if: steps.credentials.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+      - name: Compile approved spec
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py specs/P2-V0.15.12.md
+      - name: Validate authentic DSPy evidence
+        run: python scripts/validate_spec.py specs/P2-V0.15.12.md --require-dspy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p2-v01512-dspy-plan
+          path: |
+            specs/compiled/P2-V0.15.12.plan.json
+            /tmp/ollama.log
+          if-no-files-found: error
+          retention-days: 14
