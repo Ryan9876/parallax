@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 
 from ..models import Conversation, EngineeringRun, WorkSpecification
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
 from ..repositories.work_specifications import WorkSpecificationRepository
@@ -36,16 +37,33 @@ class EngineeringRunService:
         run_repository: EngineeringRunRepository,
         conversation_repository: ConversationRepository,
         work_specification_repository: WorkSpecificationRepository | None = None,
+        project_repository: ProjectRepository | None = None,
         *,
+        owner_subject: str | None = None,
+        require_project_binding: bool = False,
         policy: ProtectedRunPolicy | None = None,
     ):
         self.runs = run_repository
         self.conversations = conversation_repository
         self.work_specifications = work_specification_repository or WorkSpecificationRepository(run_repository.session)
+        self.projects = project_repository
+        self.owner_subject = owner_subject.strip() if owner_subject else None
+        self.require_project_binding = require_project_binding
         self.policy = policy or ProtectedRunPolicy()
 
-    def _code_conversation(self, conversation_id: str, spec_id: str | None = None) -> Conversation:
-        conversation = self.conversations.get(conversation_id)
+    def _conversation_for_access(self, conversation_id: str) -> Conversation | None:
+        if self.owner_subject:
+            return self.conversations.get_for_owner(conversation_id, self.owner_subject)
+        return self.conversations.get(conversation_id)
+
+    def _code_conversation(
+        self,
+        conversation_id: str,
+        spec_id: str | None = None,
+        *,
+        require_project: bool = False,
+    ) -> Conversation:
+        conversation = self._conversation_for_access(conversation_id)
         if conversation is None:
             raise EngineeringRunNotFound("conversation not found")
         if conversation.mode != "code":
@@ -56,6 +74,24 @@ class EngineeringRunService:
             raise SpecBindingError(
                 f"run spec {spec_id} does not match durable conversation spec {conversation.spec_id}"
             )
+        if require_project and conversation.project_id is None:
+            raise SpecBindingError("new engineering runs require a Project-bound Code conversation")
+        return conversation
+
+    def _assert_run_access(self, run: EngineeringRun) -> None:
+        if not self.owner_subject or run.project_id is None:
+            return
+        if self.projects is None or self.projects.get_for_owner(run.project_id, self.owner_subject) is None:
+            raise EngineeringRunNotFound("engineering run not found")
+
+    def _assert_run_project_binding(self, run: EngineeringRun, *, require_project: bool) -> Conversation:
+        conversation = self._conversation_for_access(run.conversation_id)
+        if conversation is None:
+            raise EngineeringRunNotFound("conversation not found")
+        if run.project_id != conversation.project_id:
+            raise SpecBindingError("engineering run Project identity does not match its conversation")
+        if require_project and run.project_id is None:
+            raise SpecBindingError("historical unbound engineering runs cannot enter protected execution")
         return conversation
 
     def _approved_work_specification(
@@ -79,7 +115,14 @@ class EngineeringRunService:
             raise SpecBindingError("work specification revision is invalid")
         return specification
 
-    def _bound_work_specification(self, run: EngineeringRun) -> WorkSpecification:
+    def _bound_work_specification(
+        self,
+        run: EngineeringRun,
+        *,
+        require_project: bool = False,
+    ) -> WorkSpecification:
+        self._assert_run_access(run)
+        self._assert_run_project_binding(run, require_project=require_project)
         if (
             not run.work_specification_id
             or run.work_specification_revision is None
@@ -107,7 +150,13 @@ class EngineeringRunService:
         work_specification_id: str,
         workspace_ref: str | None = None,
     ) -> EngineeringRun:
-        conversation = self._code_conversation(conversation_id, spec_id)
+        if self.require_project_binding and workspace_ref is not None:
+            raise SpecBindingError("caller-supplied workspace_ref is not execution authority")
+        conversation = self._code_conversation(
+            conversation_id,
+            spec_id,
+            require_project=self.require_project_binding,
+        )
         specification = self._approved_work_specification(
             conversation_id=conversation.id,
             work_specification_id=work_specification_id,
@@ -115,10 +164,11 @@ class EngineeringRunService:
         return self.runs.create(
             conversation_id=conversation.id,
             spec_id=conversation.spec_id,
+            project_id=conversation.project_id,
             work_specification_id=specification.id,
             work_specification_revision=specification.revision,
             work_specification_digest=work_specification_digest(specification),
-            workspace_ref=workspace_ref,
+            workspace_ref=None if self.require_project_binding else workspace_ref,
         )
 
     def activate_run(
@@ -128,7 +178,12 @@ class EngineeringRunService:
         work_specification_id: str | None = None,
         workspace_ref: str | None = None,
     ) -> EngineeringRun:
-        conversation = self._code_conversation(conversation_id)
+        if self.require_project_binding and workspace_ref is not None:
+            raise SpecBindingError("caller-supplied workspace_ref is not execution authority")
+        conversation = self._code_conversation(
+            conversation_id,
+            require_project=self.require_project_binding,
+        )
         specification = self._approved_work_specification(
             conversation_id=conversation.id,
             work_specification_id=work_specification_id,
@@ -137,18 +192,22 @@ class EngineeringRunService:
         run = self.runs.latest_for_binding(conversation.id, specification.id)
 
         if run is not None and WorkflowStage(run.state) not in TERMINAL_STAGES:
+            self._assert_run_access(run)
+            if self.require_project_binding and run.project_id != conversation.project_id:
+                raise SpecBindingError("existing engineering run Project binding does not match the conversation")
             if run.work_specification_revision != specification.revision or run.work_specification_digest != digest:
                 raise SpecBindingError("existing engineering run binding does not match the approved specification")
-            if workspace_ref is not None and run.workspace_ref != workspace_ref:
+            if not self.require_project_binding and workspace_ref is not None and run.workspace_ref != workspace_ref:
                 raise SpecBindingError("existing engineering run workspace binding cannot be changed")
         else:
             run = self.runs.create(
                 conversation_id=conversation.id,
                 spec_id=conversation.spec_id,
+                project_id=conversation.project_id,
                 work_specification_id=specification.id,
                 work_specification_revision=specification.revision,
                 work_specification_digest=digest,
-                workspace_ref=workspace_ref,
+                workspace_ref=None if self.require_project_binding else workspace_ref,
             )
 
         if run.state != WorkflowStage.SPECIFY.value:
@@ -172,18 +231,22 @@ class EngineeringRunService:
         return activated.run
 
     def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
-        self._code_conversation(conversation_id)
-        return self.runs.latest_for_conversation(conversation_id)
+        conversation = self._code_conversation(conversation_id, require_project=False)
+        run = self.runs.latest_for_conversation(conversation.id)
+        if run is not None:
+            self._assert_run_access(run)
+        return run
 
     def acceptance_map_for_run(self, run: EngineeringRun) -> list[dict[str, str]]:
         if not run.work_specification_id:
             return []
-        return acceptance_map(self._bound_work_specification(run))
+        return acceptance_map(self._bound_work_specification(run, require_project=False))
 
     def get(self, run_id: str) -> EngineeringRun:
         run = self.runs.get(run_id)
         if run is None:
             raise EngineeringRunNotFound("engineering run not found")
+        self._assert_run_access(run)
         return run
 
     def _idempotent_replay(self, run: EngineeringRun, operation_key: str) -> RunOperationResult | None:
@@ -214,12 +277,16 @@ class EngineeringRunService:
         tool_id: str | None = None,
     ) -> RunOperationResult:
         run = self.get(run_id)
+        self._bound_work_specification(run, require_project=self.require_project_binding)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
         self._require_revision(run, expected_revision)
 
-        specification = self._bound_work_specification(run)
+        specification = self._bound_work_specification(
+            run,
+            require_project=self.require_project_binding,
+        )
         required = required_acceptance_ids(specification)
 
         try:
@@ -294,7 +361,7 @@ class EngineeringRunService:
 
     def pause(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:
         run = self.get(run_id)
-        self._bound_work_specification(run)
+        self._bound_work_specification(run, require_project=self.require_project_binding)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
@@ -313,7 +380,7 @@ class EngineeringRunService:
 
     def resume(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:
         run = self.get(run_id)
-        self._bound_work_specification(run)
+        self._bound_work_specification(run, require_project=self.require_project_binding)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
@@ -365,7 +432,7 @@ class EngineeringRunService:
         status: AttemptStatus,
     ) -> RunOperationResult:
         run = self.get(run_id)
-        self._bound_work_specification(run)
+        self._bound_work_specification(run, require_project=self.require_project_binding)
         replay = self._idempotent_replay(run, operation_key)
         if replay is not None:
             return replay
