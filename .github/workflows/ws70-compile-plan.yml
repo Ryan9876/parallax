@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - integration/wave2-app-builder
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'specs/P2-V0.15.7.md'
       - '.github/workflows/ws70-compile-plan.yml'
