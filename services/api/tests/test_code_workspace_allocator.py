@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from parallax_api.code.workspace_lineage import (
     SourceProvider,
     StaleLineageError,
 )
+from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract
 
 
 class RepositoryProvider:
@@ -35,6 +37,18 @@ class RepositoryProvider:
 
 def identity() -> ProjectRunIdentity:
     return ProjectRunIdentity(str(uuid4()), str(uuid4()))
+
+
+def test_workstream_spec_and_compiled_plan_require_protected_dspy_metadata():
+    repository_root = Path(__file__).resolve().parents[3]
+    spec_path = repository_root / "specs" / "P2-V0.15.2.md"
+    plan_path = repository_root / "specs" / "compiled" / "P2-V0.15.2.plan.json"
+    spec_text = spec_path.read_text(encoding="utf-8")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+
+    assert evaluate_spec_contract(spec_text).passed is True
+    assert evaluate_compiled_plan(spec_text, plan, require_metadata=True).passed is True
+    assert plan["dspy_run"]["executed"] is True
 
 
 def test_allocator_public_operations_accept_no_caller_filesystem_root():
@@ -64,6 +78,8 @@ def test_allocator_generates_server_owned_workspace_path_from_hashed_identity(tm
     assert run_identity.project_id not in str(workspace.path)
     assert run_identity.run_id not in str(workspace.path)
     assert (workspace.path / "src/app.py").read_bytes() == b"print('hello')\n"
+    assert "path" not in workspace.evidence()
+    assert str(workspace.path) not in json.dumps(workspace.evidence(), sort_keys=True)
 
 
 def test_forged_or_out_of_root_workspace_lease_is_rejected(tmp_path):
