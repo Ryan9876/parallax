@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Optimized Server-Owner Optimization Control Plane"
+  ],
+  "work_items": [
+    "Implementation of Compact Parallax server-owned optimization control plane for concurrent development work"
+  ],
+  "validations": [
+    "Validation of optimized server-owned work using fast-lane validation for development acceleration",
+    "AC-01: validate protected requirement — Workstreams, contracts, validation gates and release gates form a canonical restart-safe DAG with stable identities, deterministic serialization/digesting, cycle detection and dangling-dependency rejection. Process recreation yields the same graph and scheduling inputs.",
+    "AC-02: validate protected requirement — Ready work is ranked by deterministic downstream blocking/remaining-cost signals with stable tie-breaking. Optimization targets validated outcome time and cannot grant mutation, lease, provider or deployment authority.",
+    "AC-03: validate protected requirement — Steal/reassignment proposals reference the existing worker execution and expected lease generation, require conflict-free path ownership and safe state, and are applied only through accepted P2-V0.16.1 CAS semantics. Stale generations or in-flight protected mutations/side effects fail closed.",
+    "AC-04: validate protected requirement — Server-owned integration capacity can defer lower-criticality work. Cancellation/supersession cannot interrupt an in-flight mutation, accepted-lineage transition or unrecorded side effect; absent a safe checkpoint the controller returns WAIT rather than forcing cancellation.",
+    "AC-05: validate protected requirement — Impact selection is bound to a versioned graph digest and exact changed paths. Unknown/conflicting/low-confidence impact expands validation, mandatory global invariants are always included, and full protected suites remain mandatory at worker READY FOR INTEGRATION, integration and release boundaries.",
+    "AC-06: validate protected requirement — Reusable environments/caches are addressed by deterministic digest over approved secret-free toolchain/dependency/platform/config/source inputs. Missing or uncertain provenance invalidates reuse; secret-bearing material is rejected from identity and persisted metadata.",
+    "AC-07: validate protected requirement — Pattern/component/config recommendations require immutable digest/version, validation provenance and compatibility predicates. Project/private scope is respected and use of a pattern never advances accepted lineage or satisfies validation without fresh evidence.",
+    "AC-08: validate protected requirement — Failure/repair memory stores bounded structural fingerprints, repair class and outcome/provenance only. Raw private source/log/DOM/image/provider/prompt/credential/hidden-reasoning content is rejected, and Project-private memory cannot influence another Project.",
+    "AC-09: validate protected requirement — Routing chooses only from approved model classes based on task capability/confidence and bounded cost/latency policy. It cannot alter Work Specification acceptance, evaluator thresholds, protected evidence precedence, tool/network/provider capabilities or production authority.",
+    "AC-10: validate protected requirement — Preflight deterministically identifies cycles/missing dependencies, contradictory requirements, acceptance criteria without validation coverage, architecture/constitution conflicts, excess authority requests and ambiguous acceptance ownership. Material findings block implementation scheduling with typed evidence.",
+    "AC-11: validate protected requirement — Speculative candidates are immutable/disposable and explicitly cannot advance accepted lineage, merge/promotion gates or provider state. Sizing/rebalancing proposals preserve exactly one owner for every acceptance criterion and explicit dependency edges; orphaned/duplicate ownership is rejected.",
+    "AC-12: validate protected requirement — Phase telemetry covers queue/planning/generation/environment/build/test/browser/visual/provider/retry/integration/stall/human wait with bounded Project/run/workstream identity and evidence. It excludes private reasoning/raw content/secrets and supports lead-time, critical-path-blocked, retry/stall/human/integration-wait measures rather than treating occupancy/token throughput as the objective."
+  ],
+  "risks": [
+    "Risk mitigation: Ensures correctness and protected authority dominance, with a focus on slower proven paths for uncertain impact and provenance"
+  ],
+  "spec_id": "P2-V0.16.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Dependency graph is deterministic, durable and validatable",
+      "protected_requirement": "Workstreams, contracts, validation gates and release gates form a canonical restart-safe DAG with stable identities, deterministic serialization/digesting, cycle detection and dangling-dependency rejection. Process recreation yields the same graph and scheduling inputs."
+    },
+    {
+      "id": "AC-02",
+      "title": "Critical-path scheduling is deterministic and correctness-subordinate",
+      "protected_requirement": "Ready work is ranked by deterministic downstream blocking/remaining-cost signals with stable tie-breaking. Optimization targets validated outcome time and cannot grant mutation, lease, provider or deployment authority."
+    },
+    {
+      "id": "AC-03",
+      "title": "Work stealing preserves accepted worker lease, path ownership and single-writer guarantees",
+      "protected_requirement": "Steal/reassignment proposals reference the existing worker execution and expected lease generation, require conflict-free path ownership and safe state, and are applied only through accepted P2-V0.16.1 CAS semantics. Stale generations or in-flight protected mutations/side effects fail closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Integration backpressure and cancellation operate only at safe boundaries",
+      "protected_requirement": "Server-owned integration capacity can defer lower-criticality work. Cancellation/supersession cannot interrupt an in-flight mutation, accepted-lineage transition or unrecorded side effect; absent a safe checkpoint the controller returns WAIT rather than forcing cancellation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Change-impact validation never omits uncertain or globally mandatory checks",
+      "protected_requirement": "Impact selection is bound to a versioned graph digest and exact changed paths. Unknown/conflicting/low-confidence impact expands validation, mandatory global invariants are always included, and full protected suites remain mandatory at worker READY FOR INTEGRATION, integration and release boundaries."
+    },
+    {
+      "id": "AC-06",
+      "title": "Warm environment/cache reuse is immutable, secret-free and provenance-complete",
+      "protected_requirement": "Reusable environments/caches are addressed by deterministic digest over approved secret-free toolchain/dependency/platform/config/source inputs. Missing or uncertain provenance invalidates reuse; secret-bearing material is rejected from identity and persisted metadata."
+    },
+    {
+      "id": "AC-07",
+      "title": "Reusable patterns are validated, compatible and cannot bypass fresh validation",
+      "protected_requirement": "Pattern/component/config recommendations require immutable digest/version, validation provenance and compatibility predicates. Project/private scope is respected and use of a pattern never advances accepted lineage or satisfies validation without fresh evidence."
+    },
+    {
+      "id": "AC-08",
+      "title": "Failure fingerprint and repair memory are privacy-safe and Project-isolated",
+      "protected_requirement": "Failure/repair memory stores bounded structural fingerprints, repair class and outcome/provenance only. Raw private source/log/DOM/image/provider/prompt/credential/hidden-reasoning content is rejected, and Project-private memory cannot influence another Project."
+    },
+    {
+      "id": "AC-09",
+      "title": "Adaptive model routing remains inside approved capability and protected-evaluation boundaries",
+      "protected_requirement": "Routing chooses only from approved model classes based on task capability/confidence and bounded cost/latency policy. It cannot alter Work Specification acceptance, evaluator thresholds, protected evidence precedence, tool/network/provider capabilities or production authority."
+    },
+    {
+      "id": "AC-10",
+      "title": "Specification preflight blocks contradictory, untestable or authority-conflicting work",
+      "protected_requirement": "Preflight deterministically identifies cycles/missing dependencies, contradictory requirements, acceptance criteria without validation coverage, architecture/constitution conflicts, excess authority requests and ambiguous acceptance ownership. Material findings block implementation scheduling with typed evidence."
+    },
+    {
+      "id": "AC-11",
+      "title": "Speculative integration and workstream rebalancing remain non-authoritative and acceptance-safe",
+      "protected_requirement": "Speculative candidates are immutable/disposable and explicitly cannot advance accepted lineage, merge/promotion gates or provider state. Sizing/rebalancing proposals preserve exactly one owner for every acceptance criterion and explicit dependency edges; orphaned/duplicate ownership is rejected."
+    },
+    {
+      "id": "AC-12",
+      "title": "Telemetry is bounded, privacy-safe and measures validated outcome time",
+      "protected_requirement": "Phase telemetry covers queue/planning/generation/environment/build/test/browser/visual/provider/retry/integration/stall/human wait with bounded Project/run/workstream identity and evidence. It excludes private reasoning/raw content/secrets and supports lead-time, critical-path-blocked, retry/stall/human/integration-wait measures rather than treating occupancy/token throughput as the objective."
+    }
+  ],
+  "critique": [
+    "finding: Server-owned optimization control plane implementation risk"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
