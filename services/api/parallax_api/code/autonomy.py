@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import json
 from typing import Protocol
 
 from ..models import EngineeringRun
 from .domain import WorkflowStage
 from .execution import ExecutionSpec
+from .implementation_runtime import ImplementationRuntimeError, ProtectedImplementationRuntime
 from .sandbox_execution import ProtectedCommandRegistry
 from .service import EngineeringRunService
 from .state_machine import RevisionConflict
@@ -18,8 +20,21 @@ class AutonomousExecutor(Protocol):
     def probe(self, *, operation_key: str) -> dict[str, object]: ...
 
 
+class LineageAwareAutonomousExecutor(Protocol):
+    def execute_on_lineage(
+        self,
+        spec: ExecutionSpec,
+        *,
+        project_ref: str,
+        run_id: str,
+        source_lineage_ref: str,
+    ) -> dict[str, object]: ...
+
+
 class AutonomyStopReason(str, Enum):
     IMPLEMENTATION_REQUIRED = "IMPLEMENTATION_REQUIRED"
+    IMPLEMENTATION_FAILED = "IMPLEMENTATION_FAILED"
+    LINEAGE_EXECUTOR_REQUIRED = "LINEAGE_EXECUTOR_REQUIRED"
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     PAUSED = "PAUSED"
     FAILED = "FAILED"
@@ -47,8 +62,21 @@ class AutonomyResult:
     steps: tuple[AutonomyStep, ...] = field(default_factory=tuple)
 
 
+@dataclass(frozen=True, slots=True)
+class _AcceptedImplementationLineage:
+    project_ref: str
+    source_lineage_ref: str
+
+
 class AutonomyCoordinator:
-    """Advance only stages for which v0.13 grants explicit autonomous authority."""
+    """Advance only stages with explicit protected autonomous authority.
+
+    IMPLEMENT remains opt-in: a concrete protected runtime must be injected by
+    serialized Project/workspace integration. Once IMPLEMENT has accepted a new
+    source lineage, BUILD/TEST/VERIFY are also fail-closed unless a lineage-aware
+    executor is explicitly injected. A legacy executor must never silently test
+    unrelated source after a successful protected mutation.
+    """
 
     def __init__(
         self,
@@ -56,11 +84,15 @@ class AutonomyCoordinator:
         executor: AutonomousExecutor,
         *,
         registry: ProtectedCommandRegistry | None = None,
+        implementation_runtime: ProtectedImplementationRuntime | None = None,
+        lineage_executor: LineageAwareAutonomousExecutor | None = None,
         max_steps: int = 8,
     ) -> None:
         self.service = service
         self.executor = executor
         self.registry = registry or ProtectedCommandRegistry()
+        self.implementation_runtime = implementation_runtime
+        self.lineage_executor = lineage_executor
         self.max_steps = max_steps
 
     def run(
@@ -99,9 +131,6 @@ class AutonomyCoordinator:
                     )
                 )
                 if not probe_passed:
-                    # Executor readiness is a prerequisite to planning, not PLAN
-                    # evidence. Fail closed without turning a recoverable provider
-                    # outage into a durable engineering-run failure.
                     return AutonomyResult(
                         run=run,
                         stop_reason=AutonomyStopReason.EXECUTOR_UNAVAILABLE,
@@ -141,10 +170,72 @@ class AutonomyCoordinator:
                 )
                 continue
 
+            if stage is WorkflowStage.IMPLEMENT:
+                if self.implementation_runtime is None:
+                    return AutonomyResult(
+                        run=run,
+                        stop_reason=AutonomyStopReason.IMPLEMENTATION_REQUIRED,
+                        steps=tuple(steps),
+                    )
+                stage_key = self._stage_key(operation_key, stage, run.revision)
+                try:
+                    implementation = self.implementation_runtime.execute(
+                        run_id=run.id,
+                        operation_key=stage_key,
+                        expected_revision=run.revision,
+                    )
+                except ImplementationRuntimeError as exc:
+                    steps.append(
+                        AutonomyStep(
+                            stage=stage.value,
+                            outcome="FAILED_AFTER_MUTATION" if exc.mutation_applied else "FAILED",
+                            tool_id="implementation-runtime",
+                        )
+                    )
+                    return AutonomyResult(
+                        run=self.service.get(run.id),
+                        stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
+                        steps=tuple(steps),
+                    )
+                steps.append(
+                    AutonomyStep(
+                        stage=stage.value,
+                        outcome="PASSED",
+                        attempt_id=implementation.operation.attempt_id,
+                        replayed=implementation.operation.replayed,
+                        tool_id="safe-source-implementation-v1",
+                    )
+                )
+                continue
+
             if stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
                 stage_key = self._stage_key(operation_key, stage, run.revision)
                 spec = self.registry.spec_for(stage, operation_key=stage_key)
-                evidence = self.executor.execute(spec)
+                accepted_lineage = self._accepted_implementation_lineage(run)
+                if accepted_lineage is not None:
+                    if self.lineage_executor is None:
+                        return AutonomyResult(
+                            run=run,
+                            stop_reason=AutonomyStopReason.LINEAGE_EXECUTOR_REQUIRED,
+                            steps=tuple(steps),
+                        )
+                    evidence = self.lineage_executor.execute_on_lineage(
+                        spec,
+                        project_ref=accepted_lineage.project_ref,
+                        run_id=run.id,
+                        source_lineage_ref=accepted_lineage.source_lineage_ref,
+                    )
+                    # These identities are server-owned. Any executor-provided
+                    # values are overwritten rather than trusted.
+                    evidence["project_ref"] = accepted_lineage.project_ref
+                    evidence["source_lineage_ref"] = accepted_lineage.source_lineage_ref
+                    evidence["lineage_bound_execution"] = True
+                else:
+                    # Wave 1 / pre-lineage runs preserve their existing executor
+                    # behavior. #61 only tightens runs that accepted IMPLEMENT
+                    # lineage evidence.
+                    evidence = self.executor.execute(spec)
+
                 acceptance_ids = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
                 if stage is WorkflowStage.BUILD:
                     evidence["acceptance_ids_targeted"] = acceptance_ids
@@ -198,9 +289,27 @@ class AutonomyCoordinator:
         return f"{operation_key[: max(1, 160 - len(suffix))]}{suffix}"
 
     @staticmethod
+    def _accepted_implementation_lineage(run: EngineeringRun) -> _AcceptedImplementationLineage | None:
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.IMPLEMENT.value or attempt.status != "PASSED":
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json)
+            except (TypeError, json.JSONDecodeError):
+                return None
+            project_ref = evidence.get("project_ref")
+            source_lineage_ref = evidence.get("source_lineage_ref")
+            if isinstance(project_ref, str) and project_ref and isinstance(source_lineage_ref, str) and source_lineage_ref:
+                return _AcceptedImplementationLineage(
+                    project_ref=project_ref,
+                    source_lineage_ref=source_lineage_ref,
+                )
+            return None
+        return None
+
+    @staticmethod
     def _stop_reason(stage: WorkflowStage) -> AutonomyStopReason | None:
         reasons = {
-            WorkflowStage.IMPLEMENT: AutonomyStopReason.IMPLEMENTATION_REQUIRED,
             WorkflowStage.REVIEW: AutonomyStopReason.REVIEW_REQUIRED,
             WorkflowStage.PAUSED: AutonomyStopReason.PAUSED,
             WorkflowStage.FAILED: AutonomyStopReason.FAILED,
