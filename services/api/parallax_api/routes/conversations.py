@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from ..auth import AccessPrincipal, access_principal
 from ..config import settings
 from ..db import get_session
 from ..intelligence.context import ContextLimitError, compose_reason_context
 from ..intelligence.coordinator import ResponseCoordinationFailure, ResponseCoordinator
 from ..intelligence.scope import ScopeDecision
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..schemas import ConversationCreate, ConversationRead, MessageCreate, MessageRead, ResponseRequest
 from ..services.conversations import ConversationService
@@ -23,13 +25,21 @@ AMENDMENT_MESSAGE = (
 )
 
 
-def service(session: Session = Depends(get_session)) -> ConversationService:
-    return ConversationService(ConversationRepository(session))
+def service(
+    session: Session = Depends(get_session),
+    principal: AccessPrincipal = Depends(access_principal),
+) -> ConversationService:
+    return ConversationService(
+        ConversationRepository(session),
+        ProjectRepository(session),
+        owner_subject=principal.subject,
+        require_project_binding=True,
+    )
 
 
 @router.post("", response_model=ConversationRead)
 def create_conversation(payload: ConversationCreate, svc: ConversationService = Depends(service)):
-    return svc.create(payload.mode)
+    return svc.create(payload.mode, payload.project_id)
 
 
 @router.get("", response_model=list[ConversationRead])
@@ -49,8 +59,6 @@ def append_message(conversation_id: str, payload: MessageCreate, svc: Conversati
 
 @router.post("/{conversation_id}/follow-ups", response_model=MessageRead)
 def append_follow_up(conversation_id: str, payload: ResponseRequest, svc: ConversationService = Depends(service)):
-    # Transitional compatibility endpoint. The legacy Boolean is persisted
-    # nowhere and is not conversation-state authority in Reason 2.0.
     return svc.append_follow_up(conversation_id, payload.content)
 
 
