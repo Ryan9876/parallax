@@ -165,6 +165,29 @@ def test_cleanup_is_idempotent_and_does_not_delete_lineage_state(tmp_path):
     assert (restored.path / "app.py").read_bytes() == b"stable\n"
 
 
+def test_lineage_state_survives_allocator_recreation_for_resume(tmp_path):
+    protected_root = tmp_path / "protected"
+    run_identity = identity()
+    first_allocator = ProjectWorkspaceAllocator(protected_root)
+    workspace = first_allocator.initialize(run_identity, RepositoryProvider({"app.py": b"before\n"}))
+    initial = workspace.lineage
+    (workspace.path / "app.py").write_bytes(b"accepted\n")
+    accepted = first_allocator.accept_implementation(
+        workspace,
+        expected_parent_lineage_id=initial.lineage_id,
+    )
+    first_allocator.cleanup(workspace)
+
+    resumed_allocator = ProjectWorkspaceAllocator(protected_root)
+    assert resumed_allocator.current_lineage(run_identity) == accepted
+    resumed = resumed_allocator.resolve(run_identity)
+    historical = resumed_allocator.reconstruct(run_identity, initial.lineage_id)
+
+    assert resumed.lineage.lineage_id == accepted.lineage_id
+    assert (resumed.path / "app.py").read_bytes() == b"accepted\n"
+    assert (historical.path / "app.py").read_bytes() == b"before\n"
+
+
 def test_workspace_lease_cannot_claim_lineage_from_another_project_run(tmp_path):
     allocator = ProjectWorkspaceAllocator(tmp_path / "protected")
     first_identity = identity()
