@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
 from ..code.sandbox_execution import VercelSandboxExecutor
@@ -13,6 +14,7 @@ from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOpe
 from ..code.state_machine import RevisionConflict, RunTransitionError
 from ..db import get_session
 from ..models import EngineeringRun
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
@@ -30,11 +32,17 @@ from ..schemas import (
 router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
 
-def service(session: Session = Depends(get_session)) -> EngineeringRunService:
+def service(
+    session: Session = Depends(get_session),
+    principal: AccessPrincipal = Depends(access_principal),
+) -> EngineeringRunService:
     return EngineeringRunService(
         EngineeringRunRepository(session),
         ConversationRepository(session),
         WorkSpecificationRepository(session),
+        ProjectRepository(session),
+        owner_subject=principal.subject,
+        require_project_binding=True,
     )
 
 
@@ -44,6 +52,8 @@ def present(run: EngineeringRun, svc: EngineeringRunService) -> dict:
         "id": run.id,
         "conversation_id": run.conversation_id,
         "spec_id": run.spec_id,
+        "project_id": run.project_id,
+        "project_binding_status": "PROJECT_BOUND" if run.project_id else "HISTORICAL_UNBOUND",
         "work_specification_id": run.work_specification_id,
         "work_specification_revision": run.work_specification_revision,
         "work_specification_digest": run.work_specification_digest,
