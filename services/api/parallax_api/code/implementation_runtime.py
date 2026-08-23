@@ -18,7 +18,7 @@ from .implementation import ImplementationError, ImplementationRequest, SafeImpl
 from .patching import PatchError, SourcePatch
 from .service import EngineeringRunService, RunOperationResult
 from .source_context import BoundedSourceContextSelector, SourceContextError
-from .state_machine import RevisionConflict, SpecBindingError
+from .state_machine import RevisionConflict
 from .work_spec_binding import acceptance_map, work_specification_contract, work_specification_digest
 
 
@@ -60,7 +60,7 @@ class RunProjectBinding:
         value = getattr(run, "project_id", None)
         if not isinstance(value, str) or not value.strip():
             raise ProjectBindingError("canonical Project identity is unavailable for this Engineering Run")
-        return value.strip()
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,17 +276,26 @@ class ProtectedImplementationRuntime:
             "git_mutation": False,
             "deployment_mutation": False,
         }
-        operation = self.service.complete_stage(
-            run_id=run.id,
-            stage=WorkflowStage.IMPLEMENT,
-            operation_key=operation_key,
-            expected_revision=run.revision,
-            passed=True,
-            evidence=evidence,
-            program_id=generation.program_version,
-            model_id=generation.model,
-            tool_id="safe-source-implementation-v1",
-        )
+        try:
+            operation = self.service.complete_stage(
+                run_id=run.id,
+                stage=WorkflowStage.IMPLEMENT,
+                operation_key=operation_key,
+                expected_revision=run.revision,
+                passed=True,
+                evidence=evidence,
+                program_id=generation.program_version,
+                model_id=generation.model,
+                tool_id="safe-source-implementation-v1",
+            )
+        except Exception as exc:
+            # Mutation and lineage acceptance already completed. Durable stage
+            # authority remains with EngineeringRunService; never fabricate a
+            # successful transition when its validator/policy rejects the write.
+            raise ImplementationRuntimeError(
+                "source mutation succeeded but durable IMPLEMENT acceptance failed",
+                mutation_applied=True,
+            ) from exc
         return ImplementationRuntimeResult(
             operation=operation,
             source_lineage_ref=receipt.source_lineage_ref,
@@ -298,17 +307,19 @@ class ProtectedImplementationRuntime:
     def _project_ref(self, run: EngineeringRun) -> str:
         try:
             value = self.project_binding.project_ref_for_run(run)
+            return _bounded_identity(value, "project_ref")
         except ImplementationRuntimeError:
             raise
         except Exception as exc:
             raise ProjectBindingError("canonical Project binding failed") from exc
-        return _bounded_identity(value, "project_ref")
 
     def _workspace_handle(self, project_ref: str, run: EngineeringRun) -> ImplementationWorkspaceHandle:
         try:
             handle = self.workspace_lineage.resolve_for_implementation(project_ref=project_ref, run_id=run.id)
         except Exception as exc:
             raise WorkspaceLineageError("protected implementation workspace could not be resolved") from exc
+        if not isinstance(handle, ImplementationWorkspaceHandle):
+            raise WorkspaceLineageError("protected workspace adapter returned an invalid handle")
         if handle.project_ref != project_ref or handle.run_id != run.id:
             raise WorkspaceLineageError("protected workspace identity does not match the Project/run binding")
         if not handle.workspace_root.exists() or not handle.workspace_root.is_dir() or handle.workspace_root.is_symlink():
@@ -316,20 +327,23 @@ class ProtectedImplementationRuntime:
         return handle
 
     def _bound_contract(self, run: EngineeringRun):
-        if not run.work_specification_id or run.work_specification_revision is None or not run.work_specification_digest:
-            raise SpecBindingError("IMPLEMENT requires an approved Work Specification binding")
-        specification = self.service.work_specifications.get(run.work_specification_id)
-        if specification is None:
-            raise SpecBindingError("bound Work Specification no longer exists")
-        if specification.conversation_id != run.conversation_id:
-            raise SpecBindingError("bound Work Specification conversation mismatch")
-        if specification.revision != run.work_specification_revision:
-            raise SpecBindingError("bound Work Specification revision mismatch")
-        if specification.status not in {"APPROVED", "SUPERSEDED"}:
-            raise SpecBindingError("bound Work Specification is not an approved execution contract")
-        if work_specification_digest(specification) != run.work_specification_digest:
-            raise SpecBindingError("bound Work Specification content changed after run binding")
-        return specification, work_specification_contract(specification), acceptance_map(specification)
+        try:
+            if not run.work_specification_id or run.work_specification_revision is None or not run.work_specification_digest:
+                raise ValueError("IMPLEMENT requires an approved Work Specification binding")
+            specification = self.service.work_specifications.get(run.work_specification_id)
+            if specification is None:
+                raise ValueError("bound Work Specification no longer exists")
+            if specification.conversation_id != run.conversation_id:
+                raise ValueError("bound Work Specification conversation mismatch")
+            if specification.revision != run.work_specification_revision:
+                raise ValueError("bound Work Specification revision mismatch")
+            if specification.status not in {"APPROVED", "SUPERSEDED"}:
+                raise ValueError("bound Work Specification is not an approved execution contract")
+            if work_specification_digest(specification) != run.work_specification_digest:
+                raise ValueError("bound Work Specification content changed after run binding")
+            return specification, work_specification_contract(specification), acceptance_map(specification)
+        except Exception as exc:
+            raise ImplementationContractError("bound Work Specification contract could not be proven") from exc
 
     def _accept_lineage(
         self,
@@ -339,11 +353,14 @@ class ProtectedImplementationRuntime:
         artifacts: tuple[dict[str, object], ...],
     ) -> ImplementationLineageReceipt:
         try:
-            return self.workspace_lineage.accept_implementation(
+            receipt = self.workspace_lineage.accept_implementation(
                 handle=handle,
                 workspace_digest=workspace_digest,
                 artifacts=artifacts,
             )
+            if not isinstance(receipt, ImplementationLineageReceipt):
+                raise TypeError("workspace-lineage adapter returned an invalid receipt")
+            return receipt
         except Exception as exc:
             # Mutation already completed. Do not fabricate accepted lineage or
             # durable IMPLEMENT success; serialized integration can reconcile
