@@ -102,8 +102,8 @@ class FakeGitHubClient:
             repository_ref,
             source_revision,
             (
-                GitHubTreeEntry("src", "tree", 0, "tree:src"),
-                GitHubTreeEntry("src/app.py", "file", 16, "blob:app"),
+                GitHubTreeEntry("src", "tree", 0, "tree-src"),
+                GitHubTreeEntry("src/app.py", "file", 16, "blob-app"),
             ),
         )
 
