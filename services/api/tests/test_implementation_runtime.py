@@ -314,7 +314,7 @@ def test_acceptance_mismatch_fails_before_mutation_even_with_injected_generator(
     [
         ("../escape.py", None, "value = 2\n"),
         ("app.py", "0" * 64, "value = 2\n"),
-        ("app.py", None, 'api_key = "abcdefghijklmnopqrstuvwx"\n'),
+        ("app.py", None, "api_key = abcdefghijklmnopqrstuvwx\n"),
     ],
 )
 def test_wave1_safety_rejects_unsafe_stale_or_secret_proposals_without_durable_success(
