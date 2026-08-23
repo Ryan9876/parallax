@@ -6,6 +6,11 @@ on:
     paths:
       - 'specs/P2-V0.15.11.md'
       - '.github/workflows/ws84-compile.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'specs/P2-V0.15.11.md'
+      - '.github/workflows/ws84-compile.yml'
   workflow_dispatch:
 
 jobs:
