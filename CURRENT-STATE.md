@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: App-builder Wave 2 production runtime
+Release: App-builder Wave 2 production runtime; Wave 3 development integration in progress
 Date: 2026-08-23
-Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = UNLOCKED / NOT YET STARTED**
+Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = DEVELOPMENT INTEGRATED THROUGH P2-V0.16.3 / CUMULATIVELY VALIDATED / NOT MERGED TO MAIN / NOT DEPLOYED**
 
 ## Production truth
 
@@ -15,12 +15,40 @@ The production application merge is:
 - `main` was verified at that exact merge SHA immediately after promotion;
 - later root documentation/authoritative-record commits do not redefine the deployed application release identity.
 
+## Wave 3 development truth
+
+Wave 3 development is active on the serialized integration branch `integration/wave3-autonomy`. This is validated development state only; it has **not** been merged to `main`, deployed to production, had Wave 3 migration `0009` applied to production, or been deployment-verified.
+
+Validated integrated Wave 3 capabilities:
+
+1. `P2-V0.16.1` / #95 — durable worker lifecycle, renewable leases, canonical checkpoints, stall classification, bounded recovery/reassignment and stale-worker fail-closed behavior;
+2. `P2-V0.16.2` / #96 — protected deterministic browser/accessibility/network/layout validation, provenance-bound screenshot regression and secondary multimodal visual review;
+3. `P2-V0.16.3` / #97 — bounded autonomous defect normalization, diagnose/correct/revalidate convergence, last-known-good preservation, finite resource/no-progress/oscillation bounds and data-only failure dispatch.
+
+Current serialized Wave 3 integration head after #97:
+
+`46c065f839b2f00559381222df15c44911de4256`
+
+Cumulative exact-head evidence on that integration tree:
+
+- Workstream Spec Validation `32669027049` — **SUCCESS**;
+- Bounded Autonomy Pilot `32669027037` — **SUCCESS**;
+- Parallax P2 CI `32669027035` — **SUCCESS**;
+  - full API + contract regression — success;
+  - client type/state/export + browser/Skia acceptance — success;
+  - protected promotion evaluation — success;
+  - DSPy release compilation — success.
+
+The #97 validation cycle exposed and corrected a controller attribute/method collision and strengthened elapsed-runtime enforcement with a second budget check immediately before mutation. The accepted fix did not weaken protected thresholds, authority, lineage or promotion boundaries.
+
+Next critical-path workstream is `P2-V0.16.4` / #98: critical-path scheduling, impact-aware validation, safe reuse/caching, specification preflight, speculative integration, workstream sizing and bounded development-performance telemetry. #98 must reuse the P2-V0.16.1 worker identity/lease protocol rather than create a competing scheduler authority.
+
 ## Authoritative governance
 
 - `PROJECT-CONSTITUTION.md` v1.3 — unchanged;
-- `ARCHITECTURE.md` v2.5 — updated for the deployed Wave 2 runtime;
+- `ARCHITECTURE.md` v2.5 — unchanged by the Wave 3 development integration so far; the durable production architecture remains Wave 2 until promotion;
 - `DESIGN-SYSTEM.md` v2.1 — unchanged;
-- `CURRENT-STATE.md` — this deployment-verified snapshot;
+- `CURRENT-STATE.md` — this production + validated-development snapshot;
 - `PARALLEL-DEVELOPMENT.md` — concurrent-development protocol.
 
 GitHub issues/PRs/workflows, Supabase migration/schema evidence and Vercel deployment/runtime evidence remain operational authority when chat recollection differs.
@@ -50,7 +78,7 @@ Process/request recreation, durable lineage reconstruction, duplicate IMPLEMENT 
 
 ## Final pre-merge validation
 
-Final tree-identical release-refresh head:
+Final tree-identical Wave 2 release-refresh head:
 
 `2cd5a29971912a896a379ff82725fbeb65e69d95`
 
@@ -123,6 +151,8 @@ Direct verification proved:
 - `anon` and `authenticated` have no SELECT privilege on either lineage table.
 
 Post-migration security/performance advisors introduced no release-blocking finding. RLS-with-no-policy notices on server-owned tables are intentional fail-closed INFO findings. The leaked-password-protection warning predates Wave 2 and was not changed as part of this release. New-index/foreign-key advisor entries are INFO only and are not evidence to remove fresh release indexes.
+
+Wave 3 worker-recovery migration `20260823_0009_worker_recovery.sql` exists only in validated development state and remains unapplied to production.
 
 ## Production deployments
 
@@ -207,18 +237,17 @@ Evidence satisfies the release objective without claiming unsupported facts:
 - rollback targets verified;
 - temporary broad bootstrap credential revoked.
 
-## Next phase — Wave 3 unlocked
+## Wave 3 current decision
 
-Wave 3 may now begin. Its approved platform objective is generalized end-to-end bounded autonomous development through implementation, deterministic/browser/visual validation, correction/retry, provider Preview publication and protected evaluation until success or a defined human/resource boundary.
+Wave 3 is **IN DEVELOPMENT** and cumulatively validated through `P2-V0.16.3` on the integration branch. This does not alter Wave 2 production truth.
 
-Approved Wave 3 additions include:
+The accepted Wave 3 development baseline now contains:
 
-- deterministic DOM/accessibility/console/network validation before screenshot/multimodal judgment;
-- screenshot regression and multimodal visual QA;
-- autonomous diagnose/correct/retest with last-known-good preservation and convergence budgets;
-- durable worker leases/checkpoints/heartbeats plus `STALLED`, `RECOVERING`, `REASSIGNED` and `HUMAN_REQUIRED` recovery behavior;
-- deliberate worker-kill/stall recovery proof;
-- critical-path scheduling, bounded work stealing, change-impact validation, warm secret-free environments, validated pattern reuse, privacy-safe repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing and development-performance telemetry;
-- the same protected baseline for Parallax self-development and every Project Parallax develops.
+- durable worker lease/checkpoint/recovery semantics;
+- deterministic browser/accessibility/network/layout validation before visual judgment;
+- provenance-bound screenshot regression and bounded secondary multimodal review;
+- autonomous diagnose/correct/retest with immutable lineage, strict LKG preservation, convergence/resource bounds and explicit human/resource stop conditions.
+
+The remaining Wave 3 platform objective includes critical-path scheduling, bounded work stealing, impact validation, warm secret-free environments, validated pattern reuse, privacy-safe repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing and development-performance telemetry, followed by final integration/release reconciliation.
 
 Production merge/promotion remains outside the ordinary autonomous Wave 3 ceiling unless durable governance is explicitly changed later.
