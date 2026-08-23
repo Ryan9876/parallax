@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
+from ..code.runtime_composition import DurableLineageAllocator, EngineeringRuntimeComposition
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
@@ -44,6 +45,18 @@ def service(
         owner_subject=principal.subject,
         require_project_binding=True,
     )
+
+
+def runtime_lineage_allocator() -> DurableLineageAllocator | None:
+    """#68 production binding seam.
+
+    Returning None preserves the existing fail-closed Wave 1 behavior while
+    #68 is developed in parallel. Before #69 can be READY FOR INTEGRATION this
+    dependency must be reconciled to #68's production-safe durable allocator.
+    Tests may override this FastAPI dependency with a deterministic allocator.
+    """
+
+    return None
 
 
 def present(run: EngineeringRun, svc: EngineeringRunService) -> dict:
@@ -142,9 +155,20 @@ def advance(run_id: str, payload: EngineeringAdvance, svc: EngineeringRunService
 
 
 @router.post("/{run_id}/autonomous", response_model=EngineeringAutonomyRead)
-def autonomous(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):
+def autonomous(
+    run_id: str,
+    payload: EngineeringOperation,
+    svc: EngineeringRunService = Depends(service),
+    allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
+):
+    legacy_executor = VercelSandboxExecutor()
+    runtime = (
+        AutonomyCoordinator(svc, legacy_executor)
+        if allocator is None
+        else EngineeringRuntimeComposition(svc, allocator, legacy_executor)
+    )
     result = invoke(
-        lambda: AutonomyCoordinator(svc, VercelSandboxExecutor()).run(
+        lambda: runtime.run(
             run_id=run_id,
             **payload.model_dump(),
         )
