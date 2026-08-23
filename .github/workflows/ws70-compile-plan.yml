@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   compile-plan:
@@ -64,3 +65,13 @@ jobs:
           path: specs/compiled/P2-V0.15.7.plan.json
           if-no-files-found: error
           retention-days: 14
+      - name: Record successful compiler status
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment 70 --body "WS70 temporary compiler: SUCCESS on ${GITHUB_SHA}; generated P2-V0.15.7 plan committed by workflow."
+      - name: Record failed compiler status
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment 70 --body "WS70 temporary compiler: FAILED on ${GITHUB_SHA}. See the WS70 Compile Protected Plan workflow for the failing bounded stage; no provider implementation was authorized by this run."
