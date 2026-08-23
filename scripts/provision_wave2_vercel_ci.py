@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import provision_wave2_vercel as helper
@@ -83,6 +85,62 @@ def _json_token(text: str) -> str:
     return token
 
 
+def _set_env_via_api(
+    repo: Path,
+    name: str,
+    value: str,
+    environment: str,
+    *,
+    sensitive: bool,
+) -> None:
+    """Upsert canonical API-project env without exposing a secret to argv/logs.
+
+    The helper calls once for preview and once for production. We intentionally
+    target both on every upsert so retries cannot leave the key present in only
+    one environment if a run is interrupted between calls.
+    """
+    del repo, environment
+    token = os.getenv("VERCEL_TOKEN", "")
+    if not token:
+        raise helper.ProvisioningError("Vercel management credential is unavailable for env upsert")
+    query = urllib.parse.urlencode(
+        {"teamId": EXPECTED_LINK["orgId"], "upsert": "true"}
+    )
+    url = f"https://api.vercel.com/v10/projects/{EXPECTED_LINK['projectId']}/env?{query}"
+    body = json.dumps(
+        {
+            "key": name,
+            "value": value,
+            "type": "sensitive" if sensitive else "plain",
+            "target": ["preview", "production"],
+            "comment": "Parallax Wave 2 bounded runtime prerequisite",
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "parallax-wave2-provisioner",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            status = int(response.status)
+            response.read()
+    except urllib.error.HTTPError as exc:
+        status = int(exc.code)
+        exc.read()  # consume without rendering a possibly value-bearing response body
+    except urllib.error.URLError as exc:
+        raise helper.ProvisioningError("Vercel environment upsert could not reach the control API") from exc
+    if status not in {200, 201}:
+        raise helper.ProvisioningError(f"Vercel environment upsert failed with HTTP {status}")
+
+
 def _probe_existing_connectors(repo: Path) -> None:
     project = "parallax-api"
     for connector in ("github/alizarin-feather", "github/alizarin-grass"):
@@ -152,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     helper._ensure_link = _ensure_seeded_link
     helper._connector_present = _team_connector_present
     helper._json_token = _json_token
+    helper._set_env = _set_env_via_api
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--api-dir", default="services/api")
     known, _ = parser.parse_known_args(argv)
