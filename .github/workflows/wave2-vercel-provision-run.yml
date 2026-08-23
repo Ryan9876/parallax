@@ -46,9 +46,17 @@ jobs:
         id: install_cli
         if: steps.credential.outcome == 'success'
         run: npm install --global vercel@58.4.4
+      - name: Seed canonical Vercel API project link
+        id: seed_link
+        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success'
+        shell: bash
+        run: |
+          mkdir -p services/api/.vercel
+          printf '%s\n' '{"orgId":"team_JgE8AWWz36uzRbeR6V6EWg9k","projectId":"prj_4lhve1AXZntfauaGHvkuaGWC6KJX"}' > services/api/.vercel/project.json
+          echo 'PASS: canonical parallax-api project link seeded without resolving user identity.'
       - name: Provision and verify Wave 2 Vercel prerequisites
         id: provision
-        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success'
+        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success' && steps.seed_link.outcome == 'success'
         run: python scripts/provision_wave2_vercel.py --provision --api-dir services/api
       - name: Record provisioning evidence in Control Tower
         if: always()
@@ -56,11 +64,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CREDENTIAL_OUTCOME: ${{ steps.credential.outcome }}
           CLI_OUTCOME: ${{ steps.install_cli.outcome }}
+          LINK_OUTCOME: ${{ steps.seed_link.outcome }}
           PROVISION_OUTCOME: ${{ steps.provision.outcome }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           HEAD_SHA: ${{ github.sha }}
         shell: bash
         run: |
-          gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential availability check: **$CREDENTIAL_OUTCOME**. Pinned CLI install: **$CLI_OUTCOME**. Provision + verify helper: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
-
-# Triggered after VERCEL_TOKEN bootstrap secret was provisioned on 2026-08-23.
+          gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
