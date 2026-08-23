@@ -29,6 +29,16 @@ CREATE TABLE IF NOT EXISTS source_lineage_heads (
     CONSTRAINT ck_source_lineage_head_revision CHECK (revision >= 0)
 );
 
+-- Internal runtime lineage metadata follows the same production posture as the
+-- other server-owned public-schema tables: Data API roles receive no table
+-- privileges and RLS remains defense in depth even though no permissive policy
+-- is defined for anon/authenticated.
+ALTER TABLE source_lineage_manifests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE source_lineage_heads ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE source_lineage_manifests, source_lineage_heads
+    FROM anon, authenticated;
+
 -- Source bytes are intentionally absent from Postgres. Immutable source content
 -- lives in private content-addressed object storage. This metadata contains only
 -- bounded manifest evidence and the transactional current-lineage CAS head.
