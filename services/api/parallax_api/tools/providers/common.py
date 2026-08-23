@@ -21,6 +21,7 @@ from ..registry import ToolCapabilityRegistry
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _OPAQUE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _SOURCE_REVISION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+_SOURCE_LINEAGE = re.compile(r"^src:[0-9a-f]{64}$")
 _APP_BRANCH = re.compile(r"^parallax/[A-Za-z0-9][A-Za-z0-9._/-]{0,110}$")
 _GITHUB_REPOSITORY = re.compile(
     r"^github:(?P<owner>[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?)/"
@@ -34,17 +35,21 @@ class ProviderActionState(str, Enum):
     SUCCEEDED = "SUCCEEDED"
 
 
-def require_project_id(value: str) -> str:
+def require_canonical_uuid(value: str, *, field: str) -> str:
     if not isinstance(value, str):
-        raise TypeError("project_ref must be canonical Project.id text")
+        raise TypeError(f"{field} must be canonical UUID text")
     try:
         parsed = UUID(value)
     except (ValueError, AttributeError) as exc:
-        raise ValueError("project_ref must be canonical Project.id UUID") from exc
+        raise ValueError(f"{field} must be a canonical UUID") from exc
     canonical = str(parsed)
-    if value.lower() != canonical:
-        raise ValueError("project_ref must use canonical Project.id UUID form")
+    if value != canonical:
+        raise ValueError(f"{field} must use canonical lowercase UUID form")
     return canonical
+
+
+def require_project_id(value: str) -> str:
+    return require_canonical_uuid(value, field="project_ref")
 
 
 def require_repository_ref(value: str) -> str:
@@ -64,6 +69,12 @@ def require_source_revision(value: str, *, field: str = "source_revision") -> st
         raise ValueError(f"{field} must be a bounded source revision")
     if value in {".", ".."} or value.startswith("/") or "//" in value or ".." in value.split("/"):
         raise ValueError(f"{field} contains an unsafe revision path")
+    return value
+
+
+def require_source_lineage_id(value: str) -> str:
+    if not isinstance(value, str) or not _SOURCE_LINEAGE.fullmatch(value):
+        raise ValueError("lineage_id must use protected src:<sha256> identity form")
     return value
 
 
@@ -112,11 +123,15 @@ class ProviderProjectBinding:
 
 @dataclass(frozen=True, slots=True)
 class AcceptedSourceLineage:
-    lineage_ref: str
+    project_id: str
+    run_id: str
+    lineage_id: str
     content_digest: str
 
     def __post_init__(self) -> None:
-        require_opaque_ref(self.lineage_ref, field="lineage_ref")
+        require_canonical_uuid(self.project_id, field="project_id")
+        require_canonical_uuid(self.run_id, field="run_id")
+        require_source_lineage_id(self.lineage_id)
         require_sha256(self.content_digest, field="content_digest")
 
 
@@ -143,6 +158,7 @@ class ProviderActionEvidence:
     project_ref: str
     repository_identity_digest: str
     source_revision: str | None = None
+    lineage_id: str | None = None
     lineage_digest: str | None = None
     result_identity: str | None = None
     result_status: str | None = None
@@ -159,8 +175,12 @@ class ProviderActionEvidence:
         require_sha256(self.repository_identity_digest, field="repository_identity_digest")
         if self.source_revision is not None:
             require_source_revision(self.source_revision)
+        if self.lineage_id is not None:
+            require_source_lineage_id(self.lineage_id)
         if self.lineage_digest is not None:
             require_sha256(self.lineage_digest, field="lineage_digest")
+        if (self.lineage_id is None) != (self.lineage_digest is None):
+            raise ValueError("lineage identity and digest must be recorded together")
         if self.result_identity is not None:
             require_opaque_ref(self.result_identity, field="result_identity")
         if self.result_status is not None:
@@ -182,6 +202,7 @@ class ProviderActionEvidence:
                 "project_ref": self.project_ref,
                 "repository_identity_digest": self.repository_identity_digest,
                 "source_revision": self.source_revision,
+                "lineage_id": self.lineage_id,
                 "lineage_digest": self.lineage_digest,
                 "result_identity": self.result_identity,
                 "result_status": self.result_status,
@@ -305,6 +326,7 @@ class AuthorizedProviderExecutor:
             project_ref=binding.project_ref,
             repository_identity_digest=binding.repository_identity_digest,
             source_revision=source_revision,
+            lineage_id=lineage.lineage_id if lineage else None,
             lineage_digest=lineage.content_digest if lineage else None,
             result_identity=result_identity,
             result_status=result_code,
@@ -331,6 +353,7 @@ class AuthorizedProviderExecutor:
             project_ref=binding.project_ref,
             repository_identity_digest=binding.repository_identity_digest,
             source_revision=source_revision,
+            lineage_id=lineage.lineage_id if lineage else None,
             lineage_digest=lineage.content_digest if lineage else None,
             result_identity=error.result.result_identity,
             result_status=error.result.result_code,
