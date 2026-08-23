@@ -1,256 +1,180 @@
 # Parallax 2.0 Current State
 
-Release: App-builder Wave 1 foundation
+Release: App-builder Wave 1 production foundation + Wave 2 integration candidate
 Date: 2026-08-22
-Status: DEPLOYED — PRODUCTION VERIFIED FOUNDATION; END-TO-END APP BUILDING NOT YET COMPLETE
-Production branch: `main`
-Production application commit: `357aaf9e8dd2d7560b4adb0232746b7eb81b7b8c`
-Production web alias: `https://parallax-ashy-one-20.vercel.app`
-Production API alias: `https://parallax-api-tan.vercel.app`
-Production web deployment: `dpl_88MB16ZRUMgvFgzsukEMXq82Skyy` (unchanged v0.13.9 client)
-Production API deployment: `dpl_D1ozbw2vzRF8DUcKFigiap4Q5HYB`
+Status: **PRODUCTION = WAVE 1 VERIFIED; WAVE 2 = VALIDATED THROUGH P2-V0.15.8 / NOT MERGED / NOT DEPLOYED / CLOSURE WORK ACTIVE**
 
-## Current production baseline
+## Production truth
 
-Parallax now has the first deployed app-builder foundation while preserving the v0.13.9 conversation/client experience.
+Production remains the verified Wave 1 app-builder foundation. No Wave 2 runtime/client migration, storage provisioning, credential provisioning, merge, or production deployment has occurred.
 
-The existing production Code path still provides durable Work Specifications, immutable approved-spec Engineering Run binding, protected Code stages, bounded autonomy, Vercel Sandbox execution for registered commands, protected evaluation, Google authorization, durable persistence, and explicit human authority boundaries.
+- production branch: `main`
+- production application commit: `357aaf9e8dd2d7560b4adb0232746b7eb81b7b8c`
+- production web: v0.13.9 client / deployment `dpl_88MB16ZRUMgvFgzsukEMXq82Skyy`
+- production API deployment: `dpl_D1ozbw2vzRF8DUcKFigiap4Q5HYB`
+- production API `/health`: verified 200
+- production API `/ready`: verified 200 / database ok
+- unauthenticated `/v1/projects`: verified 401
+- production Project migration: applied and verified with RLS/direct-client-role restrictions preserved
 
-Wave 1 adds four durable backend foundations:
+Wave 1 production capabilities include canonical Project lifecycle, safe bounded source patching, project-scoped tool-authority contracts, protected app-builder evaluation/observability, approved-Work-Spec Code stages, bounded Vercel Sandbox execution, persistent conversations/specs/runs, authentication, and explicit human release authority.
 
-1. **Canonical Project/App lifecycle — P2-V0.14.1**
-   - server-generated UUID Project identity;
-   - owner-scoped create/list/read persistence and API;
-   - immutable opaque `workspace_ref = project:<id>` identity;
-   - optional bounded repository identity metadata;
-   - additive production `projects` table with RLS enabled and direct `anon` / `authenticated` access revoked.
+## Authoritative governance
 
-2. **Safe source implementation and patch engine — P2-V0.14.2**
-   - bounded text source mutation inside an explicit isolated filesystem root;
-   - exact expected-base digest protection and commit-time pre-image recheck;
-   - traversal/symlink, binary, secret-sensitive, malformed, stale, oversized, unsupported and no-op patch rejection;
-   - atomic multi-file prepare/apply/rollback behavior;
-   - deterministic before/after/diff/artifact evidence;
-   - explicit `protected_stage_authority: false`, with no shell, Git, network or deployment authority.
+- `PROJECT-CONSTITUTION.md` v1.3
+- `ARCHITECTURE.md` v2.4
+- `DESIGN-SYSTEM.md` v2.1
+- `CURRENT-STATE.md` — this snapshot
+- concurrent-development protocol: `PARALLEL-DEVELOPMENT.md`
 
-3. **Project-scoped tool authority contracts — P2-V0.14.3**
-   - immutable capability/action/request/approval/decision/result/audit contracts;
-   - server-owned fail-closed capability and approval registries;
-   - exact project/tool/action matching;
-   - destructive-action human approval invariant;
-   - reserved denial of generic shell/exec/command/subprocess/raw-HTTP/network escape hatches;
-   - structurally distinct `DENIED`, `FAILED` and `SUCCEEDED` outcomes;
-   - no concrete provider adapter or credential exposure in this foundation.
+GitHub issues/PRs/workflows and deployment evidence are authoritative for active workstream/release state when chat recollection differs.
 
-4. **App-builder evaluation and observability spine — P2-V0.14.4**
-   - versioned development and promotion suites;
-   - deterministic protected scoring and critical-failure semantics;
-   - coverage for project isolation, specification binding, implementation evidence, BUILD/TEST/VERIFY truthfulness, tool authority, interruption/recovery and evidence hygiene;
-   - fail-closed secret and hidden-reasoning rejection;
-   - digest-based observable evidence rather than raw provider payloads.
+## Wave 2 integration candidate
 
-## Wave 1 integration and validation
+Cumulative PR: `#67` — **Wave 2 app-builder integration candidate**
+Branch: `integration/wave2-app-builder`
+Current validated head: `a3c5d0f08c91f9407629df811aab6b28b8dde6ed`
+PR state: **DRAFT / DO NOT MERGE / DO NOT DEPLOY**
 
-The four worker candidates were not merged directly to production. They were serialized through `integration/wave1-app-builder` and revalidated cumulatively.
+### Integrated Wave 2 contracts
 
-Final integration candidate:
+Initial tranche:
 
-- PR `#57` — **Wave 1 app-builder integration candidate**;
-- validated head `345c6bc65faa9356c6035eb50bef6734bb7a6614`;
-- production merge commit `357aaf9e8dd2d7560b4adb0232746b7eb81b7b8c`.
+1. #59 / `P2-V0.15.1` — canonical Project/runtime binding
+2. #60 / `P2-V0.15.2` — protected Project/run workspace and immutable source-lineage contract
+3. #61 / `P2-V0.15.3` — protected IMPLEMENT runtime and typed implementation generation
+4. #62 / `P2-V0.15.4` — bounded GitHub/Vercel provider-action contracts
 
-Exact final cumulative validation:
+Corrective tranche now serialized into the same cumulative candidate:
 
-- `Parallax Workstream Spec Validation` run `32603877967` — **SUCCESS**;
-- `Parallax P2 CI` run `32603877968` — **SUCCESS**;
-- `Bounded Autonomy Pilot` run `32603877972` — **SUCCESS**.
+5. #68 / `P2-V0.15.5` — production-safe durable source lineage: immutable private object storage + transactional metadata/current-lineage CAS; local filesystem only for disposable materialization
+6. #69 / `P2-V0.15.6` — actual engineering-run runtime composition with `ProtectedImplementationRuntime` and exact-lineage Vercel Sandbox BUILD/TEST/VERIFY; no fresh-repository fallback after accepted IMPLEMENT lineage
+7. #70 / `P2-V0.15.7` — concrete bounded GitHub REST and Vercel Preview clients with scoped/short-lived credential contracts and secret-safe error normalization
+8. #71 / `P2-V0.15.8` — minimum Project select/create compatibility and canonical `project_id` binding for new Code conversations while preserving Reason/historical behavior and existing client visual geometry
 
-The integration branch was also revalidated after #44 and after #45 before the next interacting workstream was added. This prevents isolated worker success from being treated as proof that the combined runtime is safe.
+Issues #68–#71 are complete at the worker/integration-slice boundary. Worker PRs #72–#74 are closed/superseded by cumulative PR #67; #75 was merged into the integration branch.
 
-The workstream spec gate now deterministically validates each changed semantic specification against its committed DSPy-generated compiled plan and protected acceptance map. Weak stochastic local-model regeneration is no longer used as a per-PR promotion oracle; the existing release DSPy lane remains the repository-level compiler-execution proof.
+### Cumulative validation
 
-## Production deployment verification
+The first #68+#69 composition exposed one integration-only test defect: a helper named `test_allocator(root)` was accidentally collected by pytest. Control Tower renamed it to `make_test_allocator`; no runtime semantics changed. The repaired composition and every later cumulative head were revalidated before the next interacting slice was accepted.
 
-### API
+#68 + #69 repaired head `27d78b49e4822c2192974e9ab7bbea8a39fad583`:
 
-Vercel production deployment `dpl_D1ozbw2vzRF8DUcKFigiap4Q5HYB` is `READY`, targets production, and carries exact main commit `357aaf9e8dd2d7560b4adb0232746b7eb81b7b8c`.
+- Workstream Spec Validation `32614997434` — **SUCCESS**
+- Parallax P2 CI `32614997438` — **SUCCESS**
+- Bounded Autonomy Pilot `32614997302` — **SUCCESS**
 
-Production aliases include:
+After #70 at `1cf6f67a8958f6ab2941dc901dc2d8cfe2f1b0b9`:
 
-- `parallax-api-tan.vercel.app`;
-- `parallax-api-lew7.vercel.app`;
-- `parallax-api-git-main-lew7.vercel.app`.
+- Workstream Spec Validation `32615124294` — **SUCCESS**
+- Parallax P2 CI `32615124277` — **SUCCESS**
+- Bounded Autonomy Pilot `32615124271` — **SUCCESS**
 
-Live checks after deployment:
+Final current #68–#71 head `a3c5d0f08c91f9407629df811aab6b28b8dde6ed`:
 
-- `GET /health` → HTTP 200, service `parallax-api`, status `ok`;
-- `GET /ready` → HTTP 200, database `ok`;
-- unauthenticated `GET /v1/projects` → HTTP 401 with `Authentication required`, confirming the new Project surface remains behind the existing private authentication boundary;
-- Vercel runtime error clusters for the API over the verification window: none observed.
+- Workstream Spec Validation `32615238613` — **SUCCESS**
+- Parallax P2 CI `32615238611` — **SUCCESS**
+- Bounded Autonomy Pilot `32615238604` — **SUCCESS**
 
-### Database
+The final current candidate therefore passes changed-spec/compiled-plan validation, full API regression, client typecheck/state/export, browser acceptance, protected promotion/regression evaluation, DSPy release compilation, and bounded-autonomy regression tests.
 
-The additive Project migration was applied before code promotion. Production verification confirms the `projects` table exists, has the expected schema, RLS is enabled, and direct client-role table access remains revoked. FastAPI remains the application authorization boundary.
+## What the validated Wave 2 candidate now proves
 
-### Web
+The unmerged candidate proves, at repository/integration-test level:
 
-Wave 1 contains no client implementation change. The Vercel web build for the main merge was canceled by the repository's path-aware deployment rules as intended. The deployed web application therefore remains the previously verified v0.13.9 client at `dpl_88MB16ZRUMgvFgzsukEMXq82Skyy` rather than creating a redundant production web build.
+- new Code runtime identity binds to canonical owner-scoped `Project.id`;
+- accepted implementation source has immutable durable lineage with reconstruction and stale-parent/CAS/idempotency protection;
+- production-route autonomous composition can inject the protected IMPLEMENT runtime;
+- BUILD/TEST/VERIFY reconstruct and execute the exact accepted lineage in deny-all Vercel Sandboxes instead of silently cloning unrelated fresh source;
+- concrete GitHub/Vercel Preview clients preserve typed #62 action ceilings, canonical repository/source binding, idempotency and secret-safe failures;
+- new client Code creation has the minimum Project selection/create compatibility required by the strict backend Project invariant;
+- the existing protected CI/evaluation suites remain green after composition.
 
-## Canonical Project identity rules
+This is **validated integration-candidate evidence**, not production evidence.
 
-`Project.id` is now the canonical durable application identity.
+## Remaining Wave 2 closure work
 
-`workspace_ref` is an opaque identity seam only. It is **not** a filesystem path and must never be interpreted as one by callers, models, tools or provider adapters.
+Wave 2 is not considered a usable end-to-end app builder yet. Operational-path review found two remaining composition/proof gaps.
 
-`repository_ref` is bounded repository identity metadata only. It grants no Git, network, connector or deployment authority.
+### #79 — repository bootstrap and verified-source delivery composition
 
-Tool authority must bind to the canonical Project ID after owner-scoped Project resolution. Filesystem execution must resolve through a protected Project-to-workspace allocator rather than a caller-selected path.
+Issue: `#79`
+Spec reservation: `P2-V0.15.9`
+Branch: `ws/app-source-delivery-composition`
 
-## What is not yet complete
+A brand-new strict run currently has no cumulative repository-backed first-lineage bootstrap path: #68 exposes `initialize(identity, SourceProvider)` while the #69 production runtime resolves an already-existing lineage. The normal runtime also does not yet carry the exact verified accepted lineage through concrete #70 GitHub branch/commit/PR and Vercel preview delivery before operator review.
 
-Wave 1 deliberately establishes safe primitives and contracts rather than claiming an end-to-end autonomous app builder.
+#79 must close this using canonical owner-scoped Project repository binding, existing #45/#62 tool authority, durable #68 lineage, and #70 clients. Caller/model input must not select repository URLs, filesystem roots, credentials, generic transports, arbitrary Git commands, or production deployment targets. Retry/process recreation must remain idempotent. Preview remains the autonomous ceiling.
 
-The current critical path is:
+### #80 — real runtime evidence and restart/reference-loop proof
 
-1. bind conversations, Work Specifications and Engineering Runs to the canonical Project identity;
-2. implement a protected Project-to-isolated-workspace allocator;
-3. connect the safe patch engine to the protected IMPLEMENT stage without treating patch success as stage authority by itself;
-4. preserve one implementation workspace/revision across IMPLEMENT → BUILD → TEST → VERIFY instead of creating unrelated fresh sandboxes per stage;
-5. adapt tool-authority contracts to concrete narrowly scoped GitHub/Vercel actions without generic shell/HTTP authority;
-6. map implementation/tool/runtime evidence into the app-builder evaluation spine and add app-builder protected promotion gates;
-7. prove interruption, retry, idempotency and resume behavior across project-scoped runs;
-8. add the minimal project/diff/preview/review UX only after the backend contracts stabilize.
+Issue: `#80`
+Spec reservation: `P2-V0.15.10`
+Branch: `ws/app-runtime-evidence-reference-loop`
+Dependency: final #79 contract; parallel protocol work is allowed but final readiness must reconcile to accepted #79.
 
-Until these are complete, Parallax should not claim it can autonomously build arbitrary applications end to end.
+#46 remains a strict recorded-evidence evaluator. #80 must derive its evidence from actual persisted Project/spec/run/lineage/stage/provider audit facts rather than hand-authored success fixtures, preserve #46 critical-failure semantics, and prove process recreation/retry without duplicate implementation mutation or provider publication.
 
-## Current operator-visible client baseline
+Required reference loop:
 
-The production web/client remains v0.13.9 and preserves:
+`Project selection/binding → approved Work Spec → PLAN → repository bootstrap → typed proposal → safe patch → durable accepted lineage → exact-lineage BUILD/TEST/VERIFY → bounded Git publication → Vercel preview → protected #46 evaluation → operator REVIEW`
 
-- transparent glossy 3D interlocking-knot identity;
-- Ambient Chroma Flow;
-- rounded translucent Work Specification material;
-- stream-synchronized optical engraving treatment;
-- response live-edge following with intentional scroll-away preservation;
-- mobile/iOS keyboard-safe in-flow composer geometry;
-- Code/Engineering Run status and bounded-autonomy controls.
+Deliberate wrong-Project/spec/lineage, stale-parent, false-evidence, provider-failure, interruption, duplicate-retry, missing-preview, secret-bearing-evidence and unrelated-source cases must be rejected.
 
-The previously pending real-device live-edge composition check and first real operator Sandbox exercise remain useful operator verification items, but they do not block the verified Wave 1 backend foundation.
+Only after #79 + #80 are integrated and cumulatively green can Wave 2 be considered ready for production-rollout preparation.
 
-## Parallel ChatGPT development state
+## Production rollout boundaries still outstanding
 
-The GitHub-authoritative parallel-development model is active under `PROJECT-CONSTITUTION.md` v1.3 and `PARALLEL-DEVELOPMENT.md`.
+Even after code closure, production promotion must separately prove/configure:
 
-Wave 1 demonstrated the intended model in practice:
+- migration `20260822_0007_project_runtime_binding.sql` readiness/application;
+- migration `20260823_0008_durable_source_lineage.sql` readiness/application;
+- private durable object storage configuration for accepted source contents;
+- approved scoped/short-lived GitHub and Vercel credential issuers for the concrete provider clients;
+- disposable live provider/Preview verification under least privilege;
+- exact-head release gates and preview evidence;
+- post-promotion `/health`, `/ready`, authentication, migration, runtime and error-observability verification;
+- rollback/recovery readiness.
 
-- four worker chats operated on isolated workstreams #43–#46;
-- worker ownership remained bounded;
-- workers prepared validated PRs without production merge/deploy authority;
-- Integration / Control Tower serialized the interacting candidates;
-- the cumulative integration branch was revalidated before production promotion;
-- a CI design defect discovered during parallel work was corrected through #54 / PR #55 before promotion.
+No such production step is recorded as complete until evidenced.
 
-Issues #43–#46 are complete. Issue #32 remains the app-builder program record and now advances to Wave 2 integration work.
+## Approved Wave 3 platform contract
 
-## Approved Wave 3 completion contract
+Wave 3 begins only after the Wave 2 protected app-builder loop is closed. Its durable objective is a bounded autonomous development system that continues from approved objective through correction/validation until all protected criteria pass or a defined human/resource boundary is reached.
 
-Material decisions recorded 2026-08-22: Wave 3 is required to operate as an end-to-end **bounded autonomous app-building and validation loop**, not as a one-pass implementation stage, and it must materially reduce development cycle time rather than merely automate the existing serial process.
+Required Wave 3 behavior includes:
 
-Planned Wave 3 flow:
+- autonomous implement → build → test → browser exercise → deterministic DOM/accessibility/console/network checks → screenshot regression + multimodal visual QA → diagnose/correct/retest → bounded preview → protected evaluation;
+- deterministic failures remain authoritative over model visual judgment;
+- last-known-good preservation, retry/churn/runtime budgets and no-progress/oscillation detection;
+- durable worker checkpoints, leases/heartbeats, explicit STALLED/RECOVERING/REASSIGNED/HUMAN_REQUIRED states, single-writer reassignment and automatic recovery without routine manual `resume`;
+- fast-vs-promotion CI lanes, machine-checkable cross-workstream contracts, permanent reference-app harnesses, safe caching and automated Control Tower composition/failure dispatch;
+- critical-path scheduling/work stealing, change-impact testing, warm secret-free environments, validated pattern/component/config reuse, privacy-safe failure/repair memory, adaptive model routing, specification preflight, speculative integration, automatic workstream sizing/rebalancing and development-performance telemetry;
+- a deliberate worker-kill/stall promotion test proving another execution resumes from durable checkpoint without lost accepted work, duplicate mutation or lineage corruption.
 
-`approved objective/spec → PLAN → typed implementation proposal → protected mutation → same-lineage BUILD/TEST/VERIFY → browser exercise → deterministic DOM/accessibility/console/network validation → screenshot capture → screenshot regression + multimodal computer-vision review → autonomous correction/retry → bounded Git/preview delivery → protected evaluation → operator review`
-
-Wave 3 must continue autonomously until either:
-
-1. all protected functional, visual, security, lineage and acceptance gates pass and the result is preview-ready for operator review;
-2. a defined human-control boundary is reached, including production merge/promotion, destructive or privileged actions, required approval, missing authorization/credential, material specification ambiguity or an unrecoverable bounded failure; or
-3. an explicit retry, step, cumulative-churn, runtime or resource bound is reached, in which case Parallax must stop with actionable evidence rather than loop indefinitely.
-
-Visual QA is therefore a Wave 3 requirement. Deterministic browser/layout/accessibility failures remain authoritative; multimodal vision may detect semantic visual defects but cannot override deterministic failures. The loop must preserve a last-known-good candidate and reject autonomous corrections that introduce protected regressions.
-
-Wave 3 development acceleration is also an approved requirement. The planned architecture must include:
-
-- continuous bounded worker utilization when safe independent work exists;
-- a fast CI lane for compile/focused tests/contracts/typecheck/changed-area validation and a separate expensive promotion lane for worker completion, integration milestones and release candidates;
-- machine-checkable cross-workstream interface contracts so Project/lineage/runtime/provider/evidence mismatches are found before late integration;
-- permanent representative reference-app harnesses for repeated end-to-end development and regression exercises;
-- safe dependency/browser/build/baseline/artifact caching where reuse cannot weaken exact-head or source-lineage evidence;
-- automated Integration / Control Tower composition that detects integration-ready candidates, orders dependencies, composes them, runs cumulative gates and identifies interface failures;
-- automatic conversion of reproducible integration/test failures into bounded corrective work with attached evidence.
-
-Automatic worker stall detection and recovery is now also an approved Wave 3 requirement. The planned architecture must include:
-
-- bounded worker leases and meaningful-progress heartbeats based on durable state changes, not merely status text or model activity;
-- explicit worker lifecycle states including `STALLED`, `RECOVERING`, `REASSIGNED`, `HUMAN_REQUIRED` and `READY_FOR_INTEGRATION`;
-- durable resumable checkpoints preserving canonical Project/run identity, approved Work Spec/compiled-plan reference, accepted source lineage, current step, retry state, last-known-good candidate, normalized evidence and outstanding blockers/dependencies;
-- watchdog classification of stalls such as agent/process loss, CI/test hangs, provider outages, dependency waits, rate limits, credentials/authorization, contention/deadlock and repeated implementation failure;
-- automatic bounded retry, checkpoint resume or reassignment before operator escalation when recovery is safe;
-- single-writer lease semantics so a stale worker fails closed after lease loss and cannot race a recovered/reassigned worker;
-- no-progress/oscillation detection and bounded retry/backoff so recovery cannot become an infinite compute loop;
-- Control Tower visibility into worker health, last meaningful progress, checkpoint/source-lineage identity, retries, stall cause and next recovery action;
-- a protected promotion test that deliberately kills or stalls a worker/process and proves another execution resumes from the durable checkpoint without lost accepted work, duplicate mutation, lineage corruption or a manual operator `resume` command.
-
-The target operating model is continuous: workers produce candidates while the integration controller continuously composes and validates them, with full expensive promotion gates reserved for meaningful boundaries rather than every small edit. Ordinary worker stalls should be detected, recovered or reassigned automatically instead of waiting for the operator to notice and restart them.
-
-### Platform-wide inheritance decision
-
-The Wave 3 development baseline is now a platform policy for **every Project Parallax develops**, not special behavior reserved for development of Parallax itself.
-
-The durable policy stack is:
+The Wave 3 development baseline applies both to **development of Parallax itself** and to **every Project Parallax develops** through:
 
 `Parallax platform baseline → Project profile → approved Work Specification → capability-specific validation plan`
 
-The strictest applicable requirement wins. Project profiles and Work Specifications may add stricter constraints, but they may not silently weaken the platform baseline for canonical identity, specification binding, source lineage, tool/mutation authority, durable checkpoints, bounded autonomy, worker-stall recovery, evidence integrity, rollback, protected promotion, or human-control boundaries.
+The strictest applicable requirement wins. Projects may strengthen but may not silently weaken the platform baseline. Capability-specific validation adapts to web/mobile/API/CLI/etc. without disabling common identity, lineage, authority, recovery, evidence, rollback, privacy or human-control guarantees.
 
-Validation remains capability-aware rather than blindly identical across projects. Web/mobile projects can require browser flows, layout/accessibility checks, screenshot regression and multimodal visual QA; APIs can require schema/contract/auth/integration/reliability/performance checks; CLIs can require command/workflow/exit-code/output checks. Unsupported required validation must fail closed or require an explicit approved exception rather than being silently skipped.
+Wave 3 runtime enforcement is **approved architecture/governance only; not yet implemented or deployed**.
 
-### Universal Wave 3 optimization decision
+## Deployment-state vocabulary
 
-The Wave 3 efficiency architecture now applies identically to **how Parallax is built** and **how Parallax builds every Project**. It is an inherited platform requirement rather than a one-off optimization for the Parallax repository.
+- Wave 1 production foundation: **VALIDATED / MERGED / DEPLOYED / DEPLOYMENT-VERIFIED**
+- production client: **v0.13.9 / DEPLOYED / VERIFIED**
+- Wave 2 #59–#71 cumulative candidate: **VALIDATED / NOT MERGED TO MAIN / NOT DEPLOYED**
+- durable source-lineage migration/storage for Wave 2: **CODE VALIDATED / PRODUCTION NOT APPLIED OR PROVISIONED**
+- concrete provider clients: **CODE VALIDATED / LIVE PRODUCTION CREDENTIAL BINDING NOT PROVISIONED OR VERIFIED**
+- Wave 2 end-to-end app-building loop: **NOT YET DEMONSTRATED — #79/#80 ACTIVE**
+- Wave 3 inherited autonomous/optimization/stall-recovery policy: **AUTHORITATIVE GOVERNANCE / RUNTIME NOT YET IMPLEMENTED**
 
-Wave 3 must implement:
+## Authoritative-record status
 
-1. **critical-path scheduling and bounded work stealing** so worker capacity reduces time to the validated objective rather than merely maximizing worker occupancy;
-2. **change-impact-driven fast validation** using a machine-readable file/component/service/contract/test impact graph, while full protected promotion suites remain mandatory at worker-completion/integration/release boundaries;
-3. **immutable secret-free warm execution environments** keyed by toolchain/lock/configuration digests so workers avoid repeated environment setup without confusing caches with authoritative source state;
-4. **validated pattern/component/configuration reuse** whose artifacts are revalidated against the current Project rather than trusted because they worked previously;
-5. **privacy-safe failure fingerprinting and repair memory** that can propose proven repairs without transferring private Project source/secrets into global memory or bypassing protected mutation/validation;
-6. **adaptive model routing** to reduce latency/cost for routine work while escalating difficult tasks and keeping protected evaluation/authority independent of the generating model;
-7. **specification preflight** for contradictions, missing dependencies, impossible/untestable acceptance criteria, unsupported validation, authority conflicts and high-consequence ambiguity before implementation starts;
-8. **speculative integration** of immutable worker checkpoints on disposable candidates so interface drift is detected early without advancing accepted lineage, merge state or release authority;
-9. **automatic workstream sizing/rebalancing** so work is large enough to be useful but small enough to recover, validate and integrate without unnecessary fragmentation;
-10. **development-performance telemetry** for planning, generation, environment preparation, build, validation, provider waits, retries, integration, stall recovery and human waits using bounded non-secret evidence.
+- `CURRENT-STATE.md`: updated for the validated #68–#71 cumulative candidate and explicit #79/#80 Wave 2 closure path while preserving Wave 1 as production truth.
+- `ARCHITECTURE.md`: remains v2.4; no durable architecture change beyond the already-recorded inherited Wave 3 policy/optimization architecture is required by this integration status update.
+- `PROJECT-CONSTITUTION.md`: remains v1.3.
+- `DESIGN-SYSTEM.md`: remains v2.1; no design-system rule changed in this Control Tower integration pass.
 
-Optimization must remain subordinate to correctness: impact analysis cannot waive promotion checks; warm environments/caches require provenance; speculative integration is non-authoritative; adaptive routing cannot lower protected standards; work stealing cannot violate leases/path ownership; and cross-Project reuse/telemetry cannot become a data-exfiltration path.
-
-This universal optimization contract is now durable governance/architecture in `PROJECT-CONSTITUTION.md` v1.3 and `ARCHITECTURE.md` v2.4. Runtime enforcement remains a **Wave 3 requirement / not yet implemented**.
-
-These Wave 3 runtime capabilities remain approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
-
-## Deployment state vocabulary
-
-- v0.13.9 client baseline: **VALIDATED / DEPLOYED / DEPLOYMENT-VERIFIED**
-- Wave 1 Project lifecycle foundation: **VALIDATED / MERGED / DEPLOYED / DEPLOYMENT-VERIFIED**
-- Wave 1 safe patch engine: **VALIDATED / MERGED / DEPLOYED AS FOUNDATION**
-- Wave 1 tool-authority contracts: **VALIDATED / MERGED / DEPLOYED AS FOUNDATION**
-- Wave 1 app-builder evaluation spine: **VALIDATED / MERGED / DEPLOYED AS FOUNDATION**
-- production Project migration: **APPLIED / VERIFIED**
-- production API deployment: **READY / HEALTH 200 / READY 200 / NO ERROR CLUSTERS OBSERVED**
-- new Project API authentication boundary: **FAIL-CLOSED / UNAUTH 401 VERIFIED**
-- complete project-scoped IMPLEMENT runtime: **NOT YET INTEGRATED**
-- concrete GitHub/Vercel app-builder provider actions: **NOT YET INTEGRATED**
-- end-to-end app-building loop: **NOT YET DEMONSTRATED**
-- Wave 3 autonomous visual QA and correction loop: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
-- Wave 3 accelerated continuous worker/integration architecture: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
-- Wave 3 automatic worker stall detection/recovery/reassignment: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
-- inherited development-policy governance: **IMPLEMENTED IN AUTHORITATIVE POLICY / RUNTIME ENFORCEMENT PENDING WAVE 3**
-- universal Wave 3 optimization governance: **IMPLEMENTED IN AUTHORITATIVE POLICY / RUNTIME ENFORCEMENT PENDING WAVE 3**
-
-## Authoritative record status
-
-- `CURRENT-STATE.md`: updated for the deployed Wave 1 foundation and the approved Wave 3 autonomous/acceleration/stall-recovery/platform-inheritance/universal-optimization decisions.
-- `ARCHITECTURE.md`: updated to v2.4 with inherited policy plus universal critical-path, impact-testing, warm-environment, reuse/repair-memory, adaptive-routing, preflight, speculative-integration, workstream-sizing and telemetry architecture; this does not claim runtime enforcement already exists.
-- `PROJECT-CONSTITUTION.md`: updated to v1.3 so both Parallax self-development and every Parallax-developed Project inherit the non-weakenable development-efficiency baseline.
-- `DESIGN-SYSTEM.md`: unchanged; this policy/architecture decision introduces no implemented visual or interaction-system change.
-
-Historical release, CI, workstream, preview and deployment evidence remains preserved in GitHub Actions, GitHub issues/PRs and Vercel history.
+Historical worker, integration, CI, preview and production evidence remains preserved in GitHub Actions, issues/PRs and Vercel history.
