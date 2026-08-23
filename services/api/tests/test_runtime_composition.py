@@ -94,7 +94,7 @@ class LineageExecutor:
         }
 
 
-def test_allocator(root):
+def make_test_allocator(root):
     """Use #68 durable fakes when serialized, else the accepted #60 store."""
 
     try:
@@ -113,7 +113,7 @@ def test_allocator(root):
 
 
 def allocator_with_source(tmp_path, identity: ProjectRunIdentity, files=None):
-    allocator = test_allocator(tmp_path / "allocator")
+    allocator = make_test_allocator(tmp_path / "allocator")
     lease = allocator.initialize(identity, StaticSourceProvider(files or {"app.py": b"value = 1\n"}))
     base = lease.lineage
     allocator.cleanup(lease)
