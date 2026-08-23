@@ -3,10 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .optimization_contracts import (
-    MAX_GRAPH_EDGES, MAX_GRAPH_NODES, MAX_REFS,
-    OptimizationGraphError, OptimizationNodeKind, OptimizationNodeState,
-    OptimizationPolicyError, _canonical_digest, _refs, _safe_token,
+    MAX_GRAPH_EDGES,
+    MAX_GRAPH_NODES,
+    MAX_REFS,
+    OptimizationGraphError,
+    OptimizationNodeKind,
+    OptimizationNodeState,
+    OptimizationPolicyError,
+    _canonical_digest,
+    _refs,
+    _safe_token,
 )
+
 
 @dataclass(frozen=True, slots=True)
 class DependencyNode:
@@ -72,6 +80,7 @@ class DependencyGraph:
             raise OptimizationGraphError("dependency graph must contain a bounded node set")
         if not all(isinstance(node, DependencyNode) for node in self.nodes):
             raise OptimizationGraphError("dependency graph contains invalid nodes")
+        object.__setattr__(self, "nodes", tuple(sorted(self.nodes, key=lambda item: item.node_id)))
         self.validate()
 
     def validate(self) -> None:
@@ -120,7 +129,7 @@ class DependencyGraph:
         return {
             "project_id": self.project_id,
             "revision": self.revision,
-            "nodes": [node.to_record() for node in sorted(self.nodes, key=lambda item: item.node_id)],
+            "nodes": [node.to_record() for node in self.nodes],
         }
 
     @classmethod
@@ -158,7 +167,10 @@ class IntegrationBackpressure:
     cost_capacity: int
 
     def __post_init__(self) -> None:
-        if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in (self.capacity, self.ready_items, self.ready_cost, self.cost_capacity)):
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0
+            for value in (self.capacity, self.ready_items, self.ready_cost, self.cost_capacity)
+        ):
             raise OptimizationPolicyError("backpressure values must be nonnegative integers")
         if self.capacity < 1 or self.cost_capacity < 1:
             raise OptimizationPolicyError("integration capacity must be positive")
