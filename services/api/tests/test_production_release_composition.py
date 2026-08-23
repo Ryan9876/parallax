@@ -75,12 +75,13 @@ def test_vercel_credential_provider_is_exact_target_scoped_and_redacted():
         provider.credential_for_project("vercel:preview:other")
 
 
-def test_github_connect_provider_exchanges_oidc_for_short_lived_app_credential():
+def test_github_connect_provider_exchanges_and_verifies_exact_repository_scope():
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
-    calls = []
+    connect_calls = []
+    scope_calls = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request)
+    def connect_handler(request: httpx.Request) -> httpx.Response:
+        connect_calls.append(request)
         assert request.url.path == "/v1/connect/token/github/parallax-runtime"
         assert request.headers["Authorization"] == "Bearer oidc-test-value"
         assert json.loads(request.content) == {"subject": {"type": "app"}}
@@ -89,10 +90,25 @@ def test_github_connect_provider_exchanges_oidc_for_short_lived_app_credential()
             json={"token": "github-installation-test-token", "expiresAt": expires_at.isoformat()},
         )
 
+    def scope_handler(request: httpx.Request) -> httpx.Response:
+        scope_calls.append(request)
+        assert request.url.path == "/installation/repositories"
+        assert request.url.params["per_page"] == "2"
+        assert request.headers["Authorization"] == "Bearer github-installation-test-token"
+        assert request.headers["X-GitHub-Api-Version"] == "2026-03-10"
+        return httpx.Response(
+            200,
+            json={
+                "total_count": 1,
+                "repositories": [{"full_name": "Ryan9876/parallax"}],
+            },
+        )
+
     provider = VercelConnectGitHubCredentialProvider(
         "github/parallax-runtime",
         oidc_token="oidc-test-value",
-        transport=httpx.MockTransport(handler),
+        transport=httpx.MockTransport(connect_handler),
+        github_transport=httpx.MockTransport(scope_handler),
     )
     first = provider.credential_for_repository(REPOSITORY_REF)
     second = provider.credential_for_repository(REPOSITORY_REF)
@@ -101,7 +117,52 @@ def test_github_connect_provider_exchanges_oidc_for_short_lived_app_credential()
     assert first.kind is ProviderCredentialKind.GITHUB_APP_INSTALLATION
     assert first.resource_ref == REPOSITORY_REF
     assert "github-installation-test-token" not in repr(first)
-    assert len(calls) == 1
+    assert len(connect_calls) == 1
+    assert len(scope_calls) == 1
+
+
+def test_github_connect_provider_rejects_broader_installation_scope():
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    def connect_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"token": "github-broad-test-token", "expiresAt": expires_at.isoformat()},
+        )
+
+    def scope_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "total_count": 2,
+                "repositories": [
+                    {"full_name": "Ryan9876/parallax"},
+                    {"full_name": "Ryan9876/other"},
+                ],
+            },
+        )
+
+    provider = VercelConnectGitHubCredentialProvider(
+        "github/parallax-runtime",
+        oidc_token="oidc-test-value",
+        transport=httpx.MockTransport(connect_handler),
+        github_transport=httpx.MockTransport(scope_handler),
+    )
+
+    with pytest.raises(ProviderClientError, match="CREDENTIAL_SCOPE_MISMATCH"):
+        provider.credential_for_repository(REPOSITORY_REF)
+
+
+def test_github_connect_provider_rejects_noncanonical_repository_ref_before_network():
+    provider = VercelConnectGitHubCredentialProvider(
+        "github/parallax-runtime",
+        oidc_token="oidc-test-value",
+        transport=httpx.MockTransport(lambda request: pytest.fail("Connect must not be called")),
+        github_transport=httpx.MockTransport(lambda request: pytest.fail("GitHub must not be called")),
+    )
+
+    with pytest.raises(ProviderClientError, match="CREDENTIAL_SCOPE_MISMATCH"):
+        provider.credential_for_repository("github:Ryan9876/parallax/extra")
 
 
 def test_production_source_delivery_requires_exact_server_configuration(tmp_path):
