@@ -1,0 +1,50 @@
+{
+  "architecture_decisions": [
+    "{Protected Application-Validation Plane}"
+  ],
+  "work_items": [
+    "{Add Protected Application-Validation Plane to Wave 3 Implementation}"
+  ],
+  "validations": [
+    "{Implement Protected Application-Validation Plane with bounded browser, accessibility, network, screenshot-regression and multimodal evidence}",
+    "AC-01: validate protected requirement — Validation resolves exact Project/run/approved Work-Spec/source-lineage/Preview identity from persisted delivery evidence. Caller/model supplied URL, wrong Project/run/spec/digest/lineage, stale/conflicting delivery record or non-ready/missing Preview fails closed before browser execution.",
+    "AC-02: validate protected requirement — Versioned workflows expose only bounded typed relative navigation, semantic interaction/assertion, registered viewports and screenshot checkpoints. Arbitrary JavaScript/eval, shell, generic HTTP, arbitrary hosts/headers/cookies/credentials and unbounded selectors/actions are impossible through the workflow contract.",
+    "AC-03: validate protected requirement — Production browser execution retains deny-all network posture except the exact persisted Preview hostname. Unexpected external requests are blocked/recorded. Wildcard internet, model-selected domain and redirect escape cases fail closed without weakening BUILD/TEST/VERIFY network policy.",
+    "AC-04: validate protected requirement — Required semantic assertions, accessibility policy, page/console errors, failed required requests and unexpected external-network behavior produce bounded deterministic evidence and protected pass/fail. A multimodal PASS cannot convert a deterministic FAIL into success.",
+    "AC-05: validate protected requirement — Registered viewports detect protected overflow/clipping, hidden required UI and blocking overlays/obstructions with bounded geometry evidence. Deliberate layout/overlay regressions in the reference harness fail before visual-model judgment.",
+    "AC-06: validate protected requirement — Screenshots are bound to Project/run/Work-Spec/source-lineage/Preview/workflow/viewport identity and represented in ordinary evidence by artifact ref/digest/dimensions. Cookies, storage values, auth headers, secret query data, raw unbounded DOM/log/network payloads and unrelated Project data are never persisted in browser evidence.",
+    "AC-07: validate protected requirement — Deterministic comparison rejects cross-Project/workflow/viewport or stale baseline provenance, records bounded difference metrics/digests, and fails candidates exceeding protected thresholds. Baselines are never automatically updated to make a candidate pass.",
+    "AC-08: validate protected requirement — Multimodal review consumes approved screenshot artifacts and bounded context only after deterministic evidence, returns typed findings/confidence without hidden reasoning, and cannot alter deterministic outcomes, acceptance criteria, baseline thresholds or authority.",
+    "AC-09: validate protected requirement — Permanent reusable scenarios prove wrong/stale provenance, semantic failure, accessibility failure, console/page failure, required-network failure, external request, clipping/overflow, blocking overlay, screenshot regression and deterministic-vs-multimodal disagreement are rejected as specified.",
+    "AC-10: validate protected requirement — One normalized protected browser-validation result can be consumed by #97 after process recreation and remains bound to the persisted delivery/lineage facts. Evaluation/diagnosis does not recreate GitHub commits, PRs or Vercel Preview deployments.",
+    "AC-11: validate protected requirement — Browser validation adds no source mutation, provider mutation, generic network, production promotion or evaluator-threshold authority. Existing source lineage, provider replay, #46 scoring/critical-failure and operator REVIEW/production boundaries remain intact.",
+    "AC-12: validate protected requirement — P2-V0.16.2 has authentic committed DSPy critic/compiler evidence. The exact worker head passes Workstream Spec Validation, P2 CI and Bounded Autonomy plus browser/reference-harness validation before integration, and final Wave 3 integration reruns protected cumulative gates."
+  ],
+  "risks": [
+    "{No material risks identified, deterministic failures remain authoritative}"
+  ],
+  "spec_id": "P2-V0.16.2",
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Browser target uses only durable Wave 2 Preview provenance","protected_requirement":"Validation resolves exact Project/run/approved Work-Spec/source-lineage/Preview identity from persisted delivery evidence. Caller/model supplied URL, wrong Project/run/spec/digest/lineage, stale/conflicting delivery record or non-ready/missing Preview fails closed before browser execution."},
+    {"id":"AC-02","title":"Browser workflows are server-owned and non-programmable","protected_requirement":"Versioned workflows expose only bounded typed relative navigation, semantic interaction/assertion, registered viewports and screenshot checkpoints. Arbitrary JavaScript/eval, shell, generic HTTP, arbitrary hosts/headers/cookies/credentials and unbounded selectors/actions are impossible through the workflow contract."},
+    {"id":"AC-03","title":"Browser network authority is exact-host allowlisted","protected_requirement":"Production browser execution retains deny-all network posture except the exact persisted Preview hostname. Unexpected external requests are blocked/recorded. Wildcard internet, model-selected domain and redirect escape cases fail closed without weakening BUILD/TEST/VERIFY network policy."},
+    {"id":"AC-04","title":"Deterministic semantic/accessibility/console/network checks are authoritative","protected_requirement":"Required semantic assertions, accessibility policy, page/console errors, failed required requests and unexpected external-network behavior produce bounded deterministic evidence and protected pass/fail. A multimodal PASS cannot convert a deterministic FAIL into success."},
+    {"id":"AC-05","title":"Responsive layout and obstruction defects are detected deterministically","protected_requirement":"Registered viewports detect protected overflow/clipping, hidden required UI and blocking overlays/obstructions with bounded geometry evidence. Deliberate layout/overlay regressions in the reference harness fail before visual-model judgment."},
+    {"id":"AC-06","title":"Screenshot artifacts retain exact provenance without leaking browser secrets","protected_requirement":"Screenshots are bound to Project/run/Work-Spec/source-lineage/Preview/workflow/viewport identity and represented in ordinary evidence by artifact ref/digest/dimensions. Cookies, storage values, auth headers, secret query data, raw unbounded DOM/log/network payloads and unrelated Project data are never persisted in browser evidence."},
+    {"id":"AC-07","title":"Screenshot regression uses governed provenance-compatible baselines","protected_requirement":"Deterministic comparison rejects cross-Project/workflow/viewport or stale baseline provenance, records bounded difference metrics/digests, and fails candidates exceeding protected thresholds. Baselines are never automatically updated to make a candidate pass."},
+    {"id":"AC-08","title":"Multimodal review is structured, bounded and secondary","protected_requirement":"Multimodal review consumes approved screenshot artifacts and bounded context only after deterministic evidence, returns typed findings/confidence without hidden reasoning, and cannot alter deterministic outcomes, acceptance criteria, baseline thresholds or authority."},
+    {"id":"AC-09","title":"Reference harness rejects deliberate functional and visual negatives","protected_requirement":"Permanent reusable scenarios prove wrong/stale provenance, semantic failure, accessibility failure, console/page failure, required-network failure, external request, clipping/overflow, blocking overlay, screenshot regression and deterministic-vs-multimodal disagreement are rejected as specified."},
+    {"id":"AC-10","title":"Validation evidence is reusable by autonomous correction without rerunning delivery","protected_requirement":"One normalized protected browser-validation result can be consumed by #97 after process recreation and remains bound to the persisted delivery/lineage facts. Evaluation/diagnosis does not recreate GitHub commits, PRs or Vercel Preview deployments."},
+    {"id":"AC-11","title":"Existing Wave 2 authority boundaries remain unchanged","protected_requirement":"Browser validation adds no source mutation, provider mutation, generic network, production promotion or evaluator-threshold authority. Existing source lineage, provider replay, #46 scoring/critical-failure and operator REVIEW/production boundaries remain intact."},
+    {"id":"AC-12","title":"Exact-head protected validation","protected_requirement":"P2-V0.16.2 has authentic committed DSPy critic/compiler evidence. The exact worker head passes Workstream Spec Validation, P2 CI and Bounded Autonomy plus browser/reference-harness validation before integration, and final Wave 3 integration reruns protected cumulative gates."}
+  ],
+  "critique": [
+    "The implementation of a protected application-validation plane in the approved software specification poses a material risk. The proposed implementation lacks a robust mechanism to ensure the integrity and authenticity of the validation process, which could lead to compromised browser validation results."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
