@@ -366,7 +366,11 @@ const styles = StyleSheet.create({
   bindingText: { flexShrink: 1, color: palette.textSecondary, fontSize: 8, fontWeight: '800', letterSpacing: 0.65 },
   bindingHistoricalText: { flexShrink: 1, color: palette.warning, fontSize: 8, fontWeight: '800', letterSpacing: 0.55 },
   selectorLayer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     zIndex: 80,
     alignItems: 'center',
     justifyContent: 'center',
