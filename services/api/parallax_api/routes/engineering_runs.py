@@ -9,9 +9,14 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.domain import WorkflowStage
+from ..code.production_delivery import (
+    ProductionDeliveryConfigurationError,
+    production_source_delivery,
+)
 from ..code.runtime_composition import (
     DurableLineageAllocator,
     EngineeringRuntimeComposition,
+    RuntimeCompositionError,
     production_durable_lineage_allocator,
 )
 from ..code.sandbox_execution import VercelSandboxExecutor
@@ -56,11 +61,11 @@ def runtime_lineage_allocator(
 ) -> DurableLineageAllocator | None:
     """Construct #68 durable lineage from server-owned persistence config.
 
-    On the current pre-#68 integration base the durable persistence module is
-    intentionally absent, so the factory returns ``None`` and the existing
-    fail-closed Wave 1 behavior remains. Once #68 is serialized this dependency
-    builds private Blob + transactional metadata persistence; local disk remains
-    disposable materialization only.
+    Once #68 is present this builds private Blob + transactional metadata
+    persistence; local disk remains disposable materialization only. A missing
+    durable implementation preserves historical Wave 1 behavior, but a present
+    durable allocator now requires the complete #79 delivery composition in the
+    autonomous route rather than silently omitting repository/provider stages.
     """
 
     return production_durable_lineage_allocator(session.get_bind())
@@ -111,6 +116,10 @@ def invoke(call):
         raise HTTPException(404, str(exc)) from exc
     except RevisionConflict as exc:
         raise HTTPException(409, str(exc)) from exc
+    except ProductionDeliveryConfigurationError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except RuntimeCompositionError as exc:
+        raise HTTPException(503, str(exc)) from exc
     except (RunTransitionError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -169,11 +178,26 @@ def autonomous(
     allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
 ):
     legacy_executor = VercelSandboxExecutor()
-    runtime = (
-        AutonomyCoordinator(svc, legacy_executor)
-        if allocator is None
-        else EngineeringRuntimeComposition(svc, allocator, legacy_executor)
-    )
+    if allocator is None:
+        runtime = AutonomyCoordinator(svc, legacy_executor)
+    else:
+        run = invoke(lambda: svc.get(run_id))
+        if not run.project_id:
+            raise HTTPException(422, "Wave 2 autonomous execution requires a Project-bound run")
+        source_delivery = invoke(
+            lambda: production_source_delivery(
+                svc.runs.session,
+                owner_subject=svc.owner_subject or "",
+                allocator=allocator,
+                project_id=run.project_id or "",
+            )
+        )
+        runtime = EngineeringRuntimeComposition(
+            svc,
+            allocator,
+            legacy_executor,
+            source_delivery=source_delivery,
+        )
     result = invoke(
         lambda: runtime.run(
             run_id=run_id,

@@ -1,0 +1,74 @@
+{
+  "architecture_decisions": [
+    "{Architecture Decision: Implement FastAPI endpoint to enable protected app-builder path}"
+  ],
+  "work_items": [
+    "{Work Item: Implement FastAPI endpoint to enable protected app-builder path}"
+  ],
+  "validations": [
+    "{Validation: Ensure existing production database security posture is preserved}",
+    "AC-01: validate protected requirement — The actual FastAPI autonomous endpoint constructs `EngineeringRuntimeComposition` with a non-null accepted `SourceDeliveryComposition` whenever the Wave 2 durable allocator is active. A route-level test proves bootstrap occurs before autonomous execution and verified delivery occurs only when the run reaches `REVIEW_REQUIRED`.",
+    "AC-02: validate protected requirement — If a Project lacks required server-owned provider credential configuration or an exact registered Vercel Preview target, production composition fails with a bounded configuration error before provider mutation. It cannot silently run with `source_delivery=None`, fabricate delivery evidence, or fall back to unrelated fresh repository source.",
+    "AC-03: validate protected requirement — Production delivery resolves repository identity from the authenticated owner-scoped canonical Project and accepts only an exact server-registered Project→Vercel target whose repository identity matches. Caller/model project target fields, arbitrary URLs, workspace paths, and provider-selected identities cannot override the binding.",
+    "AC-04: validate protected requirement — GitHub credentials are obtained through the configured short-lived app-scoped Vercel Connect/OIDC path and returned only as exact-resource `ScopedBearerCredential` values. Vercel REST credentials come only from explicit server configuration and are exact-resource scoped. Secrets are not logged, persisted, serialized, or exposed to model/client/evaluation surfaces.",
+    "AC-05: validate protected requirement — The production registry exposes only the already accepted GitHub repository/source/branch/commit/PR operations and Vercel Preview create/read operations needed by #79. Preview remains the autonomous provider ceiling; no merge, production promotion/deployment, alias/domain, arbitrary HTTP/Git/shell/network, environment, or secret mutation authority is added.",
+    "AC-06: validate protected requirement — The live production composition uses `EngineeringAttemptDeliveryRecordStore` and existing #79 replay semantics. Process/request recreation resolves the exact accepted Project/run/lineage delivery and retries without duplicate commit, PR, or Preview mutation; no competing provider-audit persistence is introduced.",
+    "AC-07: validate protected requirement — Migration `20260823_0008_durable_source_lineage.sql` enables RLS on `source_lineage_manifests` and `source_lineage_heads` and revokes all table privileges from `anon` and `authenticated`. Production verification proves both tables have RLS enabled and those roles have no read/write privileges.",
+    "AC-08: validate protected requirement — P2-V0.15.11 has authentic committed DSPy plan evidence and the corrected cumulative head passes Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, and Vercel Preview checks. Production migrations/merge/deploy occur only after server credential/target configuration is proven available; post-deploy health, readiness, auth, runtime/provider behavior, logs, and rollback evidence are then verified before recording Wave 2 as deployment-verified."
+  ],
+  "risks": [
+    "{Risk: Introduce new identity system, generic provider transport, merge authority, production-promotion authority, or weaker evaluation path}"
+  ],
+  "spec_id": "P2-V0.15.11",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Live autonomous route injects source delivery",
+      "protected_requirement": "The actual FastAPI autonomous endpoint constructs `EngineeringRuntimeComposition` with a non-null accepted `SourceDeliveryComposition` whenever the Wave 2 durable allocator is active. A route-level test proves bootstrap occurs before autonomous execution and verified delivery occurs only when the run reaches `REVIEW_REQUIRED`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Missing release configuration fails closed",
+      "protected_requirement": "If a Project lacks required server-owned provider credential configuration or an exact registered Vercel Preview target, production composition fails with a bounded configuration error before provider mutation. It cannot silently run with `source_delivery=None`, fabricate delivery evidence, or fall back to unrelated fresh repository source."
+    },
+    {
+      "id": "AC-03",
+      "title": "Canonical Project/repository/target binding",
+      "protected_requirement": "Production delivery resolves repository identity from the authenticated owner-scoped canonical Project and accepts only an exact server-registered Project→Vercel target whose repository identity matches. Caller/model project target fields, arbitrary URLs, workspace paths, and provider-selected identities cannot override the binding."
+    },
+    {
+      "id": "AC-04",
+      "title": "Scoped provider credential adapters",
+      "protected_requirement": "GitHub credentials are obtained through the configured short-lived app-scoped Vercel Connect/OIDC path and returned only as exact-resource `ScopedBearerCredential` values. Vercel REST credentials come only from explicit server configuration and are exact-resource scoped. Secrets are not logged, persisted, serialized, or exposed to model/client/evaluation surfaces."
+    },
+    {
+      "id": "AC-05",
+      "title": "Accepted authority ceiling preserved",
+      "protected_requirement": "The production registry exposes only the already accepted GitHub repository/source/branch/commit/PR operations and Vercel Preview create/read operations needed by #79. Preview remains the autonomous provider ceiling; no merge, production promotion/deployment, alias/domain, arbitrary HTTP/Git/shell/network, environment, or secret mutation authority is added."
+    },
+    {
+      "id": "AC-06",
+      "title": "Durable delivery replay remains authoritative",
+      "protected_requirement": "The live production composition uses `EngineeringAttemptDeliveryRecordStore` and existing #79 replay semantics. Process/request recreation resolves the exact accepted Project/run/lineage delivery and retries without duplicate commit, PR, or Preview mutation; no competing provider-audit persistence is introduced."
+    },
+    {
+      "id": "AC-07",
+      "title": "Lineage tables preserve Supabase security posture",
+      "protected_requirement": "Migration `20260823_0008_durable_source_lineage.sql` enables RLS on `source_lineage_manifests` and `source_lineage_heads` and revokes all table privileges from `anon` and `authenticated`. Production verification proves both tables have RLS enabled and those roles have no read/write privileges."
+    },
+    {
+      "id": "AC-08",
+      "title": "Exact-head release validation and deployment boundary",
+      "protected_requirement": "P2-V0.15.11 has authentic committed DSPy plan evidence and the corrected cumulative head passes Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, and Vercel Preview checks. Production migrations/merge/deploy occur only after server credential/target configuration is proven available; post-deploy health, readiness, auth, runtime/provider behavior, logs, and rollback evidence are then verified before recording Wave 2 as deployment-verified."
+    }
+  ],
+  "critique": [
+    "Missing provider credential configuration for server-owned provider in Project configuration"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
