@@ -115,6 +115,13 @@ class VercelPreviewActions:
         if result.repository_ref != target.repository_ref:
             raise ProviderClientError("REPOSITORY_MISMATCH", result_identity=result.deployment_id)
 
+    @staticmethod
+    def _verify_lineage(binding: ProviderProjectBinding, lineage: AcceptedSourceLineage) -> None:
+        if not isinstance(lineage, AcceptedSourceLineage):
+            raise TypeError("lineage must be AcceptedSourceLineage")
+        if lineage.project_id != binding.project_ref:
+            raise ValueError("accepted source lineage belongs to a different Project")
+
     def create_preview(
         self,
         target: VercelPreviewTarget,
@@ -127,8 +134,7 @@ class VercelPreviewActions:
         binding = self._binding(target)
         require_source_revision(source_revision)
         require_app_branch(branch_name)
-        if not isinstance(lineage, AcceptedSourceLineage):
-            raise TypeError("lineage must be AcceptedSourceLineage")
+        self._verify_lineage(binding, lineage)
 
         request, decision = self.executor.authorize(
             binding=binding,
