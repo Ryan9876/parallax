@@ -61,7 +61,10 @@ def approve_spec(Session, conversation_id: str):
                 title="API project binding",
                 objective="Prove API Project identity binding.",
                 constraints=["Keep Project identity server controlled."],
-                acceptance_criteria=["The run inherits the conversation Project."],
+                acceptance_criteria=[
+                    "The run inherits the conversation Project.",
+                    "A different owner cannot access the bound runtime records.",
+                ],
                 risks=["Cross-owner access must fail closed."],
                 open_questions=[],
                 confidence=0.99,
