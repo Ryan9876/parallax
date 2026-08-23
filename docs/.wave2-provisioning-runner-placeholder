@@ -1,1 +1,0 @@
-This file intentionally does not trigger provisioning. The provisioning workflow lives under .github/workflows and remains fail-closed without VERCEL_TOKEN.
