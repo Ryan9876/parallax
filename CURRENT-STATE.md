@@ -2,7 +2,7 @@
 
 Release: App-builder Wave 2 production runtime; Wave 3 development integration in progress
 Date: 2026-08-23
-Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = DEVELOPMENT INTEGRATED THROUGH P2-V0.16.3 / CUMULATIVELY VALIDATED / NOT MERGED TO MAIN / NOT DEPLOYED**
+Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = DEVELOPMENT INTEGRATED THROUGH P2-V0.16.4 / CUMULATIVELY VALIDATED / NOT MERGED TO MAIN / NOT DEPLOYED**
 
 ## Production truth
 
@@ -23,25 +23,26 @@ Validated integrated Wave 3 capabilities:
 
 1. `P2-V0.16.1` / #95 — durable worker lifecycle, renewable leases, canonical checkpoints, stall classification, bounded recovery/reassignment and stale-worker fail-closed behavior;
 2. `P2-V0.16.2` / #96 — protected deterministic browser/accessibility/network/layout validation, provenance-bound screenshot regression and secondary multimodal visual review;
-3. `P2-V0.16.3` / #97 — bounded autonomous defect normalization, diagnose/correct/revalidate convergence, last-known-good preservation, finite resource/no-progress/oscillation bounds and data-only failure dispatch.
+3. `P2-V0.16.3` / #97 — bounded autonomous defect normalization, diagnose/correct/revalidate convergence, last-known-good preservation, finite resource/no-progress/oscillation bounds and data-only failure dispatch;
+4. `P2-V0.16.4` / #98 — deterministic dependency/critical-path scheduling, integration backpressure, #95-bound work stealing, conservative change-impact validation, provenance-safe environment/pattern/repair reuse, bounded model routing, spec preflight, non-authoritative speculative integration, acceptance-preserving workstream sizing and privacy-safe development-performance telemetry.
 
-Current serialized Wave 3 integration head after #97:
+Current serialized Wave 3 integration head after #98:
 
-`46c065f839b2f00559381222df15c44911de4256`
+`04bc849faaf193a757d7da45823cf5ab700c1bde`
 
 Cumulative exact-head evidence on that integration tree:
 
-- Workstream Spec Validation `32669027049` — **SUCCESS**;
-- Bounded Autonomy Pilot `32669027037` — **SUCCESS**;
-- Parallax P2 CI `32669027035` — **SUCCESS**;
+- Workstream Spec Validation `32673761335` — **SUCCESS**;
+- Bounded Autonomy Pilot `32673761305` — **SUCCESS**;
+- Parallax P2 CI `32673761323` — **SUCCESS**;
   - full API + contract regression — success;
   - client type/state/export + browser/Skia acceptance — success;
   - protected promotion evaluation — success;
   - DSPy release compilation — success.
 
-The #97 validation cycle exposed and corrected a controller attribute/method collision and strengthened elapsed-runtime enforcement with a second budget check immediately before mutation. The accepted fix did not weaken protected thresholds, authority, lineage or promotion boundaries.
+The #98 validation cycle exposed and corrected a canonical graph node-order round-trip mismatch. Final reconciliation also bound work-steal proposals to dependency-ready work and the exact optimization-graph digest before the existing P2-V0.16.1 lease/generation/CAS reassignment authority can be invoked. No protected threshold, mutation, evaluator, worker identity, provider target or promotion boundary was weakened.
 
-Next critical-path workstream is `P2-V0.16.4` / #98: critical-path scheduling, impact-aware validation, safe reuse/caching, specification preflight, speculative integration, workstream sizing and bounded development-performance telemetry. #98 must reuse the P2-V0.16.1 worker identity/lease protocol rather than create a competing scheduler authority.
+Next critical-path workstream is `P2-V0.16.5` / #99: serialize Wave 3 into the protected reference-app and autonomous recovery proof, including deliberate worker/process loss, functional/visual defects, stale-worker rejection, LKG/convergence cases, optimization non-authority and Project-isolation evidence. Passing that workstream stops at READY FOR PRODUCTION PROMOTION; it does not authorize production deployment.
 
 ## Authoritative governance
 
@@ -239,15 +240,20 @@ Evidence satisfies the release objective without claiming unsupported facts:
 
 ## Wave 3 current decision
 
-Wave 3 is **IN DEVELOPMENT** and cumulatively validated through `P2-V0.16.3` on the integration branch. This does not alter Wave 2 production truth.
+Wave 3 is **IN DEVELOPMENT** and cumulatively validated through `P2-V0.16.4` on the integration branch. This does not alter Wave 2 production truth.
 
 The accepted Wave 3 development baseline now contains:
 
 - durable worker lease/checkpoint/recovery semantics;
 - deterministic browser/accessibility/network/layout validation before visual judgment;
 - provenance-bound screenshot regression and bounded secondary multimodal review;
-- autonomous diagnose/correct/retest with immutable lineage, strict LKG preservation, convergence/resource bounds and explicit human/resource stop conditions.
+- autonomous diagnose/correct/retest with immutable lineage, strict LKG preservation, convergence/resource bounds and explicit human/resource stop conditions;
+- deterministic dependency/critical-path scheduling, integration backpressure and safe-boundary cancellation;
+- graph/lease/path-bound work stealing through the existing worker recovery authority;
+- conservative impact-aware validation with full promotion gates preserved;
+- immutable secret-free environment/cache identity, validated reusable patterns and Project-isolated repair memory;
+- adaptive model routing inside approved capability classes;
+- spec preflight, non-authoritative speculative integration and acceptance-preserving workstream sizing;
+- bounded privacy-safe development-performance telemetry.
 
-The remaining Wave 3 platform objective includes critical-path scheduling, bounded work stealing, impact validation, warm secret-free environments, validated pattern reuse, privacy-safe repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing and development-performance telemetry, followed by final integration/release reconciliation.
-
-Production merge/promotion remains outside the ordinary autonomous Wave 3 ceiling unless durable governance is explicitly changed later.
+The remaining Wave 3 objective is the `P2-V0.16.5` final integration/reference-app/recovery proof. Production merge/promotion remains outside the ordinary autonomous Wave 3 ceiling unless durable governance is explicitly changed later.
