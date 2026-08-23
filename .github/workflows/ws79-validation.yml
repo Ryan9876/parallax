@@ -1,0 +1,42 @@
+name: WS79 Source Delivery Validation
+
+on:
+  pull_request:
+    branches: [integration/wave2-app-builder]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate protected P2-V0.15.9 plan
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.15.9.md
+      - name: Compile Python sources
+        run: python -m compileall -q services/api/parallax_api scripts
+      - name: Run focused source-delivery and inherited Wave 2 tests
+        run: |
+          python -m pytest -q \
+            services/api/tests/test_source_delivery_composition.py \
+            services/api/tests/test_source_delivery_runtime.py \
+            services/api/tests/test_code_workspace_lineage.py \
+            services/api/tests/test_code_durable_lineage.py \
+            services/api/tests/test_code_runtime_composition.py \
+            services/api/tests/test_lineage_sandbox_execution.py \
+            services/api/tests/test_provider_actions.py \
+            services/api/tests/test_provider_action_security.py \
+            services/api/tests/test_provider_clients.py \
+            services/api/tests/test_provider_client_security.py
+      - name: Run complete API regression
+        run: python -m pytest services/api/tests -q
