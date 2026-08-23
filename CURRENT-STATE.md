@@ -1,224 +1,224 @@
 # Parallax 2.0 Current State
 
-Release: App-builder Wave 1 production foundation + Wave 2 final validated production candidate
+Release: App-builder Wave 2 production runtime
 Date: 2026-08-23
-Status: **PRODUCTION = WAVE 1 DEPLOYMENT-VERIFIED; WAVE 2 = FINAL INTEGRATION VALIDATED / RELEASE AUTHORIZED / VERCEL MANAGEMENT CREDENTIAL PENDING / NOT MERGED / NOT DEPLOYED**
+Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = UNLOCKED / NOT YET STARTED**
 
 ## Production truth
 
-Production remains the verified Wave 1 app-builder foundation. Wave 2 has not been merged to `main`, its new migrations have not been applied, production source-lineage storage/provider credentials have not been provisioned, and no Wave 2 production deployment has occurred.
+Wave 2 is now the verified production app-builder runtime. The complete `P2-V0.15.1` through `P2-V0.15.12` tranche was provisioned, migrated, validated, merged and deployed through the guarded release sequence.
 
-Ops-only tooling/documentation commits have been merged to `main` and may trigger Vercel builds, but they do not constitute a Wave 2 application deployment.
+The production application merge is:
 
-- production application baseline commit: `357aaf9e8dd2d7560b4adb0232746b7eb81b7b8c`
-- production web baseline: v0.13.9 / deployment `dpl_88MB16ZRUMgvFgzsukEMXq82Skyy`
-- original deployment-verified Wave 1 API: `dpl_D1ozbw2vzRF8DUcKFigiap4Q5HYB`
-- later ops-only `main` deployment `dpl_HfHoqfGJkpPerbFXQuSTqz1Da7Gy`: READY at commit `f14a94dcf503e8ebd13e1f256f884bb86574300c`; this did not contain Wave 2 application changes
-- Wave 1 API `/health`: verified 200
-- Wave 1 API `/ready`: verified 200 / database ok
-- unauthenticated `/v1/projects`: verified 401
-- Wave 1 Project migration: applied and verified with RLS/direct-client-role restrictions preserved
+- PR `#67` — merged;
+- merge commit `686d7934044e5018dc3cd324f0b61ee2b548c756`;
+- `main` was verified at that exact merge SHA immediately after promotion;
+- later root documentation/authoritative-record commits do not redefine the deployed application release identity.
 
 ## Authoritative governance
 
-- `PROJECT-CONSTITUTION.md` v1.3
-- `ARCHITECTURE.md` v2.4
-- `DESIGN-SYSTEM.md` v2.1
-- `CURRENT-STATE.md` — this snapshot
-- concurrent-development protocol: `PARALLEL-DEVELOPMENT.md`
+- `PROJECT-CONSTITUTION.md` v1.3 — unchanged;
+- `ARCHITECTURE.md` v2.5 — updated for the deployed Wave 2 runtime;
+- `DESIGN-SYSTEM.md` v2.1 — unchanged;
+- `CURRENT-STATE.md` — this deployment-verified snapshot;
+- `PARALLEL-DEVELOPMENT.md` — concurrent-development protocol.
 
-GitHub issues/PRs/workflows, Supabase migration/schema evidence, and Vercel deployment/runtime evidence are authoritative for active implementation/release state when chat recollection differs.
+GitHub issues/PRs/workflows, Supabase migration/schema evidence and Vercel deployment/runtime evidence remain operational authority when chat recollection differs.
 
-## Standing release authorization
+## Deployed Wave 2 capability
 
-On 2026-08-23 the operator explicitly authorized all remaining implementation/release work for the Wave 2 path, including reconciliation, prerequisite provisioning, production migration application, PR #67 merge, deployment, and post-deploy verification once protected prerequisites pass. This authorization is recorded in Control Tower issue #31 comment `5386856626`.
+Production now composes:
 
-No additional approval is required for those already-authorized steps. Technical safety sequencing remains mandatory: production migrations, Wave 2 merge, and Wave 2 deployment must not occur until Vercel storage/provider credential prerequisites are successfully provisioned and verified.
+`authenticated Project selection/binding -> approved Work Specification -> PLAN -> repository bootstrap/current durable lineage -> typed IMPLEMENT proposal -> confined safe mutation -> durable accepted source lineage -> exact-lineage BUILD/TEST/VERIFY -> bounded GitHub publication -> project-scoped Vercel Preview -> persisted provider/runtime evidence -> unchanged #46 protected evaluation -> operator REVIEW`
 
-## Wave 2 final integration candidate
-
-Cumulative PR: `#67` — **Wave 2 app-builder integration candidate**
-Branch: `integration/wave2-app-builder`
-Validated application tree head: `00f7e73014d829a505bc4ef21ab2cc9e60c7c75c`
-Current release-refresh head: `180943255e2a54f490c5f6375f559babd0e31454`
-PR state: **READY / MERGEABLE / NOT MERGED TO MAIN**
-
-`180943255...` is a tree-identical no-op commit over `00f7e730...`, created only to force GitHub to rebuild and revalidate the PR merge ref after ops/documentation changes landed on `main`. No Wave 2 application bytes changed; the application tree remains `e9598afa6dd2a6253d62e06f52b045c0503bdaa5`.
-
-Wave 2 serializes the complete `P2-V0.15.1` through `P2-V0.15.12` app-builder tranche:
+The deployed contracts include:
 
 1. canonical Project/runtime identity and owner-scoped binding;
-2. protected Project/run workspace and immutable source-lineage contract;
+2. protected Project/run workspace identity and immutable source lineage;
 3. typed protected IMPLEMENT generation/mutation;
-4. bounded GitHub/Vercel provider action contracts;
-5. production-safe durable lineage with immutable private-object storage + transactional metadata/current-head CAS and disposable local materialization only;
-6. actual engineering-run runtime composition with exact-lineage Vercel Sandbox BUILD/TEST/VERIFY and no fresh-repository fallback after accepted IMPLEMENT;
-7. concrete bounded GitHub REST and Vercel Preview clients with scoped/short-lived credential contracts and secret-safe failures;
-8. minimum Project select/create client compatibility for canonical `project_id` Code conversations;
-9. first-run repository bootstrap plus exact verified-lineage GitHub branch/commit/PR and Vercel Preview delivery, with bounded provider action/audit persistence and replay after process recreation without duplicate provider mutation;
-10. #46 app-builder evaluation evidence derived from persisted Project/spec/run/lineage/stage/provider audit facts plus a protected restart/reference-app proof;
-11. live production-route source-delivery composition, exact server-owned target registration, short-lived GitHub Connect credential acquisition and durable lineage-table RLS/revoked-role hardening;
-12. per-target production credential isolation so canonical Projects can use distinct GitHub Connect connectors and Vercel Preview credentials without widening one request to another Project's provider target.
+4. project-scoped tool authority;
+5. private immutable source objects plus transactional lineage/head metadata;
+6. exact-lineage Vercel Sandbox BUILD/TEST/VERIFY;
+7. concrete bounded GitHub and Vercel Preview clients;
+8. client Project select/create and canonical `project_id` Code compatibility;
+9. first-run repository bootstrap and replay-safe GitHub/Preview publication;
+10. protected #46 evaluation derived from persisted runtime/provider facts;
+11. live production dependency/credential composition and lineage-table security hardening;
+12. per-target provider credential isolation for multi-Project least privilege.
 
-Issues #59–#62, #68–#71, #79, #80, #84 and #88 are complete at the Wave 2 integration boundary.
+Process/request recreation, durable lineage reconstruction, duplicate IMPLEMENT prevention, duplicate provider-publication prevention and deliberate Project/spec/digest/lineage/stage/provider/Preview/evidence negative cases are protected. Vercel Preview remains the autonomous provider ceiling. Production merge/promotion remains an operator/release boundary.
 
-## Final Wave 2 proof
+## Final pre-merge validation
 
-The validated candidate proves at repository/integration-test level:
+Final tree-identical release-refresh head:
 
-`Project selection/binding → approved Work Specification → PLAN → repository bootstrap → typed implementation proposal → safe mutation → durable accepted lineage → exact-lineage BUILD/TEST/VERIFY → bounded GitHub publication → Vercel Preview → unchanged #46 protected evaluation from persisted runtime/provider evidence → operator REVIEW`
+`2cd5a29971912a896a379ff82725fbeb65e69d95`
 
-The reference proof recreates runtime/request composition between meaningful stages, reconstructs accepted source from durable lineage, replays IMPLEMENT without duplicate source mutation, resolves accepted provider delivery after recreation, and replays publication without duplicate commit/PR/Preview mutation. Negative Project/spec/digest/lineage/stage/provider/preview/evidence/authority cases fail closed. Preview remains the autonomous provider ceiling and #46 scoring/critical-failure semantics are unchanged.
+Exact-head gates:
 
-Production composition additionally proves that canonical owner-scoped `Project.repository_ref` selects a server-owned target before credentials are resolved. Each target carries its own GitHub Connect connector reference and bounded Vercel token environment-variable reference. Only that selected Vercel secret is read, and the request-scoped Vercel credential provider/client receive a singleton target scope. A Vercel Connect GitHub token is accepted only after GitHub proves the installation token can access exactly the canonical repository.
+- Workstream Spec Validation `32662519994` — **SUCCESS**;
+- Bounded Autonomy Pilot `32662519995` — **SUCCESS**;
+- P2 CI `32662519996` — **SUCCESS**;
+  - API + contract checks — success;
+  - client type/state/export + browser/Skia acceptance — success;
+  - protected promotion evaluation — success;
+  - DSPy release compilation — success.
 
-The #79→#80 evidence bridge remains read-only over #79's durable Engineering Attempt delivery record. Evaluation does not rerun provider mutations and does not introduce a second provider-audit persistence system.
+The merge used expected-head protection against `2cd5a299...`; GitHub returned merge commit `686d793...`.
 
-## Final cumulative validation
+## Vercel production prerequisites
 
-Original exact application head `00f7e73014d829a505bc4ef21ab2cc9e60c7c75c`:
+Provisioning completed successfully before migrations/merge.
 
-- Workstream Spec Validation `32646469671` — **SUCCESS**
-- P2 CI `32646469716` — **SUCCESS**, including full API, client/browser, production dependency audit, protected promotion evaluation and DSPy release compilation
-- Bounded Autonomy `32646469680` — **SUCCESS**, including protected execution/autonomy, full API regression, client state/export
-- Vercel API Preview `dpl_E1emBBqmS4jz4VbMeZC6sAcHPiLp` — **READY**, exact integration SHA
-- Vercel runtime error check — **no error clusters observed**
+Successful protected provisioning evidence:
 
-Current tree-identical release-refresh head `180943255e2a54f490c5f6375f559babd0e31454`, tested against current `main` at the time of refresh:
+- runner commit `26672d5b7f45b27d64727f7f96ce3f60c5778027`;
+- Actions run `32662010500`;
+- credential availability — success;
+- bootstrap access to both registered Vercel projects — success;
+- canonical API project link — success;
+- provision + verify — success;
+- no secret values reported.
 
-- Workstream Spec Validation `32648965379` — **SUCCESS**
-- P2 CI `32648965370` — **SUCCESS**
-- Bounded Autonomy `32648965387` — **SUCCESS**
+Provisioned production runtime dependencies:
 
-Direct Preview health probing is intercepted by Vercel Authentication before application routing; this is access protection, not an application failure. Protected Vercel fetch/share tooling remains available for deployment verification.
+- private Blob store `parallax-source-lineage`;
+- `BLOB_READ_WRITE_TOKEN` available to Preview + Production for the accepted Python Blob adapter;
+- GitHub Vercel Connect connector `github/parallax-runtime`;
+- connector attached to `parallax-api` for Preview + Production;
+- dedicated Vercel credential scoped only to target project `parallax`;
+- sensitive `PARALLAX_VERCEL_TOKEN_PARALLAX` for Preview + Production;
+- exact `PARALLAX_VERCEL_PREVIEW_TARGETS_JSON` target registration.
 
-P2-V0.15.11 authentic DSPy evidence: compiler run `32621606396` SUCCESS, artifact `9488544665`, digest `sha256:0013879518c00b28119ea951756f0b795badb5c0f86199191bdb548c315f85b9`.
+Canonical target remains:
 
-P2-V0.15.12 authentic DSPy evidence: compiler run `32645066528` SUCCESS, artifact `9494664770`, digest `sha256:167d86a3e4ffba7907823a17f46b91658e4f93a8e554af503721743a30b538d9`.
+- repository: `github:Ryan9876/parallax` / GitHub repo ID `1340272514`;
+- production branch: `main`;
+- GitHub connector: `github/parallax-runtime`;
+- Vercel Preview ref: `vercel:preview:parallax`;
+- Vercel project ID: `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
+- team ID: `team_JgE8AWWz36uzRbeR6V6EWg9k`;
+- Vercel token env reference: `PARALLAX_VERCEL_TOKEN_PARALLAX`.
 
-## Vercel production prerequisite architecture
+The project-scoped Preview credential was verified to reach its registered `parallax` target and not `parallax-api`.
 
-Wave 2 production requires:
+Live provisioning exposed and corrected several bootstrap assumptions before promotion: resumable Blob creation, canonical seeded project linking, team-wide connector discovery, current Vercel token JSON parsing and secret-safe environment upsert. The hardened provisioning implementation was promoted to `main` before the final Wave 2 merge.
 
-- private Vercel Blob for immutable source contents;
-- `BLOB_READ_WRITE_TOKEN` for the accepted Python `vercel>=0.9,<0.10` Blob adapter;
-- transactional source-lineage metadata/current-head CAS in production Postgres;
-- one repository-scoped GitHub Vercel Connect connector per registered repository target, attached to `parallax-api` for the intended environments;
-- one dedicated project-scoped Vercel Preview access credential per registered Preview target, stored as a sensitive Vercel environment variable;
-- `PARALLAX_VERCEL_PREVIEW_TARGETS_JSON` containing each exact repository/Vercel target plus its `github_connector` and bounded `vercel_token_env` reference.
+## Production database
 
-`VERCEL_OIDC_TOKEN` is **not** a manual deployment secret. Vercel injects and refreshes it on deployments, and the Wave 2 GitHub Connect adapter consumes that platform-provided token.
+Production Supabase project `Parallax 2.0` / `kjyenifnfjqnzfgshpwg` is healthy.
 
-The connected Vercel action surface can inspect projects/deployments/logs, access protected deployments, and initiate deployments, but it does not expose Blob creation, Connect attachment, Vercel token creation, environment-variable mutation, or Vercel Access Token creation. No alternate installed management plugin providing those writes was found. Vercel management API operations require a Vercel Access Token; GitHub Actions OIDC is not a replacement for that general management credential.
+Wave 2 migrations are applied and recorded:
 
-## Validated Vercel provisioning automation
+- `20260823194237 project_runtime_binding`;
+- `20260823194310 durable_source_lineage`.
 
-Ops PR #91 merged to `main` as `f14a94dcf503e8ebd13e1f256f884bb86574300c`. It adds `scripts/provision_wave2_vercel.py` plus deterministic safety tests.
+Direct verification proved:
 
-The helper is bounded to canonical `parallax-api` and the registered `parallax` Preview target. It can:
+- `conversations.project_id` and `engineering_runs.project_id` exist with the expected type;
+- both Project foreign-key constraints exist;
+- `source_lineage_manifests` exists;
+- `source_lineage_heads` exists;
+- RLS is enabled on both lineage tables;
+- `anon` and `authenticated` have no SELECT privilege on either lineage table.
 
-- create/reuse private Blob `parallax-source-lineage` and require `BLOB_READ_WRITE_TOKEN` in Preview + Production;
-- create/reuse and attach `github/parallax-runtime` to `parallax-api` Preview + Production;
-- create a Vercel access token scoped only to registered target project `prj_wLXC5JjjetJf0H97kncRlqczD3OC` and prove it cannot access `parallax-api`;
-- retain the one-time target token only in process memory and pass it through stdin to sensitive `PARALLAX_VERCEL_TOKEN_PARALLAX`;
-- install exact `PARALLAX_VERCEL_PREVIEW_TARGETS_JSON` in Preview + Production;
-- verify required key names/connector presence;
-- stop without applying migrations, merging PR #67, or deploying production.
+Post-migration security/performance advisors introduced no release-blocking finding. RLS-with-no-policy notices on server-owned tables are intentional fail-closed INFO findings. The leaked-password-protection warning predates Wave 2 and was not changed as part of this release. New-index/foreign-key advisor entries are INFO only and are not evidence to remove fresh release indexes.
 
-Exact helper head `f37e5d4b586a8a990e654638e33336cdbaeeb580` passed P2 CI `32647389235` and Bounded Autonomy `32647389308`. Validation found and fixed command-argument secret redaction before merge.
+## Production deployments
 
-Ops PR #92 merged the fail-closed self-reporting runner to `main` as `389546f963a71ecc912f755e879a2dcd2d4fd3a9`. `.github/workflows/wave2-vercel-provision-run.yml`:
+### API
 
-- accepts only opaque repository Actions secret `VERCEL_TOKEN`;
-- pins Vercel CLI `58.4.4`;
-- runs the validated provisioning helper;
-- reports only success/failure outcomes to Control Tower issue #31, never secret values;
-- supports `workflow_dispatch` for a manual rerun after the secret is configured;
-- contains no production migration, PR merge, or deployment command.
+`parallax-api` production deployment:
 
-PR #92 exact head `035451aab69f64eea2d483c6aaa12d3f4f8c0e7e` passed P2 CI `32649543633` and Bounded Autonomy `32649543636`, including full API regression, browser/Skia acceptance, protected promotion evaluation and DSPy release compilation.
+- deployment `dpl_h2JMsQJKSHUXazeCWGDSK9g1upKw`;
+- exact GitHub SHA `686d7934044e5018dc3cd324f0b61ee2b548c756`;
+- commit verification — verified;
+- target — production;
+- state — **READY**;
+- production alias `parallax-api-tan.vercel.app` points to the deployed release.
 
-A deliberate runner execution at commit `c88a2d4216f81498f0ce385e5193388c311a0416`, Actions run `32649207367`, self-reported: credential availability **failure**, CLI install **skipped**, provisioning **skipped**. This is authoritative evidence that repository Actions secret `VERCEL_TOKEN` is currently absent. No Blob store, Connect connector, target token or target-registry environment mutation occurred.
+Live checks against the production alias:
 
-### Sole external release blocker
+- `GET /health` — **200**, service `parallax-api`, status `ok`;
+- `GET /ready` — **200**, database `ok`, status `ready`;
+- unauthenticated `GET /v1/projects` — **401 Authentication required** with Bearer challenge;
+- production runtime logs show the expected 200/200/401 requests on this exact deployment;
+- runtime error clusters after deployment — **none observed**.
 
-The only currently identified external authorization boundary is a temporary Vercel management Access Token made available to the repository as Actions secret **`VERCEL_TOKEN`**. The token must have sufficient team/project authority for the helper to create/connect the private Blob store, create/attach the GitHub connector, create a project-scoped target token, and update the bounded Vercel environment variables.
+The exact immutable deployment hostname remains behind Vercel Deployment Protection and may return the Vercel SSO redirect before application routing; the production alias was used for application smoke checks.
 
-The token value must not be pasted into chat or committed. Once the secret exists, the already-merged `Wave 2 Vercel Provision Run` workflow can be run manually; successful self-reported provisioning evidence unlocks the remaining already-authorized release sequence. The bootstrap management token should be revoked after successful provisioning/verification because the runtime uses narrower per-target credentials thereafter.
+### Client
 
-## Production Supabase preflight
+`parallax` production deployment:
 
-Production Supabase project `Parallax 2.0` / `kjyenifnfjqnzfgshpwg` is `ACTIVE_HEALTHY`, region `us-east-2`, Postgres `17.6.1.155`.
+- deployment `dpl_5trK5jmGEVeN6av8avNEv9DnS7ka`;
+- exact GitHub SHA `686d7934044e5018dc3cd324f0b61ee2b548c756`;
+- commit verification — verified;
+- target — production;
+- state — **READY**;
+- aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app` and `parallax-git-main-lew7.vercel.app`;
+- runtime error clusters after deployment — **none observed**.
 
-Production migration history currently ends at the applied Project migration `20260822230525 projects`. Wave 2 migrations remain unapplied:
+Browser/Skia acceptance passed on the exact pre-merge application tree. Protected immutable deployment URLs may remain behind Vercel Deployment Protection.
 
-- `20260822_0007_project_runtime_binding.sql`
-- `20260823_0008_durable_source_lineage.sql`
+## Provider/runtime verification boundary
 
-Direct preflight SQL verified there are no migration collisions:
+Production prerequisite composition is real and verified: private Blob exists, durable lineage schema is active, `github/parallax-runtime` exists, the target-scoped Vercel credential/registry exist, both application deployments are on the exact merge SHA, readiness is healthy and protected auth fails closed.
 
-- `conversations.project_id`: absent;
-- `engineering_runs.project_id`: absent;
-- `source_lineage_manifests`: absent;
-- `source_lineage_heads`: absent;
-- both proposed Project FK constraints: absent;
-- `projects.id`, `conversations.id`, and `engineering_runs.id`: all `varchar(36)`, matching the migration contract.
+A synthetic authenticated production GitHub/Preview mutation was **not** manufactured solely for post-deploy verification. Doing so would require consuming the production break-glass/session boundary and deliberately creating external repository/Preview state after the same provider/replay path had already passed the protected reference-app loop and negative cases at the exact release tree. The release therefore treats the protected reference loop + real production dependency composition + exact deployment/smoke/log evidence as the bounded verification proof, rather than widening production side effects for a redundant test.
 
-Pre-migration security advisor output contains existing `RLS Enabled No Policy` INFO notices on intentionally server-owned fail-closed tables and an unrelated leaked-password-protection WARN. No permissive RLS policy was added and no unrelated Auth setting was changed.
+## Rollback readiness
 
-The migrations remain deliberately unapplied until successful Vercel prerequisite evidence exists, preventing a half-upgraded production release.
+Rollback source remains available:
 
-## Remaining authorized release sequence
+- previous API production deployment `dpl_8KLzBTY1zhvHkVqyH2MtKKBovz2K` is **READY** at pre-Wave-2 application main `9482cdf1068261f720389410dd0cb754e68e8c17`;
+- prior client v0.13.9 deployment `dpl_88MB16ZRUMgvFgzsukEMXq82Skyy` is **READY** at `0938296be2c8b488340717fd5f6dbffad65d3856`.
 
-After successful Vercel provisioning evidence, Control Tower is authorized to proceed without another approval:
+Database rollback must respect the now-applied forward-compatible Project/lineage schema rather than destructively removing production migration history during an application rollback.
 
-1. rerun/confirm provisioning verification;
-2. apply migration 0007 and verify columns/FKs/indexes;
-3. apply migration 0008 and verify lineage tables/checks/FK/RLS/revoked `anon`/`authenticated` privileges;
-4. rerun Supabase security/performance advisors and confirm no release-introduced critical findings;
-5. refresh PR #67 merge-ref validation again if `main` has moved materially;
-6. merge PR #67 to `main` at the validated expected head;
-7. verify the exact Vercel production deployment SHA rather than assuming Git integration success;
-8. verify `/health`, `/ready`, authentication, database/runtime/provider composition, durable lineage behavior, least-privilege target isolation, logs/runtime errors, and rollback readiness;
-9. update authoritative records to distinguish MERGED, DEPLOYED and DEPLOYMENT-VERIFIED states.
+## Bootstrap credential cleanup
 
-PR #67 must not be described as deployed merely because a Preview is green.
+The temporary team-wide Vercel management Access Token used only for prerequisite provisioning was revoked after successful deployment verification.
 
-## Approved Wave 3 platform contract
+Cleanup evidence:
 
-Wave 3 implementation begins after the Wave 2 release is safely promoted and deployment-verified. Its target is an end-to-end bounded autonomous development system that continues from approved objective through implementation, validation and correction until protected criteria pass or a defined human/resource boundary is reached.
+- cleanup commit `0b6505b60cd4989467981ea345050f4d2bfd8e81` on the ops runner branch;
+- Actions run `32663022035`;
+- Vercel self-revoke — **SUCCESS**;
+- post-revoke project-access proof — **SUCCESS**, Vercel rejected the same credential with HTTP 403;
+- no token value was read or reported.
 
-Wave 3 requirements already approved as durable governance/architecture include:
+If GitHub still displays repository Actions secret `VERCEL_TOKEN`, its stored value is now revoked/inert. The connected GitHub tool surface does not expose repository-secret deletion, so deleting that inert secret entry is optional operator housekeeping rather than a live-authority blocker.
 
-- browser/workflow execution, deterministic DOM/accessibility/console/network validation, screenshot regression and multimodal visual QA, with deterministic failures authoritative;
-- autonomous diagnose/correct/retest loops with last-known-good preservation, retry/churn/runtime budgets and oscillation/no-progress detection;
-- durable worker checkpoints, leases/meaningful-progress heartbeats, `STALLED`/`RECOVERING`/`REASSIGNED`/`HUMAN_REQUIRED` states, single-writer recovery and a deliberate worker-kill/stall promotion proof;
-- continuous bounded worker utilization, fast-vs-promotion CI, machine-checkable cross-workstream contracts, permanent reference apps, safe caching, automated Control Tower composition and evidence-backed corrective-work dispatch;
-- critical-path scheduling/work stealing, change-impact testing, warm secret-free environments, validated reusable patterns/components/configuration, privacy-safe failure/repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing/rebalancing and development-performance telemetry.
+## Wave 2 completion decision
 
-The same Wave 3 baseline governs development of Parallax and every Project Parallax develops through:
+Wave 2 is **DEPLOYMENT-VERIFIED**.
 
-`Parallax platform baseline → Project profile → approved Work Specification → capability-specific validation plan`
+Evidence satisfies the release objective without claiming unsupported facts:
 
-Projects may strengthen but may not silently weaken the platform baseline. Wave 3 runtime enforcement remains **APPROVED / NOT YET IMPLEMENTED / NOT DEPLOYED**.
+- final cumulative candidate validated;
+- production prerequisites provisioned and verified;
+- production migrations applied and security posture verified;
+- exact-head PR merged with head protection;
+- exact merge SHA deployed to API and client;
+- both deployments READY;
+- health/readiness/auth boundary verified;
+- production logs and runtime errors inspected;
+- rollback targets verified;
+- temporary broad bootstrap credential revoked.
 
-## Deployment-state vocabulary
+## Next phase — Wave 3 unlocked
 
-- Wave 1 production foundation: **VALIDATED / MERGED / DEPLOYED / DEPLOYMENT-VERIFIED**
-- production client baseline: **v0.13.9 / DEPLOYED / VERIFIED**
-- Wave 2 P2-V0.15.1–P2-V0.15.12: **VALIDATED / INTEGRATION-COMPLETE / RELEASE AUTHORIZED / VERCEL MANAGEMENT CREDENTIAL PENDING / NOT MERGED / NOT DEPLOYED**
-- Wave 2 Vercel provisioning helper: **VALIDATED / MERGED TO MAIN**
-- Wave 2 Vercel provisioning runner: **VALIDATED / MERGED TO MAIN / LAST RUN BLOCKED BEFORE PROVISIONING BY ABSENT `VERCEL_TOKEN`**
-- Wave 2 migrations/storage: **CODE + PREFLIGHT VALIDATED / PRODUCTION NOT APPLIED OR PROVISIONED**
-- Wave 2 provider clients/composition: **CODE VALIDATED / LIVE PRODUCTION CREDENTIAL BINDING NOT PROVISIONED OR VERIFIED**
-- Wave 2 protected end-to-end reference loop: **DEMONSTRATED AT REPOSITORY/INTEGRATION-TEST LEVEL**
-- Wave 3 inherited autonomous/optimization/stall-recovery policy: **AUTHORITATIVE GOVERNANCE / RUNTIME NOT YET IMPLEMENTED**
+Wave 3 may now begin. Its approved platform objective is generalized end-to-end bounded autonomous development through implementation, deterministic/browser/visual validation, correction/retry, provider Preview publication and protected evaluation until success or a defined human/resource boundary.
 
-## Authoritative-record status
+Approved Wave 3 additions include:
 
-- `CURRENT-STATE.md`: updated for standing release authorization, current tree-identical Wave 2 release-refresh validation, clean production migration preflight, merged provisioning helper/runner, and definitive evidence that the temporary Vercel management credential is the sole remaining external release blocker.
-- `ARCHITECTURE.md`: remains v2.4 because the Wave 2 runtime/composition has not yet been merged/deployment-verified as production architecture.
-- `PROJECT-CONSTITUTION.md`: remains v1.3; the operator authorized this release sequence but no durable governance authority boundary changed.
-- `DESIGN-SYSTEM.md`: remains v2.1; no durable design-system rule changed.
+- deterministic DOM/accessibility/console/network validation before screenshot/multimodal judgment;
+- screenshot regression and multimodal visual QA;
+- autonomous diagnose/correct/retest with last-known-good preservation and convergence budgets;
+- durable worker leases/checkpoints/heartbeats plus `STALLED`, `RECOVERING`, `REASSIGNED` and `HUMAN_REQUIRED` recovery behavior;
+- deliberate worker-kill/stall recovery proof;
+- critical-path scheduling, bounded work stealing, change-impact validation, warm secret-free environments, validated pattern reuse, privacy-safe repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing and development-performance telemetry;
+- the same protected baseline for Parallax self-development and every Project Parallax develops.
 
-Historical worker, integration, CI, provisioning-attempt, preview and production evidence remains preserved in GitHub Actions, issues/PRs, Supabase, and Vercel history.
+Production merge/promotion remains outside the ordinary autonomous Wave 3 ceiling unless durable governance is explicitly changed later.
