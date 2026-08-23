@@ -279,7 +279,7 @@ class VercelHappyTransport:
                     "link": {"type": "github", "repoId": 12345},
                 },
             )
-        if request.method == "GET" and path == "/v7/deployments":
+        if request.method == "GET" and path == "/v6/deployments":
             return httpx.Response(
                 200,
                 json={"deployments": [{"uid": "dpl_preview_1"}] if self.existing else []},
