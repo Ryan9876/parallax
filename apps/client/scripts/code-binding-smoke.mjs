@@ -14,6 +14,7 @@ const mime = {
 };
 
 const PROJECT_ID = '77777777-7777-4777-8777-777777777777';
+const OTHER_PROJECT_ID = '88888888-8888-4888-8888-888888888888';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -49,22 +50,29 @@ function staticServer({ failSkia = false } = {}) {
   });
 }
 
+function makeProject(id, name) {
+  return {
+    id,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    name,
+    description: null,
+    repository_ref: `github:owner/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    workspace_ref: `project:${id}`,
+    status: 'active',
+    created_at: '2026-08-23T00:00:00Z',
+    updated_at: '2026-08-23T00:00:00Z',
+  };
+}
+
 function apiServer() {
   let conversation = null;
   let workSpecification = null;
   let engineeringRun = null;
   const codeConversationRequests = [];
-  const project = {
-    id: PROJECT_ID,
-    slug: 'code-binding-project',
-    name: 'Code Binding Project',
-    description: null,
-    repository_ref: 'github:owner/code-binding-project',
-    workspace_ref: `project:${PROJECT_ID}`,
-    status: 'active',
-    created_at: '2026-08-23T00:00:00Z',
-    updated_at: '2026-08-23T00:00:00Z',
-  };
+  const projects = [
+    makeProject(OTHER_PROJECT_ID, 'Other Project'),
+    makeProject(PROJECT_ID, 'Code Binding Project'),
+  ];
 
   function makeConversation(mode) {
     return {
@@ -110,7 +118,7 @@ function apiServer() {
 
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
     if (pathname === '/v1/projects' && request.method === 'GET') {
-      json(response, 200, [project], origin);
+      json(response, 200, projects, origin);
       return;
     }
     if (pathname === '/v1/conversations' && request.method === 'GET') {
@@ -122,7 +130,7 @@ function apiServer() {
       const mode = payload.mode === 'code' ? 'code' : 'reason';
       if (mode === 'code') {
         codeConversationRequests.push(payload);
-        assert(payload.project_id === PROJECT_ID, 'Code conversation did not use the canonical Project ID');
+        assert(payload.project_id === PROJECT_ID, 'Code conversation did not use the explicitly selected canonical Project ID');
         assert(!Object.hasOwn(payload, 'workspace_ref'), 'Code conversation request exposed workspace_ref');
       } else {
         assert(!Object.hasOwn(payload, 'project_id'), 'Reason conversation unexpectedly carried Project binding');
@@ -233,13 +241,7 @@ function apiServer() {
       json(response, 200, {
         run: engineeringRun,
         stop_reason: 'EXECUTOR_UNAVAILABLE',
-        steps: [{
-          stage: 'EXECUTOR',
-          outcome: 'FAILED',
-          attempt_id: null,
-          replayed: false,
-          tool_id: 'python',
-        }],
+        steps: [{ stage: 'EXECUTOR', outcome: 'FAILED', attempt_id: null, replayed: false, tool_id: 'python' }],
       }, origin);
       return;
     }
@@ -269,7 +271,8 @@ function apiServer() {
 async function exerciseCodeBinding(page) {
   await page.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await page.getByText('code', { exact: true }).click();
-  await page.getByText('PROJECT · Code Binding Project').waitFor({ timeout: 5000 });
+  await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
+  await page.getByLabel('Select Project Code Binding Project').click();
   await page.getByLabel('Message Parallax').fill('Implement the approved Code objective.');
   await page.getByLabel('Send message').click();
   await page.getByText(/The Code objective is captured/).first().waitFor({ timeout: 10000 });
@@ -303,7 +306,6 @@ try {
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
-  await reduced.getByText('PROJECT · Code Binding Project').waitFor({ timeout: 5000 });
   await reduced.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
   await reduced.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
   await reduced.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
