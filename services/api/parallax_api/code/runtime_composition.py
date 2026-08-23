@@ -7,7 +7,13 @@ from pathlib import Path, PurePosixPath
 import tempfile
 from typing import Protocol
 
-from .autonomy import AutonomyCoordinator, AutonomyResult, AutonomousExecutor, LineageAwareAutonomousExecutor
+from .autonomy import (
+    AutonomyCoordinator,
+    AutonomyResult,
+    AutonomyStopReason,
+    AutonomousExecutor,
+    LineageAwareAutonomousExecutor,
+)
 from .implementation_runtime import (
     ImplementationLineageReceipt,
     ImplementationWorkspaceHandle,
@@ -16,12 +22,24 @@ from .implementation_runtime import (
     WorkspaceLineageError,
 )
 from .service import EngineeringRunService
+from .source_delivery_composition import (
+    SourceDeliveryComposition,
+    VerifiedDeliveryResult,
+)
 from .workspace_allocator import MaterializedWorkspace
-from .workspace_lineage import ProjectRunIdentity, SourceLineage
+from .workspace_lineage import ProjectRunIdentity, SourceLineage, SourceProvider
 
 
 class DurableLineageAllocator(Protocol):
     """Narrow #60/#68 allocator contract consumed by runtime composition."""
+
+    def initialize(
+        self,
+        identity: ProjectRunIdentity,
+        provider: SourceProvider,
+    ) -> MaterializedWorkspace: ...
+
+    def current_lineage(self, identity: ProjectRunIdentity) -> SourceLineage: ...
 
     def resolve(
         self,
@@ -288,9 +306,12 @@ class EngineeringRuntimeComposition:
         legacy_executor: AutonomousExecutor,
         *,
         lineage_executor: LineageAwareAutonomousExecutor | None = None,
+        source_delivery: SourceDeliveryComposition | None = None,
     ) -> None:
         self.service = service
         self.allocator = allocator
+        self.source_delivery = source_delivery
+        self.last_delivery_result: VerifiedDeliveryResult | None = None
         self.gateway = AllocatorWorkspaceLineageGateway(allocator)
         self.implementation_runtime = ProtectedImplementationRuntime(
             service,
@@ -317,12 +338,28 @@ class EngineeringRuntimeComposition:
     ) -> AutonomyResult:
         result: AutonomyResult | None = None
         primary_error: BaseException | None = None
+        self.last_delivery_result = None
         try:
+            if self.source_delivery is not None:
+                run = self.service.get(run_id)
+                try:
+                    self.source_delivery.bootstrap.ensure(run, operation_key=operation_key)
+                except Exception as exc:
+                    raise RuntimeCompositionError("repository-backed source bootstrap failed") from exc
+
             result = self.coordinator.run(
                 run_id=run_id,
                 operation_key=operation_key,
                 expected_revision=expected_revision,
             )
+            if self.source_delivery is not None and result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED:
+                try:
+                    self.last_delivery_result = self.source_delivery.delivery.deliver(
+                        result.run,
+                        operation_key=operation_key,
+                    )
+                except Exception as exc:
+                    raise RuntimeCompositionError("verified source delivery failed before operator review") from exc
             return result
         except BaseException as exc:
             primary_error = exc
