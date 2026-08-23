@@ -1,0 +1,101 @@
+{
+  "spec_id": "P2-V0.15.5",
+  "architecture_decisions": [
+    {
+      "id": "AD-01",
+      "acceptance": ["AC-01", "AC-02", "AC-08", "AC-09"],
+      "decision": "Preserve #60 canonical Project/run and lineage semantics while removing every authoritative filesystem durability path; local storage is disposable materialization only."
+    },
+    {
+      "id": "AD-02",
+      "acceptance": ["AC-03", "AC-06", "AC-07", "AC-09"],
+      "decision": "Persist immutable source bytes through an explicit SHA-256 addressed object protocol whose production adapter uses private Vercel Blob and verifies every write/read."
+    },
+    {
+      "id": "AD-03",
+      "acceptance": ["AC-04", "AC-05", "AC-07", "AC-10"],
+      "decision": "Persist immutable manifests and mutable current heads transactionally through SQLAlchemy/Postgres and make expected-current conditional update the cross-instance CAS authority."
+    }
+  ],
+  "work_items": [
+    {
+      "id": "WI-01",
+      "acceptance": ["AC-03", "AC-04", "AC-07", "AC-09", "AC-10"],
+      "paths": ["services/api/parallax_api/code/lineage_persistence.py", "services/api/migrations/20260823_0008_durable_source_lineage.sql", "services/api/pyproject.toml"],
+      "action": "Add private content-addressed object adapters, transactional persistent metadata/head CAS, forward migration and official Vercel SDK dependency without provisioning resources."
+    },
+    {
+      "id": "WI-02",
+      "acceptance": ["AC-01", "AC-02", "AC-05", "AC-06", "AC-07", "AC-09"],
+      "paths": ["services/api/parallax_api/code/workspace_lineage.py", "services/api/parallax_api/code/workspace_allocator.py"],
+      "action": "Refactor #60 SourceLineageStore onto explicit durable protocols and require explicit lineage injection into the allocator while preserving all accepted identity, integrity, stale-parent, replay, reconstruction and evidence semantics."
+    },
+    {
+      "id": "WI-03",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10"],
+      "paths": ["services/api/tests/test_code_workspace_lineage.py", "services/api/tests/test_code_workspace_allocator.py", "services/api/tests/test_code_durable_lineage.py"],
+      "action": "Retain inherited #60 regression coverage and add partial-write, missing/corrupt-object, CAS, process-recreation, private-Blob-contract and disposable-materialization validation."
+    }
+  ],
+  "validations": [
+    {
+      "id": "VAL-01",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10"],
+      "check": "Validate P2-V0.15.5 and its committed protected DSPy plan with the repository protected metrics gate."
+    },
+    {
+      "id": "VAL-02",
+      "acceptance": ["AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09"],
+      "check": "Run the focused durable lineage, inherited workspace lineage and allocator tests plus the full API regression suite."
+    },
+    {
+      "id": "VAL-03",
+      "acceptance": ["AC-10"],
+      "check": "Run deterministic Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy Pilot on the exact final head targeting integration/wave2-app-builder with no provisioning, merge or deployment."
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-01",
+      "acceptance": ["AC-03", "AC-06", "AC-07"],
+      "risk": "Object storage can partially succeed before metadata persistence fails.",
+      "mitigation": "Verify all immutable content writes before metadata advancement; unreferenced objects may remain but cannot constitute accepted lineage."
+    },
+    {
+      "id": "R-02",
+      "acceptance": ["AC-04", "AC-05", "AC-07"],
+      "risk": "Separate API instances can race one current-lineage head.",
+      "mitigation": "Use one transactional expected-current conditional update as the persistent CAS arbiter and roll back losing manifest metadata."
+    },
+    {
+      "id": "R-03",
+      "acceptance": ["AC-02", "AC-08", "AC-09"],
+      "risk": "A local materialization path can accidentally regress into durable identity.",
+      "mitigation": "Remove filesystem state-root construction from SourceLineageStore, require explicit lineage-store injection, and test reconstruction under a different local root."
+    },
+    {
+      "id": "R-04",
+      "acceptance": ["AC-03", "AC-09", "AC-10"],
+      "risk": "Provider SDK use could leak source objects or credentials.",
+      "mitigation": "Use the official public SDK with private access, digest-only paths, server-owned credentials and bounded evidence that excludes raw provider state."
+    }
+  ],
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Canonical identity and authority preservation","protected_requirement":"Durable lineage accepts the same canonical lowercase UUID Project/run identity as #60. `Project.id` + `EngineeringRun.id` remain the only integration inputs; `project:<id>`, `workspace_ref`, paths, URLs, caller/model storage keys and malformed identity cannot become durable storage authority."},
+    {"id":"AC-02","title":"No function-local authoritative durability","protected_requirement":"`SourceLineageStore` requires explicit durable object and metadata adapters and exposes no filesystem state-root parameter. `ProjectWorkspaceAllocator` requires an explicit lineage store and uses its local protected root only for generated disposable leases; no `/tmp` or other local path is considered accepted durable lineage state."},
+    {"id":"AC-03","title":"Private immutable content-addressed objects","protected_requirement":"Every source file is persisted by SHA-256 through an immutable write-if-absent object contract. The Vercel production adapter uses the public Python SDK with `access=\"private\"`, deterministic digest-derived paths, no random suffix, no overwrite and read-after-write/read-time digest verification. Missing, corrupt or conflicting content fails closed."},
+    {"id":"AC-04","title":"Transactional persistent manifest and head CAS","protected_requirement":"Canonical lineage manifests and the current Project/run lineage head persist in the relational boundary. Manifest insertion and head advancement are transactional. Advancement succeeds only when the durable current lineage exactly equals the expected parent (or is absent for initialization), so separate API invocations/instances cannot accept different children from one parent."},
+    {"id":"AC-05","title":"Stale-parent, no-change and replay semantics survive recreation","protected_requirement":"A different stale child is rejected without changing the accepted head; unchanged source cannot create a lineage; and retrying the exact already-accepted initialization or implementation child returns the existing lineage idempotently after `SourceLineageStore`/allocator process recreation."},
+    {"id":"AC-06","title":"Exact reconstruction and integrity remain fail-closed","protected_requirement":"Any accepted historical/current lineage can be resolved and reconstructed into a fresh disposable workspace using durable manifest metadata and immutable objects. Manifest checksum/shape/identity tampering, identity mismatch, missing/corrupt objects, object size mismatch or reconstructed content-digest mismatch fails before the lineage is used."},
+    {"id":"AC-07","title":"Failure atomicity across object and metadata boundaries","protected_requirement":"A failed or partial durable object write cannot create or advance accepted lineage metadata. A failed/losing metadata CAS cannot advance the durable head and rolls back its unaccepted manifest metadata. Unreferenced immutable objects may remain but are never reported as accepted lineage."},
+    {"id":"AC-08","title":"Disposable materialization and cleanup safety","protected_requirement":"Materialized workspaces remain generated server-owned leases beneath a configured local root, never durable state. Cleanup is idempotent and deletes only the lease; a separate allocator/function instance with a different local root can reconstruct the same accepted lineage from durable storage afterward."},
+    {"id":"AC-09","title":"Bounded evidence and no authority expansion","protected_requirement":"Existing source count/per-file/aggregate/path/provenance bounds remain enforced. Lineage/workspace evidence contains bounded canonical IDs, lineage/content/provenance digests, counts/sizes and generated lease identity only; it contains no source bytes, filesystem roots, provider tokens/raw state, generic shell/Git/HTTP authority, protected-stage self-approval, production-promotion or deployment authority."},
+    {"id":"AC-10","title":"Integration-ready production persistence seam","protected_requirement":"The worker delivers the forward migration, official Vercel Python SDK dependency, durable adapters, refactored #60 store/allocator and focused durability tests without provisioning resources or applying the migration. The exact candidate passes the deterministic workstream-spec gate, full API regression, Parallax P2 CI and Bounded Autonomy Pilot and targets `integration/wave2-app-builder` READY FOR INTEGRATION without merge/deploy."}
+  ],
+  "dspy_run": {
+    "executed": false,
+    "model": null,
+    "api_base": null,
+    "local_development_view": false
+  }
+}
