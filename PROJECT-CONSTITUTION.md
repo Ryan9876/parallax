@@ -1,6 +1,6 @@
 # Parallax 2.0 Project Constitution
 
-Version: 1.2
+Version: 1.3
 Status: Authoritative
 
 ## Product purpose
@@ -21,6 +21,7 @@ Parallax 2.0 is an outcome-focused AI reasoning and software-engineering environ
 10. **Simplicity wins when outcomes are equivalent.** Complexity must justify itself through measurable quality, reliability, maintainability, capability, or user-experience improvement.
 11. **Parallel development is isolated; integration is serialized.** Concurrent ChatGPT workers use GitHub-authoritative workstream reservations, isolated branches, explicit dependency/path ownership, and validated PRs. Individual chat history does not establish current code ownership or release state. Final integration occurs one candidate at a time against the latest relevant `main`, with applicable gates rerun before merge and production promotion.
 12. **The Parallax development-policy baseline is inherited by every Parallax-developed project.** Project-specific policy may add stricter requirements or capability-specific validation, but it may not silently weaken the platform baseline for specification binding, canonical identity, source lineage, tool authority, durable checkpoints, bounded autonomy, stall/recovery controls, protected evaluation, evidence integrity, rollback, or human-control boundaries.
+13. **Development efficiency is optimized for validated outcome time, not raw worker activity.** Parallax's own development and every Project it develops must prefer critical-path reduction, impact-aware validation, safe reuse, early conflict detection, right-sized workstreams and measured bottleneck reduction. Efficiency mechanisms may reduce redundant work but may never weaken exact-head evidence, source lineage, privacy, authorization, protected promotion, rollback or human-control requirements.
 
 ## Inherited development policy
 
@@ -33,6 +34,21 @@ Every Project developed through Parallax is governed by three policy layers:
 The effective policy is the strictest applicable requirement across those layers. Missing project-specific configuration falls back to the platform baseline rather than disabling a control.
 
 The inherited platform baseline is intended to include, once its corresponding Wave 3 runtime capability is implemented and accepted: bounded autonomous correction, same-lineage BUILD/TEST/VERIFY, deterministic and capability-aware validation, last-known-good preservation, continuous bounded worker utilization, fast-versus-promotion validation lanes, machine-checkable interfaces, safe caching, automated Integration / Control Tower composition, durable resumable checkpoints, stall detection/classification, bounded recovery/reassignment, no-progress/oscillation protection, single-writer lease semantics, protected promotion evidence, and explicit human-control boundaries.
+
+Wave 3 must also apply the same development-efficiency baseline to Parallax self-development and all Parallax-developed Projects:
+
+- critical-path scheduling and bounded work stealing from the dependency graph;
+- change-impact-driven fast validation while retaining complete protected promotion gates;
+- immutable, secret-free warm execution environments with digest-bound invalidation;
+- validated reusable project patterns/components/configuration rather than unnecessary regeneration;
+- privacy-safe failure fingerprinting and repair memory whose suggestions must be revalidated in the current Project;
+- adaptive model routing that minimizes latency/cost without lowering protected evaluation or authority standards;
+- specification preflight for contradictions, missing dependencies, impossible acceptance criteria, authority conflicts and unsupported validation before implementation starts;
+- speculative integration on disposable candidates to expose interface/conflict failures before workers finish, without advancing accepted lineage or merge state;
+- automatic workstream sizing/rebalancing so work is neither too large to recover nor fragmented into unnecessary integration overhead;
+- development-performance telemetry that measures planning, generation, environment setup, build, validation, provider waits, retries, integration and human waits using bounded non-secret evidence.
+
+Reusable patterns, failure memory, telemetry, caches and warm environments must not become cross-Project data-exfiltration paths. Project-private source, secrets and sensitive evidence are not reusable global memory unless an explicit protected policy permits that exact artifact class.
 
 These Wave 3 controls are constitutional requirements for the future development runtime; recording them here does not assert that the current production runtime already implements them.
 
