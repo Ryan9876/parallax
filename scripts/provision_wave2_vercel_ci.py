@@ -43,6 +43,13 @@ def _run(repo: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _team_connector_present(repo: Path) -> bool:
+    """Detect a valid team-level connector before it is attached to parallax-api."""
+    result = _run(repo, ["vercel", "connect", "list", "--all-projects", "--format=json"])
+    text = (result.stdout or "") + "\n" + (result.stderr or "")
+    return result.returncode == 0 and helper.CONNECTOR in text
+
+
 def _token_from_json(text: str) -> str | None:
     try:
         payload = json.loads(text)
@@ -135,6 +142,7 @@ def _probe_existing_connectors(repo: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     helper._ensure_link = _ensure_seeded_link
+    helper._connector_present = _team_connector_present
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--api-dir", default="services/api")
     known, _ = parser.parse_known_args(argv)
