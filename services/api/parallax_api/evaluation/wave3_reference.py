@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+import json
 from typing import Protocol
 
 from ..code.autonomy import AutonomyStopReason
@@ -11,9 +12,11 @@ from ..code.worker_recovery import (
     RecoveryAction,
     StallClassification,
     WorkerCheckpoint,
+    WorkerCheckpointError,
     WorkerLifecycleState,
     WorkerStaleLease,
     WorkerStallEvidence,
+    validate_checkpoint,
 )
 from ..code.worker_service import WorkerRecoveryService
 from .app_builder import AppBuilderBenchmarkSuite, AppBuilderEvaluationReport
@@ -105,6 +108,77 @@ class ProtectedWave3ReferenceAppHarness:
             evidence_refs=("reference:accepted-lineage",),
             dependencies=("gate:browser", "gate:delivery", "gate:evaluation"),
         )
+
+    @staticmethod
+    def _with_durable_worker_recovery(
+        context: Wave3ReferenceRuntimeContext,
+        snapshot: RuntimeEvidenceSnapshot,
+    ) -> RuntimeEvidenceSnapshot:
+        """Bridge accepted #95 reassignment evidence into unchanged #46 recovery input.
+
+        Wave 2 proved interruption with Engineering Run PAUSED/RESUMED attempts.
+        Wave 3 intentionally replaces that manual shortcut with the durable
+        worker lease/generation/checkpoint protocol. A generation greater than
+        one can only be created by the accepted RECOVERING -> reassign CAS path.
+        We additionally require a fresh post-reassignment canonical checkpoint
+        on the exact accepted lineage before treating that persisted fact as
+        equivalent interruption/recovery evidence for the unchanged evaluator.
+        """
+
+        if snapshot.recovery_resumed:
+            return snapshot
+        run = context.service.get(snapshot.run_id)
+        execution = context.worker_recovery.executions.get_for_run(snapshot.run_id)
+        if execution is None or int(execution.lease_generation) < 2:
+            return snapshot
+        if execution.state not in {
+            WorkerLifecycleState.PROGRESSING.value,
+            WorkerLifecycleState.CHECKPOINTED.value,
+            WorkerLifecycleState.READY_FOR_INTEGRATION.value,
+            WorkerLifecycleState.SUCCEEDED.value,
+        }:
+            raise ReferenceLoopError("reassigned worker has no accepted post-recovery progress state")
+        if int(execution.checkpoint_revision) < 2:
+            raise ReferenceLoopError("reassigned worker lacks a fresh post-recovery checkpoint")
+        if (
+            execution.source_lineage_ref != snapshot.accepted_lineage_id
+            or execution.last_known_good_lineage_ref != snapshot.accepted_lineage_id
+        ):
+            raise ReferenceLoopError("worker recovery lineage/LKG does not match accepted runtime lineage")
+        try:
+            payload = json.loads(execution.checkpoint_json)
+            if not isinstance(payload, dict):
+                raise TypeError("checkpoint payload is not an object")
+            evidence_refs = payload.get("evidence_refs", [])
+            dependencies = payload.get("dependencies", [])
+            if not isinstance(evidence_refs, list) or not all(isinstance(item, str) for item in evidence_refs):
+                raise TypeError("checkpoint evidence refs are malformed")
+            if not isinstance(dependencies, list) or not all(isinstance(item, str) for item in dependencies):
+                raise TypeError("checkpoint dependencies are malformed")
+            checkpoint = WorkerCheckpoint(
+                project_id=payload["project_id"],
+                run_id=payload["run_id"],
+                work_specification_id=payload["work_specification_id"],
+                work_specification_revision=payload["work_specification_revision"],
+                work_specification_digest=payload["work_specification_digest"],
+                plan_ref=payload["plan_ref"],
+                current_step=payload["current_step"],
+                source_lineage_ref=payload.get("source_lineage_ref"),
+                last_known_good_lineage_ref=payload.get("last_known_good_lineage_ref"),
+                evidence_refs=tuple(evidence_refs),
+                dependencies=tuple(dependencies),
+                blocker_code=payload.get("blocker_code"),
+            )
+            validated = validate_checkpoint(run, checkpoint, existing_plan_ref=checkpoint.plan_ref)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError, WorkerCheckpointError) as exc:
+            raise ReferenceLoopError("durable worker recovery checkpoint failed protected validation") from exc
+        if (
+            validated.get("source_lineage_ref") != snapshot.accepted_lineage_id
+            or validated.get("last_known_good_lineage_ref") != snapshot.accepted_lineage_id
+            or execution.current_step != validated.get("current_step")
+        ):
+            raise ReferenceLoopError("durable worker recovery checkpoint does not match persisted worker state")
+        return replace(snapshot, recovery_resumed=True)
 
     def run(
         self,
@@ -309,11 +383,15 @@ class ProtectedWave3ReferenceAppHarness:
         ):
             raise ReferenceLoopError("verified-source publication retry was not idempotent")
 
-        # Process 5: derive persisted evidence, run unchanged protected scoring,
-        # and require explicit operator REVIEW. No production action exists here.
+        # Process 5: derive persisted evidence, bridge accepted #95 durable
+        # reassignment into the unchanged #46 recovery input, run unchanged
+        # protected scoring, and require explicit operator REVIEW.
         context = self.runtime_factory.open()
         try:
-            snapshot = context.evidence_adapter.snapshot(run_id)
+            snapshot = self._with_durable_worker_recovery(
+                context,
+                context.evidence_adapter.snapshot(run_id),
+            )
             evaluation = context.evidence_adapter.evaluate(
                 self.suite,
                 snapshot,
