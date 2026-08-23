@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import re
 
 from .worker_recovery import (
     DEFAULT_LEASE_SECONDS,
     DEFAULT_MAX_NO_PROGRESS,
     DEFAULT_MAX_OSCILLATIONS,
     DEFAULT_MAX_RETRIES,
+    MAX_CHECKPOINT_JSON,
     MAX_LEASE_SECONDS,
     MIN_LEASE_SECONDS,
     RecoveryAction,
@@ -25,9 +27,13 @@ from .worker_recovery import (
     classify_stall,
     progress_fingerprint,
     validate_checkpoint,
+    validate_lineage_ref,
 )
 from ..repositories.engineering_runs import EngineeringRunRepository
 from ..repositories.worker_executions import EngineeringWorkerExecution, WorkerExecutionRepository
+
+
+_BLOCKER_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_:-]{0,119}$")
 
 
 class WorkerExecutionNotFound(WorkerRecoveryError):
@@ -45,6 +51,15 @@ def _lease_seconds(value: int) -> int:
     if not MIN_LEASE_SECONDS <= value <= MAX_LEASE_SECONDS:
         raise ValueError(f"worker lease duration must be between {MIN_LEASE_SECONDS} and {MAX_LEASE_SECONDS} seconds")
     return value
+
+
+def _blocker_code(value: str | None) -> str | None:
+    if value is None:
+        return None
+    candidate = value.strip()
+    if not _BLOCKER_CODE_RE.fullmatch(candidate):
+        raise WorkerCheckpointError("worker blocker code is invalid or unbounded")
+    return candidate
 
 
 def _lease_from(execution: EngineeringWorkerExecution) -> WorkerLease:
@@ -72,6 +87,8 @@ class WorkerRecoveryService:
         max_no_progress: int = DEFAULT_MAX_NO_PROGRESS,
         max_oscillations: int = DEFAULT_MAX_OSCILLATIONS,
     ):
+        if min(max_retries, max_no_progress, max_oscillations) < 0:
+            raise ValueError("worker recovery bounds must be nonnegative")
         self.executions = executions
         self.runs = runs
         self.max_retries = max_retries
@@ -128,6 +145,7 @@ class WorkerRecoveryService:
         lease: WorkerLease,
         checkpoint: WorkerCheckpoint,
         *,
+        authoritative_source_lineage_ref: str | None,
         state: WorkerLifecycleState = WorkerLifecycleState.CHECKPOINTED,
         retry: bool = False,
         now: datetime | None = None,
@@ -152,6 +170,8 @@ class WorkerRecoveryService:
             decoded = json.loads(execution.checkpoint_json or "{}")
             if isinstance(decoded, dict):
                 existing_payload = decoded
+            else:
+                raise WorkerCheckpointError("stored worker checkpoint must be an object")
         except json.JSONDecodeError as exc:
             raise WorkerCheckpointError("stored worker checkpoint is corrupt") from exc
 
@@ -161,6 +181,13 @@ class WorkerRecoveryService:
             checkpoint,
             existing_plan_ref=existing_plan_ref if isinstance(existing_plan_ref, str) else None,
         )
+        authoritative_lineage = validate_lineage_ref(
+            authoritative_source_lineage_ref,
+            field="authoritative_source_lineage_ref",
+        )
+        if payload.get("source_lineage_ref") != authoritative_lineage:
+            raise WorkerCheckpointError("worker checkpoint source lineage does not match server-resolved accepted lineage")
+
         fingerprint = progress_fingerprint(payload)
         meaningful = fingerprint != execution.progress_fingerprint
         no_progress_count = 0 if meaningful else int(execution.no_progress_count) + 1
@@ -181,9 +208,11 @@ class WorkerRecoveryService:
             or oscillation_count > self.max_oscillations
         )
         next_action: str | None = None
-        blocker_code = payload.get("blocker_code") if isinstance(payload.get("blocker_code"), str) else None
+        blocker_code = _blocker_code(
+            payload.get("blocker_code") if isinstance(payload.get("blocker_code"), str) else None
+        )
         target_state = state
-        release_lease = state in TERMINAL_STATES
+        release_lease = state in TERMINAL_STATES or state is WorkerLifecycleState.READY_FOR_INTEGRATION
         if bounded_stop:
             target_state = WorkerLifecycleState.FAILED
             release_lease = True
@@ -195,7 +224,22 @@ class WorkerRecoveryService:
             else:
                 blocker_code = "WORKER_OSCILLATION_LIMIT"
 
+        # Counters and run revision are server-derived checkpoint context. They
+        # are intentionally appended after the meaningful-progress fingerprint
+        # so retries/heartbeat bookkeeping cannot manufacture progress.
+        payload.update(
+            {
+                "engineering_run_revision": int(run.revision),
+                "attempt_count": len(run.attempts),
+                "retry_count": retry_count,
+                "no_progress_count": no_progress_count,
+                "oscillation_count": oscillation_count,
+            }
+        )
         serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        if len(serialized) > MAX_CHECKPOINT_JSON:
+            raise WorkerCheckpointError("worker checkpoint exceeds protected JSON bound after server context")
+
         execution = self.executions.record_progress(
             execution_id=execution.id,
             owner_id=lease.owner_id,
@@ -242,17 +286,15 @@ class WorkerRecoveryService:
             now=_utc(now),
             state=state,
             stall_classification=decision.classification.value,
-            blocker_code=blocker_code,
+            blocker_code=_blocker_code(blocker_code),
             next_recovery_action=decision.action.value,
         )
         return decision
 
     def begin_recovery(self, *, run_id: str, now: datetime | None = None) -> EngineeringWorkerExecution:
         execution = self._execution(run_id)
-        if execution.state == WorkerLifecycleState.HUMAN_REQUIRED.value:
-            raise WorkerRecoveryError("HUMAN_REQUIRED execution cannot enter automatic recovery")
-        if execution.state in {item.value for item in TERMINAL_STATES}:
-            raise WorkerRecoveryError("terminal worker execution cannot enter recovery")
+        if execution.state != WorkerLifecycleState.STALLED.value:
+            raise WorkerRecoveryError("automatic recovery requires a STALLED worker execution")
         classification = execution.stall_classification or StallClassification.PROCESS_LOSS.value
         action = execution.next_recovery_action or RecoveryAction.REASSIGN.value
         return self.executions.mark_stalled(
@@ -280,7 +322,7 @@ class WorkerRecoveryService:
         return _lease_from(execution)
 
     def health(self, *, run_id: str, now: datetime | None = None) -> WorkerHealthSnapshot:
-        self._run(run_id)
+        run = self._run(run_id)
         execution = self._execution(run_id)
         current_time = _utc(now)
         expiry = execution.lease_expires_at
@@ -293,13 +335,19 @@ class WorkerRecoveryService:
         else:
             lease_status = "ACTIVE"
 
-        dependencies: tuple[str, ...] = ()
         try:
             checkpoint = json.loads(execution.checkpoint_json or "{}")
-            if isinstance(checkpoint, dict) and isinstance(checkpoint.get("dependencies"), list):
-                dependencies = tuple(str(item) for item in checkpoint["dependencies"])
-        except json.JSONDecodeError:
-            dependencies = ()
+        except json.JSONDecodeError as exc:
+            raise WorkerRecoveryError("stored worker checkpoint is corrupt") from exc
+        if not isinstance(checkpoint, dict):
+            raise WorkerRecoveryError("stored worker checkpoint must be an object")
+        dependencies_value = checkpoint.get("dependencies")
+        if dependencies_value is None:
+            dependencies: tuple[str, ...] = ()
+        elif isinstance(dependencies_value, list) and all(isinstance(item, str) for item in dependencies_value):
+            dependencies = tuple(dependencies_value)
+        else:
+            raise WorkerRecoveryError("stored worker checkpoint dependencies are corrupt")
 
         classification = None
         if execution.stall_classification:
@@ -316,6 +364,7 @@ class WorkerRecoveryService:
 
         return WorkerHealthSnapshot(
             execution_id=execution.id,
+            project_id=run.project_id or "",
             run_id=execution.run_id,
             state=WorkerLifecycleState(execution.state),
             lease_status=lease_status,
