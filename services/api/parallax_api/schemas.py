@@ -163,6 +163,7 @@ class EngineeringAutonomyProbeRead(BaseModel):
 
 class EngineeringWorkerHealthRead(BaseModel):
     execution_id: str
+    project_id: str
     run_id: str
     state: Literal[
         "RUNNING",
