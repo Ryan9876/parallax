@@ -74,14 +74,14 @@ class RecorderDelivery:
 
 
 class RecorderCoordinator:
-    def __init__(self, events, run, stop_reason):
+    def __init__(self, events, result_run, stop_reason):
         self.events = events
-        self.run = run
+        self.result_run = result_run
         self.stop_reason = stop_reason
 
     def run(self, *, run_id, operation_key, expected_revision):
         self.events.append(("coordinator", run_id, operation_key, expected_revision))
-        return AutonomyResult(run=self.run, stop_reason=self.stop_reason)
+        return AutonomyResult(run=self.result_run, stop_reason=self.stop_reason, steps=())
 
 
 def make_runtime(*, source_delivery=None, stop_reason=AutonomyStopReason.REVIEW_REQUIRED):
@@ -105,8 +105,7 @@ def test_runtime_bootstraps_before_autonomy_and_delivers_only_at_review():
         bootstrap=RecorderBootstrap(events),
         delivery=RecorderDelivery(events),
     )
-    runtime, run, coordinator_events = make_runtime(source_delivery=source_delivery)
-    # Use one shared recorder to assert the true sequence.
+    runtime, run, _ = make_runtime(source_delivery=source_delivery)
     runtime.coordinator.events = events
 
     result = runtime.run(run_id=run.id, operation_key="operation-1", expected_revision=3)
