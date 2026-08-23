@@ -17,6 +17,16 @@ on:
       - 'services/api/parallax_api/intelligence/**'
       - 'services/api/tests/test_metrics.py'
       - '.github/workflows/optimize-spec.yml'
+  pull_request:
+    branches:
+      - integration/wave3-autonomy
+    paths:
+      - 'specs/**'
+      - 'scripts/compile_spec.py'
+      - 'scripts/optimize_spec.py'
+      - 'services/api/parallax_api/intelligence/**'
+      - 'services/api/tests/test_metrics.py'
+      - '.github/workflows/optimize-spec.yml'
 
 jobs:
   optimize:
