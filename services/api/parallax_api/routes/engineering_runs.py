@@ -174,6 +174,7 @@ def worker_health(run_id: str, svc: EngineeringRunService = Depends(service)):
     snapshot = invoke(lambda: worker_recovery_service(svc).health(run_id=run_id))
     return {
         "execution_id": snapshot.execution_id,
+        "project_id": snapshot.project_id,
         "run_id": snapshot.run_id,
         "state": snapshot.state.value,
         "lease_status": snapshot.lease_status,
