@@ -1,100 +1,86 @@
 {
-  "spec_id": "P2-V0.15.2",
   "architecture_decisions": [
-    {
-      "id": "AD-01",
-      "acceptance": ["AC-01", "AC-02", "AC-09", "AC-10"],
-      "decision": "Keep canonical Project/run UUID identity separate from filesystem authority and materialize source only beneath a server-configured allocator root."
-    },
-    {
-      "id": "AD-02",
-      "acceptance": ["AC-03", "AC-05", "AC-06", "AC-07", "AC-08"],
-      "decision": "Persist immutable content-addressed source blobs and lineage manifests independently of disposable live workspaces so accepted source remains reconstructable after cleanup, retry and resume."
-    },
-    {
-      "id": "AD-03",
-      "acceptance": ["AC-04", "AC-08", "AC-09"],
-      "decision": "Initialize repository/template/starter source only through an injected trusted SourceProvider that receives canonical Project/run identity and returns bounded source bytes and provenance, with no caller URL, command or provider authority."
-    }
+    "- Canonical Project and Engineering Run identities are opaque UUID identities supplied by protected runtime integration; they are not filesystem paths. - Filesystem roots are generated only beneath a server-configured protected allocator root. - Accepted source versions are represented by immutable content-addressed snapshots, not by the continued existence of a mutable working directory. - Repository or starter initialization is mediated only by an injected trusted `SourceProvider` seam that receives canonical protected identity and returns bounded source bytes plus bounded provenance metadata. It does not accept caller URLs, commands, credentials, generic HTTP requests, or arbitrary bootstrap scripts. - This workstream adds no shared database fields and does not edit #59 persistence/schema ownership."
   ],
   "work_items": [
-    {
-      "id": "WI-01",
-      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09"],
-      "paths": ["services/api/parallax_api/code/workspace_lineage.py"],
-      "action": "Implement canonical Project/run identity validation, trusted source-package ingestion, bounded path/content policy, immutable blob/manifest lineage storage, protected current-lineage tracking, stale/idempotent mutation capture, integrity verification and exact historical reconstruction."
-    },
-    {
-      "id": "WI-02",
-      "acceptance": ["AC-01", "AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
-      "paths": ["services/api/parallax_api/code/workspace_allocator.py"],
-      "action": "Implement server-owned live workspace leases, exact-lineage materialization, forged-lease denial, protected implementation acceptance, current-lineage resolution and cleanup that removes only live workspace state."
-    },
-    {
-      "id": "WI-03",
-      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
-      "paths": ["services/api/tests/test_code_workspace_lineage.py"],
-      "action": "Add protected positive and negative lineage tests for identity/path confinement, trusted provider boundaries, resource bounds, deterministic lineage, stale/idempotent retry, no-change denial, exact reconstruction, different-tree rejection and manifest/blob tampering."
-    },
-    {
-      "id": "WI-04",
-      "acceptance": ["AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
-      "paths": ["services/api/tests/test_code_workspace_allocator.py"],
-      "action": "Add allocator tests proving no caller filesystem-root parameter, hashed server-owned paths, forged lease denial, IMPLEMENT lineage advancement, cleanup safety and exact BUILD/TEST/VERIFY reconstruction."
-    }
+    "- Implement a new immutable lineage storage system that validates canonical identity, normalizes and bounds source paths, stores content-addressed blobs, records immutable manifests, tracks one protected current lineage per Project/run pair, detects stale lineage, and reconstructs exact source content. The lineage store validates canonical identity, normalizes and bounds source paths, stores content-addressed blobs, records immutable manifests, tracks one protected current lineage per Project/run pair, detects stale lineage, and reconstructs exact source content."
   ],
   "validations": [
-    {
-      "id": "VAL-01",
-      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10"],
-      "check": "Run the repository protected specification evaluators against specs/P2-V0.15.2.md and specs/compiled/P2-V0.15.2.plan.json and require the committed DSPy metadata gate before handoff."
-    },
-    {
-      "id": "VAL-02",
-      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
-      "check": "Run pytest -q services/api/tests/test_code_workspace_lineage.py."
-    },
-    {
-      "id": "VAL-03",
-      "acceptance": ["AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
-      "check": "Run pytest -q services/api/tests/test_code_workspace_allocator.py."
-    },
-    {
-      "id": "VAL-04",
-      "acceptance": ["AC-09", "AC-10"],
-      "check": "Run deterministic workstream-spec validation, full Parallax P2 CI and Bounded Autonomy Pilot on latest main, and verify the final diff excludes #59 shared persistence/schema, #61 orchestration, provider adapters, deployment workflows and authoritative records."
-    }
+    "- The lineage store validates canonical identity, normalizes and bounds source paths, stores content-addressed blobs, records immutable manifests, tracks one protected current lineage per Project/run pair, detects stale lineage, and reconstructs exact source content.",
+    "AC-01: validate protected requirement \u2014 The lineage boundary accepts only canonical UUID Project and Engineering Run identifiers. `project:<id>`, paths, URLs, blank values and malformed UUIDs are rejected, and filesystem storage locations are derived server-side rather than from raw Project/run text.",
+    "AC-02: validate protected requirement \u2014 All live source workspaces are created beneath one server-configured allocator root using server-generated lease identities. The initialization, resolve/reconstruct and implementation-acceptance interfaces expose no caller-controlled filesystem-root parameter, and forged/out-of-root workspace leases fail closed.",
+    "AC-03: validate protected requirement \u2014 Initialization and each accepted implementation mutation produce immutable lineage evidence derived from the exact sorted source tree, canonical Project/run identity, parent lineage and bounded provenance. Equivalent accepted inputs are deterministic, while a different tree or different identity produces a different content/lineage identity and cannot be mislabeled as the accepted lineage.",
+    "AC-04: validate protected requirement \u2014 Repository/template/starter initialization occurs only through an injected trusted source provider that receives canonical Project/run identity. The public lineage contract accepts no raw repository URL, generic HTTP request, provider credential, shell command, Git command or arbitrary bootstrap command; provider source paths/content are normalized and bounded before persistence.",
+    "AC-05: validate protected requirement \u2014 A new implementation lineage may advance only from the current expected parent and must contain an actual source change. Repeating an already-recorded identical implementation result with the same expected parent returns the accepted child lineage idempotently, while a different tree, wrong parent, wrong Project/run identity or stale lineage is rejected without changing the protected current pointer.",
+    "AC-06: validate protected requirement \u2014 Any accepted lineage can be resolved after later mutations and reconstructed into a fresh isolated workspace whose rescanned content digest exactly matches the recorded snapshot. Manifest tampering, blob tampering, missing blobs, identity mismatch or attempts to substitute different content fail integrity validation.",
+    "AC-07: validate protected requirement \u2014 Deleting or expiring a materialized live workspace removes only that server-owned lease. Immutable manifests, content-addressed blobs and protected current-lineage evidence remain available so BUILD/TEST/VERIFY, retry or resume can reconstruct and prove the accepted source version after cleanup.",
+    "AC-08: validate protected requirement \u2014 Source capture enforces explicit maximum file count, per-file bytes and aggregate bytes. Lineage evidence contains bounded canonical identifiers, lineage/content digests, file counts/sizes, source kind and a digest of bounded provenance; it does not expose raw source contents, provider credentials, repository state, secret files or unbounded metadata.",
+    "AC-09: validate protected requirement \u2014 The new modules expose no user/model-supplied shell, arbitrary HTTP/network, Git history mutation, dependency installation, provider secret handling, Work Specification self-approval, protected-stage success override, Vercel promotion or production deployment operation.",
+    "AC-10: validate protected requirement \u2014 The worker candidate remains additive to `code/`, tests and `P2-V0.15.2` artifacts, does not edit #59 shared schema/persistence or #61 orchestration paths, and provides a protected source-lineage interface that serialized integration can bind to #59 canonical `project_id`/run identity and #61 IMPLEMENT\u2192BUILD\u2192TEST\u2192VERIFY orchestration without reinterpreting `workspace_ref` as a path."
   ],
   "risks": [
+    "- No material risk and no mitigation is necessary."
+  ],
+  "spec_id": "P2-V0.15.2",
+  "protected_acceptance_map": [
     {
-      "id": "R-01",
-      "acceptance": ["AC-03", "AC-06"],
-      "risk": "Filesystem tampering could alter immutable snapshot state.",
-      "mitigation": "Recompute manifest identity and verify every content-addressed blob before lineage resolution/materialization, then rescan reconstructed source."
+      "id": "AC-01",
+      "title": "Canonical identity confinement",
+      "protected_requirement": "The lineage boundary accepts only canonical UUID Project and Engineering Run identifiers. `project:<id>`, paths, URLs, blank values and malformed UUIDs are rejected, and filesystem storage locations are derived server-side rather than from raw Project/run text."
     },
     {
-      "id": "R-02",
-      "acceptance": ["AC-05"],
-      "risk": "Concurrent workers could race one run's current-lineage pointer.",
-      "mitigation": "Use exact expected-parent checks and atomic pointer replacement in this worker slice; serialized integration retains one protected run owner or adds cross-process locking before concurrent mutation is permitted."
+      "id": "AC-02",
+      "title": "Server-owned workspace allocation",
+      "protected_requirement": "All live source workspaces are created beneath one server-configured allocator root using server-generated lease identities. The initialization, resolve/reconstruct and implementation-acceptance interfaces expose no caller-controlled filesystem-root parameter, and forged/out-of-root workspace leases fail closed."
     },
     {
-      "id": "R-03",
-      "acceptance": ["AC-07", "AC-08"],
-      "risk": "Immutable lineage storage can grow over time.",
-      "mitigation": "Bound every snapshot and keep live-workspace cleanup separate from future snapshot garbage collection so referenced accepted lineage is never destroyed."
+      "id": "AC-03",
+      "title": "Immutable content-addressed lineage",
+      "protected_requirement": "Initialization and each accepted implementation mutation produce immutable lineage evidence derived from the exact sorted source tree, canonical Project/run identity, parent lineage and bounded provenance. Equivalent accepted inputs are deterministic, while a different tree or different identity produces a different content/lineage identity and cannot be mislabeled as the accepted lineage."
     },
     {
-      "id": "R-04",
-      "acceptance": ["AC-04", "AC-08", "AC-09"],
-      "risk": "A trusted provider adapter can still return unsafe source output.",
-      "mitigation": "Treat provider output as untrusted bytes and normalize/bound all paths, contents and provenance before persistence while leaving concrete provider authority to #62."
+      "id": "AC-04",
+      "title": "Trusted source-provider seam",
+      "protected_requirement": "Repository/template/starter initialization occurs only through an injected trusted source provider that receives canonical Project/run identity. The public lineage contract accepts no raw repository URL, generic HTTP request, provider credential, shell command, Git command or arbitrary bootstrap command; provider source paths/content are normalized and bounded before persistence."
     },
     {
-      "id": "R-05",
-      "acceptance": ["AC-01", "AC-10"],
-      "risk": "#59 may refine the persistence path for canonical Project/run identity.",
-      "mitigation": "Consume only canonical UUID-shaped identity in this standalone contract and leave shared persistence/orchestration binding to serialized integration."
+      "id": "AC-05",
+      "title": "Stale-lineage denial and idempotent retry",
+      "protected_requirement": "A new implementation lineage may advance only from the current expected parent and must contain an actual source change. Repeating an already-recorded identical implementation result with the same expected parent returns the accepted child lineage idempotently, while a different tree, wrong parent, wrong Project/run identity or stale lineage is rejected without changing the protected current pointer."
+    },
+    {
+      "id": "AC-06",
+      "title": "Exact historical reconstruction and integrity",
+      "protected_requirement": "Any accepted lineage can be resolved after later mutations and reconstructed into a fresh isolated workspace whose rescanned content digest exactly matches the recorded snapshot. Manifest tampering, blob tampering, missing blobs, identity mismatch or attempts to substitute different content fail integrity validation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Cleanup and expiry safety",
+      "protected_requirement": "Deleting or expiring a materialized live workspace removes only that server-owned lease. Immutable manifests, content-addressed blobs and protected current-lineage evidence remain available so BUILD/TEST/VERIFY, retry or resume can reconstruct and prove the accepted source version after cleanup."
+    },
+    {
+      "id": "AC-08",
+      "title": "Bounded evidence and resource behavior",
+      "protected_requirement": "Source capture enforces explicit maximum file count, per-file bytes and aggregate bytes. Lineage evidence contains bounded canonical identifiers, lineage/content digests, file counts/sizes, source kind and a digest of bounded provenance; it does not expose raw source contents, provider credentials, repository state, secret files or unbounded metadata."
+    },
+    {
+      "id": "AC-09",
+      "title": "No execution or release authority expansion",
+      "protected_requirement": "The new modules expose no user/model-supplied shell, arbitrary HTTP/network, Git history mutation, dependency installation, provider secret handling, Work Specification self-approval, protected-stage success override, Vercel promotion or production deployment operation."
+    },
+    {
+      "id": "AC-10",
+      "title": "Integration-ready Wave 2 contract",
+      "protected_requirement": "The worker candidate remains additive to `code/`, tests and `P2-V0.15.2` artifacts, does not edit #59 shared schema/persistence or #61 orchestration paths, and provides a protected source-lineage interface that serialized integration can bind to #59 canonical `project_id`/run identity and #61 IMPLEMENT\u2192BUILD\u2192TEST\u2192VERIFY orchestration without reinterpreting `workspace_ref` as a path."
     }
-  ]
+  ],
+  "critique": [
+    ":\n- Canonical Project and Engineering Run identities are opaque UUID identities supplied by protected runtime integration; they are not filesystem paths.\n- Filesystem roots are generated only beneath a server-configured protected allocator root.\n- Accepted source versions are represented by immutable content-addressed snapshots, not by the continued existence of a mutable working directory.\n- Repository or starter initialization is mediated only by an injected trusted `SourceProvider` seam that receives canonical protected identity and returns bounded source bytes plus bounded provenance metadata.\n- This workstream adds no shared database fields and does not edit #59 persistence/schema ownership.\n- The lineage store validates canonical identity, normalizes and bounds source paths, stores content-addressed blobs, records immutable manifests, tracks one protected current lineage per Project/run pair, detects stale lineage, and reconstructs exact source content.\n- The allocator materializes a requested accepted lineage only under its server-owned root, returns an internal workspace lease, validates that lease before accepting source mutation, and deletes only materialized workspaces during cleanup.\n- Lineage identity must bind canonical Project ID, run ID, parent lineage, exact content digest, bounded source kind/provenance digest, file count and total bytes.\n- A different source tree, different Project/run identity, modified manifest, or modified blob must not validate as the accepted lineage.\n- AC-01: Canonical identity confinement: The lineage boundary accepts only canonical UUID Project and Engineering Run identifiers.\n- AC-02: Server-owned workspace allocation: All live source workspaces are created beneath one server-configured allocator root using server-generated lease identities.\n- AC-03: Immutable content-addressed lineage: Initialization and each accepted implementation mutation produce immutable lineage evidence derived from the exact sorted source tree, canonical\u2026\n- AC-04: Trusted source-provider seam: Repository/template/starter initialization occurs only through an injected trusted source provider that receives canonical Project/run identity."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
 }
