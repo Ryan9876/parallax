@@ -202,7 +202,7 @@ def _ensure_link(repo: Path) -> None:
 def _ensure_blob(repo: Path) -> None:
     stores = _run(["vercel", "blob", "list-stores", "--all"], cwd=repo)
     if BLOB_STORE_NAME not in stores.stdout:
-        _run(
+        created = _run(
             [
                 "vercel",
                 "blob",
@@ -215,7 +215,15 @@ def _ensure_blob(repo: Path) -> None:
                 "--yes",
             ],
             cwd=repo,
+            check=False,
         )
+        if created.returncode != 0:
+            detail = ((created.stderr or "") + "\n" + (created.stdout or "")).strip()
+            lowered = detail.lower()
+            if "already exists" not in lowered and "409" not in lowered:
+                raise ProvisioningError(
+                    f"vercel blob create-store failed: {_redact(detail) or 'no diagnostic output'}"
+                )
     for environment in ("preview", "production"):
         if BLOB_TOKEN_ENV not in _env_list(repo, environment):
             raise ProvisioningError(
