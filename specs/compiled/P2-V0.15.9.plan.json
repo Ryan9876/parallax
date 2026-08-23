@@ -1,0 +1,95 @@
+{
+  "architecture_decisions": [
+    "AC-01"
+  ],
+  "work_items": [
+    "Initialize first durable lineage exactly once from the canonical owner-scoped Project `repository_ref` through existing project-authorized GitHub read actions and #70 concrete client boundary."
+  ],
+  "validations": [
+    "AC-02",
+    "AC-04: validate protected requirement — The initial lineage `source_ref_digest` is the SHA-256 of the deterministic protected `repository_ref@provider_revision` reference. Publication can re-prove the expected parent revision by resolving the repository and matching this digest; no new durable lineage field or migration is required.",
+    "AC-05: validate protected requirement — Protected IMPLEMENT advances the exact bootstrapped lineage using existing expected-parent CAS semantics. BUILD/TEST/VERIFY execute only on that accepted implementation lineage using #69. Fresh repository checkout or unrelated lineage fallback after IMPLEMENT is forbidden.",
+    "AC-06: validate protected requirement — Delivery is callable only after protected VERIFY succeeds and its server-owned evidence binds the same canonical Project/run and exact accepted source lineage. Pre-IMPLEMENT, parent/root, unverified, stale, forged, or unrelated lineage publication is rejected before provider mutation.",
+    "AC-07: validate protected requirement — Publication reconstructs the exact accepted durable lineage into disposable server-owned materialization, verifies Project/run/lineage/content digest/file manifest, and converts only that verified content into bounded existing `GitHubCommitFile` values. Local materialization is never durable authority and is always cleaned up.",
+    "AC-08: validate protected requirement — Delivery uses only existing authorized GitHub branch-create, accepted-lineage commit, PR-create, and PR-read actions. Branch identity is deterministic and bounded; commit uses the re-proven bootstrap provider revision as exact expected parent. Moved/stale parent, repository mismatch, PR/head mismatch, authority denial, credential denial, or provider failure fails closed. Existing replay semantics prevent duplicate branch/commit/PR creation.",
+    "AC-09: validate protected requirement — After exact GitHub commit/PR validation, delivery uses only existing authorized Vercel Preview create/read actions with the exact canonical Project/repository, committed source revision, deterministic branch, accepted lineage, and registered Vercel Preview target. Production branch/target/promotion/alias/domain/environment/secret mutation remains impossible. Existing replay semantics prevent duplicate previews.",
+    "AC-10: validate protected requirement — Success returns only bounded Project/run/repository identity digest, lineage ID/content digest, branch/commit/PR identifiers, preview deployment status/identity and safe URLs through existing provider evidence. Credential material, headers and raw provider payloads are absent. Denial/failure remains structurally distinct from success and is never recorded as release/promotion/deployment success.",
+    "AC-11: validate protected requirement — Tests cover first bootstrap, repeated bootstrap, independent process/allocator recreation, cross-project/repository mismatch, competing initial source, stale provider parent, exact provider retry/idempotency, verified-lineage-only publication, credential/authority denial, cleanup, and Preview-only ceiling.",
+    "AC-12: validate protected requirement — Candidate contains approved spec + authentic committed DSPy plan before implementation, only declared composition/test changes, exact-head Workstream Spec Validation/P2 CI/Bounded Autonomy success, and an open PR targeting `integration/wave2-app-builder`. Worker does not merge, deploy, apply migrations, provision production credentials/storage/targets, or edit authoritative project records."
+  ],
+  "risks": [
+    "AC-03"
+  ],
+  "spec_id": "P2-V0.15.9",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical owner-scoped bootstrap binding",
+      "protected_requirement": "A first-run bootstrap derives `ProjectRunIdentity` only from persisted `EngineeringRun.project_id` + `EngineeringRun.id`, resolves that Project for the authenticated owner, and requires the Project's canonical GitHub `repository_ref`. Cross-owner/missing/repository-mismatch cases fail closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Authorized repository-backed source provider",
+      "protected_requirement": "Bootstrap source is obtained only through existing project-scoped GitHub provider actions and the accepted concrete GitHub credential/client boundary. Repository resolve/tree/file reads bind one immutable provider revision and return a bounded `SourcePackage`; no URL/clone/Git/shell/generic HTTP/caller-selected revision path exists."
+    },
+    {
+      "id": "AC-03",
+      "title": "Durable first-lineage CAS and replay",
+      "protected_requirement": "When no current lineage exists, the allocator initializes exactly once through #68 durable lineage storage. Same-source retry and process recreation resolve the same accepted lineage; a different/conflicting initializer or stale identity fails closed without replacing current lineage."
+    },
+    {
+      "id": "AC-04",
+      "title": "Root provider provenance without schema expansion",
+      "protected_requirement": "The initial lineage `source_ref_digest` is the SHA-256 of the deterministic protected `repository_ref@provider_revision` reference. Publication can re-prove the expected parent revision by resolving the repository and matching this digest; no new durable lineage field or migration is required."
+    },
+    {
+      "id": "AC-05",
+      "title": "Same-lineage IMPLEMENT through VERIFY preserved",
+      "protected_requirement": "Protected IMPLEMENT advances the exact bootstrapped lineage using existing expected-parent CAS semantics. BUILD/TEST/VERIFY execute only on that accepted implementation lineage using #69. Fresh repository checkout or unrelated lineage fallback after IMPLEMENT is forbidden."
+    },
+    {
+      "id": "AC-06",
+      "title": "Verified-lineage-only publication gate",
+      "protected_requirement": "Delivery is callable only after protected VERIFY succeeds and its server-owned evidence binds the same canonical Project/run and exact accepted source lineage. Pre-IMPLEMENT, parent/root, unverified, stale, forged, or unrelated lineage publication is rejected before provider mutation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Exact accepted lineage materialization",
+      "protected_requirement": "Publication reconstructs the exact accepted durable lineage into disposable server-owned materialization, verifies Project/run/lineage/content digest/file manifest, and converts only that verified content into bounded existing `GitHubCommitFile` values. Local materialization is never durable authority and is always cleaned up."
+    },
+    {
+      "id": "AC-08",
+      "title": "Bounded GitHub delivery and parent protection",
+      "protected_requirement": "Delivery uses only existing authorized GitHub branch-create, accepted-lineage commit, PR-create, and PR-read actions. Branch identity is deterministic and bounded; commit uses the re-proven bootstrap provider revision as exact expected parent. Moved/stale parent, repository mismatch, PR/head mismatch, authority denial, credential denial, or provider failure fails closed. Existing replay semantics prevent duplicate branch/commit/PR creation."
+    },
+    {
+      "id": "AC-09",
+      "title": "Preview-only Vercel delivery",
+      "protected_requirement": "After exact GitHub commit/PR validation, delivery uses only existing authorized Vercel Preview create/read actions with the exact canonical Project/repository, committed source revision, deterministic branch, accepted lineage, and registered Vercel Preview target. Production branch/target/promotion/alias/domain/environment/secret mutation remains impossible. Existing replay semantics prevent duplicate previews."
+    },
+    {
+      "id": "AC-10",
+      "title": "Secret-safe bounded delivery evidence",
+      "protected_requirement": "Success returns only bounded Project/run/repository identity digest, lineage ID/content digest, branch/commit/PR identifiers, preview deployment status/identity and safe URLs through existing provider evidence. Credential material, headers and raw provider payloads are absent. Denial/failure remains structurally distinct from success and is never recorded as release/promotion/deployment success."
+    },
+    {
+      "id": "AC-11",
+      "title": "Deterministic failure/idempotency evidence",
+      "protected_requirement": "Tests cover first bootstrap, repeated bootstrap, independent process/allocator recreation, cross-project/repository mismatch, competing initial source, stale provider parent, exact provider retry/idempotency, verified-lineage-only publication, credential/authority denial, cleanup, and Preview-only ceiling."
+    },
+    {
+      "id": "AC-12",
+      "title": "Worker release boundary",
+      "protected_requirement": "Candidate contains approved spec + authentic committed DSPy plan before implementation, only declared composition/test changes, exact-head Workstream Spec Validation/P2 CI/Bounded Autonomy success, and an open PR targeting `integration/wave2-app-builder`. Worker does not merge, deploy, apply migrations, provision production credentials/storage/targets, or edit authoritative project records."
+    }
+  ],
+  "critique": [
+    "The single most material implementation risk or omission in the approved software specification is the lack of a durable lineage storage mechanism. This is a critical issue that needs to be addressed to ensure that the implementation adheres to the specified requirements and does not introduce new risks."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
