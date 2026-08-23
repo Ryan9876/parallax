@@ -130,10 +130,10 @@ class VercelPreviewRestClient(VercelProviderClient):
         }
 
     @staticmethod
-    def _params(target: VercelApiTarget, **extra: object) -> dict[str, object]:
+    def _params(api_target: VercelApiTarget, **extra: object) -> dict[str, object]:
         params: dict[str, object] = dict(extra)
-        if target.team_id is not None:
-            params["teamId"] = target.team_id
+        if api_target.team_id is not None:
+            params["teamId"] = api_target.team_id
         return params
 
     def _send(
