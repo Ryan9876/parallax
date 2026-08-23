@@ -22,11 +22,14 @@ from ..code.runtime_composition import (
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
+from ..code.worker_recovery import WorkerRecoveryError
+from ..code.worker_service import WorkerExecutionNotFound, WorkerRecoveryService
 from ..db import get_session
 from ..models import EngineeringRun
 from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
+from ..repositories.worker_executions import WorkerExecutionRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
 from ..schemas import (
     EngineeringAdvance,
@@ -37,6 +40,7 @@ from ..schemas import (
     EngineeringRunActivate,
     EngineeringRunCreate,
     EngineeringRunRead,
+    EngineeringWorkerHealthRead,
 )
 
 router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
@@ -69,6 +73,13 @@ def runtime_lineage_allocator(
     """
 
     return production_durable_lineage_allocator(session.get_bind())
+
+
+def worker_recovery_service(svc: EngineeringRunService) -> WorkerRecoveryService:
+    return WorkerRecoveryService(
+        WorkerExecutionRepository(svc.runs.session),
+        svc.runs,
+    )
 
 
 def present(run: EngineeringRun, svc: EngineeringRunService) -> dict:
@@ -112,7 +123,7 @@ def result_payload(result: RunOperationResult, svc: EngineeringRunService) -> di
 def invoke(call):
     try:
         return call()
-    except EngineeringRunNotFound as exc:
+    except (EngineeringRunNotFound, WorkerExecutionNotFound) as exc:
         raise HTTPException(404, str(exc)) from exc
     except RevisionConflict as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -120,7 +131,7 @@ def invoke(call):
         raise HTTPException(503, str(exc)) from exc
     except RuntimeCompositionError as exc:
         raise HTTPException(503, str(exc)) from exc
-    except (RunTransitionError, ValueError) as exc:
+    except (RunTransitionError, WorkerRecoveryError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
 
@@ -153,6 +164,34 @@ def autonomy_probe():
 @router.get("/{run_id}", response_model=EngineeringRunRead)
 def get_run(run_id: str, svc: EngineeringRunService = Depends(service)):
     return present(invoke(lambda: svc.get(run_id)), svc)
+
+
+@router.get("/{run_id}/worker-health", response_model=EngineeringWorkerHealthRead)
+def worker_health(run_id: str, svc: EngineeringRunService = Depends(service)):
+    # Owner-scoped run lookup is the authorization boundary. The recovery
+    # repository itself is deliberately internal and does not derive ownership.
+    invoke(lambda: svc.get(run_id))
+    snapshot = invoke(lambda: worker_recovery_service(svc).health(run_id=run_id))
+    return {
+        "execution_id": snapshot.execution_id,
+        "run_id": snapshot.run_id,
+        "state": snapshot.state.value,
+        "lease_status": snapshot.lease_status,
+        "lease_generation": snapshot.lease_generation,
+        "current_step": snapshot.current_step,
+        "source_lineage_ref": snapshot.source_lineage_ref,
+        "last_known_good_lineage_ref": snapshot.last_known_good_lineage_ref,
+        "checkpoint_revision": snapshot.checkpoint_revision,
+        "last_meaningful_progress_at": snapshot.last_meaningful_progress_at,
+        "retry_count": snapshot.retry_count,
+        "no_progress_count": snapshot.no_progress_count,
+        "oscillation_count": snapshot.oscillation_count,
+        "stall_classification": snapshot.stall_classification.value if snapshot.stall_classification else None,
+        "blocker_code": snapshot.blocker_code,
+        "dependencies": list(snapshot.dependencies),
+        "next_recovery_action": snapshot.next_recovery_action.value if snapshot.next_recovery_action else None,
+        "human_required": snapshot.human_required,
+    }
 
 
 @router.get("/conversation/{conversation_id}/latest", response_model=EngineeringRunRead | None)
