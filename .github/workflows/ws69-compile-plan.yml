@@ -1,8 +1,9 @@
 name: WS69 DSPy Plan Proof
 
 on:
-  push:
-    branches: [ws/app-runtime-composition]
+  pull_request:
+    branches: [integration/wave2-app-builder]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
