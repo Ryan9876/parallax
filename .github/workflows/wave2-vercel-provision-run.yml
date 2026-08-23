@@ -99,3 +99,5 @@ jobs:
         shell: bash
         run: |
           gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. Bootstrap project reach: **parallax-api=$API_STATUS / parallax=$PREVIEW_STATUS**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
+
+# Triggered after replacement team-scoped VERCEL_TOKEN was saved on 2026-08-23.
