@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import os
 from pathlib import Path, PurePosixPath
+import tempfile
 from typing import Protocol
 
 from .autonomy import AutonomyCoordinator, AutonomyResult, AutonomousExecutor, LineageAwareAutonomousExecutor
@@ -239,6 +241,43 @@ class AllocatorWorkspaceLineageGateway:
             )
 
 
+def production_durable_lineage_allocator(
+    engine: object,
+    *,
+    materialization_root: str | Path | None = None,
+) -> DurableLineageAllocator | None:
+    """Build #68's production-safe allocator when its adapters are serialized.
+
+    On the pre-#68 integration base the durable persistence module does not
+    exist, so this returns ``None`` and the route preserves the existing
+    fail-closed Wave 1 behavior. After #68 is serialized, immutable contents
+    live in private Vercel Blob and lineage/head metadata lives transactionally
+    in the existing database. The local root below is disposable materialization
+    only and never authoritative source-lineage state.
+    """
+
+    try:
+        from sqlalchemy.orm import sessionmaker
+
+        from .lineage_persistence import PostgresLineageMetadataStore, VercelPrivateBlobObjectStore
+        from .workspace_allocator import ProjectWorkspaceAllocator
+        from .workspace_lineage import SourceLineageStore
+    except ImportError:
+        return None
+
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    lineage_store = SourceLineageStore(
+        VercelPrivateBlobObjectStore(),
+        PostgresLineageMetadataStore(session_factory),
+    )
+    root = Path(
+        materialization_root
+        or os.getenv("PARALLAX_LINEAGE_MATERIALIZATION_ROOT")
+        or (Path(tempfile.gettempdir()) / "parallax-lineage-materialization")
+    )
+    return ProjectWorkspaceAllocator(root, lineage_store=lineage_store)
+
+
 class EngineeringRuntimeComposition:
     """Concrete per-request production composition for protected autonomy."""
 
@@ -301,4 +340,5 @@ __all__ = [
     "DurableLineageAllocator",
     "EngineeringRuntimeComposition",
     "RuntimeCompositionError",
+    "production_durable_lineage_allocator",
 ]
