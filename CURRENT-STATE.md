@@ -139,7 +139,7 @@ The previously pending real-device live-edge composition check and first real op
 
 ## Parallel ChatGPT development state
 
-The GitHub-authoritative parallel-development model is active under `PROJECT-CONSTITUTION.md` v1.1 and `PARALLEL-DEVELOPMENT.md`.
+The GitHub-authoritative parallel-development model is active under `PROJECT-CONSTITUTION.md` v1.2 and `PARALLEL-DEVELOPMENT.md`.
 
 Wave 1 demonstrated the intended model in practice:
 
@@ -192,7 +192,21 @@ Automatic worker stall detection and recovery is now also an approved Wave 3 req
 
 The target operating model is continuous: workers produce candidates while the integration controller continuously composes and validates them, with full expensive promotion gates reserved for meaningful boundaries rather than every small edit. Ordinary worker stalls should be detected, recovered or reassigned automatically instead of waiting for the operator to notice and restart them.
 
-These are approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
+### Platform-wide inheritance decision
+
+The Wave 3 development baseline is now a platform policy for **every Project Parallax develops**, not special behavior reserved for development of Parallax itself.
+
+The durable policy stack is:
+
+`Parallax platform baseline → Project profile → approved Work Specification → capability-specific validation plan`
+
+The strictest applicable requirement wins. Project profiles and Work Specifications may add stricter constraints, but they may not silently weaken the platform baseline for canonical identity, specification binding, source lineage, tool/mutation authority, durable checkpoints, bounded autonomy, worker-stall recovery, evidence integrity, rollback, protected promotion, or human-control boundaries.
+
+Validation remains capability-aware rather than blindly identical across projects. Web/mobile projects can require browser flows, layout/accessibility checks, screenshot regression and multimodal visual QA; APIs can require schema/contract/auth/integration/reliability/performance checks; CLIs can require command/workflow/exit-code/output checks. Unsupported required validation must fail closed or require an explicit approved exception rather than being silently skipped.
+
+This platform inheritance rule is now durable governance/architecture in `PROJECT-CONSTITUTION.md` v1.2 and `ARCHITECTURE.md` v2.3. The governance rule is **implemented as project policy**, while the Wave 3 runtime mechanisms that will enforce it are **not yet implemented, validated, deployed or deployment-verified**.
+
+These Wave 3 runtime capabilities remain approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
 
 ## Deployment state vocabulary
 
@@ -210,12 +224,13 @@ These are approved roadmap/exit-condition decisions only. They are **not yet imp
 - Wave 3 autonomous visual QA and correction loop: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 - Wave 3 accelerated continuous worker/integration architecture: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 - Wave 3 automatic worker stall detection/recovery/reassignment: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
+- inherited development-policy governance: **IMPLEMENTED IN AUTHORITATIVE POLICY / RUNTIME ENFORCEMENT PENDING WAVE 3**
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the validated, merged, deployed and production-verified Wave 1 app-builder foundation and the approved future Wave 3 autonomous/acceleration/stall-recovery completion contract.
-- `ARCHITECTURE.md`: requires/receives the durable Wave 1 Project, safe implementation, tool-authority and app-builder evaluation boundaries; no future Wave 3 implementation architecture is recorded as current architecture yet.
-- `PROJECT-CONSTITUTION.md`: unchanged at v1.1; the existing parallel-development governance remains correct.
-- `DESIGN-SYSTEM.md`: unchanged; no implemented client visual or interaction-system change occurred from this roadmap decision.
+- `CURRENT-STATE.md`: updated for the deployed Wave 1 foundation and the approved Wave 3 autonomous/acceleration/stall-recovery/platform-inheritance decisions.
+- `ARCHITECTURE.md`: updated to v2.3 with the durable inherited development-policy architecture and capability-aware validation layering; this does not claim future Wave 3 runtime enforcement already exists.
+- `PROJECT-CONSTITUTION.md`: updated to v1.2 so every Parallax-developed Project must inherit the non-weakenable platform development-policy baseline.
+- `DESIGN-SYSTEM.md`: unchanged; this policy decision introduces no implemented visual or interaction-system change.
 
 Historical release, CI, workstream, preview and deployment evidence remains preserved in GitHub Actions, GitHub issues/PRs and Vercel history.
