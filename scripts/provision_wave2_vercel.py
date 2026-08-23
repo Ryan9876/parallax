@@ -9,8 +9,10 @@ import subprocess
 import sys
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+TEAM_ID = "team_JgE8AWWz36uzRbeR6V6EWg9k"
 TEAM_SLUG = "lew7"
 API_PROJECT_ID = "prj_4lhve1AXZntfauaGHvkuaGWC6KJX"
 API_PROJECT_NAME = "parallax-api"
@@ -76,9 +78,14 @@ def _json_token(text: str) -> str:
 
     def walk(value: Any) -> str | None:
         if isinstance(value, dict):
-            for key in ("token", "value", "secret"):
+            for key in ("bearerToken", "access_token", "token", "value", "secret"):
                 candidate = value.get(key)
-                if isinstance(candidate, str) and candidate.startswith(("vcp_", "vca_")):
+                if (
+                    isinstance(candidate, str)
+                    and 8 <= len(candidate) <= 8_192
+                    and candidate == candidate.strip()
+                    and all(0x21 <= ord(character) <= 0x7E for character in candidate)
+                ):
                     return candidate
             for child in value.values():
                 found = walk(child)
@@ -132,7 +139,7 @@ def target_registry_json() -> str:
                 "vercel_project_ref": PREVIEW_PROJECT_REF,
                 "project_id": PREVIEW_PROJECT_ID,
                 "project_name": PREVIEW_PROJECT_NAME,
-                "team_id": "team_JgE8AWWz36uzRbeR6V6EWg9k",
+                "team_id": TEAM_ID,
                 "repository_ref": REPOSITORY_REF,
                 "github_repo_id": GITHUB_REPO_ID,
                 "production_branch": PRODUCTION_BRANCH,
@@ -153,7 +160,57 @@ def _env_list(repo: Path, environment: str) -> set[str]:
     return _env_keys(result.stdout)
 
 
+def _set_env_via_api(name: str, value: str, *, sensitive: bool) -> bool:
+    """Atomically upsert one key for Preview + Production when a management token is present."""
+    bootstrap_token = os.getenv("VERCEL_TOKEN", "")
+    if not bootstrap_token:
+        return False
+
+    query = urlencode({"teamId": TEAM_ID, "upsert": "true"})
+    body = json.dumps(
+        {
+            "key": name,
+            "value": value,
+            "type": "sensitive" if sensitive else "plain",
+            "target": ["preview", "production"],
+            "comment": "Parallax Wave 2 bounded runtime prerequisite",
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = Request(
+        f"https://api.vercel.com/v10/projects/{API_PROJECT_ID}/env?{query}",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {bootstrap_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "parallax-wave2-provisioner",
+        },
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            status = int(response.status)
+            response.read()
+    except HTTPError as exc:
+        status = int(exc.code)
+        exc.read()  # consume without rendering a potentially value-bearing response
+    except URLError as exc:
+        raise ProvisioningError("Vercel environment upsert could not reach the control API") from exc
+
+    if status not in {200, 201}:
+        raise ProvisioningError(f"Vercel environment upsert failed with HTTP {status}")
+    return True
+
+
 def _set_env(repo: Path, name: str, value: str, environment: str, *, sensitive: bool) -> None:
+    # The live CI path uses Vercel's current v10 project-env upsert API. Targeting
+    # Preview + Production atomically avoids a half-configured retry if execution
+    # is interrupted between environment writes. An authenticated local CLI is
+    # retained as a compatibility fallback when no management token is present.
+    if _set_env_via_api(name, value, sensitive=sensitive):
+        return
+
     existing = _env_list(repo, environment)
     secret_values = (value,) if sensitive else ()
     if name in existing:
@@ -173,7 +230,7 @@ def _set_env(repo: Path, name: str, value: str, environment: str, *, sensitive: 
 def _verify_scoped_token(token: str) -> None:
     def status(project_id: str) -> int:
         request = Request(
-            f"https://api.vercel.com/v9/projects/{project_id}",
+            f"https://api.vercel.com/v9/projects/{project_id}?teamId={TEAM_ID}",
             headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         )
         try:
@@ -193,16 +250,26 @@ def _verify_scoped_token(token: str) -> None:
 
 
 def _ensure_link(repo: Path) -> None:
-    _run(
-        ["vercel", "link", "--yes", "--project", API_PROJECT_ID, "--scope", TEAM_SLUG],
-        cwd=repo,
-    )
+    """Seed the canonical server-owned project link without resolving a user identity."""
+    directory = repo / ".vercel"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "project.json"
+    expected = {"orgId": TEAM_ID, "projectId": API_PROJECT_ID}
+    if path.exists():
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ProvisioningError("canonical Vercel project link is invalid") from exc
+        if current != expected:
+            raise ProvisioningError("existing Vercel project link does not match parallax-api")
+        return
+    path.write_text(json.dumps(expected, separators=(",", ":")) + "\n", encoding="utf-8")
 
 
 def _ensure_blob(repo: Path) -> None:
     stores = _run(["vercel", "blob", "list-stores", "--all"], cwd=repo)
     if BLOB_STORE_NAME not in stores.stdout:
-        _run(
+        created = _run(
             [
                 "vercel",
                 "blob",
@@ -215,7 +282,15 @@ def _ensure_blob(repo: Path) -> None:
                 "--yes",
             ],
             cwd=repo,
+            check=False,
         )
+        if created.returncode != 0:
+            detail = ((created.stderr or "") + "\n" + (created.stdout or "")).strip()
+            lowered = detail.lower()
+            if "already exists" not in lowered and "409" not in lowered:
+                raise ProvisioningError(
+                    f"vercel blob create-store failed: {_redact(detail) or 'no diagnostic output'}"
+                )
     for environment in ("preview", "production"):
         if BLOB_TOKEN_ENV not in _env_list(repo, environment):
             raise ProvisioningError(
@@ -224,15 +299,21 @@ def _ensure_blob(repo: Path) -> None:
 
 
 def _connector_present(repo: Path) -> bool:
-    result = _run(["vercel", "connect", "list", "--format=json"], cwd=repo, check=False)
+    # A newly authorized connector exists at team scope before it is attached to
+    # parallax-api, so project-local inventory is insufficient for idempotent runs.
+    result = _run(
+        ["vercel", "connect", "list", "--all-projects", "--format=json"],
+        cwd=repo,
+        check=False,
+    )
     text = (result.stdout or "") + "\n" + (result.stderr or "")
     return result.returncode == 0 and CONNECTOR in text
 
 
 def _ensure_connector(repo: Path) -> None:
     if not _connector_present(repo):
-        # GitHub installation consent can open a browser. This is the one expected
-        # operator interaction in an otherwise automated provisioning pass.
+        # GitHub installation consent remains the one expected interactive
+        # provider boundary when the connector has never been authorized.
         _run(
             [
                 "vercel",
@@ -257,6 +338,7 @@ def _ensure_connector(repo: Path) -> None:
                 API_PROJECT_ID,
                 "--environment",
                 environment,
+                "--yes",
             ],
             cwd=repo,
             check=False,
@@ -307,6 +389,8 @@ def provision(repo: Path) -> None:
     token = _create_preview_token(repo)
     try:
         registry = target_registry_json()
+        # _set_env's management-token path targets both environments atomically;
+        # retaining the loop also preserves local-CLI fallback compatibility.
         for environment in ("preview", "production"):
             _set_env(repo, VERCEL_TOKEN_ENV, token, environment, sensitive=True)
             _set_env(repo, TARGET_REGISTRY_ENV, registry, environment, sensitive=False)
