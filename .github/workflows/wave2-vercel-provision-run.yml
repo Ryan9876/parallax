@@ -80,7 +80,7 @@ jobs:
           ci._ensure_seeded_link(Path('services/api').resolve())
           print('PASS: canonical parallax-api project link seeded and verified without resolving user identity.')
           PY
-      - name: Inventory Vercel Connect records
+      - name: Inventory team-wide Vercel Connect records
         id: connector_inventory
         if: steps.seed_link.outcome == 'success'
         shell: bash
@@ -90,7 +90,7 @@ jobs:
           import subprocess
 
           result = subprocess.run(
-              ['vercel', 'connect', 'list', '--format=json'],
+              ['vercel', 'connect', 'list', '--all-projects', '--format=json'],
               cwd='services/api',
               text=True,
               stdout=subprocess.PIPE,
@@ -148,4 +148,4 @@ jobs:
         run: |
           gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. Bootstrap project reach: **parallax-api=$API_STATUS / parallax=$PREVIEW_STATUS**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
 
-# Diagnostic inventory added after GitHub App consent to reconcile the actual connector UID.
+# Team-wide connector inventory reconciles existing consent before any new create attempt.
