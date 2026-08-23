@@ -1,0 +1,100 @@
+{
+  "spec_id": "P2-V0.15.2",
+  "architecture_decisions": [
+    {
+      "id": "AD-01",
+      "acceptance": ["AC-01", "AC-02", "AC-09", "AC-10"],
+      "decision": "Keep canonical Project/run UUID identity separate from filesystem authority and materialize source only beneath a server-configured allocator root."
+    },
+    {
+      "id": "AD-02",
+      "acceptance": ["AC-03", "AC-05", "AC-06", "AC-07", "AC-08"],
+      "decision": "Persist immutable content-addressed source blobs and lineage manifests independently of disposable live workspaces so accepted source remains reconstructable after cleanup, retry and resume."
+    },
+    {
+      "id": "AD-03",
+      "acceptance": ["AC-04", "AC-08", "AC-09"],
+      "decision": "Initialize repository/template/starter source only through an injected trusted SourceProvider that receives canonical Project/run identity and returns bounded source bytes and provenance, with no caller URL, command or provider authority."
+    }
+  ],
+  "work_items": [
+    {
+      "id": "WI-01",
+      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09"],
+      "paths": ["services/api/parallax_api/code/workspace_lineage.py"],
+      "action": "Implement canonical Project/run identity validation, trusted source-package ingestion, bounded path/content policy, immutable blob/manifest lineage storage, protected current-lineage tracking, stale/idempotent mutation capture, integrity verification and exact historical reconstruction."
+    },
+    {
+      "id": "WI-02",
+      "acceptance": ["AC-01", "AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
+      "paths": ["services/api/parallax_api/code/workspace_allocator.py"],
+      "action": "Implement server-owned live workspace leases, exact-lineage materialization, forged-lease denial, protected implementation acceptance, current-lineage resolution and cleanup that removes only live workspace state."
+    },
+    {
+      "id": "WI-03",
+      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
+      "paths": ["services/api/tests/test_code_workspace_lineage.py"],
+      "action": "Add protected positive and negative lineage tests for identity/path confinement, trusted provider boundaries, resource bounds, deterministic lineage, stale/idempotent retry, no-change denial, exact reconstruction, different-tree rejection and manifest/blob tampering."
+    },
+    {
+      "id": "WI-04",
+      "acceptance": ["AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
+      "paths": ["services/api/tests/test_code_workspace_allocator.py"],
+      "action": "Add allocator tests proving no caller filesystem-root parameter, hashed server-owned paths, forged lease denial, IMPLEMENT lineage advancement, cleanup safety and exact BUILD/TEST/VERIFY reconstruction."
+    }
+  ],
+  "validations": [
+    {
+      "id": "VAL-01",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10"],
+      "check": "Run the repository protected specification evaluators against specs/P2-V0.15.2.md and specs/compiled/P2-V0.15.2.plan.json and require the committed DSPy metadata gate before handoff."
+    },
+    {
+      "id": "VAL-02",
+      "acceptance": ["AC-01", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-09"],
+      "check": "Run pytest -q services/api/tests/test_code_workspace_lineage.py."
+    },
+    {
+      "id": "VAL-03",
+      "acceptance": ["AC-02", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10"],
+      "check": "Run pytest -q services/api/tests/test_code_workspace_allocator.py."
+    },
+    {
+      "id": "VAL-04",
+      "acceptance": ["AC-09", "AC-10"],
+      "check": "Run deterministic workstream-spec validation, full Parallax P2 CI and Bounded Autonomy Pilot on latest main, and verify the final diff excludes #59 shared persistence/schema, #61 orchestration, provider adapters, deployment workflows and authoritative records."
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-01",
+      "acceptance": ["AC-03", "AC-06"],
+      "risk": "Filesystem tampering could alter immutable snapshot state.",
+      "mitigation": "Recompute manifest identity and verify every content-addressed blob before lineage resolution/materialization, then rescan reconstructed source."
+    },
+    {
+      "id": "R-02",
+      "acceptance": ["AC-05"],
+      "risk": "Concurrent workers could race one run's current-lineage pointer.",
+      "mitigation": "Use exact expected-parent checks and atomic pointer replacement in this worker slice; serialized integration retains one protected run owner or adds cross-process locking before concurrent mutation is permitted."
+    },
+    {
+      "id": "R-03",
+      "acceptance": ["AC-07", "AC-08"],
+      "risk": "Immutable lineage storage can grow over time.",
+      "mitigation": "Bound every snapshot and keep live-workspace cleanup separate from future snapshot garbage collection so referenced accepted lineage is never destroyed."
+    },
+    {
+      "id": "R-04",
+      "acceptance": ["AC-04", "AC-08", "AC-09"],
+      "risk": "A trusted provider adapter can still return unsafe source output.",
+      "mitigation": "Treat provider output as untrusted bytes and normalize/bound all paths, contents and provenance before persistence while leaving concrete provider authority to #62."
+    },
+    {
+      "id": "R-05",
+      "acceptance": ["AC-01", "AC-10"],
+      "risk": "#59 may refine the persistence path for canonical Project/run identity.",
+      "mitigation": "Consume only canonical UUID-shaped identity in this standalone contract and leave shared persistence/orchestration binding to serialized integration."
+    }
+  ]
+}
