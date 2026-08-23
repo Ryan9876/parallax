@@ -6,10 +6,12 @@ This package is a provider-specific execution layer underneath the accepted Wave
 
 ## #59 — canonical Project binding
 
-- `ProviderProjectBinding.project_ref` and `VercelPreviewTarget.project_ref` must be populated from canonical `Project.id` after authenticated owner-scoped resolution.
+#59's validated runtime contract persists canonical `Conversation.project_id` and server-derived immutable `EngineeringRun.project_id` for new Code work. New strict runs leave `workspace_ref` unset until #60 supplies server-owned lineage.
+
+- `ProviderProjectBinding.project_ref` and `VercelPreviewTarget.project_ref` must be populated from authenticated owner-scoped canonical `Project.id`, normally the persisted `EngineeringRun.project_id` for the publishing run.
 - `repository_ref` must come from server-resolved Project/provider configuration and remain `github:owner/repository` identity metadata; it does not grant capability.
-- Never substitute `Project.workspace_ref` for `project_ref`, a repository identity, or execution authority.
-- New provider-backed app-building work requires #59's canonical Project binding. Historical/unbound rows may remain readable under #59's compatibility rules but must not be used to authorize new provider actions.
+- Never substitute `Project.workspace_ref`, caller input, or repository metadata for canonical `project_ref` or execution/provider authority.
+- Historical `HISTORICAL_UNBOUND` rows may remain readable under #59's compatibility rules but must not authorize new #62 provider actions.
 
 ## #60 — source/workspace lineage
 
@@ -19,7 +21,7 @@ This package is a provider-specific execution layer underneath the accepted Wave
   `AcceptedSourceLineage(project_id=lineage.project_id, run_id=lineage.run_id, lineage_id=lineage.lineage_id, content_digest=lineage.content_digest)`.
 - `AcceptedSourceLineage.lineage_id` uses #60's protected `src:<sha256>` identity form and is carried together with the content digest in #62 evidence.
 - GitHub commit, pull-request publication, and Vercel preview creation reject a lineage whose `project_id` does not equal the provider action's canonical `project_ref` before provider mutation.
-- Serialized Integration should additionally construct the lineage from the same persisted Engineering Run identified by #59/#60; #62 preserves `run_id` for that exact binding rather than inventing a provider-local run identity.
+- Integration must construct the lineage from the same persisted Engineering Run identified by #59/#60; #62 preserves `run_id` for that exact binding rather than inventing a provider-local run identity.
 - A #62 GitHub source adapter can implement #60's narrow `SourceProvider` by resolving already-authorized server-side Project/repository configuration and returning a bounded `SourcePackage`. Caller/model input must never select a filesystem root, repository URL, credential, or generic transport.
 - `commit_accepted_lineage` requires the exact accepted lineage plus an expected parent provider revision. Pull-request creation requires the exact published head revision plus that same accepted lineage.
 - A resulting GitHub commit or PR revision is a provider publication identity, not a replacement for #60's immutable content lineage.
@@ -27,10 +29,13 @@ This package is a provider-specific execution layer underneath the accepted Wave
 
 ## #61 — protected IMPLEMENT runtime
 
-- #61 owns generation, proposal validation, safe patch application, idempotency, and the protected IMPLEMENT transition.
-- #61 should consume #60's protected allocator/lineage receipt first; #62 may publish only the content represented by that accepted receipt.
-- `GitHubCommitFile` values are publication material, not model mutation authority.
-- `applied: true`, `COMMIT_WRITTEN`, pull-request creation, or preview success must never bypass #61's existing protected IMPLEMENT validator or stage policy.
+#61's validated runtime requires exact Project/run/base-lineage identity before mutation, validates the generated proposal against the server-owned acceptance map, applies Wave 1 safe patches, accepts the resulting #60 source lineage, and only then invokes the existing protected IMPLEMENT validator/state machine.
+
+- #62 publication must start from the exact accepted post-mutation #60 `SourceLineage` represented by #61's immutable `ImplementationLineageReceipt`; do not publish from a pre-IMPLEMENT checkout or an unaccepted patch result.
+- The receipt's canonical Project/run/source-lineage identity must correspond to #62 `AcceptedSourceLineage.project_id`, `.run_id`, `.lineage_id`, and `.content_digest`.
+- `GitHubCommitFile` values are publication material derived from that accepted lineage, not model mutation authority.
+- `applied: true`, `COMMIT_WRITTEN`, pull-request creation, or preview success must never bypass #61's protected IMPLEMENT validator, durable stage transition, or idempotency policy.
+- #61's same-lineage rule also applies after publication: BUILD/TEST/VERIFY must reconstruct the exact accepted lineage rather than silently falling back to an unrelated fresh checkout.
 - The branch/commit/PR/preview path is publication after accepted IMPLEMENT, not implementation generation or protected-stage approval.
 
 ## #46 — protected app-builder evaluation
