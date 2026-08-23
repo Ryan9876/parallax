@@ -1112,7 +1112,7 @@ class AutonomousCorrectionController:
         checkpoint_sink: CorrectionCheckpointSink | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
-        self.run = run
+        self.engineering_run = run
         self.context = context
         self.planner = planner
         self.mutation = mutation
@@ -1137,7 +1137,7 @@ class AutonomousCorrectionController:
         return candidate
 
     def _save(self, state: CorrectionSessionState) -> CorrectionSessionState:
-        saved = self.state_store.save(run=self.run, state=state, expected_revision=state.revision)
+        saved = self.state_store.save(run=self.engineering_run, state=state, expected_revision=state.revision)
         if self.checkpoint_sink is not None:
             self.checkpoint_sink.record(saved)
         return saved
@@ -1282,6 +1282,9 @@ class AutonomousCorrectionController:
                     updated_at=self.now(),
                 )
             )
+
+        if self._elapsed(state) >= self.budget.max_elapsed_seconds:
+            return self._stop(state, CorrectionStopReason.RESOURCE_EXHAUSTION)
 
         mutation = self.mutation.apply(
             self.context,
