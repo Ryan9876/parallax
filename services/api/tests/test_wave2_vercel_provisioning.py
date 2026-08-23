@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -62,6 +63,36 @@ def test_environment_key_parser_never_requires_secret_values():
         "PARALLAX_VERCEL_TOKEN_PARALLAX",
         "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON",
     }
+
+
+def test_blob_provisioning_resumes_when_store_already_exists(monkeypatch, tmp_path):
+    calls: list[list[str]] = []
+
+    def fake_run(args, *, cwd, input_text=None, check=True, secrets=()):
+        calls.append(args)
+        if args[:3] == ["vercel", "blob", "list-stores"]:
+            return subprocess.CompletedProcess(args, 0, stdout="[]", stderr="")
+        if args[:3] == ["vercel", "blob", "create-store"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                stdout="",
+                stderr='Error: A blob store named "parallax-source-lineage" already exists. (409)',
+            )
+        if args[:3] == ["vercel", "env", "ls"]:
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout=json.dumps({"envs": [{"key": "BLOB_READ_WRITE_TOKEN"}]}),
+                stderr="",
+            )
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(provisioning, "_run", fake_run)
+
+    provisioning._ensure_blob(tmp_path)
+
+    assert ["vercel", "blob", "create-store"] == calls[1][:3]
 
 
 def test_failed_cli_command_redacts_secret_from_exception(tmp_path):
