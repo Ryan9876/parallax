@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.3
+Version: 2.4
 Status: Authoritative
 
 ## System shape
@@ -284,6 +284,62 @@ The **capability-specific validation plan** adapts testing to what is actually b
 
 Wave 3 must implement the policy stack as protected server-owned behavior. The current architecture records this as an accepted future runtime contract; it does not claim the deployed Wave 1 runtime already enforces Wave 3 inheritance.
 
+## Universal Wave 3 development-optimization architecture
+
+The same optimization architecture governs **development of Parallax itself** and **development of every Project through Parallax**. Self-development may not use a privileged shortcut that the product runtime cannot evidence, and Project execution may not weaken these controls for speed.
+
+### Critical-path scheduler and bounded work stealing
+
+Control Tower maintains a dependency DAG over workstreams, interfaces, required validations and release gates. Scheduling optimizes estimated time to a validated objective, not simple worker occupancy. Release-blocking critical-path work receives priority; idle workers may take safe unblocked work when ownership, path and single-writer rules permit. Scheduling decisions are durable and observable so reprioritization can be explained and recovered.
+
+### Change-impact validation graph
+
+Parallax maintains a machine-readable impact graph linking changed files/configuration to components, contracts, services, platforms and tests. Ordinary correction cycles may execute only the deterministic checks proven relevant by that graph plus mandatory global invariants. Worker-completion, cumulative integration and release promotion still execute the full required protected suite. Impact analysis is an optimization hint, never permission to skip a required promotion gate.
+
+### Warm execution environments
+
+Workers may start from immutable prebuilt execution snapshots containing approved SDKs, runtimes, browsers, dependency caches and toolchains. Warm environments are digest-addressed, secret-free and disposable. Their identity must include relevant lockfiles/toolchain/configuration inputs, and they are invalidated when those inputs change. A warm environment is never authoritative source state and cannot replace durable Project/source lineage.
+
+### Validated pattern and component reuse
+
+Parallax may maintain a registry of approved starter structures, architecture patterns, UI components, test fixtures, deployment configurations and other reusable artifacts. Reuse is selected only when the Project profile and Work Specification permit it. Reused artifacts remain proposals subject to the current Project's exact validation; historical success does not grant current acceptance or authority.
+
+### Privacy-safe failure fingerprinting and repair memory
+
+Compiler, test, CI, provider, browser and visual failures are normalized into bounded fingerprints. Parallax may associate a fingerprint with previously successful repair strategies, but a remembered repair must be reapplied through the normal protected mutation and validation path. Global repair memory stores abstract failure/repair metadata or explicitly approved reusable artifacts; Project-private source, secrets and sensitive evidence cannot silently become cross-Project memory.
+
+### Adaptive model routing
+
+Planning, generation, classification, test selection and repair may route to the least costly/lowest-latency model that meets the task's required capability and confidence threshold. Failed or ambiguous work escalates. Model selection cannot change protected acceptance criteria, mutation/tool authority, evidence requirements or promotion thresholds, and protected evaluation remains independent of the model that produced the candidate.
+
+### Specification preflight
+
+Before substantive implementation, a protected preflight checks the effective platform policy + Project profile + Work Specification + dependency graph for contradictions, missing dependencies, impossible or untestable acceptance criteria, unsupported validation, authority conflicts, incompatible architecture/design constraints and unresolved high-consequence ambiguity. Failures are corrected or explicitly escalated before workers consume implementation cycles.
+
+### Speculative integration
+
+Control Tower may compose immutable worker checkpoints or candidate heads on disposable speculative integration candidates before workers reach READY FOR INTEGRATION. These candidates can run contract/compile/targeted integration checks to expose interface drift early. Speculative results cannot advance accepted Project lineage, mutate worker ownership, merge code, create production authority or be mistaken for cumulative promotion evidence.
+
+### Automatic workstream sizing and rebalancing
+
+Planning decomposes objectives into independently testable, dependency-aware workstreams sized for recovery and useful parallelism. Oversized workstreams are split when doing so reduces critical-path risk; tiny tightly coupled tasks are combined when fragmentation would add more coordination cost than parallel value. Rebalancing preserves canonical Work Spec acceptance ownership and never duplicates mutation authority.
+
+### Development-performance telemetry
+
+Parallax records bounded timing/cost/queue metrics for planning, model generation, environment preparation, dependency resolution, build, tests, browser/visual QA, provider waits, retries, integration, stall recovery and human-required waits. Telemetry is used to identify the actual critical bottlenecks and tune scheduling/caching/model routing. It must exclude secrets and hidden reasoning, minimize raw Project content, and never become a substitute for correctness evidence.
+
+### Optimization invariants
+
+All ten optimization mechanisms are subordinate to protected correctness. In particular:
+
+- exact Project/run/source identity and accepted lineage cannot be approximated for speed;
+- caches, warm environments, pattern reuse and repair memory are invalidated or rejected when provenance/compatibility cannot be proven;
+- speculative integration is disposable and non-authoritative;
+- change-impact testing cannot replace required full promotion suites;
+- adaptive model routing cannot lower protected judgment or authority standards;
+- cross-Project reuse and telemetry cannot expose private Project data;
+- scheduling/work stealing cannot violate path ownership, leases or single-writer mutation semantics.
+
 ## Reason architecture
 
 Reason remains provider-independent and bounded by durable context. Later explicit user corrections supersede conflicting earlier assistant assumptions.
@@ -341,11 +397,13 @@ Release promotion requires exact-head CI, relevant preview evidence, migration r
 
 ## Parallel development architecture
 
-Parallel ChatGPT development is governed by `PROJECT-CONSTITUTION.md` v1.2 and `PARALLEL-DEVELOPMENT.md`.
+Parallel ChatGPT development is governed by `PROJECT-CONSTITUTION.md` v1.3 and `PARALLEL-DEVELOPMENT.md`.
 
 GitHub is the operational authority for active workstream ownership, branches, PRs, CI/evaluation evidence and integration state.
 
 Workers develop concurrently on isolated branches, but interacting candidates are integrated serially. The Wave 1 release demonstrated this by merging #43 -> #44 -> #45 -> #46 onto a cumulative integration branch and rerunning the protected gates between interacting additions before promotion to `main`.
+
+Wave 3 extends this with critical-path scheduling, safe work stealing, speculative integration, automatic workstream sizing and performance telemetry while retaining serialized authoritative promotion.
 
 ## Failure degradation
 
@@ -364,6 +422,10 @@ Workers develop concurrently on isolated branches, but interacting candidates ar
 - Database readiness failure: block deployment verification.
 - Unsupported autonomous stage or authority boundary: return control to the operator.
 - Project-policy resolution failure or attempted policy weakening: fail closed before protected execution/promotion.
+- Impact graph uncertain for a mandatory check: include the check rather than skipping it.
+- Warm-environment/cache provenance mismatch: discard and rebuild from authoritative inputs.
+- Reuse/repair-memory compatibility uncertain: treat as an untrusted proposal and revalidate or decline reuse.
+- Speculative-integration failure: record bounded evidence without advancing accepted lineage or merge state.
 
 ## Security
 
