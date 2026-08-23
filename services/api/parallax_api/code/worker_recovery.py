@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..models import EngineeringRun
-    from ..repositories.worker_executions import EngineeringWorkerExecution, WorkerExecutionRepository
+    from ..repositories.worker_executions import EngineeringWorkerExecution
 
 
 MAX_CHECKPOINT_JSON = 12_000
@@ -27,7 +27,29 @@ DEFAULT_MAX_OSCILLATIONS = 2
 _LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
 _STEP_RE = re.compile(r"^[A-Z][A-Z0-9_-]{0,63}$")
 _SAFE_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,239}$")
-_FORBIDDEN_REF_PREFIXES = ("http://", "https://", "data:", "file:")
+_FORBIDDEN_REF_PREFIXES = (
+    "http://",
+    "https://",
+    "data:",
+    "file:",
+    "command:",
+    "shell:",
+    "exec:",
+    "subprocess:",
+    "env:",
+    "environment:",
+)
+_FORBIDDEN_REASONING_TERMS = (
+    "chain_of_thought",
+    "chain-of-thought",
+    "scratchpad",
+    "hidden_reasoning",
+    "hidden-reasoning",
+    "internal_reasoning",
+    "internal-reasoning",
+    "rationale_trace",
+    "rationale-trace",
+)
 _SECRET_PATTERNS = (
     re.compile(r"(?i)(api[_-]?key|secret|token|authorization|cookie|password)\s*[:=]\s*\S{8,}"),
     re.compile(r"sk-[A-Za-z0-9]{16,}"),
@@ -160,6 +182,7 @@ class WorkerStallDecision:
 @dataclass(frozen=True, slots=True)
 class WorkerHealthSnapshot:
     execution_id: str
+    project_id: str
     run_id: str
     state: WorkerLifecycleState
     lease_status: str
@@ -192,13 +215,15 @@ def _validate_ref(value: str, *, field: str) -> str:
         raise WorkerCheckpointError(f"{field} is invalid")
     lowered = candidate.casefold()
     if lowered.startswith(_FORBIDDEN_REF_PREFIXES):
-        raise WorkerCheckpointError(f"{field} cannot contain an arbitrary URL or file reference")
+        raise WorkerCheckpointError(f"{field} contains forbidden command, URL, file or environment authority")
+    if any(term in lowered for term in _FORBIDDEN_REASONING_TERMS):
+        raise WorkerCheckpointError(f"{field} contains hidden-reasoning material")
     if any(pattern.search(candidate) for pattern in _SECRET_PATTERNS):
         raise WorkerCheckpointError(f"{field} contains secret-bearing material")
     return candidate
 
 
-def _validate_lineage(value: str | None, *, field: str) -> str | None:
+def validate_lineage_ref(value: str | None, *, field: str) -> str | None:
     if value is None:
         return None
     if not _LINEAGE_RE.fullmatch(value):
@@ -215,7 +240,12 @@ def _validate_refs(values: tuple[str, ...], *, field: str) -> tuple[str, ...]:
     return normalized
 
 
-def validate_checkpoint(run: "EngineeringRun", checkpoint: WorkerCheckpoint, *, existing_plan_ref: str | None) -> dict[str, object]:
+def validate_checkpoint(
+    run: "EngineeringRun",
+    checkpoint: WorkerCheckpoint,
+    *,
+    existing_plan_ref: str | None,
+) -> dict[str, object]:
     if not run.project_id:
         raise WorkerCheckpointError("worker checkpoint requires a Project-bound Engineering Run")
     if checkpoint.project_id != run.project_id or checkpoint.run_id != run.id:
@@ -246,8 +276,8 @@ def validate_checkpoint(run: "EngineeringRun", checkpoint: WorkerCheckpoint, *, 
     payload = {
         **checkpoint.payload(),
         "plan_ref": plan_ref,
-        "source_lineage_ref": _validate_lineage(checkpoint.source_lineage_ref, field="source_lineage_ref"),
-        "last_known_good_lineage_ref": _validate_lineage(
+        "source_lineage_ref": validate_lineage_ref(checkpoint.source_lineage_ref, field="source_lineage_ref"),
+        "last_known_good_lineage_ref": validate_lineage_ref(
             checkpoint.last_known_good_lineage_ref,
             field="last_known_good_lineage_ref",
         ),
