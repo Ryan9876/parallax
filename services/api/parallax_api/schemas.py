@@ -161,6 +161,38 @@ class EngineeringAutonomyProbeRead(BaseModel):
     redacted: bool
 
 
+class EngineeringWorkerHealthRead(BaseModel):
+    execution_id: str
+    run_id: str
+    state: Literal[
+        "RUNNING",
+        "PROGRESSING",
+        "CHECKPOINTED",
+        "STALLED",
+        "RECOVERING",
+        "REASSIGNED",
+        "HUMAN_REQUIRED",
+        "READY_FOR_INTEGRATION",
+        "SUCCEEDED",
+        "FAILED",
+    ]
+    lease_status: Literal["ACTIVE", "EXPIRED", "UNOWNED"]
+    lease_generation: int = Field(ge=0)
+    current_step: str | None
+    source_lineage_ref: str | None
+    last_known_good_lineage_ref: str | None
+    checkpoint_revision: int = Field(ge=0)
+    last_meaningful_progress_at: datetime | None
+    retry_count: int = Field(ge=0)
+    no_progress_count: int = Field(ge=0)
+    oscillation_count: int = Field(ge=0)
+    stall_classification: str | None
+    blocker_code: str | None
+    dependencies: list[str] = Field(default_factory=list)
+    next_recovery_action: str | None
+    human_required: bool
+
+
 class AuthorizedUserRead(BaseModel):
     id: str
     email: str | None
