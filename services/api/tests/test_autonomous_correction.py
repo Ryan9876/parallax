@@ -499,7 +499,15 @@ def test_attempt_churn_and_compute_budgets_stop_resource_exhaustion(
 
 def test_elapsed_runtime_budget_stops_before_mutation() -> None:
     base = datetime(2026, 8, 23, 12, 0, tzinfo=timezone.utc)
-    clock = iter((base, base, base + timedelta(seconds=6), base + timedelta(seconds=6)))
+    clock = iter(
+        (
+            base,
+            base,
+            base + timedelta(seconds=6),
+            base + timedelta(seconds=6),
+            base + timedelta(seconds=6),
+        )
+    )
     validator = MappingValidator({L0: _candidate(L0, (_defect(L0, code="A"),))})
     mutation = ReplayMutation([L1])
     state = _controller(
