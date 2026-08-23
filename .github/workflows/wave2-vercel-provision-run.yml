@@ -80,6 +80,54 @@ jobs:
           ci._ensure_seeded_link(Path('services/api').resolve())
           print('PASS: canonical parallax-api project link seeded and verified without resolving user identity.')
           PY
+      - name: Inventory Vercel Connect records
+        id: connector_inventory
+        if: steps.seed_link.outcome == 'success'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+
+          result = subprocess.run(
+              ['vercel', 'connect', 'list', '--format=json'],
+              cwd='services/api',
+              text=True,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.PIPE,
+              check=False,
+          )
+          if result.returncode != 0:
+              print('Connector inventory unavailable: command failed without exposing credentials.')
+              raise SystemExit(0)
+          try:
+              payload = json.loads(result.stdout)
+          except json.JSONDecodeError:
+              print('Connector inventory unavailable: output was not JSON.')
+              raise SystemExit(0)
+
+          found = []
+          def walk(value):
+              if isinstance(value, dict):
+                  if any(k in value for k in ('uid', 'service', 'name')):
+                      item = {k: value.get(k) for k in ('id', 'uid', 'name', 'type', 'service') if isinstance(value.get(k), str)}
+                      if item:
+                          found.append(item)
+                  for child in value.values():
+                      walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      walk(child)
+          walk(payload)
+          unique = []
+          seen = set()
+          for item in found:
+              key = tuple(sorted(item.items()))
+              if key not in seen:
+                  seen.add(key)
+                  unique.append(item)
+          print('CONNECTOR_INVENTORY=' + json.dumps(unique, sort_keys=True, separators=(',', ':')))
+          PY
       - name: Provision and verify Wave 2 Vercel prerequisites
         id: provision
         if: steps.credential.outcome == 'success' && steps.token_scope.outcome == 'success' && steps.install_cli.outcome == 'success' && steps.seed_link.outcome == 'success'
@@ -100,4 +148,4 @@ jobs:
         run: |
           gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. Bootstrap project reach: **parallax-api=$API_STATUS / parallax=$PREVIEW_STATUS**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
 
-# Triggered after GitHub Connect consent was completed on 2026-08-23.
+# Diagnostic inventory added after GitHub App consent to reconcile the actual connector UID.
