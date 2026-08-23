@@ -1,13 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
 from pathlib import PurePosixPath
 from typing import Protocol
 
-from ..models import EngineeringRun
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
+from ..models import EngineeringAttempt, EngineeringRun, utcnow
 from ..projects.repository import ProjectRepository
+from ..repositories.engineering_runs import EngineeringRunRepository
+from ..tools.contracts import (
+    AuthorityDenyReason,
+    ToolAuditRecord,
+    ToolConsequence,
+    ToolOutcome,
+)
 from ..tools.providers import (
     ACTION_BRANCH_CREATE,
     ACTION_COMMIT_WRITE,
@@ -24,6 +34,7 @@ from ..tools.providers import (
     GitHubCommitFile,
     GitHubProviderActions,
     ProviderActionEvidence,
+    ProviderActionState,
     ProviderInvocation,
     ProviderProjectBinding,
     VercelPreviewActions,
@@ -40,6 +51,16 @@ from .workspace_lineage import (
     SourcePackage,
     SourceProvider,
 )
+
+
+_DELIVERY_RECORD_KIND = "verified_source_delivery"
+_DELIVERY_RECORD_VERSION = 1
+_DELIVERY_RECORD_STAGE = "SOURCE_DELIVERY"
+_DELIVERY_RECORD_STATUS = "RECORDED"
+_DELIVERY_RECORD_PROGRAM = "verified-source-delivery-v0.15.9"
+_DELIVERY_RECORD_TOOL = "github+vercel"
+_MAX_DELIVERY_ACTIONS = 8
+_MAX_ATTEMPT_EVIDENCE_BYTES = 24_000
 
 
 class SourceDeliveryCompositionError(RuntimeError):
@@ -78,6 +99,18 @@ class PreviewTargetResolver(Protocol):
 
 class ProviderInvocationFactory(Protocol):
     def for_action(self, *, tool: str, action: str, operation_key: str) -> ProviderInvocation: ...
+
+
+class DeliveryRecordStore(Protocol):
+    def load(self, *, run_id: str, lineage_id: str) -> dict[str, object] | None: ...
+
+    def persist(
+        self,
+        *,
+        run: EngineeringRun,
+        lineage_id: str,
+        payload: dict[str, object],
+    ) -> tuple[dict[str, object], bool]: ...
 
 
 _GITHUB_ACTIONS = frozenset(
@@ -311,6 +344,111 @@ class RepositoryLineageBootstrap:
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderActionAuditPair:
+    evidence: ProviderActionEvidence
+    audit: ToolAuditRecord
+
+    def __post_init__(self) -> None:
+        if self.evidence.state is not ProviderActionState.SUCCEEDED:
+            raise VerifiedDeliveryError("durable delivery records require successful provider evidence")
+        if self.audit.outcome is not ToolOutcome.SUCCEEDED or not self.audit.authority_allowed:
+            raise VerifiedDeliveryError("durable delivery records require successful authorized tool audit")
+        if self.audit.deny_reason is not None:
+            raise VerifiedDeliveryError("successful provider audit cannot retain a deny reason")
+        if self.audit.tool != self.evidence.provider:
+            raise VerifiedDeliveryError("provider evidence/audit tool mismatch")
+        if self.audit.action != self.evidence.action:
+            raise VerifiedDeliveryError("provider evidence/audit action mismatch")
+        if self.audit.project_ref != self.evidence.project_ref:
+            raise VerifiedDeliveryError("provider evidence/audit Project mismatch")
+        if self.evidence.result_status is not None and self.audit.result_code != self.evidence.result_status:
+            raise VerifiedDeliveryError("provider evidence/audit result code mismatch")
+        if self.evidence.result_identity is not None and self.audit.result_identity != self.evidence.result_identity:
+            raise VerifiedDeliveryError("provider evidence/audit result identity mismatch")
+
+    def to_record(self) -> dict[str, object]:
+        evidence = self.evidence
+        audit = self.audit
+        return {
+            "evidence": {
+                "provider": evidence.provider,
+                "action": evidence.action,
+                "state": evidence.state.value,
+                "project_ref": evidence.project_ref,
+                "repository_identity_digest": evidence.repository_identity_digest,
+                "source_revision": evidence.source_revision,
+                "lineage_id": evidence.lineage_id,
+                "lineage_digest": evidence.lineage_digest,
+                "result_identity": evidence.result_identity,
+                "result_status": evidence.result_status,
+                "safe_url": evidence.safe_url,
+            },
+            "audit": {
+                "request_id": audit.request_id,
+                "capability_id": audit.capability_id,
+                "project_ref": audit.project_ref,
+                "tool": audit.tool,
+                "action": audit.action,
+                "actor_ref": audit.actor_ref,
+                "consequence": audit.consequence.value if audit.consequence is not None else None,
+                "authority_allowed": audit.authority_allowed,
+                "outcome": audit.outcome.value,
+                "deny_reason": audit.deny_reason.value if audit.deny_reason is not None else None,
+                "approval_id": audit.approval_id,
+                "request_digest": audit.request_digest,
+                "result_digest": audit.result_digest,
+                "result_code": audit.result_code,
+                "result_identity": audit.result_identity,
+            },
+        }
+
+    @classmethod
+    def from_record(cls, payload: object) -> ProviderActionAuditPair:
+        if not isinstance(payload, dict):
+            raise VerifiedDeliveryError("durable provider action/audit pair is invalid")
+        evidence_raw = payload.get("evidence")
+        audit_raw = payload.get("audit")
+        if not isinstance(evidence_raw, dict) or not isinstance(audit_raw, dict):
+            raise VerifiedDeliveryError("durable provider action/audit pair is incomplete")
+        try:
+            evidence = ProviderActionEvidence(
+                provider=evidence_raw["provider"],
+                action=evidence_raw["action"],
+                state=ProviderActionState(evidence_raw["state"]),
+                project_ref=evidence_raw["project_ref"],
+                repository_identity_digest=evidence_raw["repository_identity_digest"],
+                source_revision=evidence_raw.get("source_revision"),
+                lineage_id=evidence_raw.get("lineage_id"),
+                lineage_digest=evidence_raw.get("lineage_digest"),
+                result_identity=evidence_raw.get("result_identity"),
+                result_status=evidence_raw.get("result_status"),
+                safe_url=evidence_raw.get("safe_url"),
+            )
+            consequence_raw = audit_raw.get("consequence")
+            deny_reason_raw = audit_raw.get("deny_reason")
+            audit = ToolAuditRecord(
+                request_id=audit_raw["request_id"],
+                capability_id=audit_raw.get("capability_id"),
+                project_ref=audit_raw["project_ref"],
+                tool=audit_raw["tool"],
+                action=audit_raw["action"],
+                actor_ref=audit_raw["actor_ref"],
+                consequence=ToolConsequence(consequence_raw) if consequence_raw is not None else None,
+                authority_allowed=audit_raw["authority_allowed"],
+                outcome=ToolOutcome(audit_raw["outcome"]),
+                deny_reason=AuthorityDenyReason(deny_reason_raw) if deny_reason_raw is not None else None,
+                approval_id=audit_raw.get("approval_id"),
+                request_digest=audit_raw["request_digest"],
+                result_digest=audit_raw.get("result_digest"),
+                result_code=audit_raw.get("result_code"),
+                result_identity=audit_raw.get("result_identity"),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise VerifiedDeliveryError("durable provider action/audit pair failed validation") from exc
+        return cls(evidence=evidence, audit=audit)
+
+
+@dataclass(frozen=True, slots=True)
 class VerifiedDeliveryResult:
     project_id: str
     run_id: str
@@ -324,7 +462,188 @@ class VerifiedDeliveryResult:
     preview_deployment_id: str
     preview_status: str
     preview_url: str | None
-    evidence: tuple[ProviderActionEvidence, ...]
+    actions: tuple[ProviderActionAuditPair, ...]
+    replayed: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.actions, tuple) or not self.actions or len(self.actions) > _MAX_DELIVERY_ACTIONS:
+            raise VerifiedDeliveryError("delivery action/audit evidence exceeds protected action bound")
+        if not all(isinstance(item, ProviderActionAuditPair) for item in self.actions):
+            raise VerifiedDeliveryError("delivery action evidence must retain matching audit records")
+        if len({item.audit.request_id for item in self.actions}) != len(self.actions):
+            raise VerifiedDeliveryError("delivery action/audit request identities must be unique")
+        if any(item.evidence.project_ref != self.project_id for item in self.actions):
+            raise VerifiedDeliveryError("delivery action evidence belongs to a different Project")
+        if not isinstance(self.replayed, bool):
+            raise TypeError("replayed must be bool")
+
+    @property
+    def evidence(self) -> tuple[ProviderActionEvidence, ...]:
+        return tuple(item.evidence for item in self.actions)
+
+    @property
+    def audits(self) -> tuple[ToolAuditRecord, ...]:
+        return tuple(item.audit for item in self.actions)
+
+    def to_record(self) -> dict[str, object]:
+        return {
+            "record_kind": _DELIVERY_RECORD_KIND,
+            "record_version": _DELIVERY_RECORD_VERSION,
+            "project_id": self.project_id,
+            "run_id": self.run_id,
+            "repository_identity_digest": self.repository_identity_digest,
+            "lineage_id": self.lineage_id,
+            "content_digest": self.content_digest,
+            "branch_name": self.branch_name,
+            "commit_revision": self.commit_revision,
+            "pull_request_number": self.pull_request_number,
+            "pull_request_url": self.pull_request_url,
+            "preview_deployment_id": self.preview_deployment_id,
+            "preview_status": self.preview_status,
+            "preview_url": self.preview_url,
+            "actions": [item.to_record() for item in self.actions],
+        }
+
+    @classmethod
+    def from_record(cls, payload: object, *, replayed: bool) -> VerifiedDeliveryResult:
+        if not isinstance(payload, dict):
+            raise VerifiedDeliveryError("durable source-delivery record is invalid")
+        if payload.get("record_kind") != _DELIVERY_RECORD_KIND or payload.get("record_version") != _DELIVERY_RECORD_VERSION:
+            raise VerifiedDeliveryError("durable source-delivery record version is unsupported")
+
+        required_text = (
+            "project_id",
+            "run_id",
+            "repository_identity_digest",
+            "lineage_id",
+            "content_digest",
+            "branch_name",
+            "commit_revision",
+            "pull_request_url",
+            "preview_deployment_id",
+            "preview_status",
+        )
+        for field in required_text:
+            if not isinstance(payload.get(field), str) or not payload[field]:
+                raise VerifiedDeliveryError(f"durable source-delivery record {field} is invalid")
+        if not isinstance(payload.get("pull_request_number"), int) or payload["pull_request_number"] < 1:
+            raise VerifiedDeliveryError("durable source-delivery record pull request identity is invalid")
+        preview_url = payload.get("preview_url")
+        if preview_url is not None and (not isinstance(preview_url, str) or not preview_url):
+            raise VerifiedDeliveryError("durable source-delivery record preview URL is invalid")
+        actions_raw = payload.get("actions")
+        if not isinstance(actions_raw, list) or not actions_raw or len(actions_raw) > _MAX_DELIVERY_ACTIONS:
+            raise VerifiedDeliveryError("durable source-delivery action evidence is invalid")
+        actions = tuple(ProviderActionAuditPair.from_record(item) for item in actions_raw)
+        return cls(
+            project_id=payload["project_id"],
+            run_id=payload["run_id"],
+            repository_identity_digest=payload["repository_identity_digest"],
+            lineage_id=payload["lineage_id"],
+            content_digest=payload["content_digest"],
+            branch_name=payload["branch_name"],
+            commit_revision=payload["commit_revision"],
+            pull_request_number=payload["pull_request_number"],
+            pull_request_url=payload["pull_request_url"],
+            preview_deployment_id=payload["preview_deployment_id"],
+            preview_status=payload["preview_status"],
+            preview_url=preview_url,
+            actions=actions,
+            replayed=replayed,
+        )
+
+
+class EngineeringAttemptDeliveryRecordStore:
+    """Persist one bounded delivery record without advancing protected run state."""
+
+    def __init__(self, repository: EngineeringRunRepository) -> None:
+        if not isinstance(repository, EngineeringRunRepository):
+            raise TypeError("repository must be EngineeringRunRepository")
+        self.repository = repository
+
+    @staticmethod
+    def operation_key(lineage_id: str) -> str:
+        if not isinstance(lineage_id, str) or not lineage_id.startswith("src:"):
+            raise VerifiedDeliveryError("delivery record requires protected lineage identity")
+        return f"source-delivery:{lineage_id}"
+
+    @staticmethod
+    def _decode(attempt: EngineeringAttempt) -> dict[str, object]:
+        if attempt.stage != _DELIVERY_RECORD_STAGE or attempt.status != _DELIVERY_RECORD_STATUS:
+            raise VerifiedDeliveryError("durable delivery attempt has an invalid record type")
+        try:
+            payload = json.loads(attempt.evidence_json)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise VerifiedDeliveryError("durable delivery attempt evidence is invalid") from exc
+        if not isinstance(payload, dict):
+            raise VerifiedDeliveryError("durable delivery attempt evidence must be an object")
+        return payload
+
+    @staticmethod
+    def _canonical(payload: dict[str, object]) -> str:
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        if len(encoded.encode("utf-8")) > _MAX_ATTEMPT_EVIDENCE_BYTES:
+            raise VerifiedDeliveryError("durable delivery evidence exceeds protected 24KB bound")
+        return encoded
+
+    def load(self, *, run_id: str, lineage_id: str) -> dict[str, object] | None:
+        attempt = self.repository.find_operation(run_id, self.operation_key(lineage_id))
+        if attempt is None:
+            return None
+        payload = self._decode(attempt)
+        if payload.get("run_id") != run_id or payload.get("lineage_id") != lineage_id:
+            raise VerifiedDeliveryError("durable delivery attempt identity mismatch")
+        self._canonical(payload)
+        return payload
+
+    def persist(
+        self,
+        *,
+        run: EngineeringRun,
+        lineage_id: str,
+        payload: dict[str, object],
+    ) -> tuple[dict[str, object], bool]:
+        if payload.get("project_id") != run.project_id or payload.get("run_id") != run.id:
+            raise VerifiedDeliveryError("delivery record does not match canonical Engineering Run")
+        if payload.get("lineage_id") != lineage_id:
+            raise VerifiedDeliveryError("delivery record does not match accepted lineage")
+        encoded = self._canonical(payload)
+        existing = self.load(run_id=run.id, lineage_id=lineage_id)
+        if existing is not None:
+            if self._canonical(existing) != encoded:
+                raise VerifiedDeliveryError("conflicting durable delivery record already exists")
+            return existing, True
+
+        conflicting = self.repository.session.scalar(
+            select(EngineeringAttempt).where(
+                EngineeringAttempt.run_id == run.id,
+                EngineeringAttempt.stage == _DELIVERY_RECORD_STAGE,
+            )
+        )
+        if conflicting is not None:
+            raise VerifiedDeliveryError("Engineering Run already has a different durable delivery record")
+
+        attempt = EngineeringAttempt(
+            run_id=run.id,
+            stage=_DELIVERY_RECORD_STAGE,
+            attempt_number=1,
+            operation_key=self.operation_key(lineage_id),
+            status=_DELIVERY_RECORD_STATUS,
+            program_id=_DELIVERY_RECORD_PROGRAM,
+            tool_id=_DELIVERY_RECORD_TOOL,
+            evidence_json=encoded,
+            completed_at=utcnow(),
+        )
+        try:
+            self.repository.session.add(attempt)
+            self.repository.session.commit()
+        except IntegrityError as exc:
+            self.repository.session.rollback()
+            replay = self.load(run_id=run.id, lineage_id=lineage_id)
+            if replay is None or self._canonical(replay) != encoded:
+                raise VerifiedDeliveryError("concurrent durable delivery record conflicted") from exc
+            return replay, True
+        return payload, False
 
 
 class VerifiedLineageDelivery:
@@ -339,6 +658,7 @@ class VerifiedLineageDelivery:
         github: GitHubProviderActions,
         vercel: VercelPreviewActions,
         invocations: ProviderInvocationFactory,
+        records: DeliveryRecordStore,
     ) -> None:
         self.allocator = allocator
         self.projects = projects
@@ -346,6 +666,7 @@ class VerifiedLineageDelivery:
         self.github = github
         self.vercel = vercel
         self.invocations = invocations
+        self.records = records
 
     @staticmethod
     def _identity(run: EngineeringRun) -> ProjectRunIdentity:
@@ -404,6 +725,39 @@ class VerifiedLineageDelivery:
 
     def _invocation(self, tool: str, action: str, operation_key: str) -> ProviderInvocation:
         return self.invocations.for_action(tool=tool, action=action, operation_key=operation_key)
+
+    @staticmethod
+    def _paired(result: object) -> ProviderActionAuditPair:
+        evidence = getattr(result, "evidence", None)
+        audit = getattr(result, "audit", None)
+        if not isinstance(evidence, ProviderActionEvidence) or not isinstance(audit, ToolAuditRecord):
+            raise VerifiedDeliveryError("provider success must retain bounded evidence and matching tool audit")
+        return ProviderActionAuditPair(evidence=evidence, audit=audit)
+
+    @staticmethod
+    def _delivery_operation_key(identity: ProjectRunIdentity, lineage_id: str) -> str:
+        digest = sha256(
+            f"{identity.project_id}|{identity.run_id}|{lineage_id}".encode("utf-8")
+        ).hexdigest()[:48]
+        return f"delivery:{digest}"
+
+    def resolve_record(
+        self,
+        run: EngineeringRun,
+        *,
+        accepted_lineage_id: str | None = None,
+    ) -> VerifiedDeliveryResult | None:
+        identity = self._identity(run)
+        lineage_id = accepted_lineage_id or self._verified_lineage_id(run, identity)
+        payload = self.records.load(run_id=identity.run_id, lineage_id=lineage_id)
+        if payload is None:
+            return None
+        result = VerifiedDeliveryResult.from_record(payload, replayed=True)
+        if result.project_id != identity.project_id or result.run_id != identity.run_id:
+            raise VerifiedDeliveryError("durable delivery record belongs to a different Project/run")
+        if result.lineage_id != lineage_id:
+            raise VerifiedDeliveryError("durable delivery record belongs to a different lineage")
+        return result
 
     def _reconstruct_lineage(self, identity: ProjectRunIdentity, lineage_id: str) -> SourceLineage:
         workspace: MaterializedWorkspace | None = None
@@ -492,6 +846,8 @@ class VerifiedLineageDelivery:
                     raise VerifiedDeliveryError("failed to clean delivery materialization") from exc
 
     def deliver(self, run: EngineeringRun, *, operation_key: str) -> VerifiedDeliveryResult:
+        if not isinstance(operation_key, str) or not operation_key.strip():
+            raise VerifiedDeliveryError("delivery operation key is required")
         identity = self._identity(run)
         accepted_lineage_id = self._verified_lineage_id(run, identity)
         try:
@@ -501,18 +857,25 @@ class VerifiedLineageDelivery:
         if current.lineage_id != accepted_lineage_id:
             raise VerifiedDeliveryError("current durable lineage moved after verified implementation")
 
+        replay = self.resolve_record(run, accepted_lineage_id=accepted_lineage_id)
+        if replay is not None:
+            if replay.content_digest != current.content_digest:
+                raise VerifiedDeliveryError("durable delivery record content no longer matches accepted lineage")
+            return replay
+
         accepted, files = self._accepted_commit_files(identity, accepted_lineage_id)
         if accepted.content_digest != current.content_digest:
             raise VerifiedDeliveryError("accepted lineage content digest changed")
         root = self._root_lineage(identity, accepted)
         binding = self.projects.resolve(identity.project_id)
+        delivery_key = self._delivery_operation_key(identity, accepted.lineage_id)
 
-        evidence: list[ProviderActionEvidence] = []
+        actions: list[ProviderActionAuditPair] = []
         repository = self.github.resolve_repository(
             binding,
-            self._invocation(GITHUB_TOOL, ACTION_REPOSITORY_RESOLVE, f"{operation_key}:publish:resolve"),
+            self._invocation(GITHUB_TOOL, ACTION_REPOSITORY_RESOLVE, f"{delivery_key}:resolve"),
         )
-        evidence.append(repository.evidence)
+        actions.append(self._paired(repository))
         protected_ref_digest = sha256(
             f"{binding.repository_ref}@{repository.value.head_revision}".encode("utf-8")
         ).hexdigest()
@@ -528,23 +891,23 @@ class VerifiedLineageDelivery:
         branch_name = f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}"
         branch = self.github.create_branch(
             binding,
-            self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{operation_key}:publish:branch"),
+            self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),
             branch_name=branch_name,
             base_revision=repository.value.head_revision,
         )
-        evidence.append(branch.evidence)
+        actions.append(self._paired(branch))
         commit = self.github.commit_accepted_lineage(
             binding,
-            self._invocation(GITHUB_TOOL, ACTION_COMMIT_WRITE, f"{operation_key}:publish:commit"),
+            self._invocation(GITHUB_TOOL, ACTION_COMMIT_WRITE, f"{delivery_key}:commit"),
             branch_name=branch_name,
             expected_parent_revision=repository.value.head_revision,
             lineage=lineage,
             files=files,
         )
-        evidence.append(commit.evidence)
+        actions.append(self._paired(commit))
         pull_request = self.github.create_pull_request(
             binding,
-            self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_CREATE, f"{operation_key}:publish:pr-create"),
+            self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_CREATE, f"{delivery_key}:pr-create"),
             head_branch=branch_name,
             expected_head_revision=commit.value.commit_revision,
             base_branch=repository.value.default_branch,
@@ -555,13 +918,13 @@ class VerifiedLineageDelivery:
                 "Operator review is required; this PR is not a production promotion."
             ),
         )
-        evidence.append(pull_request.evidence)
+        actions.append(self._paired(pull_request))
         read_pull_request = self.github.read_pull_request(
             binding,
-            self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_READ, f"{operation_key}:publish:pr-read"),
+            self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_READ, f"{delivery_key}:pr-read"),
             number=pull_request.value.number,
         )
-        evidence.append(read_pull_request.evidence)
+        actions.append(self._paired(read_pull_request))
         if (
             read_pull_request.value.state != "OPEN"
             or read_pull_request.value.head_branch != branch_name
@@ -575,23 +938,23 @@ class VerifiedLineageDelivery:
             raise VerifiedDeliveryError("Vercel Preview target does not match canonical Project repository")
         preview = self.vercel.create_preview(
             target,
-            self._invocation(VERCEL_TOOL, ACTION_PREVIEW_CREATE, f"{operation_key}:publish:preview-create"),
+            self._invocation(VERCEL_TOOL, ACTION_PREVIEW_CREATE, f"{delivery_key}:preview-create"),
             source_revision=commit.value.commit_revision,
             branch_name=branch_name,
             lineage=lineage,
         )
-        evidence.append(preview.evidence)
+        actions.append(self._paired(preview))
         read_preview = self.vercel.read_preview(
             target,
-            self._invocation(VERCEL_TOOL, ACTION_PREVIEW_READ, f"{operation_key}:publish:preview-read"),
+            self._invocation(VERCEL_TOOL, ACTION_PREVIEW_READ, f"{delivery_key}:preview-read"),
             deployment_id=preview.value.deployment_id,
             expected_source_revision=commit.value.commit_revision,
         )
-        evidence.append(read_preview.evidence)
+        actions.append(self._paired(read_preview))
         if read_preview.value.status in {VercelPreviewStatus.ERROR, VercelPreviewStatus.CANCELED}:
             raise VerifiedDeliveryError("Vercel Preview entered a terminal non-success state")
 
-        return VerifiedDeliveryResult(
+        result = VerifiedDeliveryResult(
             project_id=identity.project_id,
             run_id=identity.run_id,
             repository_identity_digest=binding.repository_identity_digest,
@@ -604,8 +967,27 @@ class VerifiedLineageDelivery:
             preview_deployment_id=read_preview.value.deployment_id,
             preview_status=read_preview.value.status.value,
             preview_url=read_preview.value.url,
-            evidence=tuple(evidence),
+            actions=tuple(actions),
+            replayed=False,
         )
+        persisted, record_replayed = self.records.persist(
+            run=run,
+            lineage_id=accepted.lineage_id,
+            payload=result.to_record(),
+        )
+        if record_replayed:
+            replayed = VerifiedDeliveryResult.from_record(persisted, replayed=True)
+            if (
+                replayed.project_id != result.project_id
+                or replayed.run_id != result.run_id
+                or replayed.lineage_id != result.lineage_id
+                or replayed.commit_revision != result.commit_revision
+                or replayed.pull_request_number != result.pull_request_number
+                or replayed.preview_deployment_id != result.preview_deployment_id
+            ):
+                raise VerifiedDeliveryError("concurrent delivery replay did not match exact provider result")
+            return replayed
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -613,14 +995,20 @@ class SourceDeliveryComposition:
     bootstrap: RepositoryLineageBootstrap
     delivery: VerifiedLineageDelivery
 
+    def resolve_delivery(self, run: EngineeringRun) -> VerifiedDeliveryResult | None:
+        return self.delivery.resolve_record(run)
+
 
 __all__ = [
     "BootstrapResult",
+    "DeliveryRecordStore",
     "DurableSourceAllocator",
+    "EngineeringAttemptDeliveryRecordStore",
     "OwnerScopedProjectBindingResolver",
     "PreviewTargetResolver",
     "ProjectBindingResolver",
     "ProjectRepositoryBindingError",
+    "ProviderActionAuditPair",
     "ProviderInvocationFactory",
     "RegisteredPreviewTargetResolver",
     "RepositoryBoundSourceProvider",
