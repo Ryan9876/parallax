@@ -25,6 +25,7 @@ class EngineeringRunRepository:
         *,
         conversation_id: str,
         spec_id: str,
+        project_id: str | None,
         work_specification_id: str,
         work_specification_revision: int,
         work_specification_digest: str,
@@ -33,6 +34,7 @@ class EngineeringRunRepository:
         run = EngineeringRun(
             conversation_id=conversation_id,
             spec_id=spec_id,
+            project_id=project_id,
             work_specification_id=work_specification_id,
             work_specification_revision=work_specification_revision,
             work_specification_digest=work_specification_digest,
