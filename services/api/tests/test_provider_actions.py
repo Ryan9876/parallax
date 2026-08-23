@@ -42,11 +42,14 @@ from parallax_api.tools.providers import (
 
 
 PROJECT_ID = "7e643661-99d6-4b31-9af7-d86d30b01c14"
+RUN_ID = "1cf43021-4653-4e9c-bf54-68fd7d72ea35"
 REPOSITORY_REF = "github:acme/example-app"
 BASE_REVISION = "0123456789abcdef0123456789abcdef01234567"
 COMMIT_REVISION = "89abcdef0123456789abcdef0123456789abcdef"
 LINEAGE = AcceptedSourceLineage(
-    lineage_ref="lineage:accepted:1",
+    project_id=PROJECT_ID,
+    run_id=RUN_ID,
+    lineage_id="src:" + "c" * 64,
     content_digest="a" * 64,
 )
 BINDING = ProviderProjectBinding(project_ref=PROJECT_ID, repository_ref=REPOSITORY_REF)
@@ -135,7 +138,7 @@ class FakeGitHubClient:
             branch_name,
             expected_parent_revision,
             COMMIT_REVISION,
-            lineage.lineage_ref,
+            lineage.lineage_id,
             lineage.content_digest,
         )
 
@@ -250,6 +253,8 @@ def test_authorized_github_source_branch_commit_and_pull_request_flow() -> None:
         files=(commit_file,),
     )
     assert commit.value.commit_revision == COMMIT_REVISION
+    assert commit.value.lineage_id == LINEAGE.lineage_id
+    assert commit.evidence.lineage_id == LINEAGE.lineage_id
     assert commit.evidence.lineage_digest == LINEAGE.content_digest
     assert commit.evidence.state is ProviderActionState.SUCCEEDED
 
@@ -265,6 +270,7 @@ def test_authorized_github_source_branch_commit_and_pull_request_flow() -> None:
     assert pull_request.value.number == 42
     assert pull_request.value.head_revision == COMMIT_REVISION
     assert pull_request.evidence.source_revision == COMMIT_REVISION
+    assert pull_request.evidence.lineage_id == LINEAGE.lineage_id
     assert pull_request.evidence.lineage_digest == LINEAGE.content_digest
     assert pull_request.evidence.safe_url.endswith("/pull/42")
 
@@ -290,6 +296,7 @@ def test_authorized_vercel_preview_flow_is_bound_to_source_and_project() -> None
     )
     assert created.value.status is VercelPreviewStatus.READY
     assert created.audit.outcome is ToolOutcome.SUCCEEDED
+    assert created.evidence.lineage_id == LINEAGE.lineage_id
     assert created.evidence.safe_url == "https://example-app-git-run-1-acme.vercel.app"
     first_digest = created.evidence.digest
 
