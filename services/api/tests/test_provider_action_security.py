@@ -23,6 +23,7 @@ from parallax_api.tools.providers import (
     GitHubBranchResult,
     GitHubCommitFile,
     GitHubProviderActions,
+    GitHubPullRequestResult,
     GitHubRepositoryState,
     ProviderActionDenied,
     ProviderActionFailed,
@@ -50,9 +51,12 @@ class CountingGitHubClient:
         self.calls = 0
         self.return_wrong_repository = False
         self.fail = False
+        self.crash = False
 
     def resolve_repository(self, repository_ref: str) -> GitHubRepositoryState:
         self.calls += 1
+        if self.crash:
+            raise RuntimeError("provider-private diagnostic with request internals")
         if self.fail:
             raise ProviderClientError("PROVIDER_UNAVAILABLE")
         return GitHubRepositoryState(
@@ -170,7 +174,7 @@ def test_missing_human_approval_denies_mutation_before_provider_call() -> None:
     assert client.calls == 1
 
 
-def test_provider_failure_and_repository_mismatch_are_failed_not_success() -> None:
+def test_provider_failure_repository_mismatch_and_unexpected_exception_are_failed_not_success() -> None:
     client = CountingGitHubClient()
     registry = ToolCapabilityRegistry(
         (
@@ -197,6 +201,14 @@ def test_provider_failure_and_repository_mismatch_are_failed_not_success() -> No
     assert mismatch.value.audit.outcome is ToolOutcome.FAILED
     assert mismatch.value.audit.result_code == "REPOSITORY_MISMATCH"
 
+    client.return_wrong_repository = False
+    client.crash = True
+    with pytest.raises(ProviderActionFailed) as unexpected:
+        actions.resolve_repository(BINDING, _invocation("cap:github:read", "req:provider-crash"))
+    assert unexpected.value.audit.outcome is ToolOutcome.FAILED
+    assert unexpected.value.audit.result_code == "PROVIDER_ERROR"
+    assert "provider-private" not in str(unexpected.value)
+
 
 def test_publication_inputs_fail_closed_on_secret_paths_content_and_unbounded_branches() -> None:
     content = "api_key=abcdefghijklmnop1234567890"
@@ -204,8 +216,9 @@ def test_publication_inputs_fail_closed_on_secret_paths_content_and_unbounded_br
         GitHubCommitFile("src/config.py", content, sha256(content.encode()).hexdigest())
 
     safe_content = "print('ok')\n"
-    with pytest.raises(ValueError, match="publication boundary"):
-        GitHubCommitFile(".env", safe_content, sha256(safe_content.encode()).hexdigest())
+    for secret_path in (".env", ".ENV", "config/Credentials/value.txt"):
+        with pytest.raises(ValueError, match="publication boundary"):
+            GitHubCommitFile(secret_path, safe_content, sha256(safe_content.encode()).hexdigest())
 
     registry = ToolCapabilityRegistry(
         (
@@ -226,7 +239,7 @@ def test_publication_inputs_fail_closed_on_secret_paths_content_and_unbounded_br
         )
 
 
-def test_provider_binding_rejects_urls_noncanonical_project_and_unsafe_preview_url() -> None:
+def test_provider_binding_rejects_urls_noncanonical_project_and_unsafe_provider_urls() -> None:
     with pytest.raises(ValueError, match="github:owner/repository"):
         ProviderProjectBinding(PROJECT_ID, "https://github.com/acme/example-app")
     with pytest.raises(ValueError, match="canonical Project.id"):
@@ -240,9 +253,29 @@ def test_provider_binding_rejects_urls_noncanonical_project_and_unsafe_preview_u
             VercelPreviewStatus.READY,
             "https://evil.example/preview",
         )
+    with pytest.raises(ValueError, match="allowed provider domain"):
+        GitHubPullRequestResult(
+            REPOSITORY_REF,
+            42,
+            "parallax/run-security",
+            BASE_REVISION,
+            "main",
+            "OPEN",
+            "https://evilgithub.com/acme/example-app/pull/42",
+        )
+    with pytest.raises(ValueError, match="does not match repository"):
+        GitHubPullRequestResult(
+            REPOSITORY_REF,
+            42,
+            "parallax/run-security",
+            BASE_REVISION,
+            "main",
+            "OPEN",
+            "https://github.com/acme/other-app/pull/42",
+        )
 
 
-def test_vercel_target_mismatch_is_failed_and_production_promotion_is_impossible() -> None:
+def test_vercel_target_mismatch_is_failed_and_production_promotion_is_absent() -> None:
     registry = ToolCapabilityRegistry(
         (
             ToolCapability(
@@ -266,9 +299,9 @@ def test_vercel_target_mismatch_is_failed_and_production_promotion_is_impossible
         )
     assert mismatch.value.audit.outcome is ToolOutcome.FAILED
     assert mismatch.value.audit.result_code == "TARGET_MISMATCH"
-
-    with pytest.raises(PermissionError, match="production promotion"):
-        actions.production_promotion(target)
+    assert not hasattr(actions, "production_promotion")
+    assert not hasattr(actions, "promote")
+    assert not hasattr(actions, "alias")
 
 
 def test_provider_contracts_have_no_generic_transport_or_secret_fields() -> None:
@@ -286,6 +319,9 @@ def test_provider_contracts_have_no_generic_transport_or_secret_fields() -> None
         "subprocess",
         "raw_payload",
         "raw_response",
+        "chain_of_thought",
+        "hidden_reasoning",
+        "scratchpad",
     }
     for model in (ProviderInvocation, ProviderProjectBinding, AcceptedSourceLineage, VercelPreviewTarget):
         assert not ({field.name for field in fields(model)} & forbidden)
