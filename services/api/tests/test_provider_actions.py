@@ -143,6 +143,7 @@ class FakeGitHubClient:
         self,
         repository_ref: str,
         head_branch: str,
+        expected_head_revision: str,
         base_branch: str,
         title: str,
         body: str,
@@ -152,6 +153,7 @@ class FakeGitHubClient:
             repository_ref,
             42,
             head_branch,
+            expected_head_revision,
             base_branch,
             "OPEN",
             "https://github.com/acme/example-app/pull/42",
@@ -162,6 +164,7 @@ class FakeGitHubClient:
             repository_ref,
             number,
             "parallax/run-1",
+            COMMIT_REVISION,
             "main",
             "OPEN",
             f"https://github.com/acme/example-app/pull/{number}",
@@ -254,10 +257,15 @@ def test_authorized_github_source_branch_commit_and_pull_request_flow() -> None:
         BINDING,
         _invocation("cap:github:app", "req:pr-create"),
         head_branch="parallax/run-1",
+        expected_head_revision=COMMIT_REVISION,
         base_branch="main",
+        lineage=LINEAGE,
         title="Parallax app-builder change",
     )
     assert pull_request.value.number == 42
+    assert pull_request.value.head_revision == COMMIT_REVISION
+    assert pull_request.evidence.source_revision == COMMIT_REVISION
+    assert pull_request.evidence.lineage_digest == LINEAGE.content_digest
     assert pull_request.evidence.safe_url.endswith("/pull/42")
 
     read_back = actions.read_pull_request(
@@ -266,6 +274,7 @@ def test_authorized_github_source_branch_commit_and_pull_request_flow() -> None:
         number=42,
     )
     assert read_back.value.state == "OPEN"
+    assert read_back.evidence.source_revision == COMMIT_REVISION
 
 
 def test_authorized_vercel_preview_flow_is_bound_to_source_and_project() -> None:
