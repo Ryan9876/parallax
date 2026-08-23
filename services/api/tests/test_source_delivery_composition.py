@@ -13,6 +13,7 @@ from parallax_api.code.lineage_persistence import (
     InMemoryLineageMetadataStore,
 )
 from parallax_api.code.source_delivery_composition import (
+    EngineeringAttemptDeliveryRecordStore,
     OwnerScopedProjectBindingResolver,
     ProjectRepositoryBindingError,
     RegisteredPreviewTargetResolver,
@@ -30,9 +31,16 @@ from parallax_api.code.workspace_lineage import (
     StaleLineageError,
 )
 from parallax_api.db import Base, make_engine
+from parallax_api.models import EngineeringAttempt, EngineeringRun
 from parallax_api.projects.repository import ProjectRepository
 from parallax_api.projects.schemas import ProjectCreate
 from parallax_api.projects.service import ProjectService
+from parallax_api.repositories.engineering_runs import EngineeringRunRepository
+from parallax_api.tools.contracts import (
+    ToolAuditRecord,
+    ToolConsequence,
+    ToolOutcome,
+)
 from parallax_api.tools.providers import (
     GitHubBranchResult,
     GitHubCommitResult,
@@ -48,6 +56,7 @@ from parallax_api.tools.providers import (
     VercelPreviewStatus,
     VercelPreviewTarget,
 )
+from parallax_api.tools.providers.common import ProviderActionSuccess
 
 
 REPOSITORY_REF = "github:Ryan9876/parallax"
@@ -69,17 +78,68 @@ def _attempt(stage: str, evidence: dict[str, object]):
 
 
 def _action_success(binding: ProviderProjectBinding, *, provider: str, action: str, value, **evidence):
-    return SimpleNamespace(
-        value=value,
-        evidence=ProviderActionEvidence(
-            provider=provider,
-            action=action,
-            state=ProviderActionState.SUCCEEDED,
-            project_ref=binding.project_ref,
-            repository_identity_digest=binding.repository_identity_digest,
-            **evidence,
-        ),
+    provider_evidence = ProviderActionEvidence(
+        provider=provider,
+        action=action,
+        state=ProviderActionState.SUCCEEDED,
+        project_ref=binding.project_ref,
+        repository_identity_digest=binding.repository_identity_digest,
+        **evidence,
     )
+    request_id = f"request:{uuid4().hex}"
+    result_code = provider_evidence.result_status or "TEST_SUCCEEDED"
+    result_identity = provider_evidence.result_identity
+    audit = ToolAuditRecord(
+        request_id=request_id,
+        capability_id=f"cap:test-{provider}",
+        project_ref=binding.project_ref,
+        tool=provider,
+        action=action,
+        actor_ref="actor:test-runtime",
+        consequence=(
+            ToolConsequence.READ
+            if action in {
+                "repository.resolve",
+                "source.tree.read",
+                "source.file.read",
+                "pull_request.read",
+                "preview.read",
+            }
+            else ToolConsequence.MUTATE
+        ),
+        authority_allowed=True,
+        outcome=ToolOutcome.SUCCEEDED,
+        deny_reason=None,
+        approval_id=None,
+        request_digest=sha256(f"{request_id}|{provider}|{action}".encode()).hexdigest(),
+        result_digest=sha256(f"{result_code}|{result_identity or ''}".encode()).hexdigest(),
+        result_code=result_code,
+        result_identity=result_identity,
+    )
+    return ProviderActionSuccess(value=value, evidence=provider_evidence, audit=audit)
+
+
+class MemoryDeliveryRecordStore:
+    def __init__(self):
+        self.records: dict[tuple[str, str], dict[str, object]] = {}
+
+    @staticmethod
+    def _copy(payload: dict[str, object]) -> dict[str, object]:
+        return json.loads(json.dumps(payload, sort_keys=True))
+
+    def load(self, *, run_id: str, lineage_id: str):
+        payload = self.records.get((run_id, lineage_id))
+        return None if payload is None else self._copy(payload)
+
+    def persist(self, *, run, lineage_id: str, payload: dict[str, object]):
+        key = (run.id, lineage_id)
+        current = self.records.get(key)
+        if current is not None:
+            if current != payload:
+                raise VerifiedDeliveryError("conflicting in-memory delivery record")
+            return self._copy(current), True
+        self.records[key] = self._copy(payload)
+        return self._copy(payload), False
 
 
 class BindingResolver:
@@ -98,10 +158,12 @@ class FakeGitHubActions:
         self.head_revision = ROOT_REVISION
         self.default_branch = "main"
         self.files = {"app.py": "value = 1\n", "README.md": "Parallax\n"}
+        self.calls: list[str] = []
         self.mutations: list[str] = []
         self.committed_files = ()
 
     def resolve_repository(self, binding, invocation):
+        self.calls.append("repository.resolve")
         assert binding == self.binding
         value = GitHubRepositoryState(REPOSITORY_REF, self.default_branch, self.head_revision)
         return _action_success(
@@ -114,6 +176,7 @@ class FakeGitHubActions:
         )
 
     def read_tree(self, binding, invocation, *, source_revision):
+        self.calls.append("source.tree.read")
         assert binding == self.binding
         assert source_revision == self.head_revision
         entries = tuple(
@@ -131,6 +194,7 @@ class FakeGitHubActions:
         )
 
     def read_file(self, binding, invocation, *, source_revision, path):
+        self.calls.append("source.file.read")
         assert binding == self.binding
         content = self.files[path]
         digest = sha256(content.encode()).hexdigest()
@@ -145,6 +209,7 @@ class FakeGitHubActions:
         )
 
     def create_branch(self, binding, invocation, *, branch_name, base_revision):
+        self.calls.append("branch.create")
         self.mutations.append("branch.create")
         assert base_revision == ROOT_REVISION
         value = GitHubBranchResult(REPOSITORY_REF, branch_name, base_revision, base_revision)
@@ -167,6 +232,7 @@ class FakeGitHubActions:
         lineage,
         files,
     ):
+        self.calls.append("commit.write")
         self.mutations.append("commit.write")
         assert expected_parent_revision == ROOT_REVISION
         self.committed_files = files
@@ -201,6 +267,7 @@ class FakeGitHubActions:
         title,
         body="",
     ):
+        self.calls.append("pull_request.create")
         self.mutations.append("pull_request.create")
         assert expected_head_revision == COMMIT_REVISION
         value = GitHubPullRequestResult(
@@ -225,6 +292,7 @@ class FakeGitHubActions:
         )
 
     def read_pull_request(self, binding, invocation, *, number):
+        self.calls.append("pull_request.read")
         self.mutations.append("pull_request.read")
         branch = f"parallax/{binding.project_ref[:8]}-{self.run_id[:8]}"
         value = GitHubPullRequestResult(
@@ -368,6 +436,20 @@ def _review_run(project_id: str, run_id: str, accepted):
     )
 
 
+def _delivery(allocator, binding, github, vercel, project_id, *, records=None):
+    return VerifiedLineageDelivery(
+        allocator=allocator,
+        projects=BindingResolver(binding),
+        preview_targets=RegisteredPreviewTargetResolver(
+            (VercelPreviewTarget(project_id, REPOSITORY_REF, "vercel-project-parallax"),)
+        ),
+        github=github,
+        vercel=vercel,
+        invocations=_factory(),
+        records=records or MemoryDeliveryRecordStore(),
+    )
+
+
 def test_owner_scoped_project_repository_binding_is_canonical(tmp_path):
     engine = make_engine(f"sqlite:///{tmp_path / 'projects.db'}")
     Base.metadata.create_all(engine)
@@ -433,15 +515,7 @@ def test_verified_delivery_publishes_only_exact_current_lineage_and_preview(tmp_
     assert accepted.parent_lineage_id == root.lineage_id
     github.run_id = run_id
     vercel = FakeVercelActions()
-    target = VercelPreviewTarget(project_id, REPOSITORY_REF, "vercel-project-parallax")
-    delivery = VerifiedLineageDelivery(
-        allocator=allocator,
-        projects=BindingResolver(binding),
-        preview_targets=RegisteredPreviewTargetResolver((target,)),
-        github=github,
-        vercel=vercel,
-        invocations=_factory(),
-    )
+    delivery = _delivery(allocator, binding, github, vercel, project_id)
 
     result = delivery.deliver(_review_run(project_id, run_id, accepted), operation_key="deliver")
 
@@ -449,12 +523,140 @@ def test_verified_delivery_publishes_only_exact_current_lineage_and_preview(tmp_
     assert result.content_digest == accepted.content_digest
     assert result.commit_revision == COMMIT_REVISION
     assert result.preview_status == "READY"
+    assert result.replayed is False
     assert github.mutations == ["branch.create", "commit.write", "pull_request.create", "pull_request.read"]
     assert vercel.calls == ["preview.create", "preview.read"]
     committed = {item.path: item.content for item in github.committed_files}
     assert committed == {"README.md": "Parallax\n", "app.py": "value = 2\n"}
+    assert len(result.actions) == 7
+    assert result.evidence == tuple(item.evidence for item in result.actions)
+    assert result.audits == tuple(item.audit for item in result.actions)
     assert all(item.state is ProviderActionState.SUCCEEDED for item in result.evidence)
+    assert all(item.outcome is ToolOutcome.SUCCEEDED for item in result.audits)
+    assert all(item.authority_allowed is True for item in result.audits)
     assert not any((tmp_path / "live").rglob("*"))
+
+
+def test_durable_delivery_record_survives_session_recreation_and_retry_has_no_provider_calls(tmp_path):
+    project_id, run_id = str(uuid4()), str(uuid4())
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(
+        tmp_path / "lineage", project_id, run_id
+    )
+    bootstrap.ensure(run, operation_key="bootstrap")
+    accepted = _accept_implementation(allocator, ProjectRunIdentity(project_id, run_id))
+    github.run_id = run_id
+
+    engine = make_engine(f"sqlite:///{tmp_path / 'delivery.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    implementation_evidence = {
+        "project_ref": project_id,
+        "run_id": run_id,
+        "source_lineage_ref": accepted.lineage_id,
+    }
+    verify_evidence = {
+        "project_ref": project_id,
+        "run_id": run_id,
+        "source_lineage_ref": accepted.lineage_id,
+        "lineage_bound_execution": True,
+        "protected_success": True,
+    }
+
+    with Session() as session:
+        session.add(
+            EngineeringRun(
+                id=run_id,
+                conversation_id=str(uuid4()),
+                spec_id="P2-V0.15.9",
+                project_id=project_id,
+                state="REVIEW",
+                revision=9,
+            )
+        )
+        session.add_all(
+            [
+                EngineeringAttempt(
+                    run_id=run_id,
+                    stage="IMPLEMENT",
+                    attempt_number=1,
+                    operation_key="implement:accepted",
+                    status="PASSED",
+                    evidence_json=json.dumps(implementation_evidence),
+                ),
+                EngineeringAttempt(
+                    run_id=run_id,
+                    stage="VERIFY",
+                    attempt_number=1,
+                    operation_key="verify:accepted",
+                    status="PASSED",
+                    evidence_json=json.dumps(verify_evidence),
+                ),
+            ]
+        )
+        session.commit()
+        repository = EngineeringRunRepository(session)
+        records = EngineeringAttemptDeliveryRecordStore(repository)
+        durable_run = repository.get(run_id)
+        assert durable_run is not None
+        vercel = FakeVercelActions()
+        first = _delivery(
+            allocator,
+            binding,
+            github,
+            vercel,
+            project_id,
+            records=records,
+        ).deliver(durable_run, operation_key="runtime:first")
+
+        assert first.replayed is False
+        assert repository.get(run_id).revision == 9
+        attempt = repository.find_operation(
+            run_id,
+            EngineeringAttemptDeliveryRecordStore.operation_key(accepted.lineage_id),
+        )
+        assert attempt is not None
+        assert attempt.stage == "SOURCE_DELIVERY"
+        assert attempt.status == "RECORDED"
+        assert len(attempt.evidence_json.encode("utf-8")) <= 24_000
+        payload = json.loads(attempt.evidence_json)
+        assert payload["project_id"] == project_id
+        assert payload["run_id"] == run_id
+        assert payload["lineage_id"] == accepted.lineage_id
+        assert len(payload["actions"]) == 7
+        assert all("evidence" in item and "audit" in item for item in payload["actions"])
+
+    with Session() as recreated_session:
+        repository = EngineeringRunRepository(recreated_session)
+        records = EngineeringAttemptDeliveryRecordStore(repository)
+        recreated_run = repository.get(run_id)
+        assert recreated_run is not None
+        recreated_github = FakeGitHubActions(binding)
+        recreated_github.run_id = run_id
+        recreated_vercel = FakeVercelActions()
+        recreated_delivery = _delivery(
+            allocator,
+            binding,
+            recreated_github,
+            recreated_vercel,
+            project_id,
+            records=records,
+        )
+
+        resolved = recreated_delivery.resolve_record(recreated_run)
+        assert resolved is not None and resolved.replayed is True
+        assert resolved.commit_revision == first.commit_revision
+        assert resolved.pull_request_number == first.pull_request_number
+        assert resolved.preview_deployment_id == first.preview_deployment_id
+
+        retry = recreated_delivery.deliver(recreated_run, operation_key="runtime:exact-retry")
+        assert retry.replayed is True
+        assert retry.commit_revision == first.commit_revision
+        assert retry.pull_request_number == first.pull_request_number
+        assert retry.preview_deployment_id == first.preview_deployment_id
+        assert retry.actions == first.actions
+        assert recreated_github.calls == []
+        assert recreated_vercel.calls == []
+        assert repository.get(run_id).revision == 9
 
 
 def test_unverified_or_stale_provider_parent_fails_before_provider_mutation(tmp_path):
@@ -464,16 +666,7 @@ def test_unverified_or_stale_provider_parent_fails_before_provider_mutation(tmp_
     accepted = _accept_implementation(allocator, ProjectRunIdentity(project_id, run_id))
     github.run_id = run_id
     vercel = FakeVercelActions()
-    delivery = VerifiedLineageDelivery(
-        allocator=allocator,
-        projects=BindingResolver(binding),
-        preview_targets=RegisteredPreviewTargetResolver(
-            (VercelPreviewTarget(project_id, REPOSITORY_REF, "vercel-project-parallax"),)
-        ),
-        github=github,
-        vercel=vercel,
-        invocations=_factory(),
-    )
+    delivery = _delivery(allocator, binding, github, vercel, project_id)
 
     unverified = _run(project_id, run_id, state="REVIEW", attempts=())
     with pytest.raises(VerifiedDeliveryError):
