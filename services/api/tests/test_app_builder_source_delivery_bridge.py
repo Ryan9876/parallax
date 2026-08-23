@@ -110,7 +110,10 @@ def _environment(tmp_path):
             title="Bridge source delivery evidence",
             objective="Prove #80 consumes accepted #79 durable provider evidence.",
             constraints=["Do not rerun provider mutations."],
-            acceptance_criteria=["Accepted delivery evidence is projected read-only."],
+            acceptance_criteria=[
+                "Accepted delivery evidence is projected read-only.",
+                "Provider publication is not repeated while reading evaluation evidence.",
+            ],
             risks=[],
             open_questions=[],
             confidence=0.99,
