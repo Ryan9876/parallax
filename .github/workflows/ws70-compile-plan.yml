@@ -1,9 +1,13 @@
 name: WS70 Compile Protected Plan
 
 on:
-  push:
+  pull_request:
     branches:
-      - ws/app-provider-clients
+      - integration/wave2-app-builder
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'specs/P2-V0.15.7.md'
+      - '.github/workflows/ws70-compile-plan.yml'
   workflow_dispatch:
 
 permissions:
