@@ -255,7 +255,7 @@ def test_vercel_production_readback_can_never_be_preview_success() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/v9/projects/prj_example":
             return httpx.Response(200, json={"id": "prj_example", "name": "example-app", "link": {"type": "github", "repoId": 12345}})
-        if request.url.path == "/v7/deployments":
+        if request.url.path == "/v6/deployments":
             return httpx.Response(200, json={"deployments": []})
         if request.url.path == "/v13/deployments" and request.method == "POST":
             return httpx.Response(
