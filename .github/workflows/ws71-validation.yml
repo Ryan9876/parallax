@@ -3,6 +3,7 @@ name: WS71 Integration Validation
 on:
   pull_request:
     branches: [integration/wave2-app-builder]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
