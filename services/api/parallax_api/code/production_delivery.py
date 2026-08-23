@@ -57,7 +57,7 @@ _ENV_VERCEL_TOKEN = "PARALLAX_VERCEL_SCOPED_TOKEN"
 _ENV_PREVIEW_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
 _ENV_OIDC = "VERCEL_OIDC_TOKEN"
 _MAX_TARGETS = 64
-_GITHUB_DELIVERY_PERMISSIONS = ("contents:write", "pull_requests:write")
+_GITHUB_API_VERSION = "2026-03-10"
 
 
 class ProductionDeliveryConfigurationError(RuntimeError):
@@ -65,13 +65,14 @@ class ProductionDeliveryConfigurationError(RuntimeError):
 
 
 class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
-    """Exchange Vercel deployment OIDC for a repository-scoped GitHub token.
+    """Exchange Vercel deployment OIDC for a verified repository-scoped GitHub token.
 
-    Vercel Connect performs the provider-side GitHub App token scoping. Parallax
-    additionally retains its own typed Project/repository/tool-authority checks,
-    so a token cannot silently broaden the accepted #45/#62/#79 action ceiling.
-    Bearer material never leaves this provider/client boundary and is cached only
-    for the lifetime of this request-scoped composition object.
+    Vercel Connect owns the GitHub credential lifecycle. Parallax accepts an
+    app-scoped token only after GitHub itself confirms that the installation
+    token can reach exactly the canonical repository. This keeps repository
+    least privilege provider-enforced instead of relying only on the typed
+    Parallax action boundary. Bearer material never leaves this provider/client
+    boundary and is cached only for the lifetime of the request composition.
     """
 
     def __init__(
@@ -80,18 +81,26 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         *,
         oidc_token: str | None = None,
         transport: httpx.BaseTransport | None = None,
+        github_transport: httpx.BaseTransport | None = None,
         timeout_seconds: float = 10.0,
     ) -> None:
         if not isinstance(connector, str) or not _GITHUB_CONNECTOR.fullmatch(connector):
             raise ProductionDeliveryConfigurationError("GitHub Connect connector configuration is invalid")
         if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 30:
             raise ValueError("GitHub Connect timeout must be between 0 and 30 seconds")
+        timeout = httpx.Timeout(float(timeout_seconds))
         self._connector = connector
         self._oidc_token = oidc_token
         self._http = httpx.Client(
             base_url="https://api.vercel.com",
             transport=transport,
-            timeout=httpx.Timeout(float(timeout_seconds)),
+            timeout=timeout,
+            follow_redirects=False,
+        )
+        self._github = httpx.Client(
+            base_url="https://api.github.com",
+            transport=github_transport,
+            timeout=timeout,
             follow_redirects=False,
         )
         self._cached: dict[str, ScopedBearerCredential] = {}
@@ -127,6 +136,35 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
         return repository
 
+    def _verify_repository_scope(self, *, token: str, repository: str) -> None:
+        try:
+            response = self._github.get(
+                "/installation/repositories",
+                params={"per_page": 2},
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {token}",
+                    "X-GitHub-Api-Version": _GITHUB_API_VERSION,
+                },
+            )
+        except (httpx.TimeoutException, httpx.RequestError) as exc:
+            raise ProviderClientError("CREDENTIAL_SCOPE_UNVERIFIED") from exc
+        if response.status_code != 200:
+            raise ProviderClientError("CREDENTIAL_SCOPE_UNVERIFIED")
+        try:
+            payload = response.json()
+        except Exception as exc:
+            raise ProviderClientError("CREDENTIAL_SCOPE_UNVERIFIED") from exc
+        if not isinstance(payload, dict):
+            raise ProviderClientError("CREDENTIAL_SCOPE_UNVERIFIED")
+        total_count = payload.get("total_count")
+        repositories = payload.get("repositories")
+        if total_count != 1 or not isinstance(repositories, list) or len(repositories) != 1:
+            raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
+        item = repositories[0]
+        if not isinstance(item, dict) or item.get("full_name") != repository:
+            raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
+
     def credential_for_repository(self, repository_ref: str) -> ScopedBearerCredential:
         current = self._cached.get(repository_ref)
         if current is not None and current.expires_at is not None:
@@ -141,16 +179,7 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             response = self._http.post(
                 f"/v1/connect/token/{quote(self._connector, safe='/')}",
                 headers={"Authorization": f"Bearer {oidc.strip()}", "Content-Type": "application/json"},
-                json={
-                    "subject": {"type": "app"},
-                    "authorizationDetails": [
-                        {
-                            "type": "github_app_installation",
-                            "repositories": [repository],
-                            "permissions": list(_GITHUB_DELIVERY_PERMISSIONS),
-                        }
-                    ],
-                },
+                json={"subject": {"type": "app"}},
             )
         except httpx.TimeoutException as exc:
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from exc
@@ -168,11 +197,13 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         if not isinstance(token, str) or not token.strip():
             raise ProviderClientError("CREDENTIAL_INVALID")
         expires_at = self._expiration(payload.get("expiresAt"))
+        secret = token.strip()
+        self._verify_repository_scope(token=secret, repository=repository)
         credential = ScopedBearerCredential(
             provider="github",
             resource_ref=repository_ref,
             kind=ProviderCredentialKind.GITHUB_APP_INSTALLATION,
-            secret=token.strip(),
+            secret=secret,
             expires_at=expires_at,
         )
         self._cached[repository_ref] = credential
@@ -305,6 +336,7 @@ def production_source_delivery(
     vercel_token: str | None = None,
     preview_targets_json: str | None = None,
     github_transport: httpx.BaseTransport | None = None,
+    github_scope_transport: httpx.BaseTransport | None = None,
     vercel_transport: httpx.BaseTransport | None = None,
 ) -> SourceDeliveryComposition:
     """Build the exact accepted #79 delivery stack for one canonical Project."""
@@ -338,6 +370,7 @@ def production_source_delivery(
     github_credentials = VercelConnectGitHubCredentialProvider(
         connector.strip(),
         transport=github_transport,
+        github_transport=github_scope_transport,
     )
     vercel_credentials = EnvironmentVercelCredentialProvider(
         scoped_vercel_token,
