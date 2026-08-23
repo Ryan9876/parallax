@@ -1,115 +1,74 @@
-name: DSPy Spec Optimization
+name: WS70 Helper Validate and Compile
 
 on:
-  workflow_dispatch:
-    inputs:
-      spec:
-        description: Specification path
-        required: true
-        default: specs/P2-V0.1.0.md
   push:
     branches:
-      - 'p2/**'
+      - 'p2/ws70-validate'
     paths:
-      - 'specs/**'
-      - 'scripts/compile_spec.py'
-      - 'scripts/optimize_spec.py'
-      - 'services/api/parallax_api/intelligence/**'
-      - 'services/api/tests/test_metrics.py'
       - '.github/workflows/optimize-spec.yml'
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
-  optimize:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ws/app-provider-clients
+          fetch-depth: 0
+      - id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: pip install -e 'services/api[dev]'
-      - run: python scripts/validate_spec.py "$SPEC_PATH"
-
-      - id: credentials
-        name: Select DSPy development model
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          if [ -n "$OPENAI_API_KEY" ]; then
-            echo "provider=true" >> "$GITHUB_OUTPUT"
-            echo "model=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
-            echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
-          else
-            echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
-            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
-            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
-            echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
-          fi
-
-      - name: Install local Ollama development LM
-        if: steps.credentials.outputs.provider == 'false'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: python -m pip install -e 'services/api[dev]'
+      - name: Validate workstream specification
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.15.7.md
+      - name: Run focused provider-client tests
+        run: python -m pytest -q services/api/tests/test_provider_client_spec.py services/api/tests/test_provider_clients.py services/api/tests/test_provider_client_security.py
+      - name: Install local DSPy development LM
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
-          nohup ollama serve > /tmp/ollama.log 2>&1 &
-          for i in $(seq 1 30); do
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
             sleep 1
           done
-          ollama pull llama3.2:1b
-
-      - name: Compile approved spec with DSPy critic + compiler
+          ollama pull qwen2.5:0.5b
+      - name: Compile and validate P2-V0.15.7
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py "$SPEC_PATH"
-
-      - name: Optimize SpecCompiler with MIPROv2
-        if: steps.credentials.outputs.provider == 'true'
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/optimize_spec.py "$SPEC_PATH"
-
-      - name: Record DSPy development evidence
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.15.7.md
+          python scripts/validate_spec.py specs/P2-V0.15.7.md --require-dspy
+      - name: Commit generated plan to worker branch
+        run: |
+          set -euo pipefail
+          PLAN=specs/compiled/P2-V0.15.7.plan.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$PLAN"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'spec: compile P2-V0.15.7 protected plan'
+          git push origin HEAD:ws/app-provider-clients
+      - name: Record success
         if: success()
         env:
-          PROVIDER: ${{ steps.credentials.outputs.provider }}
-          MODEL: ${{ steps.credentials.outputs.model }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          provider = os.environ['PROVIDER'] == 'true'
-          path = Path('specs/compiled/dspy-run-status.json')
-          path.write_text(json.dumps({
-              'executed': True,
-              'spec_compiler_executed': True,
-              'spec_critic_executed': True,
-              'model': os.environ['MODEL'],
-              'provider_backed': provider,
-              'optimizer_executed': provider,
-              'compiler_artifact': 'P2-V0.1.0.plan.json',
-              'optimizer_artifact': 'optimized-program.json' if provider else None,
-              'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
-              'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
-          }, indent=2) + '\n', encoding='utf-8')
-          PY
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dspy-spec-evidence
-          path: |
-            specs/compiled/P2-V0.1.0.plan.json
-            specs/compiled/optimized-program.json
-            specs/compiled/optimized-program-evidence.json
-            specs/compiled/dspy-run-status.json
-            /tmp/ollama.log
-          if-no-files-found: warn
-          retention-days: 14
+          GH_TOKEN: ${{ github.token }}
+          WORKER_SHA: ${{ steps.head.outputs.sha }}
+        run: gh issue comment 70 --body "WS70 helper validation SUCCESS: run ${GITHUB_RUN_ID}, worker head ${WORKER_SHA}. Focused tests and DSPy compile/require-dspy passed; generated plan was committed if changed."
+      - name: Record failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKER_SHA: ${{ steps.head.outputs.sha }}
+        run: gh issue comment 70 --body "WS70 helper validation FAILED: run ${GITHUB_RUN_ID}, worker head ${WORKER_SHA}. No success claim; inspect the named failed step before continuing."
