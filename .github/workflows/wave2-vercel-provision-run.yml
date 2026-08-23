@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/wave2-vercel-provision-run.yml'
       - 'scripts/provision_wave2_vercel.py'
+      - 'scripts/provision_wave2_vercel_ci.py'
       - 'services/api/tests/test_wave2_vercel_provisioning.py'
 
 permissions:
@@ -53,11 +54,19 @@ jobs:
         run: |
           mkdir -p services/api/.vercel
           printf '%s\n' '{"orgId":"team_JgE8AWWz36uzRbeR6V6EWg9k","projectId":"prj_4lhve1AXZntfauaGHvkuaGWC6KJX"}' > services/api/.vercel/project.json
-          echo 'PASS: canonical parallax-api project link seeded without resolving user identity.'
+          python -m compileall -q scripts/provision_wave2_vercel.py scripts/provision_wave2_vercel_ci.py
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          import provision_wave2_vercel_ci as ci
+          ci._ensure_seeded_link(Path('services/api').resolve())
+          print('PASS: canonical parallax-api project link seeded and verified without resolving user identity.')
+          PY
       - name: Provision and verify Wave 2 Vercel prerequisites
         id: provision
         if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success' && steps.seed_link.outcome == 'success'
-        run: python scripts/provision_wave2_vercel.py --provision --api-dir services/api
+        run: python scripts/provision_wave2_vercel_ci.py --provision --api-dir services/api
       - name: Record provisioning evidence in Control Tower
         if: always()
         env:
