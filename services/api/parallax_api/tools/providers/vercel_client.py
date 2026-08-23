@@ -116,8 +116,8 @@ class VercelPreviewRestClient(VercelProviderClient):
             credential = self._credential_provider.credential_for_project(target.vercel_project_ref)
         except ProviderClientError:
             raise
-        except Exception as exc:
-            raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from exc
+        except Exception:
+            raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from None
         credential = require_scoped_credential(
             credential,
             provider="vercel",
@@ -155,12 +155,12 @@ class VercelPreviewRestClient(VercelProviderClient):
             )
         except ProviderClientError:
             raise
-        except httpx.TimeoutException as exc:
-            raise ProviderClientError("PROVIDER_TIMEOUT") from exc
-        except httpx.RequestError as exc:
-            raise ProviderClientError("PROVIDER_UNAVAILABLE") from exc
-        except Exception as exc:
-            raise ProviderClientError("PROVIDER_ERROR") from exc
+        except httpx.TimeoutException:
+            raise ProviderClientError("PROVIDER_TIMEOUT") from None
+        except httpx.RequestError:
+            raise ProviderClientError("PROVIDER_UNAVAILABLE") from None
+        except Exception:
+            raise ProviderClientError("PROVIDER_ERROR") from None
 
     @staticmethod
     def _raise_status(
@@ -192,8 +192,8 @@ class VercelPreviewRestClient(VercelProviderClient):
     def _json(response: httpx.Response) -> object:
         try:
             return response.json()
-        except Exception as exc:
-            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from exc
+        except Exception:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from None
 
     def _verify_project(self, target: VercelApiTarget) -> None:
         response = self._send(
@@ -206,14 +206,12 @@ class VercelPreviewRestClient(VercelProviderClient):
         payload = _dict(self._json(response))
         if payload.get("id") != target.project_id or payload.get("name") != target.project_name:
             raise ProviderClientError("TARGET_MISMATCH")
-        link = payload.get("link")
-        if link is not None:
-            link_payload = _dict(link)
-            if link_payload.get("type") != "github":
-                raise ProviderClientError("REPOSITORY_MISMATCH")
-            repo_id = link_payload.get("repoId")
-            if repo_id is not None and str(repo_id) != str(target.github_repo_id):
-                raise ProviderClientError("REPOSITORY_MISMATCH")
+        link_payload = _dict(payload.get("link"))
+        if link_payload.get("type") != "github":
+            raise ProviderClientError("REPOSITORY_MISMATCH")
+        repo_id = link_payload.get("repoId")
+        if repo_id is None or str(repo_id) != str(target.github_repo_id):
+            raise ProviderClientError("REPOSITORY_MISMATCH")
 
     @staticmethod
     def _status(value: object) -> VercelPreviewStatus:
@@ -226,8 +224,8 @@ class VercelPreviewRestClient(VercelProviderClient):
             return VercelPreviewStatus.ERROR
         try:
             return VercelPreviewStatus(normalized)
-        except ValueError as exc:
-            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from exc
+        except ValueError:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from None
 
     def _parse_preview(
         self,
@@ -243,12 +241,11 @@ class VercelPreviewRestClient(VercelProviderClient):
 
         project = payload.get("project")
         if isinstance(project, dict):
-            if project.get("id") != target.project_id:
+            if project.get("id") != target.project_id or project.get("name") != target.project_name:
                 raise ProviderClientError("TARGET_MISMATCH")
-            project_name = project.get("name")
-            if project_name is not None and project_name != target.project_name:
-                raise ProviderClientError("TARGET_MISMATCH")
-        elif payload.get("projectId") is not None and payload.get("projectId") != target.project_id:
+        elif payload.get("projectId") == target.project_id:
+            pass
+        else:
             raise ProviderClientError("TARGET_MISMATCH")
 
         git_source = _dict(payload.get("gitSource"))
@@ -396,13 +393,12 @@ class VercelPreviewRestClient(VercelProviderClient):
                 return replay
             self._raise_status(response, conflict="PREVIEW_CONFLICT")
         self._raise_status(response, conflict="PREVIEW_CONFLICT")
-        created = self._parse_preview(
+        return self._parse_preview(
             target,
             _dict(self._json(response)),
             expected_source_revision=source_revision,
             expected_branch=branch_name,
         )
-        return created
 
     def read_preview(
         self,
