@@ -44,7 +44,6 @@ from .source_delivery_composition import (
     EngineeringAttemptDeliveryRecordStore,
     OwnerScopedProjectBindingResolver,
     PreviewTargetResolver,
-    RegisteredPreviewTargetResolver,
     RepositoryLineageBootstrap,
     ScopedProviderInvocationFactory,
     SourceDeliveryComposition,
@@ -58,6 +57,7 @@ _ENV_VERCEL_TOKEN = "PARALLAX_VERCEL_SCOPED_TOKEN"
 _ENV_PREVIEW_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
 _ENV_OIDC = "VERCEL_OIDC_TOKEN"
 _MAX_TARGETS = 64
+_GITHUB_DELIVERY_PERMISSIONS = ("contents:write", "pull_requests:write")
 
 
 class ProductionDeliveryConfigurationError(RuntimeError):
@@ -65,10 +65,13 @@ class ProductionDeliveryConfigurationError(RuntimeError):
 
 
 class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
-    """Exchange Vercel deployment OIDC for an app-scoped GitHub token.
+    """Exchange Vercel deployment OIDC for a repository-scoped GitHub token.
 
-    The returned bearer material never leaves the provider/client boundary and
-    is cached only for the lifetime of this request-scoped composition object.
+    Vercel Connect performs the provider-side GitHub App token scoping. Parallax
+    additionally retains its own typed Project/repository/tool-authority checks,
+    so a token cannot silently broaden the accepted #45/#62/#79 action ceiling.
+    Bearer material never leaves this provider/client boundary and is cached only
+    for the lifetime of this request-scoped composition object.
     """
 
     def __init__(
@@ -114,12 +117,23 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             raise ProviderClientError("CREDENTIAL_EXPIRED")
         return result
 
+    @staticmethod
+    def _github_repository(repository_ref: str) -> str:
+        if not isinstance(repository_ref, str) or not repository_ref.startswith("github:"):
+            raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
+        repository = repository_ref.removeprefix("github:")
+        parts = repository.split("/")
+        if len(parts) != 2 or not all(parts):
+            raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
+        return repository
+
     def credential_for_repository(self, repository_ref: str) -> ScopedBearerCredential:
         current = self._cached.get(repository_ref)
         if current is not None and current.expires_at is not None:
             if current.expires_at > datetime.now(timezone.utc) + timedelta(seconds=60):
                 return current
 
+        repository = self._github_repository(repository_ref)
         oidc = self._oidc_token or os.getenv(_ENV_OIDC)
         if not isinstance(oidc, str) or not oidc.strip():
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE")
@@ -127,7 +141,16 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             response = self._http.post(
                 f"/v1/connect/token/{quote(self._connector, safe='/')}",
                 headers={"Authorization": f"Bearer {oidc.strip()}", "Content-Type": "application/json"},
-                json={"subject": {"type": "app"}},
+                json={
+                    "subject": {"type": "app"},
+                    "authorizationDetails": [
+                        {
+                            "type": "github_app_installation",
+                            "repositories": [repository],
+                            "permissions": list(_GITHUB_DELIVERY_PERMISSIONS),
+                        }
+                    ],
+                },
             )
         except httpx.TimeoutException as exc:
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from exc
