@@ -31,7 +31,7 @@ GitHub issues/PRs/workflows and deployment evidence are authoritative for active
 Cumulative PR: `#67` — **Wave 2 app-builder integration candidate**
 Branch: `integration/wave2-app-builder`
 Final validated head: `00f7e73014d829a505bc4ef21ab2cc9e60c7c75c`
-PR state: **READY FOR REVIEW / MERGEABLE / NOT MERGED TO MAIN**
+PR state: **READY FOR REVIEW / NOT MERGED TO MAIN**
 
 Wave 2 now serializes the complete `P2-V0.15.1` through `P2-V0.15.12` app-builder tranche:
 
@@ -99,6 +99,21 @@ Before production promotion, Control Tower/operator must prove or configure:
 
 The currently connected Vercel action surface can verify projects, deployments and logs and can initiate deployments, but it does not expose Blob-store creation, Connect attachment or environment-variable mutation. No alternative installed management plugin providing those write capabilities was found. Therefore none of the external resources above is recorded as provisioned until separate Vercel provisioning evidence exists.
 
+### Validated Vercel provisioning automation
+
+Ops PR #91 was validated and merged to `main` as merge commit `f14a94dcf503e8ebd13e1f256f884bb86574300c`. It adds `scripts/provision_wave2_vercel.py` plus deterministic safety tests.
+
+The helper can be run from an authenticated operator checkout as `python scripts/provision_wave2_vercel.py --provision`, or used read-only as `--verify-only`. It is bounded to the canonical `parallax-api` runtime project and registered `parallax` Preview target and is designed to:
+
+- create/reuse the private `parallax-source-lineage` Blob store and require `BLOB_READ_WRITE_TOKEN` in Preview + Production;
+- create/reuse and attach `github/parallax-runtime` to `parallax-api` Preview + Production;
+- create a Vercel token scoped only to the registered `parallax` target project and prove it cannot access `parallax-api`;
+- retain the one-time plaintext token only in process memory, pass it to Vercel environment mutation through stdin, and redact command/output diagnostics;
+- install `PARALLAX_VERCEL_TOKEN_PARALLAX` as a sensitive variable and exact `PARALLAX_VERCEL_PREVIEW_TARGETS_JSON` in Preview + Production;
+- stop after prerequisite verification without applying migrations, merging PR #67, or deploying production.
+
+Exact ops-helper validation head `f37e5d4b586a8a990e654638e33336cdbaeeb580` passed P2 CI `32647389235` and Bounded Autonomy `32647389308`. A validation failure found and corrected a command-argument redaction edge before merge. The helper has **not been executed against the Vercel account** because the current session lacks authenticated Vercel CLI provisioning authority and GitHub installation consent. Consequently no Blob store, connector, token or environment configuration is recorded as provisioned.
+
 PR #67 must not be described as deployed merely because its Vercel Preview is green.
 
 ## Approved Wave 3 platform contract
@@ -124,6 +139,7 @@ Projects may strengthen but may not silently weaken the platform baseline. Wave 
 - Wave 1 production foundation: **VALIDATED / MERGED / DEPLOYED / DEPLOYMENT-VERIFIED**
 - production client: **v0.13.9 / DEPLOYED / VERIFIED**
 - Wave 2 P2-V0.15.1–P2-V0.15.12: **VALIDATED / INTEGRATION-COMPLETE / EXTERNAL PRODUCTION PREREQUISITES PENDING / NOT MERGED TO MAIN / NOT DEPLOYED**
+- Wave 2 Vercel provisioning helper: **VALIDATED / MERGED TO MAIN / NOT EXECUTED / NO RESOURCES PROVISIONED**
 - Wave 2 migrations/storage: **CODE VALIDATED / PRODUCTION NOT APPLIED OR PROVISIONED**
 - Wave 2 provider clients/composition: **CODE VALIDATED / LIVE PRODUCTION CREDENTIAL BINDING NOT PROVISIONED OR VERIFIED**
 - Wave 2 protected end-to-end reference loop: **DEMONSTRATED AT REPOSITORY/INTEGRATION-TEST LEVEL**
@@ -131,7 +147,7 @@ Projects may strengthen but may not silently weaken the platform baseline. Wave 
 
 ## Authoritative-record status
 
-- `CURRENT-STATE.md`: updated for final `P2-V0.15.12` integration validation, exact Vercel Preview evidence and the corrected production prerequisite model.
+- `CURRENT-STATE.md`: updated for final Wave 2 integration validation, corrected Vercel prerequisite model, and validated/merged-but-unexecuted provisioning automation.
 - `ARCHITECTURE.md`: remains v2.4 because the Wave 2 runtime/composition is validated but has not yet been accepted into merged/deployed production architecture.
 - `PROJECT-CONSTITUTION.md`: remains v1.3; no governance authority boundary changed in this release-preparation pass.
 - `DESIGN-SYSTEM.md`: remains v2.1; no durable design-system rule changed.
