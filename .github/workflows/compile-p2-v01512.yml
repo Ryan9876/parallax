@@ -10,6 +10,15 @@ on:
       - scripts/compile_spec.py
       - scripts/validate_spec.py
       - services/api/parallax_api/intelligence/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - specs/P2-V0.15.12.md
+      - .github/workflows/compile-p2-v01512.yml
+      - scripts/compile_spec.py
+      - scripts/validate_spec.py
+      - services/api/parallax_api/intelligence/**
 
 permissions:
   contents: read
