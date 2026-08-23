@@ -7,6 +7,7 @@ from typing import Protocol
 from ..models import EngineeringRun
 from .domain import WorkflowStage
 from .execution import ExecutionSpec
+from .implementation_runtime import ImplementationRuntimeError, ProtectedImplementationRuntime
 from .sandbox_execution import ProtectedCommandRegistry
 from .service import EngineeringRunService
 from .state_machine import RevisionConflict
@@ -20,6 +21,7 @@ class AutonomousExecutor(Protocol):
 
 class AutonomyStopReason(str, Enum):
     IMPLEMENTATION_REQUIRED = "IMPLEMENTATION_REQUIRED"
+    IMPLEMENTATION_FAILED = "IMPLEMENTATION_FAILED"
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     PAUSED = "PAUSED"
     FAILED = "FAILED"
@@ -48,7 +50,12 @@ class AutonomyResult:
 
 
 class AutonomyCoordinator:
-    """Advance only stages for which v0.13 grants explicit autonomous authority."""
+    """Advance only stages with explicit protected autonomous authority.
+
+    IMPLEMENT remains opt-in: a concrete protected runtime must be injected by
+    serialized Project/workspace integration. Without it, the Wave 1 hard stop
+    remains intact.
+    """
 
     def __init__(
         self,
@@ -56,11 +63,13 @@ class AutonomyCoordinator:
         executor: AutonomousExecutor,
         *,
         registry: ProtectedCommandRegistry | None = None,
+        implementation_runtime: ProtectedImplementationRuntime | None = None,
         max_steps: int = 8,
     ) -> None:
         self.service = service
         self.executor = executor
         self.registry = registry or ProtectedCommandRegistry()
+        self.implementation_runtime = implementation_runtime
         self.max_steps = max_steps
 
     def run(
@@ -141,6 +150,44 @@ class AutonomyCoordinator:
                 )
                 continue
 
+            if stage is WorkflowStage.IMPLEMENT:
+                if self.implementation_runtime is None:
+                    return AutonomyResult(
+                        run=run,
+                        stop_reason=AutonomyStopReason.IMPLEMENTATION_REQUIRED,
+                        steps=tuple(steps),
+                    )
+                stage_key = self._stage_key(operation_key, stage, run.revision)
+                try:
+                    implementation = self.implementation_runtime.execute(
+                        run_id=run.id,
+                        operation_key=stage_key,
+                        expected_revision=run.revision,
+                    )
+                except ImplementationRuntimeError as exc:
+                    steps.append(
+                        AutonomyStep(
+                            stage=stage.value,
+                            outcome="FAILED_AFTER_MUTATION" if exc.mutation_applied else "FAILED",
+                            tool_id="implementation-runtime",
+                        )
+                    )
+                    return AutonomyResult(
+                        run=self.service.get(run.id),
+                        stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
+                        steps=tuple(steps),
+                    )
+                steps.append(
+                    AutonomyStep(
+                        stage=stage.value,
+                        outcome="PASSED",
+                        attempt_id=implementation.operation.attempt_id,
+                        replayed=implementation.operation.replayed,
+                        tool_id="safe-source-implementation-v1",
+                    )
+                )
+                continue
+
             if stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
                 stage_key = self._stage_key(operation_key, stage, run.revision)
                 spec = self.registry.spec_for(stage, operation_key=stage_key)
@@ -200,7 +247,6 @@ class AutonomyCoordinator:
     @staticmethod
     def _stop_reason(stage: WorkflowStage) -> AutonomyStopReason | None:
         reasons = {
-            WorkflowStage.IMPLEMENT: AutonomyStopReason.IMPLEMENTATION_REQUIRED,
             WorkflowStage.REVIEW: AutonomyStopReason.REVIEW_REQUIRED,
             WorkflowStage.PAUSED: AutonomyStopReason.PAUSED,
             WorkflowStage.FAILED: AutonomyStopReason.FAILED,
