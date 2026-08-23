@@ -15,9 +15,9 @@ from .common import (
     ProviderProjectBinding,
     require_app_branch,
     require_https_url,
-    require_opaque_ref,
     require_repository_ref,
     require_sha256,
+    require_source_lineage_id,
     require_source_revision,
     safe_provider_call,
 )
@@ -144,8 +144,7 @@ class GitHubFileResult:
         _require_bounded_text(self.content, field="content", maximum=MAX_FILE_BYTES, allow_empty=True)
         _reject_secret_literal(self.content, field="content")
         require_sha256(self.content_sha256, field="content_sha256")
-        actual = sha256(self.content.encode("utf-8")).hexdigest()
-        if actual != self.content_sha256:
+        if sha256(self.content.encode("utf-8")).hexdigest() != self.content_sha256:
             raise ValueError("file content digest does not match content")
 
 
@@ -184,7 +183,7 @@ class GitHubCommitResult:
     branch_name: str
     parent_revision: str
     commit_revision: str
-    lineage_ref: str
+    lineage_id: str
     content_digest: str
 
     def __post_init__(self) -> None:
@@ -192,7 +191,7 @@ class GitHubCommitResult:
         require_app_branch(self.branch_name)
         require_source_revision(self.parent_revision, field="parent_revision")
         require_source_revision(self.commit_revision, field="commit_revision")
-        require_opaque_ref(self.lineage_ref, field="lineage_ref")
+        require_source_lineage_id(self.lineage_id)
         require_sha256(self.content_digest, field="content_digest")
 
 
@@ -295,6 +294,13 @@ class GitHubProviderActions:
     def _verify_repository(binding: ProviderProjectBinding, repository_ref: str) -> None:
         if repository_ref != binding.repository_ref:
             raise ProviderClientError("REPOSITORY_MISMATCH")
+
+    @staticmethod
+    def _verify_lineage(binding: ProviderProjectBinding, lineage: AcceptedSourceLineage) -> None:
+        if not isinstance(lineage, AcceptedSourceLineage):
+            raise TypeError("lineage must be AcceptedSourceLineage")
+        if lineage.project_id != binding.project_ref:
+            raise ValueError("accepted source lineage belongs to a different Project")
 
     def resolve_repository(
         self,
@@ -457,8 +463,7 @@ class GitHubProviderActions:
     ) -> ProviderActionSuccess[GitHubCommitResult]:
         require_app_branch(branch_name)
         require_source_revision(expected_parent_revision, field="expected_parent_revision")
-        if not isinstance(lineage, AcceptedSourceLineage):
-            raise TypeError("lineage must be AcceptedSourceLineage")
+        self._verify_lineage(binding, lineage)
         if not isinstance(files, tuple) or not 1 <= len(files) <= MAX_COMMIT_FILES:
             raise ValueError("commit files must be a bounded non-empty tuple")
         if not all(isinstance(item, GitHubCommitFile) for item in files):
@@ -483,7 +488,7 @@ class GitHubProviderActions:
             if (
                 value.branch_name != branch_name
                 or value.parent_revision != expected_parent_revision
-                or value.lineage_ref != lineage.lineage_ref
+                or value.lineage_id != lineage.lineage_id
                 or value.content_digest != lineage.content_digest
             ):
                 raise ProviderClientError("LINEAGE_MISMATCH")
@@ -524,8 +529,7 @@ class GitHubProviderActions:
         require_app_branch(head_branch)
         require_source_revision(expected_head_revision, field="expected_head_revision")
         require_source_revision(base_branch, field="base_branch")
-        if not isinstance(lineage, AcceptedSourceLineage):
-            raise TypeError("lineage must be AcceptedSourceLineage")
+        self._verify_lineage(binding, lineage)
         _require_bounded_text(title, field="title", maximum=MAX_PR_TITLE)
         _require_bounded_text(body, field="body", maximum=MAX_PR_BODY, allow_empty=True)
         _reject_secret_literal(title, field="title")
