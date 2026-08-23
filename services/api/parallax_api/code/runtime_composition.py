@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from hashlib import sha256
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from .autonomy import AutonomyCoordinator, AutonomyResult, AutonomousExecutor, LineageAwareAutonomousExecutor
@@ -131,7 +132,33 @@ class AllocatorWorkspaceLineageGateway:
         return handle
 
     @staticmethod
-    def _verify_artifacts(lineage: SourceLineage, artifacts: list[dict[str, object]]) -> None:
+    def _verify_workspace_artifacts(
+        workspace: MaterializedWorkspace, artifacts: tuple[dict[str, object], ...]
+    ) -> None:
+        root = workspace.path.resolve(strict=True)
+        seen: set[str] = set()
+        for artifact in artifacts:
+            path = artifact.get("path")
+            digest = artifact.get("sha256")
+            size = artifact.get("size")
+            if not isinstance(path, str) or not path or path in seen:
+                raise WorkspaceLineageError("safe implementation artifact paths must be unique")
+            seen.add(path)
+            pure = PurePosixPath(path)
+            if pure.is_absolute() or any(part in {"", ".", ".."} for part in pure.parts):
+                raise WorkspaceLineageError("safe implementation artifact path is invalid")
+            target = workspace.path.joinpath(*pure.parts)
+            if target.is_symlink() or not target.is_file():
+                raise WorkspaceLineageError("safe implementation artifact is unavailable")
+            resolved = target.resolve(strict=True)
+            if not resolved.is_relative_to(root):
+                raise WorkspaceLineageError("safe implementation artifact escaped the workspace")
+            content = target.read_bytes()
+            if sha256(content).hexdigest() != digest or len(content) != size:
+                raise WorkspaceLineageError("safe implementation artifact evidence does not match workspace bytes")
+
+    @staticmethod
+    def _verify_artifacts(lineage: SourceLineage, artifacts: tuple[dict[str, object], ...]) -> None:
         manifest = {item.path: item for item in lineage.files}
         if not artifacts:
             raise WorkspaceLineageError("safe implementation artifacts are required for lineage acceptance")
@@ -152,7 +179,7 @@ class AllocatorWorkspaceLineageGateway:
         *,
         handle: ImplementationWorkspaceHandle,
         workspace_digest: str,
-        artifacts: list[dict[str, object]],
+        artifacts: tuple[dict[str, object], ...],
     ) -> ImplementationLineageReceipt:
         key = self._key(handle)
         workspace = self._leases.pop(key, None)
@@ -166,6 +193,7 @@ class AllocatorWorkspaceLineageGateway:
                 identity=identity,
                 lineage_id=handle.source_lineage_ref,
             )
+            self._verify_workspace_artifacts(workspace, artifacts)
             accepted = self.allocator.accept_implementation(
                 workspace,
                 expected_parent_lineage_id=handle.source_lineage_ref,
