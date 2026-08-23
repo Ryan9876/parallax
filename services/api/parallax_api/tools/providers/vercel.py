@@ -16,6 +16,7 @@ from .common import (
     require_https_url,
     require_repository_ref,
     require_source_revision,
+    safe_provider_call,
 )
 from ..registry import ToolCapabilityRegistry
 
@@ -136,12 +137,14 @@ class VercelPreviewActions:
             action=ACTION_PREVIEW_CREATE,
         )
         try:
-            value = self.client.create_preview(
-                target.vercel_project_ref,
-                target.repository_ref,
-                source_revision,
-                branch_name,
-                lineage,
+            value = safe_provider_call(
+                lambda: self.client.create_preview(
+                    target.vercel_project_ref,
+                    target.repository_ref,
+                    source_revision,
+                    branch_name,
+                    lineage,
+                )
             )
             self._verify_target(target, value)
             if value.source_revision != source_revision:
@@ -195,7 +198,9 @@ class VercelPreviewActions:
             action=ACTION_PREVIEW_READ,
         )
         try:
-            value = self.client.read_preview(target.vercel_project_ref, deployment_id)
+            value = safe_provider_call(
+                lambda: self.client.read_preview(target.vercel_project_ref, deployment_id)
+            )
             self._verify_target(target, value)
             if value.deployment_id != deployment_id:
                 raise ProviderClientError("DEPLOYMENT_MISMATCH", result_identity=value.deployment_id)
@@ -222,7 +227,3 @@ class VercelPreviewActions:
             source_revision=value.source_revision,
             safe_url=value.url,
         )
-
-    @staticmethod
-    def production_promotion(*_args, **_kwargs):
-        raise PermissionError("production promotion is outside the Wave 2 provider-action authority ceiling")
