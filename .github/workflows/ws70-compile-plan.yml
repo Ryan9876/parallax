@@ -1,17 +1,16 @@
 name: WS70 Compile Protected Plan
 
 on:
-  pull_request:
+  push:
     branches:
-      - integration/wave2-app-builder
-    types: [opened, synchronize, reopened]
+      - ws/app-provider-clients
     paths:
       - 'specs/P2-V0.15.7.md'
       - '.github/workflows/ws70-compile-plan.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   compile-plan:
@@ -19,6 +18,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -45,6 +46,18 @@ jobs:
         run: |
           python scripts/compile_spec.py specs/P2-V0.15.7.md
           python scripts/validate_spec.py specs/P2-V0.15.7.md --require-dspy
+      - name: Commit generated protected plan to worker branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/compiled/P2-V0.15.7.plan.json
+          if git diff --cached --quiet; then
+            echo 'Generated plan is already committed.'
+            exit 0
+          fi
+          git commit -m 'spec: compile P2-V0.15.7 protected plan'
+          git push origin HEAD:ws/app-provider-clients
       - uses: actions/upload-artifact@v4
         with:
           name: ws70-compiled-plan
