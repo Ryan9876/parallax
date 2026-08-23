@@ -178,7 +178,19 @@ Wave 3 development acceleration is also an approved requirement. The planned arc
 - automated Integration / Control Tower composition that detects integration-ready candidates, orders dependencies, composes them, runs cumulative gates and identifies interface failures;
 - automatic conversion of reproducible integration/test failures into bounded corrective work with attached evidence.
 
-The target operating model is continuous: workers produce candidates while the integration controller continuously composes and validates them, with full expensive promotion gates reserved for meaningful boundaries rather than every small edit.
+Automatic worker stall detection and recovery is now also an approved Wave 3 requirement. The planned architecture must include:
+
+- bounded worker leases and meaningful-progress heartbeats based on durable state changes, not merely status text or model activity;
+- explicit worker lifecycle states including `STALLED`, `RECOVERING`, `REASSIGNED`, `HUMAN_REQUIRED` and `READY_FOR_INTEGRATION`;
+- durable resumable checkpoints preserving canonical Project/run identity, approved Work Spec/compiled-plan reference, accepted source lineage, current step, retry state, last-known-good candidate, normalized evidence and outstanding blockers/dependencies;
+- watchdog classification of stalls such as agent/process loss, CI/test hangs, provider outages, dependency waits, rate limits, credentials/authorization, contention/deadlock and repeated implementation failure;
+- automatic bounded retry, checkpoint resume or reassignment before operator escalation when recovery is safe;
+- single-writer lease semantics so a stale worker fails closed after lease loss and cannot race a recovered/reassigned worker;
+- no-progress/oscillation detection and bounded retry/backoff so recovery cannot become an infinite compute loop;
+- Control Tower visibility into worker health, last meaningful progress, checkpoint/source-lineage identity, retries, stall cause and next recovery action;
+- a protected promotion test that deliberately kills or stalls a worker/process and proves another execution resumes from the durable checkpoint without lost accepted work, duplicate mutation, lineage corruption or a manual operator `resume` command.
+
+The target operating model is continuous: workers produce candidates while the integration controller continuously composes and validates them, with full expensive promotion gates reserved for meaningful boundaries rather than every small edit. Ordinary worker stalls should be detected, recovered or reassigned automatically instead of waiting for the operator to notice and restart them.
 
 These are approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
 
@@ -197,10 +209,11 @@ These are approved roadmap/exit-condition decisions only. They are **not yet imp
 - end-to-end app-building loop: **NOT YET DEMONSTRATED**
 - Wave 3 autonomous visual QA and correction loop: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 - Wave 3 accelerated continuous worker/integration architecture: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
+- Wave 3 automatic worker stall detection/recovery/reassignment: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the validated, merged, deployed and production-verified Wave 1 app-builder foundation and the approved future Wave 3 autonomous/acceleration completion contract.
+- `CURRENT-STATE.md`: updated for the validated, merged, deployed and production-verified Wave 1 app-builder foundation and the approved future Wave 3 autonomous/acceleration/stall-recovery completion contract.
 - `ARCHITECTURE.md`: requires/receives the durable Wave 1 Project, safe implementation, tool-authority and app-builder evaluation boundaries; no future Wave 3 implementation architecture is recorded as current architecture yet.
 - `PROJECT-CONSTITUTION.md`: unchanged at v1.1; the existing parallel-development governance remains correct.
 - `DESIGN-SYSTEM.md`: unchanged; no implemented client visual or interaction-system change occurred from this roadmap decision.
