@@ -35,22 +35,21 @@ class MaterializedWorkspace:
 
 
 class ProjectWorkspaceAllocator:
-    """Server-owned allocator for exact accepted Project/run source lineages.
+    """Server-owned allocator for disposable exact-lineage materialization.
 
-    `protected_root` is server configuration. No method accepts a caller-selected
-    source filesystem root. Materialized paths are generated only beneath the
-    configured root and are disposable; immutable lineage storage is separate.
+    Durable source contents and current-lineage metadata are owned by the
+    explicitly injected SourceLineageStore. `protected_root` is only a local
+    materialization lease root and is never authoritative durable state.
     """
 
     def __init__(
         self,
         protected_root: str | Path,
         *,
-        lineage_store: SourceLineageStore | None = None,
-        max_files: int = 2_000,
-        max_file_bytes: int = 4_000_000,
-        max_total_bytes: int = 64_000_000,
+        lineage_store: SourceLineageStore,
     ) -> None:
+        if not isinstance(lineage_store, SourceLineageStore):
+            raise TypeError("an explicit durable SourceLineageStore is required")
         root = Path(protected_root)
         root.mkdir(parents=True, exist_ok=True)
         if root.is_symlink():
@@ -60,12 +59,7 @@ class ProjectWorkspaceAllocator:
         self.live_root.mkdir(exist_ok=True)
         if self.live_root.is_symlink() or not self.live_root.is_dir():
             raise SourcePolicyError("protected live-workspace root is invalid")
-        self.lineage_store = lineage_store or SourceLineageStore(
-            self.protected_root / "lineage",
-            max_files=max_files,
-            max_file_bytes=max_file_bytes,
-            max_total_bytes=max_total_bytes,
-        )
+        self.lineage_store = lineage_store
 
     def initialize(self, identity: ProjectRunIdentity, provider: SourceProvider) -> MaterializedWorkspace:
         lineage = self.lineage_store.initialize(identity, provider)
