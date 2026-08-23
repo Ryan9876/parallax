@@ -49,7 +49,7 @@ jobs:
       - name: Publish plan and remove validation-only workflow
         run: |
           git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.email '4189822+github-actions[bot]@users.noreply.github.com'
           git add specs/compiled/P2-V0.15.2.plan.json
           git rm .github/workflows/ws60-compile-plan.yml
           git commit -m 'spec: record protected DSPy plan evidence for P2-V0.15.2'
