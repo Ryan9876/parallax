@@ -15,6 +15,7 @@ from parallax_api.tools import (
 )
 from parallax_api.tools.providers import (
     ACTION_BRANCH_CREATE,
+    ACTION_COMMIT_WRITE,
     ACTION_PREVIEW_CREATE,
     ACTION_REPOSITORY_RESOLVE,
     GITHUB_TOOL,
@@ -22,6 +23,7 @@ from parallax_api.tools.providers import (
     AcceptedSourceLineage,
     GitHubBranchResult,
     GitHubCommitFile,
+    GitHubCommitResult,
     GitHubProviderActions,
     GitHubPullRequestResult,
     GitHubRepositoryState,
@@ -39,10 +41,23 @@ from parallax_api.tools.providers import (
 
 PROJECT_ID = "7e643661-99d6-4b31-9af7-d86d30b01c14"
 OTHER_PROJECT_ID = "c50ad114-56ed-45ce-b01a-5a263ded2ea2"
+RUN_ID = "1cf43021-4653-4e9c-bf54-68fd7d72ea35"
+OTHER_RUN_ID = "2420d6e0-e727-49b0-b2c6-88d40fcbdd58"
 REPOSITORY_REF = "github:acme/example-app"
 OTHER_REPOSITORY_REF = "github:acme/other-app"
 BASE_REVISION = "0123456789abcdef0123456789abcdef01234567"
-LINEAGE = AcceptedSourceLineage("lineage:accepted:security", "b" * 64)
+LINEAGE = AcceptedSourceLineage(
+    PROJECT_ID,
+    RUN_ID,
+    "src:" + "d" * 64,
+    "b" * 64,
+)
+OTHER_PROJECT_LINEAGE = AcceptedSourceLineage(
+    OTHER_PROJECT_ID,
+    OTHER_RUN_ID,
+    "src:" + "e" * 64,
+    "c" * 64,
+)
 BINDING = ProviderProjectBinding(PROJECT_ID, REPOSITORY_REF)
 
 
@@ -68,6 +83,24 @@ class CountingGitHubClient:
     def create_branch(self, repository_ref: str, branch_name: str, base_revision: str) -> GitHubBranchResult:
         self.calls += 1
         return GitHubBranchResult(repository_ref, branch_name, base_revision, base_revision)
+
+    def commit_files(
+        self,
+        repository_ref: str,
+        branch_name: str,
+        expected_parent_revision: str,
+        lineage: AcceptedSourceLineage,
+        files: tuple[GitHubCommitFile, ...],
+    ) -> GitHubCommitResult:
+        self.calls += 1
+        return GitHubCommitResult(
+            repository_ref,
+            branch_name,
+            expected_parent_revision,
+            BASE_REVISION,
+            lineage.lineage_id,
+            lineage.content_digest,
+        )
 
 
 class MismatchedVercelClient:
@@ -210,6 +243,39 @@ def test_provider_failure_repository_mismatch_and_unexpected_exception_are_faile
     assert "provider-private" not in str(unexpected.value)
 
 
+def test_cross_project_source_lineage_is_rejected_before_provider_mutation() -> None:
+    client = CountingGitHubClient()
+    registry = ToolCapabilityRegistry(
+        (
+            ToolCapability(
+                "cap:github:commit",
+                PROJECT_ID,
+                GITHUB_TOOL,
+                (ToolActionPolicy(ACTION_COMMIT_WRITE, ToolConsequence.MUTATE),),
+            ),
+        )
+    )
+    actions = GitHubProviderActions(registry, client)
+    content = "print('safe')\n"
+    commit_file = GitHubCommitFile(
+        "src/app.py",
+        content,
+        sha256(content.encode()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="different Project"):
+        actions.commit_accepted_lineage(
+            BINDING,
+            _invocation("cap:github:commit", "req:wrong-lineage"),
+            branch_name="parallax/run-security",
+            expected_parent_revision=BASE_REVISION,
+            lineage=OTHER_PROJECT_LINEAGE,
+            files=(commit_file,),
+        )
+
+    assert client.calls == 0
+
+
 def test_publication_inputs_fail_closed_on_secret_paths_content_and_unbounded_branches() -> None:
     content = "api_key=abcdefghijklmnop1234567890"
     with pytest.raises(ValueError, match="secret-bearing"):
@@ -242,7 +308,7 @@ def test_publication_inputs_fail_closed_on_secret_paths_content_and_unbounded_br
 def test_provider_binding_rejects_urls_noncanonical_project_and_unsafe_provider_urls() -> None:
     with pytest.raises(ValueError, match="github:owner/repository"):
         ProviderProjectBinding(PROJECT_ID, "https://github.com/acme/example-app")
-    with pytest.raises(ValueError, match="canonical Project.id"):
+    with pytest.raises(ValueError, match="canonical"):
         ProviderProjectBinding("project:opaque", REPOSITORY_REF)
     with pytest.raises(ValueError, match="allowed provider domain"):
         VercelPreviewResult(
