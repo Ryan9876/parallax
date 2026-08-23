@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "{Architecture Decision: Implement a Resumable Execution Stall Recovery Mechanism}"
+  ],
+  "work_items": [
+    "{Work Item: Implement a Resumable Execution Stall Recovery Mechanism for Wave 2}"
+  ],
+  "validations": [
+    "{Validation: Ensure the implementation of a Resumable Execution Stall Recovery Mechanism meets the requirements for durability, correctness, and security}",
+    "AC-01: validate protected requirement — A server-owned worker-execution record is durably associated with exactly one canonical Engineering Run, and concurrent creation/acquisition cannot produce competing active worker authorities for the same run. Existing Engineering Attempt history remains separate and unchanged.",
+    "AC-02: validate protected requirement — Initial acquisition, renewal, expiry recovery and reassignment use an opaque owner plus monotonically increasing generation. Only the exact active unexpired owner/generation may perform protected worker-state progress. A stale or replaced worker fails closed before checkpoint or mutation-capable progression.",
+    "AC-03: validate protected requirement — Lease renewal/status activity without accepted durable advancement does not update `last_meaningful_progress_at` or reset no-progress counters. Accepted checkpoint/source-lineage/stage/evaluation/blocker advancement updates meaningful-progress evidence deterministically.",
+    "AC-04: validate protected requirement — A resumable checkpoint binds exact Project/run identity, approved Work Specification ID/revision/digest, compiled-plan/spec reference, current step, accepted source lineage, counters, optional last-known-good lineage and bounded evidence/dependency state. Wrong Project/run/spec/digest/lineage or malformed checkpoint data is rejected rather than repaired by inference.",
+    "AC-05: validate protected requirement — Checkpoint persistence and operator health evidence reject source bytes, credentials/tokens/headers/cookies/environment, hidden reasoning/scratchpad, arbitrary command/URL payloads and over-bound logs/evidence. Stored JSON and string/list cardinalities have deterministic upper bounds.",
+    "AC-06: validate protected requirement — The watchdog deterministically distinguishes process loss, test/CI hang, provider outage, dependency wait, rate limit, credential/authorization failure, contention/deadlock, repeated implementation failure and genuine human-required authority/specification boundaries, returning a bounded next recovery action. Ordinary worker loss is not labeled `HUMAN_REQUIRED`.",
+    "AC-07: validate protected requirement — After lease expiry/process loss, a replacement execution resumes from the durable checkpoint/accepted lineage, increments generation before becoming mutation-capable, and uses existing Wave 2 replay semantics so accepted implementation/provider work is not duplicated. A waking stale process cannot race the replacement.",
+    "AC-08: validate protected requirement — Repeated retries without measurable durable state improvement and alternating equivalent failing checkpoints increment protected counters and stop at configured bounds with actionable failure evidence rather than consuming unlimited compute or resetting through fresh worker identities.",
+    "AC-09: validate protected requirement — A newly composed request/process can reconstruct worker lifecycle, lease status/generation, checkpoint revision, current and last-known-good lineage, last meaningful progress, counters, blocker/stall classification, dependencies, next recovery action and human-required status without relying on worker-local memory.",
+    "AC-10: validate protected requirement — The worker-execution migration creates the required unique/FK/check/index constraints, enables RLS and revokes direct `anon`/`authenticated` privileges. SQLite development compatibility is preserved without runtime implicit production DDL.",
+    "AC-11: validate protected requirement — The exact P2-V0.16.1 workstream head has authentic committed DSPy critic/compiler evidence and passes Workstream Spec Validation, P2 CI and Bounded Autonomy. Deterministic tests deliberately expire/kill an owner, resume under a replacement generation, reject the stale owner, preserve checkpoint/lineage identity and prove no duplicate accepted mutation/provider publication is introduced by recovery."
+  ],
+  "risks": [
+    "{Risk: The implementation of a Resumable Execution Stall Recovery Mechanism may introduce new risks, such as data corruption, inconsistent data, or unauthorized access to critical data}"
+  ],
+  "spec_id": "P2-V0.16.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "One durable worker authority per Engineering Run",
+      "protected_requirement": "A server-owned worker-execution record is durably associated with exactly one canonical Engineering Run, and concurrent creation/acquisition cannot produce competing active worker authorities for the same run. Existing Engineering Attempt history remains separate and unchanged."
+    },
+    {
+      "id": "AC-02",
+      "title": "Lease generation enforces single-writer ownership",
+      "protected_requirement": "Initial acquisition, renewal, expiry recovery and reassignment use an opaque owner plus monotonically increasing generation. Only the exact active unexpired owner/generation may perform protected worker-state progress. A stale or replaced worker fails closed before checkpoint or mutation-capable progression."
+    },
+    {
+      "id": "AC-03",
+      "title": "Meaningful progress cannot be faked by activity",
+      "protected_requirement": "Lease renewal/status activity without accepted durable advancement does not update `last_meaningful_progress_at` or reset no-progress counters. Accepted checkpoint/source-lineage/stage/evaluation/blocker advancement updates meaningful-progress evidence deterministically."
+    },
+    {
+      "id": "AC-04",
+      "title": "Checkpoints bind canonical execution identity",
+      "protected_requirement": "A resumable checkpoint binds exact Project/run identity, approved Work Specification ID/revision/digest, compiled-plan/spec reference, current step, accepted source lineage, counters, optional last-known-good lineage and bounded evidence/dependency state. Wrong Project/run/spec/digest/lineage or malformed checkpoint data is rejected rather than repaired by inference."
+    },
+    {
+      "id": "AC-05",
+      "title": "Checkpoint evidence is bounded and secret-safe",
+      "protected_requirement": "Checkpoint persistence and operator health evidence reject source bytes, credentials/tokens/headers/cookies/environment, hidden reasoning/scratchpad, arbitrary command/URL payloads and over-bound logs/evidence. Stored JSON and string/list cardinalities have deterministic upper bounds."
+    },
+    {
+      "id": "AC-06",
+      "title": "Stall classification distinguishes recovery from human authority",
+      "protected_requirement": "The watchdog deterministically distinguishes process loss, test/CI hang, provider outage, dependency wait, rate limit, credential/authorization failure, contention/deadlock, repeated implementation failure and genuine human-required authority/specification boundaries, returning a bounded next recovery action. Ordinary worker loss is not labeled `HUMAN_REQUIRED`."
+    },
+    {
+      "id": "AC-07",
+      "title": "Recovery and reassignment preserve accepted work",
+      "protected_requirement": "After lease expiry/process loss, a replacement execution resumes from the durable checkpoint/accepted lineage, increments generation before becoming mutation-capable, and uses existing Wave 2 replay semantics so accepted implementation/provider work is not duplicated. A waking stale process cannot race the replacement."
+    },
+    {
+      "id": "AC-08",
+      "title": "No-progress and oscillation terminate boundedly",
+      "protected_requirement": "Repeated retries without measurable durable state improvement and alternating equivalent failing checkpoints increment protected counters and stop at configured bounds with actionable failure evidence rather than consuming unlimited compute or resetting through fresh worker identities."
+    },
+    {
+      "id": "AC-09",
+      "title": "Operator health survives process recreation",
+      "protected_requirement": "A newly composed request/process can reconstruct worker lifecycle, lease status/generation, checkpoint revision, current and last-known-good lineage, last meaningful progress, counters, blocker/stall classification, dependencies, next recovery action and human-required status without relying on worker-local memory."
+    },
+    {
+      "id": "AC-10",
+      "title": "Hosted persistence remains fail-closed",
+      "protected_requirement": "The worker-execution migration creates the required unique/FK/check/index constraints, enables RLS and revokes direct `anon`/`authenticated` privileges. SQLite development compatibility is preserved without runtime implicit production DDL."
+    },
+    {
+      "id": "AC-11",
+      "title": "Exact-head protected validation and kill proof",
+      "protected_requirement": "The exact P2-V0.16.1 workstream head has authentic committed DSPy critic/compiler evidence and passes Workstream Spec Validation, P2 CI and Bounded Autonomy. Deterministic tests deliberately expire/kill an owner, resume under a replacement generation, reject the stale owner, preserve checkpoint/lineage identity and prove no duplicate accepted mutation/provider publication is introduced by recovery."
+    }
+  ],
+  "critique": [
+    "One material implementation risk or omission in the approved software specification is the lack of a robust mechanism for detecting and responding to worker process loss, hangs, and recoverable execution stalls without requiring manual intervention."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
