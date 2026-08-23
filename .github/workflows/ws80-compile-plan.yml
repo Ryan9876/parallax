@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
+      - name: Verify fixed specification contract before stochastic compilation
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.15.10.md
       - name: Install local DSPy development LM
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
