@@ -13,6 +13,8 @@ const mime = {
   '.svg': 'image/svg+xml',
 };
 
+const PROJECT_ID = '77777777-7777-4777-8777-777777777777';
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -51,6 +53,18 @@ function apiServer() {
   let conversation = null;
   let workSpecification = null;
   let engineeringRun = null;
+  const codeConversationRequests = [];
+  const project = {
+    id: PROJECT_ID,
+    slug: 'code-binding-project',
+    name: 'Code Binding Project',
+    description: null,
+    repository_ref: 'github:owner/code-binding-project',
+    workspace_ref: `project:${PROJECT_ID}`,
+    status: 'active',
+    created_at: '2026-08-23T00:00:00Z',
+    updated_at: '2026-08-23T00:00:00Z',
+  };
 
   function makeConversation(mode) {
     return {
@@ -59,6 +73,8 @@ function apiServer() {
       mode,
       status: 'ACTIVE',
       spec_id: 'P2-V0.13.0',
+      project_id: mode === 'code' ? PROJECT_ID : null,
+      project_binding_status: mode === 'code' ? 'PROJECT_BOUND' : 'HISTORICAL_UNBOUND',
       created_at: '2026-08-21T10:00:00Z',
       updated_at: '2026-08-21T10:00:00Z',
       messages: [],
@@ -83,7 +99,7 @@ function apiServer() {
     return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
   }
 
-  return createServer(async (request, response) => {
+  const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (request.method === 'OPTIONS') {
       cors(response, origin);
@@ -93,13 +109,25 @@ function apiServer() {
     }
 
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+    if (pathname === '/v1/projects' && request.method === 'GET') {
+      json(response, 200, [project], origin);
+      return;
+    }
     if (pathname === '/v1/conversations' && request.method === 'GET') {
       json(response, 200, conversation ? [conversation] : [], origin);
       return;
     }
     if (pathname === '/v1/conversations' && request.method === 'POST') {
       const payload = await body(request);
-      conversation = makeConversation(payload.mode === 'code' ? 'code' : 'reason');
+      const mode = payload.mode === 'code' ? 'code' : 'reason';
+      if (mode === 'code') {
+        codeConversationRequests.push(payload);
+        assert(payload.project_id === PROJECT_ID, 'Code conversation did not use the canonical Project ID');
+        assert(!Object.hasOwn(payload, 'workspace_ref'), 'Code conversation request exposed workspace_ref');
+      } else {
+        assert(!Object.hasOwn(payload, 'project_id'), 'Reason conversation unexpectedly carried Project binding');
+      }
+      conversation = makeConversation(mode);
       workSpecification = null;
       engineeringRun = null;
       json(response, 200, conversation, origin);
@@ -162,6 +190,8 @@ function apiServer() {
           id: '44444444-4444-4444-8444-444444444444',
           conversation_id: conversation.id,
           spec_id: conversation.spec_id,
+          project_id: PROJECT_ID,
+          project_binding_status: 'PROJECT_BOUND',
           work_specification_id: workSpecification.id,
           work_specification_revision: workSpecification.revision,
           work_specification_digest: 'a'.repeat(64),
@@ -191,6 +221,8 @@ function apiServer() {
         };
       }
       assert(!payload.work_specification_id || payload.work_specification_id === workSpecification.id, 'activation used the wrong work specification');
+      assert(!Object.hasOwn(payload, 'project_id'), 'Engineering Run activation must not accept caller Project identity');
+      assert(!Object.hasOwn(payload, 'workspace_ref'), 'Engineering Run activation must not accept caller workspace identity');
       json(response, 200, engineeringRun, origin);
       return;
     }
@@ -230,11 +262,14 @@ function apiServer() {
     }
     json(response, 404, { detail: 'not found' }, origin);
   });
+
+  return { server, codeConversationRequests };
 }
 
 async function exerciseCodeBinding(page) {
   await page.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await page.getByText('code', { exact: true }).click();
+  await page.getByText('PROJECT · Code Binding Project').waitFor({ timeout: 5000 });
   await page.getByLabel('Message Parallax').fill('Implement the approved Code objective.');
   await page.getByLabel('Send message').click();
   await page.getByText(/The Code objective is captured/).first().waitFor({ timeout: 10000 });
@@ -253,30 +288,37 @@ async function exerciseCodeBinding(page) {
 
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
-const api = apiServer();
+const apiInstance = apiServer();
 let browser;
 
 try {
-  await Promise.all([listen(normal, 8770), listen(fallback, 8771), listen(api, 8010)]);
+  await Promise.all([listen(normal, 8770), listen(fallback, 8771), listen(apiInstance.server, 8010)]);
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await exerciseCodeBinding(page);
+  assert(apiInstance.codeConversationRequests.length === 1, 'Code binding smoke created an unexpected number of Code conversations');
   assert(await page.locator('canvas').count() > 0, 'Code binding smoke: Skia did not initialize');
   await page.close();
 
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
+  await reduced.getByText('PROJECT · Code Binding Project').waitFor({ timeout: 5000 });
   await reduced.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
   await reduced.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
   await reduced.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
   await reduced.close();
 
-  console.log(JSON.stringify({ codeSpecBinding: true, boundedAutonomyStopState: true, reducedGraphicsParity: true }, null, 2));
+  console.log(JSON.stringify({
+    canonicalProjectBinding: true,
+    codeSpecBinding: true,
+    boundedAutonomyStopState: true,
+    reducedGraphicsParity: true,
+  }, null, 2));
 } finally {
   await browser?.close();
   normal.close();
   fallback.close();
-  api.close();
+  apiInstance.server.close();
 }
