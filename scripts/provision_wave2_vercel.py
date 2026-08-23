@@ -48,6 +48,7 @@ def _run(
     check: bool = True,
     secrets: Iterable[str] = (),
 ) -> subprocess.CompletedProcess[str]:
+    secret_values = tuple(secrets)
     env = os.environ.copy()
     env.setdefault("NO_COLOR", "1")
     process = subprocess.run(
@@ -61,8 +62,8 @@ def _run(
         check=False,
     )
     if check and process.returncode != 0:
-        command = " ".join(args[:3])
-        detail = _redact((process.stderr or process.stdout).strip(), secrets)
+        command = _redact(" ".join(args[:3]), secret_values)
+        detail = _redact((process.stderr or process.stdout).strip(), secret_values)
         raise ProvisioningError(f"{command} failed: {detail or 'no diagnostic output'}")
     return process
 
