@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import inspect
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -27,6 +28,7 @@ from parallax_api.code.workspace_lineage import (
     SourcePackage,
     StaleLineageError,
 )
+from parallax_api.intelligence.protected_metrics import evaluate_compiled_plan, evaluate_spec_contract
 
 
 class StaticProvider:
@@ -62,6 +64,18 @@ def make_store(objects=None, metadata=None) -> SourceLineageStore:
     )
 
 
+def test_p2_v0155_spec_and_compiled_plan_require_protected_dspy_metadata():
+    repository_root = Path(__file__).resolve().parents[3]
+    spec_path = repository_root / "specs" / "P2-V0.15.5.md"
+    plan_path = repository_root / "specs" / "compiled" / "P2-V0.15.5.plan.json"
+    spec_text = spec_path.read_text(encoding="utf-8")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+
+    assert evaluate_spec_contract(spec_text).passed is True
+    assert evaluate_compiled_plan(spec_text, plan, require_metadata=True).passed is True
+    assert plan["dspy_run"]["executed"] is True
+
+
 def test_source_lineage_store_has_no_filesystem_durability_parameter():
     parameters = inspect.signature(SourceLineageStore).parameters
     assert tuple(parameters)[:2] == ("object_store", "metadata_store")
@@ -88,7 +102,7 @@ def test_partial_object_write_never_advances_durable_metadata():
 
     assert metadata.get_current(run_identity.project_id, run_identity.run_id) is None
     assert metadata.manifests == {}
-    assert len(objects.objects) == 1  # harmless unreferenced immutable content only
+    assert len(objects.objects) == 1
 
 
 def test_missing_or_corrupt_durable_object_fails_resolution_and_reconstruction(tmp_path):
@@ -213,7 +227,7 @@ def test_sqlalchemy_metadata_adapter_uses_persistent_cas_across_adapter_instance
     assert conflict.value.current_lineage_id == first_child
     assert second.get_current(project_id, run_id) == first_child
     assert second.get_manifest(first_child) == first_manifest
-    assert second.get_manifest(losing_child) is None  # transaction rolled back the losing manifest
+    assert second.get_manifest(losing_child) is None
 
 
 def test_cleanup_destroys_only_local_lease_and_new_instance_reconstructs(tmp_path):
