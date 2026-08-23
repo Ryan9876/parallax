@@ -21,6 +21,7 @@ from ..registry import ToolCapabilityRegistry
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _OPAQUE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _SOURCE_REVISION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+_APP_BRANCH = re.compile(r"^parallax/[A-Za-z0-9][A-Za-z0-9._/-]{0,110}$")
 _GITHUB_REPOSITORY = re.compile(
     r"^github:(?P<owner>[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?)/"
     r"(?P<repo>[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?)$"
@@ -66,6 +67,14 @@ def require_source_revision(value: str, *, field: str = "source_revision") -> st
     return value
 
 
+def require_app_branch(value: str) -> str:
+    if not isinstance(value, str) or not _APP_BRANCH.fullmatch(value):
+        raise ValueError("app-builder branch must use bounded parallax/... form")
+    if ".." in value.split("/") or "//" in value:
+        raise ValueError("app-builder branch contains unsafe path segments")
+    return value
+
+
 def require_sha256(value: str, *, field: str) -> str:
     if not isinstance(value, str) or not _SHA256.fullmatch(value):
         raise ValueError(f"{field} must be lowercase sha256 hex")
@@ -79,8 +88,8 @@ def require_https_url(value: str, *, field: str, allowed_suffix: str) -> str:
     host = (parsed.hostname or "").lower()
     if parsed.scheme != "https" or not host or parsed.username or parsed.password or parsed.fragment:
         raise ValueError(f"{field} must be a safe https URL")
-    suffix = allowed_suffix.lower()
-    if host != suffix.lstrip(".") and not host.endswith(suffix):
+    root = allowed_suffix.lower().lstrip(".")
+    if host != root and not host.endswith(f".{root}"):
         raise ValueError(f"{field} host is outside the allowed provider domain")
     return value
 
@@ -161,7 +170,7 @@ class ProviderActionEvidence:
             if self.provider == "github":
                 require_https_url(self.safe_url, field="safe_url", allowed_suffix="github.com")
             else:
-                require_https_url(self.safe_url, field="safe_url", allowed_suffix=".vercel.app")
+                require_https_url(self.safe_url, field="safe_url", allowed_suffix="vercel.app")
 
     @property
     def digest(self) -> str:
