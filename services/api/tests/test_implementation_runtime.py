@@ -108,23 +108,43 @@ class FakeExecutor:
 
     def execute(self, spec: ExecutionSpec):
         self.specs.append(spec)
-        return {
-            "tool_id": spec.tool_id,
-            "invocation_digest": "a" * 64,
-            "exit_code": 0,
-            "duration_ms": 1,
-            "stdout_digest": "b" * 64,
-            "stdout_excerpt": "ok",
-            "stderr_digest": "c" * 64,
-            "stderr_excerpt": "",
-            "timed_out": False,
-            "redacted": False,
-            "artifacts": [],
-            "protected_success": True,
-            "executor": "test",
-            "network_policy": "deny-all",
-            "persistent": False,
-        }
+        return execution_evidence(spec)
+
+
+class FakeLineageExecutor:
+    def __init__(self):
+        self.calls: list[tuple[ExecutionSpec, str, str, str]] = []
+
+    def execute_on_lineage(
+        self,
+        spec: ExecutionSpec,
+        *,
+        project_ref: str,
+        run_id: str,
+        source_lineage_ref: str,
+    ):
+        self.calls.append((spec, project_ref, run_id, source_lineage_ref))
+        return execution_evidence(spec)
+
+
+def execution_evidence(spec: ExecutionSpec):
+    return {
+        "tool_id": spec.tool_id,
+        "invocation_digest": "a" * 64,
+        "exit_code": 0,
+        "duration_ms": 1,
+        "stdout_digest": "b" * 64,
+        "stdout_excerpt": "ok",
+        "stderr_digest": "c" * 64,
+        "stderr_excerpt": "",
+        "timed_out": False,
+        "redacted": False,
+        "artifacts": [],
+        "protected_success": True,
+        "executor": "test",
+        "network_policy": "deny-all",
+        "persistent": False,
+    }
 
 
 def service_for(tmp_path: Path, name="runtime.db"):
@@ -391,7 +411,7 @@ def test_successful_operation_replay_does_not_mutate_twice(tmp_path: Path):
         session.close()
 
 
-def test_autonomy_with_explicit_runtime_advances_implement_then_build_test_verify_and_stops_at_review(tmp_path: Path):
+def test_autonomy_stops_at_build_without_same_lineage_executor(tmp_path: Path):
     session, service, conversations, work_specs = service_for(tmp_path, "autonomy-runtime.db")
     workspace = tmp_path / "autonomy-workspace"
     workspace.mkdir()
@@ -414,6 +434,40 @@ def test_autonomy_with_explicit_runtime_advances_implement_then_build_test_verif
             operation_key="auto-implement",
             expected_revision=run.revision,
         )
+        assert result.stop_reason is AutonomyStopReason.LINEAGE_EXECUTOR_REQUIRED
+        assert result.run.state == "BUILD"
+        assert [item.stage for item in result.steps] == ["EXECUTOR", "PLAN", "IMPLEMENT"]
+        assert target.read_text(encoding="utf-8") == "value = 2\n"
+        assert executor.specs == []
+    finally:
+        session.close()
+
+
+def test_lineage_aware_executor_receives_exact_accepted_lineage_for_build_test_verify(tmp_path: Path):
+    session, service, conversations, work_specs = service_for(tmp_path, "autonomy-lineage.db")
+    workspace = tmp_path / "autonomy-lineage-workspace"
+    workspace.mkdir()
+    target = workspace / "app.py"
+    target.write_text("value = 1\n", encoding="utf-8")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        runtime, _, _ = runtime_for(
+            service,
+            workspace,
+            source_proposal("app.py", "value = 1\n", "value = 2\n"),
+        )
+        executor = FakeExecutor()
+        lineage_executor = FakeLineageExecutor()
+        result = AutonomyCoordinator(
+            service,
+            executor,
+            implementation_runtime=runtime,
+            lineage_executor=lineage_executor,
+        ).run(
+            run_id=run.id,
+            operation_key="auto-lineage",
+            expected_revision=run.revision,
+        )
         assert result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED
         assert result.run.state == "REVIEW"
         assert [item.stage for item in result.steps] == [
@@ -425,7 +479,21 @@ def test_autonomy_with_explicit_runtime_advances_implement_then_build_test_verif
             "VERIFY",
         ]
         assert target.read_text(encoding="utf-8") == "value = 2\n"
-        assert [spec.stage for spec in executor.specs] == [WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY]
+        assert executor.specs == []
+        assert [call[0].stage for call in lineage_executor.calls] == [
+            WorkflowStage.BUILD,
+            WorkflowStage.TEST,
+            WorkflowStage.VERIFY,
+        ]
+        assert all(call[1] == PROJECT_REF for call in lineage_executor.calls)
+        assert all(call[2] == run.id for call in lineage_executor.calls)
+        assert all(call[3] == "lineage-next" for call in lineage_executor.calls)
+        for attempt in result.run.attempts:
+            if attempt.stage in {"BUILD", "TEST", "VERIFY"} and attempt.status == "PASSED":
+                evidence = json.loads(attempt.evidence_json)
+                assert evidence["project_ref"] == PROJECT_REF
+                assert evidence["source_lineage_ref"] == "lineage-next"
+                assert evidence["lineage_bound_execution"] is True
     finally:
         session.close()
 
