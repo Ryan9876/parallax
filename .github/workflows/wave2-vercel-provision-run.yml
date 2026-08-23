@@ -43,13 +43,30 @@ jobs:
             exit 78
           fi
           echo 'PASS: opaque Vercel credential is available to the runner.'
+      - name: Verify bootstrap token reaches both registered projects
+        id: token_scope
+        if: steps.credential.outcome == 'success'
+        shell: bash
+        run: |
+          TEAM='team_JgE8AWWz36uzRbeR6V6EWg9k'
+          API='prj_4lhve1AXZntfauaGHvkuaGWC6KJX'
+          PREVIEW='prj_wLXC5JjjetJf0H97kncRlqczD3OC'
+          API_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects/$API?teamId=$TEAM")
+          PREVIEW_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects/$PREVIEW?teamId=$TEAM")
+          echo "api_status=$API_STATUS" >> "$GITHUB_OUTPUT"
+          echo "preview_status=$PREVIEW_STATUS" >> "$GITHUB_OUTPUT"
+          echo "Bootstrap token project reach: parallax-api=$API_STATUS, parallax=$PREVIEW_STATUS"
+          if [ "$API_STATUS" != '200' ] || [ "$PREVIEW_STATUS" != '200' ]; then
+            echo 'BLOCKED: bootstrap token must reach both registered Vercel projects.'
+            exit 1
+          fi
       - name: Install pinned Vercel CLI
         id: install_cli
-        if: steps.credential.outcome == 'success'
+        if: steps.credential.outcome == 'success' && steps.token_scope.outcome == 'success'
         run: npm install --global vercel@58.4.4
       - name: Seed canonical Vercel API project link
         id: seed_link
-        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success'
+        if: steps.credential.outcome == 'success' && steps.token_scope.outcome == 'success' && steps.install_cli.outcome == 'success'
         shell: bash
         run: |
           mkdir -p services/api/.vercel
@@ -65,13 +82,15 @@ jobs:
           PY
       - name: Provision and verify Wave 2 Vercel prerequisites
         id: provision
-        if: steps.credential.outcome == 'success' && steps.install_cli.outcome == 'success' && steps.seed_link.outcome == 'success'
+        if: steps.credential.outcome == 'success' && steps.token_scope.outcome == 'success' && steps.install_cli.outcome == 'success' && steps.seed_link.outcome == 'success'
         run: python scripts/provision_wave2_vercel_ci.py --provision --api-dir services/api
       - name: Record provisioning evidence in Control Tower
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           CREDENTIAL_OUTCOME: ${{ steps.credential.outcome }}
+          API_STATUS: ${{ steps.token_scope.outputs.api_status }}
+          PREVIEW_STATUS: ${{ steps.token_scope.outputs.preview_status }}
           CLI_OUTCOME: ${{ steps.install_cli.outcome }}
           LINK_OUTCOME: ${{ steps.seed_link.outcome }}
           PROVISION_OUTCOME: ${{ steps.provision.outcome }}
@@ -79,4 +98,4 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         shell: bash
         run: |
-          gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
+          gh issue comment 31 --repo "$GITHUB_REPOSITORY" --body "Wave 2 Vercel prerequisite runner executed at \`$HEAD_SHA\`. Credential: **$CREDENTIAL_OUTCOME**. Bootstrap project reach: **parallax-api=$API_STATUS / parallax=$PREVIEW_STATUS**. CLI: **$CLI_OUTCOME**. Canonical link seed: **$LINK_OUTCOME**. Provision + verify: **$PROVISION_OUTCOME**. No secret values are reported. Run evidence: $RUN_URL"
