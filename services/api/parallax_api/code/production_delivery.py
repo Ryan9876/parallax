@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -52,8 +53,7 @@ from .source_delivery_composition import (
 
 
 _GITHUB_CONNECTOR = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
-_ENV_GITHUB_CONNECTOR = "PARALLAX_GITHUB_CONNECTOR"
-_ENV_VERCEL_TOKEN = "PARALLAX_VERCEL_SCOPED_TOKEN"
+_VERCEL_TOKEN_ENV = re.compile(r"^PARALLAX_VERCEL_TOKEN_[A-Z0-9_]{1,96}$")
 _ENV_PREVIEW_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
 _ENV_OIDC = "VERCEL_OIDC_TOKEN"
 _MAX_TARGETS = 64
@@ -233,28 +233,52 @@ class EnvironmentVercelCredentialProvider(VercelCredentialProvider):
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RegisteredProductionDeliveryTarget:
+    """Server-owned target metadata plus references to its dedicated credentials."""
+
+    api_target: VercelApiTarget
+    github_connector: str
+    vercel_token_env: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.api_target, VercelApiTarget):
+            raise TypeError("registered Preview target requires a VercelApiTarget")
+        if not isinstance(self.github_connector, str) or not _GITHUB_CONNECTOR.fullmatch(self.github_connector):
+            raise ValueError("registered GitHub Connect connector is invalid")
+        if not isinstance(self.vercel_token_env, str) or not _VERCEL_TOKEN_ENV.fullmatch(self.vercel_token_env):
+            raise ValueError("registered Vercel credential reference is invalid")
+
+
 class RepositoryPreviewTargetResolver(PreviewTargetResolver):
     """Bind a canonical Project to an exact server-registered repository target."""
 
-    def __init__(self, targets: tuple[VercelApiTarget, ...]) -> None:
+    def __init__(self, targets: tuple[RegisteredProductionDeliveryTarget, ...]) -> None:
         if not targets or len(targets) > _MAX_TARGETS:
             raise ProductionDeliveryConfigurationError("Vercel Preview target registry is empty or unbounded")
-        by_repository: dict[str, VercelApiTarget] = {}
+        by_repository: dict[str, RegisteredProductionDeliveryTarget] = {}
         by_ref: dict[str, VercelApiTarget] = {}
-        for target in targets:
+        for registration in targets:
+            if not isinstance(registration, RegisteredProductionDeliveryTarget):
+                raise ProductionDeliveryConfigurationError("Vercel Preview target registry contains an invalid registration")
+            target = registration.api_target
             if target.repository_ref in by_repository:
                 raise ProductionDeliveryConfigurationError("duplicate repository Preview target registration")
             if target.vercel_project_ref in by_ref:
                 raise ProductionDeliveryConfigurationError("duplicate Vercel Preview target registration")
-            by_repository[target.repository_ref] = target
+            by_repository[target.repository_ref] = registration
             by_ref[target.vercel_project_ref] = target
         self._by_repository = by_repository
         self.api_targets: Mapping[str, VercelApiTarget] = by_ref
 
-    def resolve(self, binding: ProviderProjectBinding) -> VercelPreviewTarget:
-        target = self._by_repository.get(binding.repository_ref)
-        if target is None:
+    def registration(self, binding: ProviderProjectBinding) -> RegisteredProductionDeliveryTarget:
+        registration = self._by_repository.get(binding.repository_ref)
+        if registration is None:
             raise ProductionDeliveryConfigurationError("canonical Project repository has no registered Vercel Preview target")
+        return registration
+
+    def resolve(self, binding: ProviderProjectBinding) -> VercelPreviewTarget:
+        target = self.registration(binding).api_target
         return VercelPreviewTarget(
             project_ref=binding.project_ref,
             repository_ref=binding.repository_ref,
@@ -272,20 +296,25 @@ class RepositoryPreviewTargetResolver(PreviewTargetResolver):
             raise ProductionDeliveryConfigurationError("Vercel Preview target registry configuration is invalid") from exc
         if not isinstance(payload, list) or not 1 <= len(payload) <= _MAX_TARGETS:
             raise ProductionDeliveryConfigurationError("Vercel Preview target registry must be a bounded non-empty list")
-        targets: list[VercelApiTarget] = []
+        targets: list[RegisteredProductionDeliveryTarget] = []
         try:
             for item in payload:
                 if not isinstance(item, dict):
                     raise ValueError
+                api_target = VercelApiTarget(
+                    vercel_project_ref=item["vercel_project_ref"],
+                    project_id=item["project_id"],
+                    project_name=item["project_name"],
+                    team_id=item.get("team_id"),
+                    repository_ref=item["repository_ref"],
+                    github_repo_id=item["github_repo_id"],
+                    production_branch=item["production_branch"],
+                )
                 targets.append(
-                    VercelApiTarget(
-                        vercel_project_ref=item["vercel_project_ref"],
-                        project_id=item["project_id"],
-                        project_name=item["project_name"],
-                        team_id=item.get("team_id"),
-                        repository_ref=item["repository_ref"],
-                        github_repo_id=item["github_repo_id"],
-                        production_branch=item["production_branch"],
+                    RegisteredProductionDeliveryTarget(
+                        api_target=api_target,
+                        github_connector=item["github_connector"],
+                        vercel_token_env=item["vercel_token_env"],
                     )
                 )
         except (KeyError, TypeError, ValueError) as exc:
@@ -332,9 +361,8 @@ def production_source_delivery(
     owner_subject: str,
     allocator: object,
     project_id: str,
-    github_connector: str | None = None,
-    vercel_token: str | None = None,
     preview_targets_json: str | None = None,
+    environment: Mapping[str, str] | None = None,
     github_transport: httpx.BaseTransport | None = None,
     github_scope_transport: httpx.BaseTransport | None = None,
     vercel_transport: httpx.BaseTransport | None = None,
@@ -352,14 +380,13 @@ def production_source_delivery(
 
     target_resolver = RepositoryPreviewTargetResolver.from_environment(preview_targets_json)
     binding = ProviderProjectBinding(project_ref=project.id, repository_ref=project.repository_ref)
-    target_resolver.resolve(binding)  # fail before constructing any provider mutation path
+    selected = target_resolver.registration(binding)
+    selected_target = selected.api_target
 
-    connector = github_connector if github_connector is not None else os.getenv(_ENV_GITHUB_CONNECTOR)
-    if not isinstance(connector, str) or not connector.strip():
-        raise ProductionDeliveryConfigurationError("GitHub Connect connector configuration is unavailable")
-    scoped_vercel_token = vercel_token if vercel_token is not None else os.getenv(_ENV_VERCEL_TOKEN)
+    env = os.environ if environment is None else environment
+    scoped_vercel_token = env.get(selected.vercel_token_env)
     if not isinstance(scoped_vercel_token, str) or not scoped_vercel_token.strip():
-        raise ProductionDeliveryConfigurationError("Vercel scoped credential configuration is unavailable")
+        raise ProductionDeliveryConfigurationError("Vercel scoped credential configuration is unavailable for registered target")
 
     registry, github_capability_id, vercel_capability_id = _project_registry(project.id)
     invocations = ScopedProviderInvocationFactory(
@@ -368,20 +395,21 @@ def production_source_delivery(
         actor_ref="actor:parallax-runtime",
     )
     github_credentials = VercelConnectGitHubCredentialProvider(
-        connector.strip(),
+        selected.github_connector,
         transport=github_transport,
         github_transport=github_scope_transport,
     )
     vercel_credentials = EnvironmentVercelCredentialProvider(
         scoped_vercel_token,
-        allowed_targets=frozenset(target_resolver.api_targets),
+        allowed_targets=frozenset({selected_target.vercel_project_ref}),
     )
     github = GitHubProviderActions(registry, GitHubRestProviderClient(github_credentials))
+    selected_api_targets = {selected_target.vercel_project_ref: selected_target}
     vercel = VercelPreviewActions(
         registry,
         VercelPreviewRestClient(
             vercel_credentials,
-            target_resolver.api_targets,
+            selected_api_targets,
             transport=vercel_transport,
         ),
     )
@@ -408,6 +436,7 @@ def production_source_delivery(
 __all__ = [
     "EnvironmentVercelCredentialProvider",
     "ProductionDeliveryConfigurationError",
+    "RegisteredProductionDeliveryTarget",
     "RepositoryPreviewTargetResolver",
     "VercelConnectGitHubCredentialProvider",
     "production_source_delivery",

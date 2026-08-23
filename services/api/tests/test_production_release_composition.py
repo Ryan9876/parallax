@@ -10,6 +10,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
 
+from parallax_api.code import production_delivery as production_delivery_module
 from parallax_api.code.autonomy import AutonomyResult, AutonomyStopReason
 from parallax_api.code.production_delivery import (
     EnvironmentVercelCredentialProvider,
@@ -30,20 +31,55 @@ OWNER = "owner:release-composition"
 PROJECT_ID = str(uuid4())
 REPOSITORY_REF = "github:Ryan9876/parallax"
 VERCEL_REF = "vercel:preview:parallax"
+GITHUB_CONNECTOR = "github/parallax-runtime"
+VERCEL_TOKEN_ENV = "PARALLAX_VERCEL_TOKEN_PARALLAX"
+
+OTHER_REPOSITORY_REF = "github:Ryan9876/other"
+OTHER_VERCEL_REF = "vercel:preview:other"
+OTHER_GITHUB_CONNECTOR = "github/other-runtime"
+OTHER_VERCEL_TOKEN_ENV = "PARALLAX_VERCEL_TOKEN_OTHER"
 
 
-def _targets_json(repository_ref: str = REPOSITORY_REF) -> str:
+def _target(
+    *,
+    repository_ref: str = REPOSITORY_REF,
+    vercel_project_ref: str = VERCEL_REF,
+    project_id: str = "prj_wLXC5JjjetJf0H97kncRlqczD3OC",
+    project_name: str = "parallax",
+    github_repo_id: int = 1340272514,
+    github_connector: str = GITHUB_CONNECTOR,
+    vercel_token_env: str = VERCEL_TOKEN_ENV,
+) -> dict[str, object]:
+    return {
+        "vercel_project_ref": vercel_project_ref,
+        "project_id": project_id,
+        "project_name": project_name,
+        "team_id": "team_JgE8AWWz36uzRbeR6V6EWg9k",
+        "repository_ref": repository_ref,
+        "github_repo_id": github_repo_id,
+        "production_branch": "main",
+        "github_connector": github_connector,
+        "vercel_token_env": vercel_token_env,
+    }
+
+
+def _targets_json(**overrides: object) -> str:
+    return json.dumps([_target(**overrides)])
+
+
+def _two_targets_json() -> str:
     return json.dumps(
         [
-            {
-                "vercel_project_ref": VERCEL_REF,
-                "project_id": "prj_wLXC5JjjetJf0H97kncRlqczD3OC",
-                "project_name": "parallax",
-                "team_id": "team_JgE8AWWz36uzRbeR6V6EWg9k",
-                "repository_ref": repository_ref,
-                "github_repo_id": 1340272514,
-                "production_branch": "main",
-            }
+            _target(),
+            _target(
+                repository_ref=OTHER_REPOSITORY_REF,
+                vercel_project_ref=OTHER_VERCEL_REF,
+                project_id="prj_4lhve1AXZntfauaGHvkuaGWC6KJX",
+                project_name="parallax-api",
+                github_repo_id=1340272515,
+                github_connector=OTHER_GITHUB_CONNECTOR,
+                vercel_token_env=OTHER_VERCEL_TOKEN_ENV,
+            ),
         ]
     )
 
@@ -53,12 +89,49 @@ def test_preview_target_registry_binds_canonical_project_to_registered_repositor
     binding = ProviderProjectBinding(PROJECT_ID, REPOSITORY_REF)
 
     target = registry.resolve(binding)
+    registration = registry.registration(binding)
 
     assert target.project_ref == PROJECT_ID
     assert target.repository_ref == REPOSITORY_REF
     assert target.vercel_project_ref == VERCEL_REF
+    assert registration.github_connector == GITHUB_CONNECTOR
+    assert registration.vercel_token_env == VERCEL_TOKEN_ENV
+    assert registration.api_target.vercel_project_ref == VERCEL_REF
     with pytest.raises(ProductionDeliveryConfigurationError, match="no registered"):
-        registry.resolve(ProviderProjectBinding(PROJECT_ID, "github:Ryan9876/other"))
+        registry.resolve(ProviderProjectBinding(PROJECT_ID, OTHER_REPOSITORY_REF))
+
+
+def test_preview_target_registry_preserves_distinct_per_target_credential_references():
+    registry = RepositoryPreviewTargetResolver.from_environment(_two_targets_json())
+
+    first = registry.registration(ProviderProjectBinding(PROJECT_ID, REPOSITORY_REF))
+    second = registry.registration(ProviderProjectBinding(PROJECT_ID, OTHER_REPOSITORY_REF))
+
+    assert first.github_connector == GITHUB_CONNECTOR
+    assert first.vercel_token_env == VERCEL_TOKEN_ENV
+    assert second.github_connector == OTHER_GITHUB_CONNECTOR
+    assert second.vercel_token_env == OTHER_VERCEL_TOKEN_ENV
+    assert first.api_target.vercel_project_ref != second.api_target.vercel_project_ref
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "DATABASE_URL",
+        "VERCEL_TOKEN",
+        "PARALLAX_VERCEL_TOKEN_",
+        "parallax_vercel_token_other",
+        "vercel-test-bearer-value",
+    ],
+)
+def test_preview_target_registry_rejects_generic_or_embedded_secret_references(value):
+    with pytest.raises(ProductionDeliveryConfigurationError, match="invalid target"):
+        RepositoryPreviewTargetResolver.from_environment(_targets_json(vercel_token_env=value))
+
+
+def test_preview_target_registry_rejects_malformed_connector_reference():
+    with pytest.raises(ProductionDeliveryConfigurationError, match="invalid target"):
+        RepositoryPreviewTargetResolver.from_environment(_targets_json(github_connector=" bad connector "))
 
 
 def test_vercel_credential_provider_is_exact_target_scoped_and_redacted():
@@ -72,7 +145,7 @@ def test_vercel_credential_provider_is_exact_target_scoped_and_redacted():
     assert credential.resource_ref == VERCEL_REF
     assert "vercel-test-bearer-value" not in repr(credential)
     with pytest.raises(ProviderClientError, match="CREDENTIAL_SCOPE_MISMATCH"):
-        provider.credential_for_project("vercel:preview:other")
+        provider.credential_for_project(OTHER_VERCEL_REF)
 
 
 def test_github_connect_provider_exchanges_and_verifies_exact_repository_scope():
@@ -105,7 +178,7 @@ def test_github_connect_provider_exchanges_and_verifies_exact_repository_scope()
         )
 
     provider = VercelConnectGitHubCredentialProvider(
-        "github/parallax-runtime",
+        GITHUB_CONNECTOR,
         oidc_token="oidc-test-value",
         transport=httpx.MockTransport(connect_handler),
         github_transport=httpx.MockTransport(scope_handler),
@@ -143,7 +216,7 @@ def test_github_connect_provider_rejects_broader_installation_scope():
         )
 
     provider = VercelConnectGitHubCredentialProvider(
-        "github/parallax-runtime",
+        GITHUB_CONNECTOR,
         oidc_token="oidc-test-value",
         transport=httpx.MockTransport(connect_handler),
         github_transport=httpx.MockTransport(scope_handler),
@@ -155,7 +228,7 @@ def test_github_connect_provider_rejects_broader_installation_scope():
 
 def test_github_connect_provider_rejects_noncanonical_repository_ref_before_network():
     provider = VercelConnectGitHubCredentialProvider(
-        "github/parallax-runtime",
+        GITHUB_CONNECTOR,
         oidc_token="oidc-test-value",
         transport=httpx.MockTransport(lambda request: pytest.fail("Connect must not be called")),
         github_transport=httpx.MockTransport(lambda request: pytest.fail("GitHub must not be called")),
@@ -163,6 +236,137 @@ def test_github_connect_provider_rejects_noncanonical_repository_ref_before_netw
 
     with pytest.raises(ProviderClientError, match="CREDENTIAL_SCOPE_MISMATCH"):
         provider.credential_for_repository("github:Ryan9876/parallax/extra")
+
+
+class _TrackingEnvironment(dict):
+    def __init__(self, values):
+        super().__init__(values)
+        self.reads = []
+
+    def get(self, key, default=None):
+        self.reads.append(key)
+        return super().get(key, default)
+
+
+def test_production_source_delivery_selects_only_canonical_target_credentials(tmp_path, monkeypatch):
+    engine = make_engine(f"sqlite:///{tmp_path / 'multi-target.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    session = Session()
+    captured = {"github": [], "vercel": []}
+
+    class GitHubCredentials:
+        def __init__(self, connector, **kwargs):
+            captured["github"].append(connector)
+
+        def credential_for_repository(self, repository_ref):
+            raise AssertionError("provider credential should not be used during composition")
+
+    class VercelCredentials:
+        def __init__(self, secret, *, allowed_targets):
+            captured["vercel"].append((secret, allowed_targets))
+
+        def credential_for_project(self, vercel_project_ref):
+            raise AssertionError("provider credential should not be used during composition")
+
+    monkeypatch.setattr(production_delivery_module, "VercelConnectGitHubCredentialProvider", GitHubCredentials)
+    monkeypatch.setattr(production_delivery_module, "EnvironmentVercelCredentialProvider", VercelCredentials)
+
+    try:
+        project = ProjectRepository(session).create(
+            owner_subject=OWNER,
+            slug="release-app",
+            name="Release App",
+            description="release composition test",
+            repository_ref=REPOSITORY_REF,
+        )
+        allocator = SimpleNamespace()
+        env = _TrackingEnvironment(
+            {
+                VERCEL_TOKEN_ENV: "vercel-target-a-secret",
+                OTHER_VERCEL_TOKEN_ENV: "vercel-target-b-secret",
+            }
+        )
+
+        delivery = production_source_delivery(
+            session,
+            owner_subject=OWNER,
+            allocator=allocator,
+            project_id=project.id,
+            preview_targets_json=_two_targets_json(),
+            environment=env,
+        )
+
+        assert delivery.bootstrap is not None
+        assert delivery.delivery is not None
+        assert env.reads == [VERCEL_TOKEN_ENV]
+        assert captured["github"] == [GITHUB_CONNECTOR]
+        assert captured["vercel"] == [
+            ("vercel-target-a-secret", frozenset({VERCEL_REF}))
+        ]
+        vercel_client = delivery.delivery.vercel.client
+        assert set(vercel_client._targets) == {VERCEL_REF}
+    finally:
+        session.close()
+
+
+def test_production_source_delivery_second_project_uses_distinct_credentials(tmp_path, monkeypatch):
+    engine = make_engine(f"sqlite:///{tmp_path / 'second-target.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    session = Session()
+    captured = {"github": [], "vercel": []}
+
+    class GitHubCredentials:
+        def __init__(self, connector, **kwargs):
+            captured["github"].append(connector)
+
+        def credential_for_repository(self, repository_ref):
+            raise AssertionError("provider credential should not be used during composition")
+
+    class VercelCredentials:
+        def __init__(self, secret, *, allowed_targets):
+            captured["vercel"].append((secret, allowed_targets))
+
+        def credential_for_project(self, vercel_project_ref):
+            raise AssertionError("provider credential should not be used during composition")
+
+    monkeypatch.setattr(production_delivery_module, "VercelConnectGitHubCredentialProvider", GitHubCredentials)
+    monkeypatch.setattr(production_delivery_module, "EnvironmentVercelCredentialProvider", VercelCredentials)
+
+    try:
+        project = ProjectRepository(session).create(
+            owner_subject=OWNER,
+            slug="other-app",
+            name="Other App",
+            description="second release composition test",
+            repository_ref=OTHER_REPOSITORY_REF,
+        )
+        env = _TrackingEnvironment(
+            {
+                VERCEL_TOKEN_ENV: "vercel-target-a-secret",
+                OTHER_VERCEL_TOKEN_ENV: "vercel-target-b-secret",
+            }
+        )
+
+        delivery = production_source_delivery(
+            session,
+            owner_subject=OWNER,
+            allocator=SimpleNamespace(),
+            project_id=project.id,
+            preview_targets_json=_two_targets_json(),
+            environment=env,
+        )
+
+        assert delivery.bootstrap is not None
+        assert env.reads == [OTHER_VERCEL_TOKEN_ENV]
+        assert captured["github"] == [OTHER_GITHUB_CONNECTOR]
+        assert captured["vercel"] == [
+            ("vercel-target-b-secret", frozenset({OTHER_VERCEL_REF}))
+        ]
+        assert set(delivery.delivery.vercel.client._targets) == {OTHER_VERCEL_REF}
+    finally:
+        session.close()
 
 
 def test_production_source_delivery_requires_exact_server_configuration(tmp_path):
@@ -186,20 +390,28 @@ def test_production_source_delivery_requires_exact_server_configuration(tmp_path
                 owner_subject=OWNER,
                 allocator=allocator,
                 project_id=project.id,
-                github_connector="github/parallax-runtime",
-                vercel_token="vercel-test-bearer-value",
                 preview_targets_json=None,
+                environment={VERCEL_TOKEN_ENV: "vercel-test-bearer-value"},
             )
 
-        with pytest.raises(ProductionDeliveryConfigurationError, match="GitHub Connect"):
+        with pytest.raises(ProductionDeliveryConfigurationError, match="invalid target"):
             production_source_delivery(
                 session,
                 owner_subject=OWNER,
                 allocator=allocator,
                 project_id=project.id,
-                github_connector="",
-                vercel_token="vercel-test-bearer-value",
+                preview_targets_json=_targets_json(github_connector=""),
+                environment={VERCEL_TOKEN_ENV: "vercel-test-bearer-value"},
+            )
+
+        with pytest.raises(ProductionDeliveryConfigurationError, match="unavailable for registered target"):
+            production_source_delivery(
+                session,
+                owner_subject=OWNER,
+                allocator=allocator,
+                project_id=project.id,
                 preview_targets_json=_targets_json(),
+                environment={},
             )
 
         delivery = production_source_delivery(
@@ -207,9 +419,8 @@ def test_production_source_delivery_requires_exact_server_configuration(tmp_path
             owner_subject=OWNER,
             allocator=allocator,
             project_id=project.id,
-            github_connector="github/parallax-runtime",
-            vercel_token="vercel-test-bearer-value",
             preview_targets_json=_targets_json(),
+            environment={VERCEL_TOKEN_ENV: "vercel-test-bearer-value"},
         )
         assert delivery.bootstrap is not None
         assert delivery.delivery is not None
@@ -221,7 +432,7 @@ def _route_run(project_id: str):
     return SimpleNamespace(
         id=str(uuid4()),
         conversation_id=str(uuid4()),
-        spec_id="P2-V0.15.11",
+        spec_id="P2-V0.15.12",
         project_id=project_id,
         work_specification_id=None,
         work_specification_revision=None,
