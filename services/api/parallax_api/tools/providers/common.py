@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import re
-from typing import Generic, TypeVar
+from typing import Callable, Generic, TypeVar
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -227,6 +227,17 @@ class ProviderClientError(RuntimeError):
         )
         super().__init__(result.result_code)
         self.result = result
+
+
+def safe_provider_call(operation: Callable[[], T]) -> T:
+    """Normalize unexpected provider failures without exposing raw provider state."""
+
+    try:
+        return operation()
+    except ProviderClientError:
+        raise
+    except Exception as exc:
+        raise ProviderClientError("PROVIDER_ERROR") from exc
 
 
 class AuthorizedProviderExecutor:
