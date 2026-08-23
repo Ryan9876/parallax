@@ -5,12 +5,21 @@ import React from 'react';
 import { registerRootComponent } from 'expo';
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
 import WebAuthRoot from './src/WebAuthRoot';
+import { ProjectCompatibilityGate } from './src/components/ProjectCompatibilityGate';
 
 type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
 
 function register(AppComponent: React.ComponentType) {
+  function ProjectAwareApp() {
+    return (
+      <ProjectCompatibilityGate>
+        <AppComponent />
+      </ProjectCompatibilityGate>
+    );
+  }
+
   function Root() {
-    return <WebAuthRoot AppComponent={AppComponent} />;
+    return <WebAuthRoot AppComponent={ProjectAwareApp} />;
   }
   registerRootComponent(Root);
 }
