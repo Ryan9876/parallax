@@ -239,8 +239,8 @@ def _connector_present(repo: Path) -> bool:
 
 def _ensure_connector(repo: Path) -> None:
     if not _connector_present(repo):
-        # GitHub installation consent can open a browser. This is the one expected
-        # operator interaction in an otherwise automated provisioning pass.
+        # `--yes` consumes all non-provider confirmations. GitHub itself may still
+        # require one-time provider consent; that boundary remains fail-closed.
         _run(
             [
                 "vercel",
@@ -249,6 +249,7 @@ def _ensure_connector(repo: Path) -> None:
                 "github",
                 "--name",
                 CONNECTOR_NAME,
+                "--yes",
             ],
             cwd=repo,
         )
@@ -265,6 +266,7 @@ def _ensure_connector(repo: Path) -> None:
                 API_PROJECT_ID,
                 "--environment",
                 environment,
+                "--yes",
             ],
             cwd=repo,
             check=False,
