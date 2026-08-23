@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, or_, select, update
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -115,34 +115,13 @@ class WorkerExecutionRepository:
         lease_expiry = _aware(existing.lease_expires_at)
         if existing.lease_owner_id is not None:
             if lease_expiry is not None and lease_expiry <= now:
-                raise WorkerLeaseExpired("worker lease expired; protected recovery/reassignment is required")
+                raise WorkerLeaseExpired("worker lease expired; protected stall classification and recovery are required")
             raise WorkerLeaseConflict("Engineering Run already has an active worker lease")
 
-        result = self.session.execute(
-            update(EngineeringWorkerExecution)
-            .where(
-                EngineeringWorkerExecution.id == existing.id,
-                EngineeringWorkerExecution.revision == existing.revision,
-                EngineeringWorkerExecution.lease_owner_id.is_(None),
-                EngineeringWorkerExecution.lease_expires_at.is_(None),
-            )
-            .values(
-                state=WorkerLifecycleState.RUNNING.value,
-                lease_owner_id=owner_id,
-                lease_generation=existing.lease_generation + 1,
-                lease_expires_at=expires_at,
-                revision=existing.revision + 1,
-                updated_at=now,
-            )
-        )
-        if result.rowcount != 1:
-            self.session.rollback()
-            raise WorkerLeaseConflict("worker lease was concurrently acquired")
-        self.session.commit()
-        refreshed = self.get(existing.id)
-        if refreshed is None:
-            raise RuntimeError("worker execution disappeared after lease acquisition")
-        return refreshed
+        # Once a worker execution exists, ordinary acquisition can never restart
+        # it. Unowned rows are produced only by protected stall/final transitions;
+        # recovery must therefore pass through STALLED -> RECOVERING -> reassign.
+        raise WorkerLeaseConflict("existing worker execution requires protected recovery or is final")
 
     def renew(
         self,
@@ -267,6 +246,11 @@ class WorkerExecutionRepository:
             raise WorkerStaleLease("worker execution is unavailable")
         if current.state in {WorkerLifecycleState.SUCCEEDED.value, WorkerLifecycleState.FAILED.value}:
             return current
+        if current.state in {
+            WorkerLifecycleState.HUMAN_REQUIRED.value,
+            WorkerLifecycleState.READY_FOR_INTEGRATION.value,
+        }:
+            raise WorkerLeaseConflict(f"{current.state} worker execution cannot be automatically reclassified")
         result = self.session.execute(
             update(EngineeringWorkerExecution)
             .where(
@@ -297,15 +281,10 @@ class WorkerExecutionRepository:
         current = self.get_for_run(run_id)
         if current is None:
             raise WorkerStaleLease("worker execution is unavailable")
-        if current.state == WorkerLifecycleState.HUMAN_REQUIRED.value:
-            raise WorkerLeaseConflict("HUMAN_REQUIRED worker execution cannot be automatically reassigned")
-        if current.state in {WorkerLifecycleState.SUCCEEDED.value, WorkerLifecycleState.FAILED.value}:
-            raise WorkerLeaseConflict("terminal worker execution cannot be reassigned")
-
-        expiry = _aware(current.lease_expires_at)
-        lease_recoverable = current.lease_owner_id is None or (expiry is not None and expiry <= now)
-        if not lease_recoverable:
-            raise WorkerLeaseConflict("active worker lease cannot be reassigned")
+        if current.state != WorkerLifecycleState.RECOVERING.value:
+            raise WorkerLeaseConflict("worker reassignment requires an explicit RECOVERING transition")
+        if current.lease_owner_id is not None or current.lease_expires_at is not None:
+            raise WorkerLeaseConflict("RECOVERING worker execution must not retain a prior mutation lease")
 
         owner_id = f"worker:{uuid4()}"
         result = self.session.execute(
@@ -313,10 +292,9 @@ class WorkerExecutionRepository:
             .where(
                 EngineeringWorkerExecution.id == current.id,
                 EngineeringWorkerExecution.revision == current.revision,
-                or_(
-                    EngineeringWorkerExecution.lease_owner_id.is_(None),
-                    EngineeringWorkerExecution.lease_expires_at <= now,
-                ),
+                EngineeringWorkerExecution.state == WorkerLifecycleState.RECOVERING.value,
+                EngineeringWorkerExecution.lease_owner_id.is_(None),
+                EngineeringWorkerExecution.lease_expires_at.is_(None),
             )
             .values(
                 state=WorkerLifecycleState.REASSIGNED.value,
@@ -332,7 +310,7 @@ class WorkerExecutionRepository:
         )
         if result.rowcount != 1:
             self.session.rollback()
-            raise WorkerLeaseConflict("worker reassignment lost a concurrent lease race")
+            raise WorkerLeaseConflict("worker reassignment lost a concurrent recovery race")
         self.session.commit()
         refreshed = self.get(current.id)
         if refreshed is None:
