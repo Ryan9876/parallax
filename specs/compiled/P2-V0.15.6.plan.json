@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "The system composition ensures that the implementation is securely and accurately bound to the project and run identities, using a DurableLineageGateway that aligns with the production-ready protocol for lineage reconstruction and verification."
+  ],
+  "work_items": [
+    "Implement the bounded work item that ensures the runtime identity is correctly composed and that the lineage is reconstructed and verified against the exact immutable source lineage accepted from the IMPLEMENT operation."
+  ],
+  "validations": [
+    "Validate the implementation by ensuring that the runtime identity is correctly composed and that the lineage is reconstructed and verified against the exact immutable source lineage accepted from the IMPLEMENT operation.",
+    "AC-01: validate protected requirement — `P2-V0.15.6` exists with approved status and passes repository validation. Mandatory DSPy SpecCritic + SpecCompiler executes before substantive implementation is authorized, the generated plan is committed at `specs/compiled/P2-V0.15.6.plan.json`, and `scripts/validate_spec.py --require-dspy specs/P2-V0.15.6.md` passes.",
+    "AC-02: validate protected requirement — Production composition derives `ProjectRunIdentity` exclusively from persisted `EngineeringRun.project_id` and `EngineeringRun.id`. Missing/non-canonical/mismatched identity fails closed. Tests prove workspace metadata, repository metadata, URLs/paths, model text, and executor values cannot substitute for canonical identity.",
+    "AC-03: validate protected requirement — A concrete #61 `WorkspaceLineageGateway` depends only on the narrow allocator/materialization protocol. It resolves the exact current parent, accepts with expected-parent protection, verifies Project/run/parent/new-lineage identity and exact changed-artifact membership, and cleans only disposable leases. Final readiness requires evidence that this protocol is reconcilable with #68's accepted durable implementation.",
+    "AC-04: validate protected requirement — The real owner-scoped autonomous engineering-run route injects `ProtectedImplementationRuntime` with `RunProjectBinding` and the durable-lineage gateway. A Project-bound IMPLEMENT executes through #61 without bypassing approved Work Specification binding, Wave 1 safe mutation, lineage verification, revision/idempotency, or protected stage validation.",
+    "AC-05: validate protected requirement — After successful IMPLEMENT, BUILD/TEST/VERIFY reconstruct the exact accepted `source_lineage_ref` for the exact canonical Project/run on every attempt. Missing/corrupt/wrong-Project/wrong-run lineage fails closed. A fresh runtime-composition instance can resume from durable lineage without relying on prior process memory.",
+    "AC-06: validate protected requirement — Same-lineage execution creates an empty ephemeral Vercel Sandbox with deny-all network, `persistent=False`, `env={}`, and destroy-on-exit behavior, then transfers only reconstructed accepted source through the Sandbox filesystem API. No `GitSource`, repository clone/fetch, application environment forwarding, or credential copying occurs. Transfer failure yields non-success and cleanup is attempted.",
+    "AC-07: validate protected requirement — The executor validates `ExecutionSpec` with existing `ProtectedCommandPolicy`, requires exact equality with `ProtectedCommandRegistry.spec_for(stage, operation_key)`, and resolves command/args only via `ProtectedCommandRegistry.invocation_for(stage)`. Caller/model input cannot create commands, working directories, timeouts, environment, Git/network actions, or provider actions.",
+    "AC-08: validate protected requirement — BUILD/TEST/VERIFY evidence is bounded and same-lineage. Canonical `project_ref`, `run_id`, and `source_lineage_ref` are server-owned and cannot be spoofed by executor output. No local workspace root, raw source, credential, or unrestricted provider response is persisted.",
+    "AC-09: validate protected requirement — Disposable leases and ephemeral sandboxes are cleaned after success/failure without deleting durable lineage. Materialization failure, source-transfer failure, protected command failure/timeout, cleanup failure, revision conflict, stale parent, and mutation followed by durable-stage-write failure remain distinguishable non-success conditions. No failure path fabricates stage success.",
+    "AC-10: validate protected requirement — Runtime retry preserves #61 operation-key replay and Wave 1 pre-image semantics. A new composition/process instance reconstructs accepted lineage for later stages from the durable allocator contract. Successful IMPLEMENT is not applied twice and later execution does not depend on process-local authoritative lineage state.",
+    "AC-11: validate protected requirement — A deterministic fixture proves PLAN -> IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW uses one canonical Project/run and one accepted post-IMPLEMENT lineage for all later stages. It proves unrelated/fresh source cannot execute and the legacy fresh-repository executor is never called once accepted IMPLEMENT lineage exists.",
+    "AC-12: validate protected requirement — Final changes remain inside #69-owned paths and the temporary DSPy workflow is absent. The branch is current with `integration/wave2-app-builder`, #68 compatibility is proven, focused/full regression tests pass, and exact-head Workstream Spec Validation, Parallax P2 CI, and Bounded Autonomy Pilot are green. PR targets the integration branch and remains unmerged/undeployed."
+  ],
+  "risks": [
+    "The risk is that the implementation may not correctly compose the runtime identity or reconstruct the lineage, leading to unauthorized access or incorrect lineage verification. Mitigation is through thorough testing and validation of the implementation against the approved specification and production-ready protocol."
+  ],
+  "spec_id": "P2-V0.15.6",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Spec-first and compiled-plan authorization",
+      "protected_requirement": "`P2-V0.15.6` exists with approved status and passes repository validation. Mandatory DSPy SpecCritic + SpecCompiler executes before substantive implementation is authorized, the generated plan is committed at `specs/compiled/P2-V0.15.6.plan.json`, and `scripts/validate_spec.py --require-dspy specs/P2-V0.15.6.md` passes."
+    },
+    {
+      "id": "AC-02",
+      "title": "Canonical Project/run identity composition",
+      "protected_requirement": "Production composition derives `ProjectRunIdentity` exclusively from persisted `EngineeringRun.project_id` and `EngineeringRun.id`. Missing/non-canonical/mismatched identity fails closed. Tests prove workspace metadata, repository metadata, URLs/paths, model text, and executor values cannot substitute for canonical identity."
+    },
+    {
+      "id": "AC-03",
+      "title": "Narrow durable-lineage adapter and #68 reconciliation",
+      "protected_requirement": "A concrete #61 `WorkspaceLineageGateway` depends only on the narrow allocator/materialization protocol. It resolves the exact current parent, accepts with expected-parent protection, verifies Project/run/parent/new-lineage identity and exact changed-artifact membership, and cleans only disposable leases. Final readiness requires evidence that the protocol is reconcilable with #68's accepted durable implementation."
+    },
+    {
+      "id": "AC-04",
+      "title": "Protected IMPLEMENT wired into the actual runtime",
+      "protected_requirement": "The real owner-scoped autonomous engineering-run route injects `ProtectedImplementationRuntime` with `RunProjectBinding` and the durable-lineage gateway. A Project-bound IMPLEMENT executes through #61 without bypassing approved Work Specification binding, Wave 1 safe mutation, lineage verification, revision/idempotency, or protected stage validation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Exact same-lineage reconstruction for later stages",
+      "protected_requirement": "After successful IMPLEMENT, BUILD/TEST/VERIFY reconstruct the exact accepted `source_lineage_ref` for the exact canonical Project/run on every attempt. Missing/corrupt/wrong-Project/wrong-run lineage fails closed. A fresh runtime-composition instance can resume from durable lineage without relying on prior process memory."
+    },
+    {
+      "id": "AC-06",
+      "title": "Ephemeral deny-all sandbox with exact source transfer",
+      "protected_requirement": "Same-lineage execution creates an empty ephemeral Vercel Sandbox with deny-all network, `persistent=False`, `env={}`, and destroy-on-exit behavior, then transfers only reconstructed accepted source through the Sandbox filesystem API. No `GitSource`, repository clone/fetch, application environment forwarding, or credential copying occurs. Transfer failure yields non-success and cleanup is attempted."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing protected command registry remains authoritative",
+      "protected_requirement": "The executor validates `ExecutionSpec` with existing `ProtectedCommandPolicy`, requires exact equality with `ProtectedCommandRegistry.spec_for(stage, operation_key)`, and resolves command/args only via `ProtectedCommandRegistry.invocation_for(stage)`. Caller/model input cannot create commands, working directories, timeouts, environment, Git/network actions, or provider actions."
+    },
+    {
+      "id": "AC-08",
+      "title": "Server-owned lineage execution evidence",
+      "protected_requirement": "BUILD/TEST/VERIFY evidence is bounded and same-lineage. Canonical `project_ref`, `run_id`, and `source_lineage_ref` are server-owned and cannot be spoofed by executor output. No local workspace root, raw source, credential, or unrestricted provider response is persisted."
+    },
+    {
+      "id": "AC-09",
+      "title": "Cleanup, interruption, and failure truthfulness",
+      "protected_requirement": "Disposable leases and ephemeral sandboxes are cleaned after success/failure without deleting durable lineage. Materialization failure, source-transfer failure, protected command failure/timeout, cleanup failure, revision conflict, stale parent, and mutation followed by durable-stage-write failure remain distinguishable non-success conditions. No failure path fabricates stage success."
+    },
+    {
+      "id": "AC-10",
+      "title": "Retry and cross-process durability behavior",
+      "protected_requirement": "Runtime retry preserves #61 operation-key replay and Wave 1 pre-image semantics. A new composition/process instance reconstructs accepted lineage for later stages from the durable allocator contract. Successful IMPLEMENT is not applied twice and later execution does not depend on process-local authoritative lineage state."
+    },
+    {
+      "id": "AC-11",
+      "title": "Deterministic end-to-end same-lineage fixture",
+      "protected_requirement": "A deterministic fixture proves PLAN -> IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW uses one canonical Project/run and one accepted post-IMPLEMENT lineage for all later stages. It proves unrelated/fresh source cannot execute and the legacy fresh-repository executor is never called once accepted IMPLEMENT lineage exists."
+    },
+    {
+      "id": "AC-12",
+      "title": "Worker isolation and exact-head validation",
+      "protected_requirement": "Final changes remain inside #69-owned paths and the temporary DSPy workflow is absent. The branch is current with `integration/wave2-app-builder`, #68 compatibility is proven, focused/full regression tests pass, and exact-head Workstream Spec Validation, Parallax P2 CI, and Bounded Autonomy Pilot are green. PR targets the integration branch and remains unmerged/undeployed."
+    }
+  ],
+  "critique": [
+    "The most material implementation risk or omission in the approved software specification is the absence of a clear and detailed documentation of the expected parent lineage for the `SafeImplementationEngine.workspace_digest`. This omission could lead to confusion and potential errors during the implementation process, as the safe mutation digest is not aligned with the lineage content digest, which is crucial for ensuring the correct lineage reconstruction and verification. Without this documentation, the implementation team may struggle to accurately map the safe mutation artifacts to the expected parent lineage, leading to potential material issues in the final product."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

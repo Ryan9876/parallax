@@ -3,22 +3,56 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from ..config import settings
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 
 
 class ConversationService:
-    def __init__(self, repository: ConversationRepository, *, active_spec_id: str | None = None):
+    def __init__(
+        self,
+        repository: ConversationRepository,
+        project_repository: ProjectRepository | None = None,
+        *,
+        owner_subject: str | None = None,
+        active_spec_id: str | None = None,
+        require_project_binding: bool = False,
+    ):
         self.repository = repository
+        self.projects = project_repository
+        self.owner_subject = owner_subject.strip() if owner_subject else None
+        self.require_project_binding = require_project_binding
         self.active_spec_id = active_spec_id or settings.active_spec_id
 
-    def create(self, mode: str):
-        return self.repository.create(mode, spec_id=self.active_spec_id)
+    def _resolve_project(self, project_id: str | None):
+        if project_id is None:
+            return None
+        if not self.owner_subject or self.projects is None:
+            if self.require_project_binding:
+                raise HTTPException(status_code=500, detail="Project binding service unavailable")
+            return None
+        project = self.projects.get_for_owner(project_id, self.owner_subject)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return project
+
+    def create(self, mode: str, project_id: str | None = None):
+        if self.require_project_binding and mode == "code" and project_id is None:
+            raise HTTPException(status_code=422, detail="Code conversations require a canonical Project")
+        if project_id is not None:
+            self._resolve_project(project_id)
+        return self.repository.create(mode, spec_id=self.active_spec_id, project_id=project_id)
 
     def list(self):
+        if self.owner_subject:
+            return self.repository.list_for_owner(self.owner_subject)
         return self.repository.list()
 
     def get(self, conversation_id: str):
-        conversation = self.repository.get(conversation_id)
+        conversation = (
+            self.repository.get_for_owner(conversation_id, self.owner_subject)
+            if self.owner_subject
+            else self.repository.get(conversation_id)
+        )
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
@@ -28,13 +62,7 @@ class ConversationService:
         return self.repository.add_message(conversation, role, content)
 
     def append_follow_up(self, conversation_id: str, content: str, *, material_scope_change: bool = False):
-        """Persist the user turn without treating a client hint as scope authority.
-
-        The legacy Boolean remains in the transitional method signature for
-        compatibility, but v0.3.0 scope mutation is performed only after the
-        protected server-side scope policy resolves the turn.
-        """
-
+        """Persist the user turn without treating a client hint as scope authority."""
         del material_scope_change
         conversation = self.get(conversation_id)
         return self.repository.add_message(conversation, "user", content)

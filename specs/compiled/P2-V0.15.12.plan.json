@@ -1,0 +1,74 @@
+{
+  "architecture_decisions": [
+    "The P2-V0.15.11 production provider composition is multi-Project while preserving exact provider-side least privilege."
+  ],
+  "work_items": [
+    "Make the P2-V0.15.11 production provider composition genuinely multi-Project while preserving exact provider-side least privilege."
+  ],
+  "validations": [
+    "The server-owned target registry accepts bounded `github_connector` and `vercel_token_env` fields for each registered repository/Preview target, and...",
+    "AC-01: validate protected requirement — The server-owned target registry accepts bounded `github_connector` and `vercel_token_env` fields for each registered repository/Preview target, and exposes the exact selected target only after canonical Project/repository binding succeeds.",
+    "AC-02: validate protected requirement — `vercel_token_env` accepts only bounded names under the protected `PARALLAX_VERCEL_TOKEN_` prefix. Arbitrary environment names, secret values embedded in the registry, malformed connector identifiers, and missing target credentials fail closed before provider construction.",
+    "AC-03: validate protected requirement — For two registered repositories with distinct GitHub connectors, production composition selects only the connector associated with the canonical Project repository. P2-V0.15.11's GitHub-side exact single-repository scope verification remains unchanged and required before credential caching/use.",
+    "AC-04: validate protected requirement — For two registered Vercel targets with distinct credential environment variables, production composition reads only the selected target's secret and constructs `EnvironmentVercelCredentialProvider` with exactly one allowed `vercel_project_ref`. A target-A credential cannot satisfy target B.",
+    "AC-05: validate protected requirement — The protected Parallax reference target `github:Ryan9876/parallax` → `vercel:preview:parallax` continues to construct the same accepted #70/#79 provider and delivery path when supplied with its per-target credential references.",
+    "AC-06: validate protected requirement — Missing or invalid per-target configuration returns bounded normalized configuration/provider failures without secret values, raw environment contents, raw provider payloads, or credential material in evidence, logs, API responses, or representations.",
+    "AC-07: validate protected requirement — The accepted GitHub source/read/branch/commit/PR action set, Vercel Preview create/read ceiling, Engineering Attempt replay persistence, durable lineage binding, #46 evaluation scoring, and operator REVIEW/production authority boundaries remain unchanged.",
+    "AC-08: validate protected requirement — P2-V0.15.12 has authentic committed DSPy critic/compiler evidence. The exact workstream head passes Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, and Vercel Preview checks before integration. The cumulative integration head must rerun the same release gates after serialization."
+  ],
+  "risks": [
+    "The runtime must first resolve the authenticated canonical Project repository to exactly one registered target, then resolve only that target's credential references."
+  ],
+  "spec_id": "P2-V0.15.12",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Per-target credential references",
+      "protected_requirement": "The server-owned target registry accepts bounded `github_connector` and `vercel_token_env` fields for each registered repository/Preview target, and exposes the exact selected target only after canonical Project/repository binding succeeds."
+    },
+    {
+      "id": "AC-02",
+      "title": "No generic secret lookup",
+      "protected_requirement": "`vercel_token_env` accepts only bounded names under the protected `PARALLAX_VERCEL_TOKEN_` prefix. Arbitrary environment names, secret values embedded in the registry, malformed connector identifiers, and missing target credentials fail closed before provider construction."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact GitHub connector selection",
+      "protected_requirement": "For two registered repositories with distinct GitHub connectors, production composition selects only the connector associated with the canonical Project repository. P2-V0.15.11's GitHub-side exact single-repository scope verification remains unchanged and required before credential caching/use."
+    },
+    {
+      "id": "AC-04",
+      "title": "Exact Vercel target credential selection",
+      "protected_requirement": "For two registered Vercel targets with distinct credential environment variables, production composition reads only the selected target's secret and constructs `EnvironmentVercelCredentialProvider` with exactly one allowed `vercel_project_ref`. A target-A credential cannot satisfy target B."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing single-target reference path preserved",
+      "protected_requirement": "The protected Parallax reference target `github:Ryan9876/parallax` → `vercel:preview:parallax` continues to construct the same accepted #70/#79 provider and delivery path when supplied with its per-target credential references."
+    },
+    {
+      "id": "AC-06",
+      "title": "Failure evidence remains bounded and secret-safe",
+      "protected_requirement": "Missing or invalid per-target configuration returns bounded normalized configuration/provider failures without secret values, raw environment contents, raw provider payloads, or credential material in evidence, logs, API responses, or representations."
+    },
+    {
+      "id": "AC-07",
+      "title": "Prior authority/evidence contracts unchanged",
+      "protected_requirement": "The accepted GitHub source/read/branch/commit/PR action set, Vercel Preview create/read ceiling, Engineering Attempt replay persistence, durable lineage binding, #46 evaluation scoring, and operator REVIEW/production authority boundaries remain unchanged."
+    },
+    {
+      "id": "AC-08",
+      "title": "Exact-head validation",
+      "protected_requirement": "P2-V0.15.12 has authentic committed DSPy critic/compiler evidence. The exact workstream head passes Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, and Vercel Preview checks before integration. The cumulative integration head must rerun the same release gates after serialization."
+    }
+  ],
+  "critique": [
+    "The fixed decisions include:\n- AC-01: The server-owned target registry accepts bounded `github_connector` and `vercel_token_env` fields for each registered repository/Preview target.\n- AC-02: No generic secret lookup: `vercel_token_env` accepts only bounded names under the protected `PARALLAX_VERCEL_TOKEN_` prefix.\n- AC-03: Exact GitHub connector selection: For two registered repositories with distinct GitHub connectors, production composition selects only the connector associated with the canonical…\n- AC-04: Exact Vercel target credential selection: For two registered Vercel targets with distinct credential environment variables, production composition reads only the selected target's secret and…\n- AC-05: Existing single-target reference path preserved: The protected Parallax reference target `github:Ryan9876/parallax` → `vercel:preview:parallax` continues to construct the same accepted #70/#79…\n\n## Architecture\n- AC-06: For two registered repositories with distinct GitHub connectors, production composition selects only the connector associated with the canonical…\n- AC-07: Prior authority/evidence contracts unchanged: The accepted GitHub source/read/branch/commit/PR action set, Vercel Preview create/read ceiling, Engineering Attempt replay persistence, durable…\n\n## Acceptance anchors\n- AC-08: Exact-head validation: P2-V0.15.12 has authentic committed DSPy critic/compiler evidence\n\n## Completed\nThe fixed decisions include:\n- AC-01: The server-owned target registry accepts bounded `github_connector` and `vercel_token_env` fields for each registered repository/Preview target.\n- AC-02: No generic secret lookup: `vercel_token_env` accepts only bounded names under the protected `PARALLAX_VERCEL_TOKEN_` prefix.\n- AC"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

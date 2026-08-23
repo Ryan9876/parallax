@@ -20,7 +20,9 @@ class MessageRead(BaseModel):
 
 
 class ConversationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     mode: Literal["reason", "code"] = "reason"
+    project_id: str | None = Field(default=None, min_length=36, max_length=36)
 
 
 class ConversationRead(BaseModel):
@@ -30,6 +32,8 @@ class ConversationRead(BaseModel):
     mode: str
     status: str
     spec_id: str
+    project_id: str | None = None
+    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"] = "HISTORICAL_UNBOUND"
     created_at: datetime
     updated_at: datetime
     messages: list[MessageRead] = Field(default_factory=list)
@@ -60,16 +64,16 @@ class ResponseRequest(BaseModel):
 
 
 class EngineeringRunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     conversation_id: str
     spec_id: str
     work_specification_id: str
-    workspace_ref: str | None = Field(default=None, max_length=300)
 
 
 class EngineeringRunActivate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     conversation_id: str
     work_specification_id: str | None = None
-    workspace_ref: str | None = Field(default=None, max_length=300)
 
 
 class EngineeringOperation(BaseModel):
@@ -107,6 +111,8 @@ class EngineeringRunRead(BaseModel):
     id: str
     conversation_id: str
     spec_id: str
+    project_id: str | None = None
+    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"] = "HISTORICAL_UNBOUND"
     work_specification_id: str | None
     work_specification_revision: int | None
     work_specification_digest: str | None

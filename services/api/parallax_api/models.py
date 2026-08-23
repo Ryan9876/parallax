@@ -41,8 +41,13 @@ class Conversation(Base):
     mode: Mapped[str] = mapped_column(String(20), default="reason")
     status: Mapped[str] = mapped_column(String(40), default="ACTIVE")
     spec_id: Mapped[str] = mapped_column(String(64), default="P2-V0.3.0")
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    @property
+    def project_binding_status(self) -> str:
+        return "PROJECT_BOUND" if self.project_id else "HISTORICAL_UNBOUND"
 
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation",
@@ -101,6 +106,7 @@ class EngineeringRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
     spec_id: Mapped[str] = mapped_column(String(64), index=True)
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     work_specification_id: Mapped[str | None] = mapped_column(
         ForeignKey("work_specifications.id", ondelete="RESTRICT"),
         nullable=True,
@@ -116,6 +122,10 @@ class EngineeringRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def project_binding_status(self) -> str:
+        return "PROJECT_BOUND" if self.project_id else "HISTORICAL_UNBOUND"
 
     attempts: Mapped[list["EngineeringAttempt"]] = relationship(
         back_populates="run",

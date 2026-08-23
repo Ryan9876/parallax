@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Add nullable foreign-key Project identity columns to `conversations` and `engineering_runs` with indexes and forward-only production migration evidence."
+  ],
+  "work_items": [
+    "Add nullable foreign-key Project identity columns to `conversations` and `engineering_runs` with indexes and forward-only production migration evidence."
+  ],
+  "validations": [
+    "Run tests to ensure the new Project identity fields are correctly resolved and used.",
+    "AC-01: validate protected requirement — A new Code conversation created through the protected runtime API requires one `project_id` that resolves through the canonical Project repository for the authenticated `AccessPrincipal.subject`. The server persists that exact Project ID and rejects missing, unknown, or cross-owner Project bindings.",
+    "AC-02: validate protected requirement — `Conversation.project_id` persists across database sessions and is not exposed through any mutation surface in this slice. Read contracts report the persisted Project ID and explicit `PROJECT_BOUND` state; historical null rows report `HISTORICAL_UNBOUND` without synthetic assignment.",
+    "AC-03: validate protected requirement — List/read/message/follow-up/response operations may expose or mutate a Project-bound Conversation only when its Project belongs to the authenticated principal. Cross-owner access is indistinguishable from missing. Historical-unbound conversations retain existing authenticated compatibility visibility.",
+    "AC-04: validate protected requirement — Work Specifications remain bound only to Conversation. Protected Work Specification read/draft/approve/resume operations resolve the owning Conversation through the same owner-scoped runtime access boundary, preventing cross-owner/cross-Project specification access without adding a mutable `project_id` column to Work Specification.",
+    "AC-05: validate protected requirement — Every new strict Engineering Run persists `project_id == conversation.project_id`. Run create/activate derives this value server-side and rejects historical-unbound Code conversations, Conversation/spec mismatches, and any existing nonterminal run whose persisted Project identity differs from the Conversation binding.",
+    "AC-06: validate protected requirement — Project-bound run read/latest/advance/autonomy/control operations validate access through the canonical Project owner boundary. Cross-owner run access fails as not found. Historical-unbound runs remain readable for compatibility but cannot be newly activated or mutated through strict runtime execution.",
+    "AC-07: validate protected requirement — `EngineeringRunCreate` and `EngineeringRunActivate` do not contain `workspace_ref` or caller-selected `project_id`, reject unknown fields, and strict runtime services reject any direct caller attempt to inject a workspace reference. New runs keep `workspace_ref` unset until #60 supplies server-generated lineage.",
+    "AC-08: validate protected requirement — The committed migration adds nullable indexed Project foreign keys to Conversation and Engineering Run without assigning existing rows. Existing null rows remain valid historical state; invalid non-null Project references fail foreign-key integrity. The migration is generated/validated evidence only and is not applied by this worker.",
+    "AC-09: validate protected requirement — Tests cover owner-accessible Code creation, missing/unknown/cross-owner Project rejection, persistence, historical-unbound compatibility, Project-bound Conversation isolation, Work Specification access inheritance, Engineering Run Project persistence, cross-Project/spec mismatch rejection, cross-owner run denial, and workspace-injection rejection. Full API regression and Python compilation must remain green.",
+    "AC-10: validate protected requirement — The completed candidate includes this approved specification, committed compiled DSPy plan, migration, focused tests, exact validation evidence and an open PR from `ws/app-project-binding` to `main`. The worker does not merge, apply production migrations, allocate runtime workspaces, change authoritative project records, or deploy."
+  ],
+  "risks": [
+    "No material risk and mitigation is required."
+  ],
+  "spec_id": "P2-V0.15.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical Code conversation Project binding",
+      "protected_requirement": "A new Code conversation created through the protected runtime API requires one `project_id` that resolves through the canonical Project repository for the authenticated `AccessPrincipal.subject`. The server persists that exact Project ID and rejects missing, unknown, or cross-owner Project bindings."
+    },
+    {
+      "id": "AC-02",
+      "title": "Immutable durable Conversation identity",
+      "protected_requirement": "`Conversation.project_id` persists across database sessions and is not exposed through any mutation surface in this slice. Read contracts report the persisted Project ID and explicit `PROJECT_BOUND` state; historical null rows report `HISTORICAL_UNBOUND` without synthetic assignment."
+    },
+    {
+      "id": "AC-03",
+      "title": "Owner-scoped Project-bound Conversation access",
+      "protected_requirement": "List/read/message/follow-up/response operations may expose or mutate a Project-bound Conversation only when its Project belongs to the authenticated principal. Cross-owner access is indistinguishable from missing. Historical-unbound conversations retain existing authenticated compatibility visibility."
+    },
+    {
+      "id": "AC-04",
+      "title": "Work Specification Project consistency without duplication",
+      "protected_requirement": "Work Specifications remain bound only to Conversation. Protected Work Specification read/draft/approve/resume operations resolve the owning Conversation through the same owner-scoped runtime access boundary, preventing cross-owner/cross-Project specification access without adding a mutable `project_id` column to Work Specification."
+    },
+    {
+      "id": "AC-05",
+      "title": "Canonical Engineering Run Project binding",
+      "protected_requirement": "Every new strict Engineering Run persists `project_id == conversation.project_id`. Run create/activate derives this value server-side and rejects historical-unbound Code conversations, Conversation/spec mismatches, and any existing nonterminal run whose persisted Project identity differs from the Conversation binding."
+    },
+    {
+      "id": "AC-06",
+      "title": "Owner-scoped Engineering Run access",
+      "protected_requirement": "Project-bound run read/latest/advance/autonomy/control operations validate access through the canonical Project owner boundary. Cross-owner run access fails as not found. Historical-unbound runs remain readable for compatibility but cannot be newly activated or mutated through strict runtime execution."
+    },
+    {
+      "id": "AC-07",
+      "title": "Caller workspace authority removed",
+      "protected_requirement": "`EngineeringRunCreate` and `EngineeringRunActivate` do not contain `workspace_ref` or caller-selected `project_id`, reject unknown fields, and strict runtime services reject any direct caller attempt to inject a workspace reference. New runs keep `workspace_ref` unset until #60 supplies server-generated lineage."
+    },
+    {
+      "id": "AC-08",
+      "title": "Forward-only historical-compatible migration",
+      "protected_requirement": "The committed migration adds nullable indexed Project foreign keys to Conversation and Engineering Run without assigning existing rows. Existing null rows remain valid historical state; invalid non-null Project references fail foreign-key integrity. The migration is generated/validated evidence only and is not applied by this worker."
+    },
+    {
+      "id": "AC-09",
+      "title": "Focused negative and regression evidence",
+      "protected_requirement": "Tests cover owner-accessible Code creation, missing/unknown/cross-owner Project rejection, persistence, historical-unbound compatibility, Project-bound Conversation isolation, Work Specification access inheritance, Engineering Run Project persistence, cross-Project/spec mismatch rejection, cross-owner run denial, and workspace-injection rejection. Full API regression and Python compilation must remain green."
+    },
+    {
+      "id": "AC-10",
+      "title": "Worker release boundary",
+      "protected_requirement": "The completed candidate includes this approved specification, committed compiled DSPy plan, migration, focused tests, exact validation evidence and an open PR from `ws/app-project-binding` to `main`. The worker does not merge, apply production migrations, allocate runtime workspaces, change authoritative project records, or deploy."
+    }
+  ],
+  "critique": [
+    "Project.id remains the only canonical durable application identity. `Conversation.project_id` is nullable only so historical pre-Project conversations remain representable; new Code conversations require a non-null owner-accessible Project. `EngineeringRun.project_id` is nullable only so historical pre-Project runs remain representable/readable; every new protected Engineering Run must persist the exact Project ID bound to its Code conversation. Work Specifications remain owned by Conversation. This slice does not add a redundant mutable Project field to Work Specification rows. Project ownership is resolved server-side from the authenticated `AccessPrincipal.subject` and the canonical Project repository. Caller-supplied owner identity is never trusted. Project-bound Conversation and Engineering Run reads are owner-scoped. Historical unbound rows remain readable through the existing authenticated compatibility boundary because this workstream has no trustworthy historical owner mapping and must not fabricate one. Caller request contracts may not select `workspace_ref`. The existing nullable `EngineeringRun.workspace_ref` persistence seam remains for historical rows…"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
