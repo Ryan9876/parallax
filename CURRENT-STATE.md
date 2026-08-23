@@ -139,7 +139,7 @@ The previously pending real-device live-edge composition check and first real op
 
 ## Parallel ChatGPT development state
 
-The GitHub-authoritative parallel-development model is active under `PROJECT-CONSTITUTION.md` v1.2 and `PARALLEL-DEVELOPMENT.md`.
+The GitHub-authoritative parallel-development model is active under `PROJECT-CONSTITUTION.md` v1.3 and `PARALLEL-DEVELOPMENT.md`.
 
 Wave 1 demonstrated the intended model in practice:
 
@@ -204,7 +204,26 @@ The strictest applicable requirement wins. Project profiles and Work Specificati
 
 Validation remains capability-aware rather than blindly identical across projects. Web/mobile projects can require browser flows, layout/accessibility checks, screenshot regression and multimodal visual QA; APIs can require schema/contract/auth/integration/reliability/performance checks; CLIs can require command/workflow/exit-code/output checks. Unsupported required validation must fail closed or require an explicit approved exception rather than being silently skipped.
 
-This platform inheritance rule is now durable governance/architecture in `PROJECT-CONSTITUTION.md` v1.2 and `ARCHITECTURE.md` v2.3. The governance rule is **implemented as project policy**, while the Wave 3 runtime mechanisms that will enforce it are **not yet implemented, validated, deployed or deployment-verified**.
+### Universal Wave 3 optimization decision
+
+The Wave 3 efficiency architecture now applies identically to **how Parallax is built** and **how Parallax builds every Project**. It is an inherited platform requirement rather than a one-off optimization for the Parallax repository.
+
+Wave 3 must implement:
+
+1. **critical-path scheduling and bounded work stealing** so worker capacity reduces time to the validated objective rather than merely maximizing worker occupancy;
+2. **change-impact-driven fast validation** using a machine-readable file/component/service/contract/test impact graph, while full protected promotion suites remain mandatory at worker-completion/integration/release boundaries;
+3. **immutable secret-free warm execution environments** keyed by toolchain/lock/configuration digests so workers avoid repeated environment setup without confusing caches with authoritative source state;
+4. **validated pattern/component/configuration reuse** whose artifacts are revalidated against the current Project rather than trusted because they worked previously;
+5. **privacy-safe failure fingerprinting and repair memory** that can propose proven repairs without transferring private Project source/secrets into global memory or bypassing protected mutation/validation;
+6. **adaptive model routing** to reduce latency/cost for routine work while escalating difficult tasks and keeping protected evaluation/authority independent of the generating model;
+7. **specification preflight** for contradictions, missing dependencies, impossible/untestable acceptance criteria, unsupported validation, authority conflicts and high-consequence ambiguity before implementation starts;
+8. **speculative integration** of immutable worker checkpoints on disposable candidates so interface drift is detected early without advancing accepted lineage, merge state or release authority;
+9. **automatic workstream sizing/rebalancing** so work is large enough to be useful but small enough to recover, validate and integrate without unnecessary fragmentation;
+10. **development-performance telemetry** for planning, generation, environment preparation, build, validation, provider waits, retries, integration, stall recovery and human waits using bounded non-secret evidence.
+
+Optimization must remain subordinate to correctness: impact analysis cannot waive promotion checks; warm environments/caches require provenance; speculative integration is non-authoritative; adaptive routing cannot lower protected standards; work stealing cannot violate leases/path ownership; and cross-Project reuse/telemetry cannot become a data-exfiltration path.
+
+This universal optimization contract is now durable governance/architecture in `PROJECT-CONSTITUTION.md` v1.3 and `ARCHITECTURE.md` v2.4. Runtime enforcement remains a **Wave 3 requirement / not yet implemented**.
 
 These Wave 3 runtime capabilities remain approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
 
@@ -225,12 +244,13 @@ These Wave 3 runtime capabilities remain approved roadmap/exit-condition decisio
 - Wave 3 accelerated continuous worker/integration architecture: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 - Wave 3 automatic worker stall detection/recovery/reassignment: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 - inherited development-policy governance: **IMPLEMENTED IN AUTHORITATIVE POLICY / RUNTIME ENFORCEMENT PENDING WAVE 3**
+- universal Wave 3 optimization governance: **IMPLEMENTED IN AUTHORITATIVE POLICY / RUNTIME ENFORCEMENT PENDING WAVE 3**
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the deployed Wave 1 foundation and the approved Wave 3 autonomous/acceleration/stall-recovery/platform-inheritance decisions.
-- `ARCHITECTURE.md`: updated to v2.3 with the durable inherited development-policy architecture and capability-aware validation layering; this does not claim future Wave 3 runtime enforcement already exists.
-- `PROJECT-CONSTITUTION.md`: updated to v1.2 so every Parallax-developed Project must inherit the non-weakenable platform development-policy baseline.
-- `DESIGN-SYSTEM.md`: unchanged; this policy decision introduces no implemented visual or interaction-system change.
+- `CURRENT-STATE.md`: updated for the deployed Wave 1 foundation and the approved Wave 3 autonomous/acceleration/stall-recovery/platform-inheritance/universal-optimization decisions.
+- `ARCHITECTURE.md`: updated to v2.4 with inherited policy plus universal critical-path, impact-testing, warm-environment, reuse/repair-memory, adaptive-routing, preflight, speculative-integration, workstream-sizing and telemetry architecture; this does not claim runtime enforcement already exists.
+- `PROJECT-CONSTITUTION.md`: updated to v1.3 so both Parallax self-development and every Parallax-developed Project inherit the non-weakenable development-efficiency baseline.
+- `DESIGN-SYSTEM.md`: unchanged; this policy/architecture decision introduces no implemented visual or interaction-system change.
 
 Historical release, CI, workstream, preview and deployment evidence remains preserved in GitHub Actions, GitHub issues/PRs and Vercel history.
