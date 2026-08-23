@@ -6,6 +6,12 @@ on:
     paths:
       - 'specs/P2-V0.15.4.md'
       - '.github/workflows/ws62-compile-plan.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'specs/P2-V0.15.4.md'
+      - '.github/workflows/ws62-compile-plan.yml'
 
 jobs:
   compile-plan:
