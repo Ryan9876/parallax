@@ -312,7 +312,7 @@ class VercelPreviewRestClient(VercelProviderClient):
         response = self._send(
             "GET",
             target,
-            "/v7/deployments",
+            "/v6/deployments",
             params=self._params(
                 target,
                 projectId=target.project_id,
