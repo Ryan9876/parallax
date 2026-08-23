@@ -69,6 +69,20 @@ def _aware(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=timezone.utc)
 
 
+def _cas(statement):
+    """Keep compare-and-swap predicates database-authoritative.
+
+    SQLite returns timezone columns as naive datetimes while the protected
+    service clock is UTC-aware. SQLAlchemy's default ORM session synchronization
+    may otherwise re-evaluate expiry predicates in Python and raise before the
+    database can perform the atomic comparison. Disabling session evaluation is
+    also preferable for these revision/lease CAS writes because every successful
+    mutation is explicitly re-read from persistence immediately afterward.
+    """
+
+    return statement.execution_options(synchronize_session=False)
+
+
 class WorkerExecutionRepository:
     def __init__(self, session: Session):
         self.session = session
@@ -136,19 +150,21 @@ class WorkerExecutionRepository:
         if current is None:
             raise WorkerStaleLease("worker execution is unavailable")
         result = self.session.execute(
-            update(EngineeringWorkerExecution)
-            .where(
-                EngineeringWorkerExecution.id == execution_id,
-                EngineeringWorkerExecution.revision == current.revision,
-                EngineeringWorkerExecution.lease_owner_id == owner_id,
-                EngineeringWorkerExecution.lease_generation == generation,
-                EngineeringWorkerExecution.lease_expires_at.is_not(None),
-                EngineeringWorkerExecution.lease_expires_at > now,
-            )
-            .values(
-                lease_expires_at=now + timedelta(seconds=lease_seconds),
-                revision=current.revision + 1,
-                updated_at=now,
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == execution_id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                    EngineeringWorkerExecution.lease_owner_id == owner_id,
+                    EngineeringWorkerExecution.lease_generation == generation,
+                    EngineeringWorkerExecution.lease_expires_at.is_not(None),
+                    EngineeringWorkerExecution.lease_expires_at > now,
+                )
+                .values(
+                    lease_expires_at=now + timedelta(seconds=lease_seconds),
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
             )
         )
         if result.rowcount != 1:
@@ -211,16 +227,18 @@ class WorkerExecutionRepository:
             values["lease_expires_at"] = now + timedelta(seconds=lease_seconds)
 
         result = self.session.execute(
-            update(EngineeringWorkerExecution)
-            .where(
-                EngineeringWorkerExecution.id == execution_id,
-                EngineeringWorkerExecution.revision == expected_revision,
-                EngineeringWorkerExecution.lease_owner_id == owner_id,
-                EngineeringWorkerExecution.lease_generation == generation,
-                EngineeringWorkerExecution.lease_expires_at.is_not(None),
-                EngineeringWorkerExecution.lease_expires_at > now,
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == execution_id,
+                    EngineeringWorkerExecution.revision == expected_revision,
+                    EngineeringWorkerExecution.lease_owner_id == owner_id,
+                    EngineeringWorkerExecution.lease_generation == generation,
+                    EngineeringWorkerExecution.lease_expires_at.is_not(None),
+                    EngineeringWorkerExecution.lease_expires_at > now,
+                )
+                .values(**values)
             )
-            .values(**values)
         )
         if result.rowcount != 1:
             self.session.rollback()
@@ -252,20 +270,22 @@ class WorkerExecutionRepository:
         }:
             raise WorkerLeaseConflict(f"{current.state} worker execution cannot be automatically reclassified")
         result = self.session.execute(
-            update(EngineeringWorkerExecution)
-            .where(
-                EngineeringWorkerExecution.id == current.id,
-                EngineeringWorkerExecution.revision == current.revision,
-            )
-            .values(
-                state=state.value,
-                lease_owner_id=None,
-                lease_expires_at=None,
-                stall_classification=stall_classification,
-                blocker_code=blocker_code,
-                next_recovery_action=next_recovery_action,
-                revision=current.revision + 1,
-                updated_at=now,
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == current.id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                )
+                .values(
+                    state=state.value,
+                    lease_owner_id=None,
+                    lease_expires_at=None,
+                    stall_classification=stall_classification,
+                    blocker_code=blocker_code,
+                    next_recovery_action=next_recovery_action,
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
             )
         )
         if result.rowcount != 1:
@@ -288,24 +308,26 @@ class WorkerExecutionRepository:
 
         owner_id = f"worker:{uuid4()}"
         result = self.session.execute(
-            update(EngineeringWorkerExecution)
-            .where(
-                EngineeringWorkerExecution.id == current.id,
-                EngineeringWorkerExecution.revision == current.revision,
-                EngineeringWorkerExecution.state == WorkerLifecycleState.RECOVERING.value,
-                EngineeringWorkerExecution.lease_owner_id.is_(None),
-                EngineeringWorkerExecution.lease_expires_at.is_(None),
-            )
-            .values(
-                state=WorkerLifecycleState.REASSIGNED.value,
-                lease_owner_id=owner_id,
-                lease_generation=current.lease_generation + 1,
-                lease_expires_at=now + timedelta(seconds=lease_seconds),
-                stall_classification=None,
-                blocker_code=None,
-                next_recovery_action=None,
-                revision=current.revision + 1,
-                updated_at=now,
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == current.id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                    EngineeringWorkerExecution.state == WorkerLifecycleState.RECOVERING.value,
+                    EngineeringWorkerExecution.lease_owner_id.is_(None),
+                    EngineeringWorkerExecution.lease_expires_at.is_(None),
+                )
+                .values(
+                    state=WorkerLifecycleState.REASSIGNED.value,
+                    lease_owner_id=owner_id,
+                    lease_generation=current.lease_generation + 1,
+                    lease_expires_at=now + timedelta(seconds=lease_seconds),
+                    stall_classification=None,
+                    blocker_code=None,
+                    next_recovery_action=None,
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
             )
         )
         if result.rowcount != 1:
