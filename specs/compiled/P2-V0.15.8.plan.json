@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- **Canonical Project ID**: The client must not send a `Project.id` that is not the current owner-scoped Project list or the canonical `Project.id` from the protected `/v1/projects` API."
+  ],
+  "work_items": [
+    "- **Code conversation creation**: The client must not create a Code conversation with a `Project.id` that is not the current owner-scoped Project list or the canonical `Project.id` from the protected `/v1/projects` API."
+  ],
+  "validations": [
+    "- **Project selection**: The client must not select a `Project.id` that is not the current owner-scoped Project list or the canonical `Project.id` from the protected `/v1/projects` API.",
+    "AC-01: validate protected requirement — After authenticated workspace initialization, the client loads Projects through `GET /v1/projects` using the existing authenticated transport. The typed Project contract carries canonical `id`, display name/slug, optional repository metadata and status without using `workspace_ref` as execution authority.",
+    "AC-02: validate protected requirement — Project selection is explicit and deterministic. A selected ID must resolve to the current owner-scoped Project list; stale/missing IDs are cleared. If exactly one valid Project exists, the client may select it automatically for convenience, but it may never invent or infer a Project from repository/workspace metadata.",
+    "AC-03: validate protected requirement — The Code-mode Project surface can create a Project through `POST /v1/projects` with required bounded name plus optional bounded `repository_ref`, preserving current backend validation/conflict semantics. On success the server-returned canonical Project is added to the list and selected. Failure does not create a local synthetic Project.",
+    "AC-04: validate protected requirement — Every new Code conversation created from mode switching, NEW conversation, or first-message bootstrap calls the existing conversation API with `mode: \"code\"` and the currently selected canonical `project_id`. Code creation is blocked locally when no valid Project is selected and never retries as unbound.",
+    "AC-05: validate protected requirement — Reason conversation creation, mode switching to Reason, response streaming and existing conversation history behavior remain unchanged and do not require a Project selection. No Project-selection state may alter Reason Work Specification or response behavior.",
+    "AC-06: validate protected requirement — Opening a historical Code conversation with `project_binding_status == \"HISTORICAL_UNBOUND\"` remains supported and presents a concise compatibility indication. The client does not mutate, rebind, or silently assign that conversation to the currently selected Project.",
+    "AC-07: validate protected requirement — Project list/create failures, stale selection and backend missing/removed/cross-owner Project failures surface bounded user-visible error state without retry loops. Authentication expiry preserves the existing private-session lock behavior. No failure path sends unbound Code creation.",
+    "AC-08: validate protected requirement — The selector/create surface reuses the existing Parallax palette, type hierarchy, controls and interaction language. Desktop and 390x844-class mobile browser acceptance proves no regression to safe-area/composer clearance, live-edge behavior, mode controls, Work Specification status, Engineering Run controls or core conversation geometry.",
+    "AC-09: validate protected requirement — Focused deterministic tests prove selection validity, stale-selection clearing, single-Project auto-selection behavior, canonical Code creation payload, Reason payload preservation and failure-to-unbound denial. Browser acceptance proves Project list/select/create and successful canonical Code creation at desktop and 390x844-class mobile, plus representative API failure behavior.",
+    "AC-10: validate protected requirement — The candidate contains this approved specification, authentic committed DSPy compiled plan, only the minimum declared client compatibility implementation/tests, exact validation evidence, and an open PR targeting `integration/wave2-app-builder`. Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, backend API regression, client typecheck/state/export and browser acceptance are green. The worker does not merge, deploy, edit authoritative records, or broaden into dashboard/product redesign scope."
+  ],
+  "risks": [
+    "- **Client-side compatibility**: The backend Project requirement must not be weakened."
+  ],
+  "spec_id": "P2-V0.15.8",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Owner-scoped Project loading",
+      "protected_requirement": "After authenticated workspace initialization, the client loads Projects through `GET /v1/projects` using the existing authenticated transport. The typed Project contract carries canonical `id`, display name/slug, optional repository metadata and status without using `workspace_ref` as execution authority."
+    },
+    {
+      "id": "AC-02",
+      "title": "Deterministic valid selection",
+      "protected_requirement": "Project selection is explicit and deterministic. A selected ID must resolve to the current owner-scoped Project list; stale/missing IDs are cleared. If exactly one valid Project exists, the client may select it automatically for convenience, but it may never invent or infer a Project from repository/workspace metadata."
+    },
+    {
+      "id": "AC-03",
+      "title": "Minimal Project creation",
+      "protected_requirement": "The Code-mode Project surface can create a Project through `POST /v1/projects` with required bounded name plus optional bounded `repository_ref`, preserving current backend validation/conflict semantics. On success the server-returned canonical Project is added to the list and selected. Failure does not create a local synthetic Project."
+    },
+    {
+      "id": "AC-04",
+      "title": "Canonical Code conversation binding",
+      "protected_requirement": "Every new Code conversation created from mode switching, NEW conversation, or first-message bootstrap calls the existing conversation API with `mode: \"code\"` and the currently selected canonical `project_id`. Code creation is blocked locally when no valid Project is selected and never retries as unbound."
+    },
+    {
+      "id": "AC-05",
+      "title": "Reason behavior preserved",
+      "protected_requirement": "Reason conversation creation, mode switching to Reason, response streaming and existing conversation history behavior remain unchanged and do not require a Project selection. No Project-selection state may alter Reason Work Specification or response behavior."
+    },
+    {
+      "id": "AC-06",
+      "title": "Historical compatibility without guessed binding",
+      "protected_requirement": "Opening a historical Code conversation with `project_binding_status == \"HISTORICAL_UNBOUND\"` remains supported and presents a concise compatibility indication. The client does not mutate, rebind, or silently assign that conversation to the currently selected Project."
+    },
+    {
+      "id": "AC-07",
+      "title": "Failure states fail closed",
+      "protected_requirement": "Project list/create failures, stale selection and backend missing/removed/cross-owner Project failures surface bounded user-visible error state without retry loops. Authentication expiry preserves the existing private-session lock behavior. No failure path sends unbound Code creation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing product behavior and geometry preserved",
+      "protected_requirement": "The selector/create surface reuses the existing Parallax palette, type hierarchy, controls and interaction language. Desktop and 390x844-class mobile browser acceptance proves no regression to safe-area/composer clearance, live-edge behavior, mode controls, Work Specification status, Engineering Run controls or core conversation geometry."
+    },
+    {
+      "id": "AC-09",
+      "title": "Deterministic client and browser evidence",
+      "protected_requirement": "Focused deterministic tests prove selection validity, stale-selection clearing, single-Project auto-selection behavior, canonical Code creation payload, Reason payload preservation and failure-to-unbound denial. Browser acceptance proves Project list/select/create and successful canonical Code creation at desktop and 390x844-class mobile, plus representative API failure behavior."
+    },
+    {
+      "id": "AC-10",
+      "title": "Worker release boundary",
+      "protected_requirement": "The candidate contains this approved specification, authentic committed DSPy compiled plan, only the minimum declared client compatibility implementation/tests, exact validation evidence, and an open PR targeting `integration/wave2-app-builder`. Workstream Spec Validation, Parallax P2 CI, Bounded Autonomy Pilot, backend API regression, client typecheck/state/export and browser acceptance are green. The worker does not merge, deploy, edit authoritative records, or broaden into dashboard/product redesign scope."
+    }
+  ],
+  "critique": [
+    "The client loads Projects through the existing authenticated transport, ensuring deterministic and explicit selection of the canonical Project ID."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
