@@ -1,6 +1,7 @@
 name: Wave 2 Vercel Provision Run
 
 on:
+  workflow_dispatch:
   push:
     branches: [ops/wave2-provision-run]
     paths:
