@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.2
+Version: 2.3
 Status: Authoritative
 
 ## System shape
@@ -256,6 +256,34 @@ Wave 2 must adapt accepted runtime interfaces into this evidence vocabulary:
 - tool evidence binds to capability/request/result/audit identifiers and canonical digests;
 - BUILD/TEST/VERIFY evidence must prove it operated on the same accepted implementation lineage.
 
+## Inherited development-policy architecture
+
+Every Parallax-developed Project inherits one protected development-policy stack. This is a platform architecture rule, not a convention copied into individual projects.
+
+Effective policy is composed in strict order:
+
+```text
+Parallax platform baseline
+        ↓ may only be preserved or strengthened
+Project profile
+        ↓ may only be preserved or strengthened
+Approved Work Specification
+        ↓
+Runtime capability-specific validation plan
+        ↓
+Protected execution / evaluation / promotion
+```
+
+The **platform baseline** owns non-weakenable guarantees for canonical Project/run identity, specification binding, source lineage, mutation/tool authority, durable checkpoints, bounded autonomy, single-writer execution, stall/recovery behavior, evidence integrity, protected promotion, rollback and human-control boundaries.
+
+The **Project profile** supplies durable project-specific requirements such as repository/build topology, architecture rules, design system, supported platforms, security posture, testing matrix, accessibility level, performance budgets, compatibility constraints, deployment targets and operational requirements. It can make the platform baseline stricter but cannot disable or silently relax it.
+
+The **Work Specification** binds one bounded objective to explicit acceptance criteria and constraints. It may narrow scope or add stricter requirements but cannot widen tool/release authority or weaken platform/Project controls.
+
+The **capability-specific validation plan** adapts testing to what is actually being built without weakening the common policy. For example, web/mobile applications may require browser workflows, responsive/layout checks, accessibility, screenshot regression and multimodal visual review; APIs may require schema/contract, authorization, integration, reliability and performance checks; CLIs may require command/workflow/exit-code/terminal-output checks. Unsupported validation requirements fail closed or require an explicit human-approved exception rather than being silently skipped.
+
+Wave 3 must implement the policy stack as protected server-owned behavior. The current architecture records this as an accepted future runtime contract; it does not claim the deployed Wave 1 runtime already enforces Wave 3 inheritance.
+
 ## Reason architecture
 
 Reason remains provider-independent and bounded by durable context. Later explicit user corrections supersede conflicting earlier assistant assumptions.
@@ -313,7 +341,7 @@ Release promotion requires exact-head CI, relevant preview evidence, migration r
 
 ## Parallel development architecture
 
-Parallel ChatGPT development is governed by `PROJECT-CONSTITUTION.md` v1.1 and `PARALLEL-DEVELOPMENT.md`.
+Parallel ChatGPT development is governed by `PROJECT-CONSTITUTION.md` v1.2 and `PARALLEL-DEVELOPMENT.md`.
 
 GitHub is the operational authority for active workstream ownership, branches, PRs, CI/evaluation evidence and integration state.
 
@@ -335,6 +363,7 @@ Workers develop concurrently on isolated branches, but interacting candidates ar
 - Protected evaluation regression: block promotion.
 - Database readiness failure: block deployment verification.
 - Unsupported autonomous stage or authority boundary: return control to the operator.
+- Project-policy resolution failure or attempted policy weakening: fail closed before protected execution/promotion.
 
 ## Security
 
@@ -346,13 +375,14 @@ The major trust boundaries are now:
 
 1. authenticated principal and server-owned authorization;
 2. canonical Project identity and owner-scoped persistence;
-3. approved Work Specification digest/acceptance map;
-4. protected Project-to-workspace mapping (still to be integrated);
-5. safe patch engine confinement/evidence;
-6. server-owned command registry and Sandbox execution;
-7. server-owned tool capability/approval registry;
-8. protected evaluation/promotion policy;
-9. human/release authority for unsupported destructive or production actions.
+3. inherited platform baseline + Project profile + approved Work Specification policy resolution;
+4. approved Work Specification digest/acceptance map;
+5. protected Project-to-workspace mapping (still to be integrated);
+6. safe patch engine confinement/evidence;
+7. server-owned command registry and Sandbox execution;
+8. server-owned tool capability/approval registry;
+9. protected evaluation/promotion policy;
+10. human/release authority for unsupported destructive or production actions.
 
 ## Wave 2 integration contract
 
