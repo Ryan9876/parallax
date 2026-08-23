@@ -26,6 +26,7 @@ permissions:
 jobs:
   compile:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,9 +44,10 @@ jobs:
             echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
           fi
       - name: Install local DSPy LM
         if: steps.credentials.outputs.provider == 'false'
@@ -56,8 +58,10 @@ jobs:
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
             sleep 1
           done
-          ollama pull llama3.2:1b
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
       - name: Compile approved spec
+        timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py specs/P2-V0.15.12.md
