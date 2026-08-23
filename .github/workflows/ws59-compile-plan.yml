@@ -1,0 +1,46 @@
+name: WS59 Compile Plan Evidence
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-plan:
+    if: github.head_ref == 'ws/app-project-binding' || github.ref == 'refs/heads/ws/app-project-binding'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/api/requirements.txt
+      - name: Install local proof model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull qwen2.5:0.5b
+      - name: Compile and validate P2-V0.15.1
+        env:
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: local
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.15.1.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.15.1.md
+      - name: Upload compiled plan evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ws59-compiled-plan
+          path: specs/compiled/P2-V0.15.1.plan.json
