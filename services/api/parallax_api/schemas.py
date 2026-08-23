@@ -32,8 +32,8 @@ class ConversationRead(BaseModel):
     mode: str
     status: str
     spec_id: str
-    project_id: str | None
-    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"]
+    project_id: str | None = None
+    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"] = "HISTORICAL_UNBOUND"
     created_at: datetime
     updated_at: datetime
     messages: list[MessageRead] = Field(default_factory=list)
@@ -111,8 +111,8 @@ class EngineeringRunRead(BaseModel):
     id: str
     conversation_id: str
     spec_id: str
-    project_id: str | None
-    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"]
+    project_id: str | None = None
+    project_binding_status: Literal["PROJECT_BOUND", "HISTORICAL_UNBOUND"] = "HISTORICAL_UNBOUND"
     work_specification_id: str | None
     work_specification_revision: int | None
     work_specification_digest: str | None
