@@ -5,6 +5,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import AccessPrincipal, access_principal
 from ..db import get_session
 from ..intelligence.work_specification import (
     WorkSpecificationCoordinator,
@@ -19,10 +20,14 @@ from ..services.work_specifications import WorkSpecificationService
 router = APIRouter(prefix="/v1", tags=["work-specifications"])
 
 
-def service(session: Session = Depends(get_session)) -> WorkSpecificationService:
+def service(
+    session: Session = Depends(get_session),
+    principal: AccessPrincipal = Depends(access_principal),
+) -> WorkSpecificationService:
     return WorkSpecificationService(
         WorkSpecificationRepository(session),
         ConversationRepository(session),
+        owner_subject=principal.subject,
     )
 
 
