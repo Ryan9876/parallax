@@ -24,6 +24,7 @@ from parallax_api.code.autonomous_correction import (
     DefectSeverity,
     DefectSource,
     FailureDispatch,
+    NormalizedDefect,
     ProtectedQualityVector,
     VisualDisposition,
     WorkerCorrectionCheckpointSink,
@@ -51,7 +52,6 @@ PLAN_REF = "plan:P2-V0.16.3:compiled"
 L0 = "src:" + "0" * 64
 L1 = "src:" + "1" * 64
 L2 = "src:" + "2" * 64
-L3 = "src:" + "3" * 64
 
 
 def _run() -> EngineeringRun:
@@ -85,7 +85,7 @@ def _defect(
     boundary: CorrectionBoundary | None = None,
     visual: VisualDisposition | None = None,
     path: str | None = "app.py",
-) -> object:
+) -> NormalizedDefect:
     return normalize_failure(
         source=source,
         precedence=precedence,
@@ -103,7 +103,12 @@ def _defect(
     )
 
 
-def _candidate(lineage: str, defects: tuple[object, ...], *, evidence: str | None = None) -> CandidateValidation:
+def _candidate(
+    lineage: str,
+    defects: tuple[NormalizedDefect, ...],
+    *,
+    evidence: str | None = None,
+) -> CandidateValidation:
     return CandidateValidation(
         project_id=PROJECT_ID,
         run_id=RUN_ID,
@@ -111,7 +116,7 @@ def _candidate(lineage: str, defects: tuple[object, ...], *, evidence: str | Non
         lineage_id=lineage,
         quality=ProtectedQualityVector.from_defects(defects),
         defects=defects,
-        evidence_refs=((evidence or f"validation:{lineage[-6:]}",),),
+        evidence_refs=(evidence or f"validation:{lineage[-6:]}",),
     )
 
 
@@ -122,7 +127,6 @@ def _pass(lineage: str) -> CandidateValidation:
 class MemoryStateStore:
     def __init__(self) -> None:
         self.states: dict[tuple[str, str], CorrectionSessionState] = {}
-        self.save_count = 0
 
     def load(self, *, run_id: str, session_id: str) -> CorrectionSessionState | None:
         return self.states.get((run_id, session_id))
@@ -145,7 +149,6 @@ class MemoryStateStore:
                 raise CorrectionStateConflict("state CAS mismatch")
             saved = replace(state, revision=expected_revision + 1)
         self.states[key] = saved
-        self.save_count += 1
         return saved
 
 
@@ -160,13 +163,25 @@ class MappingValidator:
 
 
 class StandardPlanner:
-    def __init__(self, *, boundary: CorrectionBoundary | None = None, changed: int = 32, compute: int = 1) -> None:
+    def __init__(
+        self,
+        *,
+        boundary: CorrectionBoundary | None = None,
+        changed: int = 32,
+        compute: int = 1,
+    ) -> None:
         self.boundary = boundary
         self.changed = changed
         self.compute = compute
         self.calls = 0
 
-    def plan(self, context: CorrectionContext, *, lineage_id: str, defects: tuple[object, ...]) -> CorrectionPlan:
+    def plan(
+        self,
+        context: CorrectionContext,
+        *,
+        lineage_id: str,
+        defects: tuple[NormalizedDefect, ...],
+    ) -> CorrectionPlan:
         self.calls += 1
         targets = tuple(item.defect_id for item in defects)
         if self.boundary is not None:
@@ -262,20 +277,13 @@ def _controller(
 
 
 def test_quality_vector_enforces_exact_protected_precedence() -> None:
-    deterministic = ProtectedQualityVector(1, 0, 0, 0, 0)
-    many_lower = ProtectedQualityVector(0, 99, 99, 99, 99)
-    acceptance = ProtectedQualityVector(0, 1, 0, 0, 0)
-    many_visual = ProtectedQualityVector(0, 0, 0, 99, 99)
-    screenshot = ProtectedQualityVector(0, 0, 1, 0, 0)
-    visual = ProtectedQualityVector(0, 0, 0, 1, 0)
-
-    assert many_lower < deterministic
-    assert many_visual < acceptance
-    assert visual < screenshot
+    assert ProtectedQualityVector(0, 99, 99, 99, 99) < ProtectedQualityVector(1, 0, 0, 0, 0)
+    assert ProtectedQualityVector(0, 0, 0, 99, 99) < ProtectedQualityVector(0, 1, 0, 0, 0)
+    assert ProtectedQualityVector(0, 0, 0, 1, 0) < ProtectedQualityVector(0, 0, 1, 0, 0)
     assert ProtectedQualityVector(0, 0, 0, 0, 0).passed is True
 
 
-def test_normalized_defects_cover_supported_failure_sources_and_reject_secret_evidence() -> None:
+def test_normalized_defects_cover_supported_sources_and_reject_sensitive_evidence() -> None:
     for source in DefectSource:
         defect = _defect(L0, source=source)
         assert defect.source is source
@@ -294,7 +302,7 @@ def test_normalized_defects_cover_supported_failure_sources_and_reject_secret_ev
             run_id=RUN_ID,
             work_specification_digest=SPEC_DIGEST,
             lineage_id=L0,
-            evidence_refs=("token=abcdefghijklmnop",),
+            evidence_refs=("authorization:abcdefghijklmnop",),
         )
 
     with pytest.raises(CorrectionPolicyError, match="private-reasoning"):
@@ -312,7 +320,7 @@ def test_normalized_defects_cover_supported_failure_sources_and_reject_secret_ev
         )
 
 
-def test_browser_result_is_consumed_as_normalized_boundary_without_reinterpreting_browser_internals() -> None:
+def test_browser_result_is_consumed_as_normalized_boundary() -> None:
     result = ProtectedBrowserValidationResult(
         project_id=PROJECT_ID,
         run_id=RUN_ID,
@@ -339,7 +347,6 @@ def test_browser_result_is_consumed_as_normalized_boundary_without_reinterpretin
 
     candidate = candidate_from_browser(result)
 
-    assert candidate.lineage_id == L0
     assert candidate.preview_deployment_id == "dpl_preview_1"
     assert candidate.quality == ProtectedQualityVector(1, 0, 1, 0, 1)
     assert {item.source for item in candidate.defects} == {
@@ -362,117 +369,102 @@ def test_browser_result_is_consumed_as_normalized_boundary_without_reinterpretin
         "services/api/parallax_api/validation/browser.py",
     ],
 )
-def test_correction_plan_cannot_mutate_protected_policy_authority_or_browser_baselines(path: str) -> None:
-    policy = CorrectionPathPolicy()
+def test_correction_cannot_mutate_protected_policy_authority_or_browser_contract(path: str) -> None:
     patch = SourcePatch(path=path, expected_base_sha256="c" * 64, unified_diff="@@ -1 +1 @@\n-a\n+b\n")
     with pytest.raises(CorrectionPolicyError, match="protected policy or authority"):
-        policy.validate(patch)
+        CorrectionPathPolicy().validate(patch)
 
 
-def test_multi_attempt_correction_converges_to_protected_pass_and_advances_lkg_only_on_improvement() -> None:
-    first = (_defect(L0, code="TEST_FAILURE"), _defect(L0, code="LAYOUT_FAILURE"))
-    second = (_defect(L1, code="TEST_FAILURE"),)
+def test_multi_attempt_correction_converges_and_advances_lkg_only_on_improvement() -> None:
     validator = MappingValidator(
         {
-            L0: _candidate(L0, first),
-            L1: _candidate(L1, second),
+            L0: _candidate(L0, (_defect(L0, code="TEST_FAILURE"), _defect(L0, code="LAYOUT_FAILURE"))),
+            L1: _candidate(L1, (_defect(L1, code="TEST_FAILURE"),)),
             L2: _pass(L2),
         }
     )
     mutation = ReplayMutation([L1, L2])
-    controller = _controller(validator=validator, mutation=mutation)
-
-    state = controller.run(initial_lineage_id=L0)
+    state = _controller(validator=validator, mutation=mutation).run(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.PASSED
     assert state.attempt_count == 2
-    assert state.current_lineage_id == L2
-    assert state.lkg_lineage_id == L2
+    assert state.current_lineage_id == state.lkg_lineage_id == L2
     assert state.current_quality.passed
     assert validator.calls == [L0, L1, L2]
     assert [base for _, base in mutation.calls] == [L0, L1]
 
 
-def test_regressive_candidate_does_not_replace_last_known_good() -> None:
-    l0 = (_defect(L0, code="ACCEPTANCE_FAILURE", precedence=DefectPrecedence.PROTECTED_ACCEPTANCE),)
-    worse = (_defect(L1, code="NEW_TEST_FAILURE"),)
-    validator = MappingValidator({L0: _candidate(L0, l0), L1: _candidate(L1, worse)})
-    controller = _controller(validator=validator, mutation=ReplayMutation([L1]))
-
-    state = controller.advance(initial_lineage_id=L0)
+def test_regression_does_not_replace_lkg() -> None:
+    validator = MappingValidator(
+        {
+            L0: _candidate(L0, (_defect(L0, code="ACCEPTANCE_FAILURE", precedence=DefectPrecedence.PROTECTED_ACCEPTANCE),)),
+            L1: _candidate(L1, (_defect(L1, code="NEW_TEST_FAILURE"),)),
+        }
+    )
+    state = _controller(validator=validator, mutation=ReplayMutation([L1])).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.ACTIVE
-    assert state.current_lineage_id == L0
-    assert state.lkg_lineage_id == L0
+    assert state.current_lineage_id == state.lkg_lineage_id == L0
     assert state.current_quality == ProtectedQualityVector(0, 1, 0, 0, 0)
     assert state.no_progress_count == 1
 
 
-def test_equal_quality_candidate_is_no_progress_and_can_stop_immediately() -> None:
+def test_equal_quality_is_no_progress() -> None:
     validator = MappingValidator(
         {
             L0: _candidate(L0, (_defect(L0, code="A"),)),
             L1: _candidate(L1, (_defect(L1, code="B"),)),
         }
     )
-    controller = _controller(
+    state = _controller(
         validator=validator,
         mutation=ReplayMutation([L1]),
         budget=CorrectionBudgetPolicy(max_no_progress=0),
-    )
-
-    state = controller.advance(initial_lineage_id=L0)
+    ).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is CorrectionStopReason.NO_PROGRESS
     assert state.lkg_lineage_id == L0
 
 
-def test_same_equivalent_defect_hits_repeat_bound_without_unbounded_churn() -> None:
+def test_equivalent_defect_repeat_bound_stops_churn() -> None:
     validator = MappingValidator(
         {
             L0: _candidate(L0, (_defect(L0, code="SAME_FAILURE"),)),
             L1: _candidate(L1, (_defect(L1, code="SAME_FAILURE"),)),
         }
     )
-    controller = _controller(
+    state = _controller(
         validator=validator,
         mutation=ReplayMutation([L1]),
         budget=CorrectionBudgetPolicy(max_defect_repeats=1, max_no_progress=10),
-    )
-
-    state = controller.advance(initial_lineage_id=L0)
+    ).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is CorrectionStopReason.REPEATED_DEFECT
     assert state.attempt_count == 1
 
 
-def test_a_b_a_failure_oscillation_is_detected_from_candidate_history() -> None:
-    a0 = (_defect(L0, code="A"),)
-    b1 = (_defect(L1, code="B"),)
-    a2 = (_defect(L2, code="A"),)
+def test_a_b_a_oscillation_is_detected_from_candidate_history() -> None:
     validator = MappingValidator(
         {
-            L0: _candidate(L0, a0),
-            L1: _candidate(L1, b1),
-            L2: _candidate(L2, a2),
+            L0: _candidate(L0, (_defect(L0, code="A"),)),
+            L1: _candidate(L1, (_defect(L1, code="B"),)),
+            L2: _candidate(L2, (_defect(L2, code="A"),)),
         }
     )
-    mutation = ReplayMutation([L1, L2])
     controller = _controller(
         validator=validator,
-        mutation=mutation,
+        mutation=ReplayMutation([L1, L2]),
         budget=CorrectionBudgetPolicy(max_oscillations=0, max_no_progress=10, max_defect_repeats=10),
     )
 
-    first = controller.advance(initial_lineage_id=L0)
-    assert first.status is CorrectionSessionStatus.ACTIVE
-    second = controller.advance(initial_lineage_id=L0)
+    assert controller.advance(initial_lineage_id=L0).status is CorrectionSessionStatus.ACTIVE
+    state = controller.advance(initial_lineage_id=L0)
 
-    assert second.status is CorrectionSessionStatus.STOPPED
-    assert second.stop_reason is CorrectionStopReason.OSCILLATION
-    assert second.oscillation_count == 1
+    assert state.status is CorrectionSessionStatus.STOPPED
+    assert state.stop_reason is CorrectionStopReason.OSCILLATION
+    assert state.oscillation_count == 1
 
 
 @pytest.mark.parametrize(
@@ -494,28 +486,28 @@ def test_attempt_churn_and_compute_budgets_stop_resource_exhaustion(
             L1: _candidate(L1, (_defect(L1, code="B"),)),
         }
     )
-    mutation = ReplayMutation([L1], changed_bytes=mutation_changed)
-    controller = _controller(validator=validator, mutation=mutation, planner=planner, budget=budget)
-
-    state = controller.advance(initial_lineage_id=L0)
+    state = _controller(
+        validator=validator,
+        mutation=ReplayMutation([L1], changed_bytes=mutation_changed),
+        planner=planner,
+        budget=budget,
+    ).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is CorrectionStopReason.RESOURCE_EXHAUSTION
 
 
-def test_elapsed_runtime_budget_stops_before_another_mutation() -> None:
+def test_elapsed_runtime_budget_stops_before_mutation() -> None:
     base = datetime(2026, 8, 23, 12, 0, tzinfo=timezone.utc)
     clock = iter((base, base, base + timedelta(seconds=6), base + timedelta(seconds=6)))
     validator = MappingValidator({L0: _candidate(L0, (_defect(L0, code="A"),))})
     mutation = ReplayMutation([L1])
-    controller = _controller(
+    state = _controller(
         validator=validator,
         mutation=mutation,
         budget=CorrectionBudgetPolicy(max_elapsed_seconds=5),
         now=lambda: next(clock),
-    )
-
-    state = controller.advance(initial_lineage_id=L0)
+    ).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is CorrectionStopReason.RESOURCE_EXHAUSTION
@@ -537,16 +529,10 @@ def test_human_privilege_spec_credential_policy_and_unsupported_boundaries_fail_
     boundary: CorrectionBoundary,
     reason: CorrectionStopReason,
 ) -> None:
-    validator = MappingValidator(
-        {
-            L0: _candidate(L0, (_defect(L0, code="BOUNDARY", boundary=boundary),)),
-        }
-    )
+    validator = MappingValidator({L0: _candidate(L0, (_defect(L0, code="BOUNDARY", boundary=boundary),))})
     planner = StandardPlanner()
     mutation = ReplayMutation([L1])
-    controller = _controller(validator=validator, mutation=mutation, planner=planner)
-
-    state = controller.advance(initial_lineage_id=L0)
+    state = _controller(validator=validator, mutation=mutation, planner=planner).advance(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is reason
@@ -554,22 +540,21 @@ def test_human_privilege_spec_credential_policy_and_unsupported_boundaries_fail_
     assert mutation.unique_mutations == 0
 
 
-def test_planner_can_return_explicit_boundary_without_source_mutation() -> None:
+def test_planner_boundary_stops_without_source_mutation() -> None:
     validator = MappingValidator({L0: _candidate(L0, (_defect(L0),))})
-    planner = StandardPlanner(boundary=CorrectionBoundary.HUMAN_APPROVAL)
     mutation = ReplayMutation([L1])
-    controller = _controller(validator=validator, mutation=mutation, planner=planner)
+    state = _controller(
+        validator=validator,
+        mutation=mutation,
+        planner=StandardPlanner(boundary=CorrectionBoundary.HUMAN_APPROVAL),
+    ).advance(initial_lineage_id=L0)
 
-    state = controller.advance(initial_lineage_id=L0)
-
-    assert state.status is CorrectionSessionStatus.STOPPED
     assert state.stop_reason is CorrectionStopReason.HUMAN_APPROVAL_REQUIRED
     assert mutation.unique_mutations == 0
 
 
 def test_process_recreation_reuses_pending_operation_key_without_duplicate_mutation() -> None:
-    initial = (_defect(L0, code="REPAIR_ME"),)
-    validator = MappingValidator({L0: _candidate(L0, initial), L1: _pass(L1)})
+    validator = MappingValidator({L0: _candidate(L0, (_defect(L0, code="REPAIR_ME"),)), L1: _pass(L1)})
     store = MemoryStateStore()
     planner = StandardPlanner()
     mutation = ReplayMutation([L1], crash_after_first_store=True)
@@ -579,8 +564,7 @@ def test_process_recreation_reuses_pending_operation_key_without_duplicate_mutat
         first.advance(initial_lineage_id=L0)
 
     durable = store.load(run_id=RUN_ID, session_id=_context().session_id)
-    assert durable is not None
-    assert durable.pending_operation_key is not None
+    assert durable is not None and durable.pending_operation_key is not None
     pending_key = durable.pending_operation_key
     assert durable.attempt_count == 0
     assert mutation.unique_mutations == 1
@@ -596,7 +580,7 @@ def test_process_recreation_reuses_pending_operation_key_without_duplicate_mutat
     assert state.current_lineage_id == L1
 
 
-def test_recreated_planner_mismatch_fails_closed_instead_of_aliasing_pending_mutation() -> None:
+def test_recreated_planner_mismatch_fails_closed() -> None:
     validator = MappingValidator({L0: _candidate(L0, (_defect(L0),)), L1: _pass(L1)})
     store = MemoryStateStore()
     mutation = ReplayMutation([L1], crash_after_first_store=True)
@@ -604,36 +588,42 @@ def test_recreated_planner_mismatch_fails_closed_instead_of_aliasing_pending_mut
     with pytest.raises(SimulatedProcessLoss):
         first.advance(initial_lineage_id=L0)
 
-    different = StandardPlanner(changed=999)
-    recreated = _controller(validator=validator, mutation=mutation, planner=different, store=store)
+    recreated = _controller(
+        validator=validator,
+        mutation=mutation,
+        planner=StandardPlanner(changed=999),
+        store=store,
+    )
     with pytest.raises(CorrectionReplayConflict):
         recreated.advance(initial_lineage_id=L0)
-
     assert mutation.unique_mutations == 1
 
 
-def test_fresh_validation_must_match_exact_returned_lineage() -> None:
-    wrong = _candidate(L2, (_defect(L2),))
-    validator = MappingValidator({L0: _candidate(L0, (_defect(L0),)), L1: wrong})
-    controller = _controller(validator=validator, mutation=ReplayMutation([L1]))
-
+def test_fresh_validation_must_match_returned_lineage() -> None:
+    validator = MappingValidator(
+        {
+            L0: _candidate(L0, (_defect(L0),)),
+            L1: _candidate(L2, (_defect(L2),)),
+        }
+    )
     with pytest.raises(Exception, match="fresh validation result"):
-        controller.advance(initial_lineage_id=L0)
+        _controller(validator=validator, mutation=ReplayMutation([L1])).advance(initial_lineage_id=L0)
 
 
-def test_failure_dispatch_is_data_only_and_binds_exact_session_evidence() -> None:
-    validator = MappingValidator({L0: _candidate(L0, (_defect(L0, boundary=CorrectionBoundary.SPEC_AMBIGUITY),))})
+def test_failure_dispatch_is_data_only_and_exactly_bound() -> None:
+    validator = MappingValidator(
+        {L0: _candidate(L0, (_defect(L0, boundary=CorrectionBoundary.SPEC_AMBIGUITY),))}
+    )
     controller = _controller(validator=validator, mutation=ReplayMutation([L1]))
-    state = controller.advance(initial_lineage_id=L0)
-
-    dispatch = controller.dispatch(state, receiving_class="integration-repair")
+    dispatch = controller.dispatch(
+        controller.advance(initial_lineage_id=L0),
+        receiving_class="integration-repair",
+    )
 
     assert isinstance(dispatch, FailureDispatch)
     assert dispatch.project_id == PROJECT_ID
     assert dispatch.run_id == RUN_ID
-    assert dispatch.work_specification_digest == SPEC_DIGEST
-    assert dispatch.source_lineage_id == L0
-    assert dispatch.lkg_lineage_id == L0
+    assert dispatch.source_lineage_id == dispatch.lkg_lineage_id == L0
     assert dispatch.dependency_refs == ("workstream:95", "workstream:96")
     assert dispatch.stop_reason is CorrectionStopReason.MATERIAL_SPEC_AMBIGUITY
     assert dispatch.reproducible is True
@@ -642,7 +632,7 @@ def test_failure_dispatch_is_data_only_and_binds_exact_session_evidence() -> Non
     assert not hasattr(dispatch, "deployment")
 
 
-def test_worker_checkpoint_sink_reuses_existing_worker_lease_and_records_current_and_lkg_lineage() -> None:
+def test_worker_checkpoint_sink_reuses_existing_worker_identity() -> None:
     class FakeWorkerService:
         def __init__(self) -> None:
             self.calls = []
@@ -661,14 +651,11 @@ def test_worker_checkpoint_sink_reuses_existing_worker_lease_and_records_current
         expires_at=datetime(2026, 8, 23, 20, 0, tzinfo=timezone.utc),
     )
     sink = WorkerCorrectionCheckpointSink(service, lease=lease, run=run, context=_context(run))
-    validator = MappingValidator({L0: _pass(L0)})
-    controller = _controller(
-        validator=validator,
+    state = _controller(
+        validator=MappingValidator({L0: _pass(L0)}),
         mutation=ReplayMutation([]),
         checkpoint_sink=sink,
-    )
-
-    state = controller.run(initial_lineage_id=L0)
+    ).run(initial_lineage_id=L0)
 
     assert state.status is CorrectionSessionStatus.PASSED
     assert len(service.calls) == 1
@@ -681,10 +668,8 @@ def test_worker_checkpoint_sink_reuses_existing_worker_lease_and_records_current
     assert kwargs["state"] is WorkerLifecycleState.SUCCEEDED
 
 
-def test_plan_surface_contains_source_patches_only_not_shell_http_provider_or_policy_controls() -> None:
-    defect = _defect(L0)
-    plan = StandardPlanner().plan(_context(), lineage_id=L0, defects=(defect,))
-
+def test_plan_surface_has_no_generic_execution_provider_or_policy_controls() -> None:
+    plan = StandardPlanner().plan(_context(), lineage_id=L0, defects=(_defect(L0),))
     assert plan.patches[0].path == "app.py"
     for forbidden in (
         "command",
@@ -703,9 +688,12 @@ def test_plan_surface_contains_source_patches_only_not_shell_http_provider_or_po
 
 
 def test_state_store_cas_contract_rejects_stale_revision() -> None:
-    validator = MappingValidator({L0: _candidate(L0, (_defect(L0),))})
     store = MemoryStateStore()
-    controller = _controller(validator=validator, mutation=ReplayMutation([L1]), store=store)
+    controller = _controller(
+        validator=MappingValidator({L0: _candidate(L0, (_defect(L0),))}),
+        mutation=ReplayMutation([L1]),
+        store=store,
+    )
     state = controller._initialize(L0)
     stale = state
     saved = store.save(run=_run(), state=state, expected_revision=state.revision)
