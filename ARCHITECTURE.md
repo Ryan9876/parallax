@@ -1,18 +1,19 @@
 # Parallax 2.0 Architecture
 
-Version: 2.4
+Version: 2.5
 Status: Authoritative
 
 ## System shape
 
-Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by durable PostgreSQL persistence in hosted environments. Conversation remains the primary product surface. Reason, Code, Work Specifications, Project identity, execution, tool authority, protected evaluation, authentication and release evidence remain separate governed capabilities behind that surface.
+Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by PostgreSQL, private immutable object storage, bounded provider adapters and isolated execution infrastructure. Conversation remains the primary product surface. Reason, Code, Work Specifications, Project identity, execution, source lineage, tool authority, protected evaluation, authentication and release evidence remain separate governed capabilities behind that surface.
 
 ```text
 Expo / React Native client
   ├─ conversation + response state
+  ├─ Project select/create
   ├─ Work Specification controls
   ├─ Code / Engineering Run status
-  ├─ bounded-autonomy control
+  ├─ bounded-autonomy controls
   ├─ Google PKCE sign-in + owner access panel
   ├─ same-origin /p2-api web gateway
   └─ SSE + JSON API client
@@ -21,49 +22,57 @@ Expo / React Native client
 FastAPI intelligence service
   ├─ Google identity verification + authorized-user allowlist
   ├─ signed browser-session boundary + bearer break-glass compatibility
-  ├─ Project lifecycle service
+  ├─ Project lifecycle and owner-scoped repository binding
   ├─ conversation + Work Specification persistence
-  ├─ Engineering Run kernel
-  ├─ bounded autonomy coordinator
-  ├─ safe source implementation / patch engine
-  ├─ project-scoped tool-authority contracts + registry
+  ├─ Engineering Run kernel + bounded autonomy coordinator
+  ├─ protected IMPLEMENT runtime + safe patch engine
+  ├─ durable Project/run source-lineage composition
+  ├─ project-scoped tool-authority registry
+  ├─ bounded GitHub + Vercel Preview source delivery
   ├─ Reason / Work Specification / DSPy programs
   ├─ protected command registry
-  ├─ protected evaluation + app-builder evaluation spine
-  └─ observable execution/failure evidence
+  └─ protected evaluation + observable execution/provider evidence
           │
           ├────────────► Vercel Sandbox execution plane
+          │               ├─ exact accepted source lineage
           │               ├─ ephemeral isolated workspace
           │               ├─ registered commands only
           │               ├─ deny-all network policy
           │               ├─ empty application-secret environment
-          │               └─ bounded observable evidence
+          │               └─ bounded BUILD / TEST / VERIFY evidence
           │
-          └────────────► hosted PostgreSQL / Supabase
-                          ├─ conversations/messages
-                          ├─ work specifications
-                          ├─ engineering runs/attempts
-                          ├─ authorized users
-                          └─ projects
+          ├────────────► Vercel private Blob
+          │               └─ immutable content-addressed source objects
+          │
+          ├────────────► hosted PostgreSQL / Supabase
+          │               ├─ conversations/messages
+          │               ├─ work specifications
+          │               ├─ engineering runs/attempts
+          │               ├─ authorized users
+          │               ├─ projects
+          │               └─ source lineage manifests + transactional heads
+          │
+          └────────────► bounded provider plane
+                          ├─ Vercel Connect → short-lived GitHub App credential
+                          ├─ GitHub branch/commit/PR publication
+                          └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 1 establishes the Project, safe source mutation, tool-authority and app-builder evaluation foundations. It does **not** yet complete the full project-scoped app-building runtime. The missing integration is explicit in later sections.
+Wave 2 closes the first protected app-builder execution loop in production. Preview publication remains the autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
 ### Client
 
-The client owns presentation and interaction state. It does not own provider credentials, the production root credential, durable Project truth, durable authorization truth, Work Specification approval authority, required acceptance criteria, executable command definitions, tool capabilities, protected evaluation rules or deployment authority.
+The client owns presentation and interaction state. It does not own provider credentials, the production root credential, durable Project truth, durable authorization truth, Work Specification approval authority, accepted source lineage, executable command definitions, tool capabilities, protected evaluation rules or deployment authority.
 
-Assistant text remains ordinary selectable React Native text. React Native Skia is decorative/optical only and the reduced-graphics path preserves equivalent product capability.
-
-The response reducer owns visible response state. Product state drives animation; animation state cannot redefine application authority.
+Assistant text remains ordinary selectable React Native text. React Native Skia is decorative/optical only and reduced-graphics mode preserves equivalent product capability.
 
 Hosted web protected traffic uses same-origin `/p2-api/*` routing to the API. Provider credentials, Vercel execution credentials and the root access secret are never shipped in the browser bundle.
 
 ### API
 
-Routes call services/coordinators; services call repositories, intelligence modules, execution adapters and bounded capability registries. Provider SDK details do not leak into route contracts.
+Routes call services/coordinators; services call repositories, execution adapters, lineage gateways and bounded capability registries. Provider SDK details do not leak into public route contracts.
 
 Operational probes remain deliberately public:
 
@@ -71,6 +80,10 @@ Operational probes remain deliberately public:
 - `/ready` proves the persistence boundary can answer a database query.
 
 Project, conversation, Work Specification, Engineering Run, Reason, Code, access-management, session and bounded-autonomy surfaces remain behind the private authentication boundary.
+
+### External provider plane
+
+Provider authority is resolved only after canonical authenticated Project resolution. Repository identity, connector identity, Preview target identity and credentials are server-owned registrations. Models and clients cannot provide arbitrary provider endpoints, tokens, repositories or deployment projects.
 
 ## Identity and access architecture
 
@@ -80,281 +93,140 @@ Each protected request resolves an `AccessPrincipal`. Project ownership is deriv
 
 RLS remains enabled on server-owned hosted tables and direct `anon` / `authenticated` table privileges are revoked where the server-mediated boundary is required. FastAPI remains the application authorization layer.
 
-`PARALLAX_ACCESS_TOKEN` is a server-only break-glass/automation credential. It is not the normal browser login path and is not forwarded into the bounded sandbox.
+`PARALLAX_ACCESS_TOKEN` is a server-only break-glass/automation credential. It is not the normal browser login path and is not forwarded into sandboxes or provider calls.
 
-## Canonical Project/App identity
+## Canonical Project identity
 
-Wave 1 introduces a durable first-class Project boundary.
+`Project.id` is the canonical durable application identity. A Project also carries authenticated owner identity, owner-local metadata, optional bounded `repository_ref`, opaque `workspace_ref = project:<id>`, lifecycle/status metadata and timestamps.
 
-A Project has:
+`workspace_ref` is identity, not a filesystem path or execution authority. `repository_ref` is repository identity, not Git/network/deployment authority.
 
-- server-generated UUID `Project.id` — the canonical durable application identity;
-- authenticated owner subject;
-- owner-local slug and display metadata;
-- optional bounded `repository_ref` identity metadata;
-- immutable opaque `workspace_ref = project:<id>`;
-- lifecycle/status metadata and timestamps.
+Conversation and Engineering Run Project binding use the canonical Project ID. Existing historical rows may remain unbound where migration policy intentionally preserved prior state; new protected Code execution requires canonical Project binding.
 
-The Project service exposes protected create/list/read operations and owner-scoped repository access. Cross-owner reads are treated as not found rather than leaking record existence.
+No client, model, provider or execution adapter may create a competing durable Project identity for an already resolved Project.
 
-### Project identity invariants
+## Work Specification and execution binding
 
-`Project.id` is the canonical value downstream project-scoped contracts must bind to.
+A Work Specification is the operator-controlled implementation contract for one bounded objective. AI may draft it; only an explicit protected operator mutation approves it.
 
-`workspace_ref` is an opaque identity seam. It is **not** a filesystem path, sandbox ID or execution authority. A later protected allocator must map Project identity to an isolated filesystem workspace.
-
-`repository_ref` is bounded repository identity metadata. It is **not** Git authority, network authority, connector authority or deployment permission.
-
-No model, client or tool may create a competing durable Project identity for an already resolved Project.
-
-## Specification identities
-
-Parallax maintains two distinct specification concepts.
-
-### Product-policy specification
-
-`Conversation.spec_id` records the product/policy specification identity under which the conversation was created and governed.
-
-### User Work Specification
-
-A Work Specification is the operator-controlled implementation contract for one objective. It contains a durable revision/lifecycle, objective, constraints, acceptance criteria, risks/open questions, confidence and drafting metadata.
-
-AI may draft; only an explicit protected operator mutation approves. A model cannot approve its own specification.
-
-Wave 1 does not yet add a Project foreign key to existing Work Specifications or Engineering Runs. Project binding is a Wave 2 integration requirement and must use the canonical Project identity rather than a parallel identifier.
-
-## Approved-Spec Code execution binding
-
-Every authoritative Code Engineering Run is bound to one approved Work Specification revision. The server owns the Work Specification digest and derives stable acceptance IDs in list order:
-
-```text
-criterion 1 -> AC-01
-criterion 2 -> AC-02
-criterion 3 -> AC-03
-...
-```
-
-Clients, models and tools may provide evidence against those IDs but cannot redefine the required set.
+Every authoritative Code Engineering Run is bound to one approved Work Specification revision/digest. Stable acceptance IDs are server-derived in list order (`AC-01`, `AC-02`, ...). Clients, models and tools may provide evidence against those IDs but cannot redefine the required set.
 
 Protected lifecycle:
 
 `SPECIFY -> PLAN -> IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW -> COMPLETE`
 
-Protected validators require exact acceptance coverage and real observable evidence. Missing, duplicated, extra or client-defined acceptance IDs fail closed.
+Protected validators require exact acceptance coverage and observable evidence. Missing, duplicated, extra or client-defined acceptance identities fail closed.
 
-## Safe source implementation foundation
+## Protected app-builder runtime
 
-Wave 1 adds a standalone safe source mutation primitive for the IMPLEMENT gap.
+The deployed Wave 2 path is:
 
-The implementation engine accepts an explicit isolated filesystem root plus bounded patch requests. Each request binds to:
+```text
+Authenticated principal
+      ↓
+Canonical Project.id + server-owned repository target
+      ↓
+Approved Work Specification revision/digest
+      ↓
+Engineering Run / PLAN
+      ↓
+Repository bootstrap or durable current source lineage
+      ↓
+Typed IMPLEMENT proposal
+      ↓
+Safe source mutation in a disposable materialization
+      ↓
+Transactional acceptance of immutable source lineage
+      ↓
+BUILD / TEST / VERIFY on that exact accepted lineage
+      ↓
+Project-scoped provider authorization
+      ↓
+GitHub branch / commit / PR + Vercel Preview
+      ↓
+Protected app-builder evaluation from persisted evidence
+      ↓
+Operator REVIEW
+```
 
-- a relative target path;
-- exact expected base digest for existing files;
-- a strict supported unified diff;
-- bounded source/patch/result sizes.
+No fresh-repository fallback is permitted after an accepted IMPLEMENT lineage exists. Later stages must reconstruct and execute the exact accepted lineage.
 
-### Source-mutation safety invariants
+## Safe IMPLEMENT mutation
 
-The engine fails closed on:
+The safe patch engine accepts only an explicit isolated filesystem root plus bounded patch requests. Requests bind to a relative path, expected base digest, supported unified diff and bounded source/patch/result sizes.
 
-- path traversal or workspace escape;
-- symlink escape;
-- binary or unsupported targets;
-- secret-sensitive target paths;
-- malformed or mismatched diff headers;
-- stale base digest or changed pre-image;
-- unsupported rename/delete/chmod/directory semantics;
-- duplicate targets;
-- no-op patches;
-- per-file or aggregate size-limit violations.
+It fails closed on traversal, symlink escape, binary/unsupported targets, secret-sensitive paths, malformed headers, stale base digests, unsupported rename/delete/chmod/directory semantics, duplicate targets, no-op patches and size violations.
 
-Multi-file implementation prepares all mutations before commit and rolls back on commit failure. Successful output includes deterministic before/after/diff/artifact evidence and workspace digest material.
+Multi-file implementation prepares all mutations before commit and rolls back on commit failure. Successful mutation evidence contains deterministic before/after/diff/artifact identity, never authority to bypass protected stage validation.
 
-`applied: true` means the bounded source mutation succeeded. It does **not** authorize the protected IMPLEMENT stage. The engine explicitly reports `protected_stage_authority: false` and exposes no shell, Git, network or deployment authority.
+## Durable source lineage
 
-## Bounded autonomy execution plane
+Authoritative source continuity is content-addressed and split across two durable systems:
 
-The existing bounded-autonomy coordinator remains the orchestration authority for protected Code progression.
+- immutable source objects live in private Vercel Blob;
+- bounded lineage manifests and the transactional current Project/run head live in PostgreSQL.
 
-At PLAN it performs execution-provider preflight and may construct deterministic plan evidence from the immutable acceptance map.
+`source_lineage_manifests` records immutable manifest identity and parentage. `source_lineage_heads` provides the Project/run current-head compare-and-swap boundary. Source bytes are intentionally absent from PostgreSQL.
 
-Before Wave 1 integration, IMPLEMENT deliberately stopped with `IMPLEMENTATION_REQUIRED`. The new safe patch engine provides the missing mutation primitive, but it is not yet wired into the coordinator because Project-to-workspace allocation and persistent workspace continuity are still required.
+Local filesystem roots are disposable materializations only. They may be reconstructed from durable lineage after request/process recreation and must never be represented as authoritative persistence.
 
-BUILD, TEST and VERIFY currently execute registered commands through isolated Vercel Sandboxes and pass evidence through existing protected validators.
+Accepted IMPLEMENT performs exact parent-lineage validation, verifies mutation artifacts against workspace bytes, advances lineage transactionally and cleans the disposable lease. Duplicate/stale acceptance fails closed.
 
-### Current workspace continuity limitation
+## Exact-lineage BUILD / TEST / VERIFY
 
-The existing Sandbox stages create fresh isolated repository-backed sandboxes. Wave 1 source mutation operates against an explicit isolated filesystem root. The architecture does not yet guarantee that the exact mutated implementation workspace/revision is the source carried through BUILD -> TEST -> VERIFY.
+BUILD, TEST and VERIFY execute registered commands in isolated Vercel Sandboxes over a reconstruction of the accepted source lineage. Sandboxes are short-lived, deny network by default, receive no application-secret environment and are destroyed after use.
 
-Wave 2 must introduce one protected project/run workspace lineage so later stages verify the code that IMPLEMENT actually produced.
+Only bounded observable evidence is retained: stage identity, source-lineage identity, command identity, invocation digest, exit state, duration, bounded output excerpts/digests, timeout/redaction/network-policy identity and acceptance coverage.
 
-### Protected command registry
-
-Executable policy remains server-owned code. User/model content cannot supply arbitrary shell strings. Commands are structured executable/argument arrays selected by protected stage policy.
-
-### Vercel Sandbox executor
-
-Production-capable execution runs outside the FastAPI host using Vercel Sandbox. Sandboxes are short-lived, deny network by default, receive no application-secret environment and are destroyed after use.
-
-Only bounded observable evidence is retained: tool identity, invocation digest, exit status, duration, stdout/stderr digests, bounded excerpts, timeout/redaction/network policy identity and protected acceptance coverage as required.
+A stage result from another Project, run, Work Specification or source lineage cannot satisfy the protected run.
 
 ## Project-scoped tool authority
 
-Wave 1 introduces provider-neutral tool authority contracts before concrete provider adapters.
+The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
 
-The tool layer defines immutable typed:
-
-- capabilities;
-- authority requests;
-- human approvals;
-- authorization decisions;
-- tool results;
-- audit records.
-
-A server-owned registry is authoritative. Model/user input cannot create or widen a capability.
-
-### Tool-authority invariants
-
-Authorization requires exact registered project/tool/action matching.
-
-Unknown, disabled or mismatched capability state fails closed.
-
-Destructive actions require human approval by invariant. Approval binds to exact request/capability/project/tool/action identity and cannot be reused to widen authority.
-
-Generic shell/exec/command/subprocess/raw-HTTP/network escape-hatch identities are rejected. Tool contracts intentionally do not expose arbitrary command, URL, request-body, header, environment or generic payload fields.
+Authorization requires exact registered Project/tool/action matching. Destructive actions require explicit approval by invariant. Generic shell, arbitrary command, raw HTTP, arbitrary URL/header/environment and unregistered network escape hatches are rejected.
 
 Results distinguish `DENIED`, `FAILED` and `SUCCEEDED`; provider failure or authority denial can never be represented as success.
 
-Tool/audit `project_ref` must be bound to the canonical `Project.id` after authenticated owner-scoped Project resolution. `workspace_ref` and `repository_ref` are not authority substitutes.
+## Bounded GitHub and Vercel Preview delivery
 
-Concrete GitHub/Vercel/database adapters are not part of Wave 1 and must preserve these contracts.
+Production source delivery is selected from a server-owned target registry after owner-scoped canonical `Project.repository_ref` resolution.
 
-## App-builder evaluation and observability spine
+Each registered target binds:
 
-Wave 1 adds a separate protected app-builder benchmark/evidence boundary above runtime implementation details.
+- exact repository identity and GitHub repository ID;
+- production branch identity;
+- Vercel Preview project/team identity;
+- one GitHub Vercel Connect connector reference;
+- one Vercel credential environment-variable reference.
 
-Versioned development and promotion suites cover:
+The current Parallax self-target uses `github/parallax-runtime` and `vercel:preview:parallax`.
 
-- Project isolation/binding;
-- specification binding;
-- bounded implementation evidence;
-- BUILD/TEST/VERIFY truthfulness;
-- tool authority;
-- interruption/recovery/idempotency behavior;
-- evidence hygiene.
+GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
 
-Scoring is deterministic and includes critical-failure semantics. Secret-bearing evidence, hidden reasoning/scratchpad fields, malformed requirements, contradictory requirements, forbidden observations and project/workspace/spec mismatches fail closed.
+Vercel Preview credentials are scoped per registered target project. Request-scoped provider composition receives only the selected target/credential, preventing one Project from inheriting another Project's provider authority.
 
-Evaluation outputs retain bounded observable identifiers and digests rather than raw provider payloads. Passing evaluation does not itself grant execution, merge or deployment authority.
+Publication is replay-aware and durable: request/process recreation resolves the accepted delivery record and does not duplicate branch/commit/PR/Preview mutation when the same exact action was already accepted.
 
-### Runtime evidence mapping requirement
+Preview remains the autonomous deployment ceiling. Production promotion/merge is an operator/release boundary unless future governance explicitly changes it.
 
-Wave 2 must adapt accepted runtime interfaces into this evidence vocabulary:
+## App-builder evaluation and observability
 
-- Project evidence binds to canonical Project ID and opaque workspace identity;
-- implementation evidence binds to source/workspace/artifact digests and explicit negative-authority flags;
-- tool evidence binds to capability/request/result/audit identifiers and canonical digests;
-- BUILD/TEST/VERIFY evidence must prove it operated on the same accepted implementation lineage.
+The protected app-builder evaluator consumes evidence derived from persisted Project, Work Specification, Engineering Run, source-lineage, BUILD/TEST/VERIFY, provider action and provider-audit facts. It does not synthesize success and does not rerun provider mutations simply to evaluate them.
 
-## Inherited development-policy architecture
+Evidence is bound to canonical Project ID, approved specification revision/digest, run ID, accepted source lineage/content digest, tool capability/request/result/audit identities, published source revision/PR and Preview identity/status where applicable.
 
-Every Parallax-developed Project inherits one protected development-policy stack. This is a platform architecture rule, not a convention copied into individual projects.
+Secret-bearing evidence, raw provider responses, credentials, headers/cookies/environment, hidden reasoning/scratchpad and unbounded logs are forbidden.
 
-Effective policy is composed in strict order:
+Scoring remains deterministic with critical-failure semantics. Wrong Project/spec/digest/lineage/stage/provider/Preview/evidence identity, forbidden production authority, denial/failure misrepresentation and unrelated/fresh source fail closed.
 
-```text
-Parallax platform baseline
-        ↓ may only be preserved or strengthened
-Project profile
-        ↓ may only be preserved or strengthened
-Approved Work Specification
-        ↓
-Runtime capability-specific validation plan
-        ↓
-Protected execution / evaluation / promotion
-```
-
-The **platform baseline** owns non-weakenable guarantees for canonical Project/run identity, specification binding, source lineage, mutation/tool authority, durable checkpoints, bounded autonomy, single-writer execution, stall/recovery behavior, evidence integrity, protected promotion, rollback and human-control boundaries.
-
-The **Project profile** supplies durable project-specific requirements such as repository/build topology, architecture rules, design system, supported platforms, security posture, testing matrix, accessibility level, performance budgets, compatibility constraints, deployment targets and operational requirements. It can make the platform baseline stricter but cannot disable or silently relax it.
-
-The **Work Specification** binds one bounded objective to explicit acceptance criteria and constraints. It may narrow scope or add stricter requirements but cannot widen tool/release authority or weaken platform/Project controls.
-
-The **capability-specific validation plan** adapts testing to what is actually being built without weakening the common policy. For example, web/mobile applications may require browser workflows, responsive/layout checks, accessibility, screenshot regression and multimodal visual review; APIs may require schema/contract, authorization, integration, reliability and performance checks; CLIs may require command/workflow/exit-code/terminal-output checks. Unsupported validation requirements fail closed or require an explicit human-approved exception rather than being silently skipped.
-
-Wave 3 must implement the policy stack as protected server-owned behavior. The current architecture records this as an accepted future runtime contract; it does not claim the deployed Wave 1 runtime already enforces Wave 3 inheritance.
-
-## Universal Wave 3 development-optimization architecture
-
-The same optimization architecture governs **development of Parallax itself** and **development of every Project through Parallax**. Self-development may not use a privileged shortcut that the product runtime cannot evidence, and Project execution may not weaken these controls for speed.
-
-### Critical-path scheduler and bounded work stealing
-
-Control Tower maintains a dependency DAG over workstreams, interfaces, required validations and release gates. Scheduling optimizes estimated time to a validated objective, not simple worker occupancy. Release-blocking critical-path work receives priority; idle workers may take safe unblocked work when ownership, path and single-writer rules permit. Scheduling decisions are durable and observable so reprioritization can be explained and recovered.
-
-### Change-impact validation graph
-
-Parallax maintains a machine-readable impact graph linking changed files/configuration to components, contracts, services, platforms and tests. Ordinary correction cycles may execute only the deterministic checks proven relevant by that graph plus mandatory global invariants. Worker-completion, cumulative integration and release promotion still execute the full required protected suite. Impact analysis is an optimization hint, never permission to skip a required promotion gate.
-
-### Warm execution environments
-
-Workers may start from immutable prebuilt execution snapshots containing approved SDKs, runtimes, browsers, dependency caches and toolchains. Warm environments are digest-addressed, secret-free and disposable. Their identity must include relevant lockfiles/toolchain/configuration inputs, and they are invalidated when those inputs change. A warm environment is never authoritative source state and cannot replace durable Project/source lineage.
-
-### Validated pattern and component reuse
-
-Parallax may maintain a registry of approved starter structures, architecture patterns, UI components, test fixtures, deployment configurations and other reusable artifacts. Reuse is selected only when the Project profile and Work Specification permit it. Reused artifacts remain proposals subject to the current Project's exact validation; historical success does not grant current acceptance or authority.
-
-### Privacy-safe failure fingerprinting and repair memory
-
-Compiler, test, CI, provider, browser and visual failures are normalized into bounded fingerprints. Parallax may associate a fingerprint with previously successful repair strategies, but a remembered repair must be reapplied through the normal protected mutation and validation path. Global repair memory stores abstract failure/repair metadata or explicitly approved reusable artifacts; Project-private source, secrets and sensitive evidence cannot silently become cross-Project memory.
-
-### Adaptive model routing
-
-Planning, generation, classification, test selection and repair may route to the least costly/lowest-latency model that meets the task's required capability and confidence threshold. Failed or ambiguous work escalates. Model selection cannot change protected acceptance criteria, mutation/tool authority, evidence requirements or promotion thresholds, and protected evaluation remains independent of the model that produced the candidate.
-
-### Specification preflight
-
-Before substantive implementation, a protected preflight checks the effective platform policy + Project profile + Work Specification + dependency graph for contradictions, missing dependencies, impossible or untestable acceptance criteria, unsupported validation, authority conflicts, incompatible architecture/design constraints and unresolved high-consequence ambiguity. Failures are corrected or explicitly escalated before workers consume implementation cycles.
-
-### Speculative integration
-
-Control Tower may compose immutable worker checkpoints or candidate heads on disposable speculative integration candidates before workers reach READY FOR INTEGRATION. These candidates can run contract/compile/targeted integration checks to expose interface drift early. Speculative results cannot advance accepted Project lineage, mutate worker ownership, merge code, create production authority or be mistaken for cumulative promotion evidence.
-
-### Automatic workstream sizing and rebalancing
-
-Planning decomposes objectives into independently testable, dependency-aware workstreams sized for recovery and useful parallelism. Oversized workstreams are split when doing so reduces critical-path risk; tiny tightly coupled tasks are combined when fragmentation would add more coordination cost than parallel value. Rebalancing preserves canonical Work Spec acceptance ownership and never duplicates mutation authority.
-
-### Development-performance telemetry
-
-Parallax records bounded timing/cost/queue metrics for planning, model generation, environment preparation, dependency resolution, build, tests, browser/visual QA, provider waits, retries, integration, stall recovery and human-required waits. Telemetry is used to identify the actual critical bottlenecks and tune scheduling/caching/model routing. It must exclude secrets and hidden reasoning, minimize raw Project content, and never become a substitute for correctness evidence.
-
-### Optimization invariants
-
-All ten optimization mechanisms are subordinate to protected correctness. In particular:
-
-- exact Project/run/source identity and accepted lineage cannot be approximated for speed;
-- caches, warm environments, pattern reuse and repair memory are invalidated or rejected when provenance/compatibility cannot be proven;
-- speculative integration is disposable and non-authoritative;
-- change-impact testing cannot replace required full promotion suites;
-- adaptive model routing cannot lower protected judgment or authority standards;
-- cross-Project reuse and telemetry cannot expose private Project data;
-- scheduling/work stealing cannot violate path ownership, leases or single-writer mutation semantics.
-
-## Reason architecture
-
-Reason remains provider-independent and bounded by durable context. Later explicit user corrections supersede conflicting earlier assistant assumptions.
-
-Scope routing proposes `CONTINUE`, `CLARIFY` or `SPEC_AMENDMENT`; protected server policy owns the transition. Invalid, secret-bearing, hidden-reasoning or scope-incompatible candidates are rejected/escalated rather than exposed.
-
-Reason responses use SSE. The client renders semantic text while optical effects follow response state.
+The protected reference-app proof recreates request/runtime composition between meaningful stages and proves durable reconstruction, no duplicate implementation mutation, no duplicate publication and correct retry/replay behavior.
 
 ## Persistence
 
-SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments through `DATABASE_URL`.
+SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments through `DATABASE_URL`. Production uses the dedicated Parallax Supabase PostgreSQL project. Schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
-Production uses the dedicated Parallax Supabase PostgreSQL project through the server boundary. Schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
-
-Hosted durable schema now includes:
+Hosted durable schema includes:
 
 - conversations;
 - messages;
@@ -362,25 +234,25 @@ Hosted durable schema now includes:
 - engineering runs;
 - engineering attempts;
 - authorized users;
-- projects.
+- projects;
+- source lineage manifests;
+- source lineage heads.
 
-The Project migration uses owner-local uniqueness, unique opaque workspace identity, RLS and revoked direct client-role access.
+Project foreign keys bind conversations and Engineering Runs where required. Source-lineage tables use RLS as defense in depth and revoke direct `anon` / `authenticated` table privileges.
 
-Existing Work Specification and Engineering Run rows remain structurally compatible; Project foreign-key binding is intentionally deferred to Wave 2 rather than retrofitted unsafely during the foundation slice.
+## Reason and model routing
 
-## Model routing and DSPy
+Reason remains provider-independent and bounded by durable context. Later explicit user corrections supersede conflicting earlier assistant assumptions.
 
-Runtime escalation order remains:
+Scope routing proposes `CONTINUE`, `CLARIFY` or `SPEC_AMENDMENT`; protected server policy owns the transition. Invalid, secret-bearing, hidden-reasoning or scope-incompatible candidates are rejected/escalated rather than exposed.
+
+Runtime model escalation order remains:
 
 1. `openai/gpt-5.6-luna`
 2. `openai/gpt-5.6-terra`
 3. `openai/gpt-5.6-sol`
 
-Scope, Reason and Work Specification drafting use typed boundaries and protected validation.
-
-DSPy also operates in development specification compilation. Workstream promotion validates the exact committed DSPy-generated plan and protected acceptance map deterministically. Stochastic local-model regeneration is not itself a promotion oracle. The repository release lane continues to execute the DSPy compiler path as an independent execution proof.
-
-Optimizer-controlled code cannot alter protected promotion, authorization or execution authority.
+DSPy operates in development specification compilation. Promotion validates the committed compiled plan and protected acceptance map deterministically; stochastic regeneration is not itself a promotion oracle.
 
 ## Deployment topology
 
@@ -389,87 +261,105 @@ Two authoritative Vercel projects deploy from the same repository:
 1. Web `parallax` — root `apps/client`, Expo static export.
 2. API `parallax-api` — root `services/api`, FastAPI via `api/index.py`.
 
-`main` is the production source branch. Feature/integration branches create previews. Path-aware ignore commands suppress redundant builds when a commit does not affect that project's root.
+`main` is the production source branch. Feature/integration branches create previews. Path-aware ignore behavior may suppress redundant builds when a commit does not affect a project root.
 
-The Vercel Sandbox execution plane is runtime infrastructure, not a third long-lived Parallax application deployment.
+The Vercel Sandbox execution plane, private Blob store and Vercel Connect connectors are runtime infrastructure, not additional long-lived Parallax application deployments.
 
-Release promotion requires exact-head CI, relevant preview evidence, migration readiness for schema changes, production deployment readiness, health/readiness verification, protected-route behavior verification and evidence-based state recording.
+Release promotion requires exact-head CI, relevant preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. A green Preview is not production deployment evidence.
 
-## Parallel development architecture
+## Parallel development and Control Tower
 
-Parallel ChatGPT development is governed by `PROJECT-CONSTITUTION.md` v1.3 and `PARALLEL-DEVELOPMENT.md`.
+Parallel development is governed by `PROJECT-CONSTITUTION.md`, `PARALLEL-DEVELOPMENT.md` and GitHub as operational authority for active workstreams, branches, PRs, CI/evaluation evidence and integration state.
 
-GitHub is the operational authority for active workstream ownership, branches, PRs, CI/evaluation evidence and integration state.
+Workers develop concurrently on isolated branches. Interacting candidates are integrated serially at authoritative boundaries and cumulative protected gates are rerun after material composition changes.
 
-Workers develop concurrently on isolated branches, but interacting candidates are integrated serially. The Wave 1 release demonstrated this by merging #43 -> #44 -> #45 -> #46 onto a cumulative integration branch and rerunning the protected gates between interacting additions before promotion to `main`.
-
-Wave 3 extends this with critical-path scheduling, safe work stealing, speculative integration, automatic workstream sizing and performance telemetry while retaining serialized authoritative promotion.
+The deployed Wave 2 runtime proves process/request recreation within one app-builder run; Wave 3 extends this into generalized durable worker lease/checkpoint/recovery orchestration.
 
 ## Failure degradation
 
-- Skia unavailable: preserve semantic content/capability in reduced-graphics mode.
-- Identity provider unavailable or identity unauthorized/revoked: fail closed.
-- Browser session invalid: return to identity gate without retaining provider/root credentials.
-- No approved Work Specification: block Code activation.
-- Project lookup outside authenticated owner scope: fail as not found.
-- Project/workspace/spec binding mismatch: block protected progress.
-- Invalid source patch or workspace escape attempt: mutate nothing and return bounded failure evidence.
-- Bounded executor unavailable at PLAN: stop with `EXECUTOR_UNAVAILABLE` before plan mutation.
-- Sandbox command failure/timeout: persist failed evidence and do not advance as success.
-- Tool capability unknown/disabled/mismatched/unapproved: deny before provider action.
-- Provider/tool failure: return `FAILED`, never `SUCCEEDED`.
-- Protected evaluation regression: block promotion.
-- Database readiness failure: block deployment verification.
-- Unsupported autonomous stage or authority boundary: return control to the operator.
-- Project-policy resolution failure or attempted policy weakening: fail closed before protected execution/promotion.
-- Impact graph uncertain for a mandatory check: include the check rather than skipping it.
-- Warm-environment/cache provenance mismatch: discard and rebuild from authoritative inputs.
-- Reuse/repair-memory compatibility uncertain: treat as an untrusted proposal and revalidate or decline reuse.
-- Speculative-integration failure: record bounded evidence without advancing accepted lineage or merge state.
+- identity provider unavailable, unauthorized or revoked: fail closed;
+- invalid browser session: return to identity gate without retaining provider/root credentials;
+- no approved Work Specification: block Code activation;
+- Project lookup outside authenticated owner scope: fail as not found;
+- Project/spec/run/source-lineage mismatch: block protected progress;
+- durable lineage unavailable or compare-and-swap stale: accept no mutation;
+- invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
+- Sandbox unavailable/failure/timeout: persist failure evidence and do not advance as success;
+- capability unknown/disabled/mismatched/unapproved: deny before provider action;
+- provider target/credential/repository mismatch: fail before mutation;
+- provider failure: return `FAILED`, never `SUCCEEDED`;
+- replay of an already accepted exact provider action: resolve durable delivery rather than duplicate mutation;
+- protected evaluation regression: block promotion;
+- database readiness failure: block deployment verification;
+- unsupported destructive or production authority: return control to the operator.
 
-## Security
+## Security invariants
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, tool capabilities, executable commands, protected evaluation or deployment state.
+User/model content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, tool capabilities, executable commands, registered provider targets, protected evaluation or deployment state.
 
-The major trust boundaries are now:
+Major trust boundaries are:
 
 1. authenticated principal and server-owned authorization;
 2. canonical Project identity and owner-scoped persistence;
-3. inherited platform baseline + Project profile + approved Work Specification policy resolution;
-4. approved Work Specification digest/acceptance map;
-5. protected Project-to-workspace mapping (still to be integrated);
-6. safe patch engine confinement/evidence;
-7. server-owned command registry and Sandbox execution;
-8. server-owned tool capability/approval registry;
-9. protected evaluation/promotion policy;
-10. human/release authority for unsupported destructive or production actions.
+3. approved Work Specification digest/acceptance map;
+4. durable Project/run source lineage and single accepted head;
+5. confined safe IMPLEMENT mutation;
+6. exact-lineage Sandbox execution;
+7. server-owned tool capability registry;
+8. server-owned provider target/credential registry;
+9. persisted provider action/audit and replay identity;
+10. protected evaluation/promotion policy;
+11. operator authority over production/destructive boundaries.
 
-## Wave 2 integration contract
+## Inherited development-policy architecture
 
-The next architecture slice must complete the safe composition of the Wave 1 primitives rather than invent new competing foundations.
-
-Required order of truth:
+Every Parallax-developed Project inherits one protected policy stack:
 
 ```text
-Authenticated principal
-      ↓
-Canonical Project.id
-      ↓
-Project-bound conversation / Work Specification / Engineering Run
-      ↓
-Protected workspace allocator + durable run workspace lineage
-      ↓
-Safe IMPLEMENT patch engine
-      ↓
-BUILD / TEST / VERIFY on the same implementation lineage
-      ↓
-Project-scoped capability checks for external actions
-      ↓
-App-builder protected evidence / promotion gate
-      ↓
-Operator review / release authority
+Parallax platform baseline
+        ↓ may only be preserved or strengthened
+Project profile
+        ↓ may only be preserved or strengthened
+Approved Work Specification
+        ↓
+Capability-specific validation plan
+        ↓
+Protected execution / evaluation / promotion
 ```
 
-End-to-end app-building is not considered architecturally complete until this lineage is proven through protected tests and observable evidence.
+The platform baseline owns non-weakenable guarantees for canonical Project/run identity, specification binding, source lineage, mutation/tool authority, evidence integrity, protected promotion, rollback and human-control boundaries. Project profiles and Work Specifications may strengthen or narrow requirements but cannot silently weaken the baseline.
+
+Wave 3 implements the remaining generalized policy-resolution, worker recovery and end-to-end autonomous validation behavior as protected server-owned runtime capability.
+
+## Approved Wave 3 architecture
+
+Wave 3 extends the deployed Wave 2 loop through:
+
+`approved objective/spec -> PLAN -> typed proposal -> protected mutation -> same-lineage BUILD/TEST/VERIFY -> browser exercise -> deterministic DOM/accessibility/console/network checks -> screenshot regression -> multimodal visual review -> bounded correction/retry -> Git/Preview -> protected evaluation -> operator review`
+
+Deterministic failures are authoritative over visual judgment. The controller preserves last-known-good state and enforces retry, churn, runtime, resource, no-progress and oscillation bounds.
+
+Worker states include `RUNNING`, `PROGRESSING`, `CHECKPOINTED`, `STALLED`, `RECOVERING`, `REASSIGNED`, `HUMAN_REQUIRED`, `READY_FOR_INTEGRATION` and terminal success/failure. Bounded leases, meaningful-progress heartbeats, durable checkpoints and single-writer recovery must permit process loss/reassignment without duplicate mutation or corrupted lineage.
+
+The same architecture governs Parallax self-development and every Project Parallax develops.
+
+### Development optimization mechanisms
+
+Wave 3 adds, subordinate to protected correctness:
+
+1. critical-path scheduling and bounded work stealing;
+2. change-impact-driven validation while retaining full promotion suites;
+3. immutable secret-free warm environments;
+4. validated pattern/component/config reuse;
+5. privacy-safe failure fingerprinting and repair memory;
+6. adaptive model routing without lower promotion thresholds;
+7. specification preflight;
+8. disposable speculative integration;
+9. automatic workstream sizing/rebalancing;
+10. development-performance telemetry.
+
+Additional controller mechanisms include value-of-information scheduling, safe-boundary cancellation/supersession and integration-capacity backpressure. The server-side DAG/policy/controller is authoritative; models may suggest but do not own scheduling or authority.
+
+Optimization targets validated outcome time, not worker utilization or token throughput. Identity, provenance, single-writer, privacy, evaluation and human-control guarantees may not be approximated for speed.
