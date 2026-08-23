@@ -34,8 +34,8 @@ jobs:
           python-version: '3.13'
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
-      - name: Validate approved specification
-        run: python scripts/validate_spec.py "$SPEC_PATH"
+      - name: Validate approved specification before compilation
+        run: python scripts/validate_spec.py "$SPEC_PATH" --spec-only
       - name: Install local Ollama development LM
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
@@ -47,6 +47,8 @@ jobs:
           ollama pull llama3.2:1b
       - name: Compile approved spec with DSPy critic + compiler
         run: python scripts/compile_spec.py "$SPEC_PATH"
+      - name: Validate compiled plan and DSPy evidence
+        run: python scripts/validate_spec.py "$SPEC_PATH" --require-dspy
       - name: Commit authentic compiled plan on compiler branch
         if: github.event_name == 'push'
         run: |
