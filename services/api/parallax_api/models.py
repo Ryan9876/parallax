@@ -41,6 +41,9 @@ class Conversation(Base):
     mode: Mapped[str] = mapped_column(String(20), default="reason")
     status: Mapped[str] = mapped_column(String(40), default="ACTIVE")
     spec_id: Mapped[str] = mapped_column(String(64), default="P2-V0.3.0")
+    # Nullable only for historical pre-Project compatibility. New protected Code
+    # conversations are required to bind this canonical Project identity.
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -101,6 +104,9 @@ class EngineeringRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
     spec_id: Mapped[str] = mapped_column(String(64), index=True)
+    # Nullable only for historical pre-Project compatibility. Strict runtime
+    # creation derives this value from Conversation.project_id.
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     work_specification_id: Mapped[str | None] = mapped_column(
         ForeignKey("work_specifications.id", ondelete="RESTRICT"),
         nullable=True,
@@ -111,6 +117,7 @@ class EngineeringRun(Base):
     state: Mapped[str] = mapped_column(String(32), default="SPECIFY", index=True)
     resume_stage: Mapped[str | None] = mapped_column(String(32), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, default=0)
+    # Historical/server-owned persistence seam. It is not caller authority.
     workspace_ref: Mapped[str | None] = mapped_column(String(300), nullable=True)
     last_failure_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
