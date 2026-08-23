@@ -154,7 +154,7 @@ Issues #43–#46 are complete. Issue #32 remains the app-builder program record 
 
 ## Approved Wave 3 completion contract
 
-Material decision recorded 2026-08-22: Wave 3 is required to operate as an end-to-end **bounded autonomous app-building and validation loop**, not as a one-pass implementation stage.
+Material decisions recorded 2026-08-22: Wave 3 is required to operate as an end-to-end **bounded autonomous app-building and validation loop**, not as a one-pass implementation stage, and it must materially reduce development cycle time rather than merely automate the existing serial process.
 
 Planned Wave 3 flow:
 
@@ -164,11 +164,23 @@ Wave 3 must continue autonomously until either:
 
 1. all protected functional, visual, security, lineage and acceptance gates pass and the result is preview-ready for operator review;
 2. a defined human-control boundary is reached, including production merge/promotion, destructive or privileged actions, required approval, missing authorization/credential, material specification ambiguity or an unrecoverable bounded failure; or
-3. an explicit retry, step or resource bound is reached, in which case Parallax must stop with actionable evidence rather than loop indefinitely.
+3. an explicit retry, step, cumulative-churn, runtime or resource bound is reached, in which case Parallax must stop with actionable evidence rather than loop indefinitely.
 
-Visual QA is therefore a Wave 3 requirement. Deterministic browser/layout/accessibility failures remain authoritative; multimodal vision may detect semantic visual defects but cannot override deterministic failures.
+Visual QA is therefore a Wave 3 requirement. Deterministic browser/layout/accessibility failures remain authoritative; multimodal vision may detect semantic visual defects but cannot override deterministic failures. The loop must preserve a last-known-good candidate and reject autonomous corrections that introduce protected regressions.
 
-This is an approved roadmap/exit-condition decision only. It is **not yet implemented, validated, merged, deployed or deployment-verified**.
+Wave 3 development acceleration is also an approved requirement. The planned architecture must include:
+
+- continuous bounded worker utilization when safe independent work exists;
+- a fast CI lane for compile/focused tests/contracts/typecheck/changed-area validation and a separate expensive promotion lane for worker completion, integration milestones and release candidates;
+- machine-checkable cross-workstream interface contracts so Project/lineage/runtime/provider/evidence mismatches are found before late integration;
+- permanent representative reference-app harnesses for repeated end-to-end development and regression exercises;
+- safe dependency/browser/build/baseline/artifact caching where reuse cannot weaken exact-head or source-lineage evidence;
+- automated Integration / Control Tower composition that detects integration-ready candidates, orders dependencies, composes them, runs cumulative gates and identifies interface failures;
+- automatic conversion of reproducible integration/test failures into bounded corrective work with attached evidence.
+
+The target operating model is continuous: workers produce candidates while the integration controller continuously composes and validates them, with full expensive promotion gates reserved for meaningful boundaries rather than every small edit.
+
+These are approved roadmap/exit-condition decisions only. They are **not yet implemented, validated, merged, deployed or deployment-verified**.
 
 ## Deployment state vocabulary
 
@@ -184,12 +196,13 @@ This is an approved roadmap/exit-condition decision only. It is **not yet implem
 - concrete GitHub/Vercel app-builder provider actions: **NOT YET INTEGRATED**
 - end-to-end app-building loop: **NOT YET DEMONSTRATED**
 - Wave 3 autonomous visual QA and correction loop: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
+- Wave 3 accelerated continuous worker/integration architecture: **APPROVED ROADMAP REQUIREMENT / NOT YET IMPLEMENTED**
 
 ## Authoritative record status
 
-- `CURRENT-STATE.md`: updated for the validated, merged, deployed and production-verified Wave 1 app-builder foundation and the approved future Wave 3 completion contract.
-- `ARCHITECTURE.md`: requires/receives the durable Wave 1 Project, safe implementation, tool-authority and app-builder evaluation boundaries.
+- `CURRENT-STATE.md`: updated for the validated, merged, deployed and production-verified Wave 1 app-builder foundation and the approved future Wave 3 autonomous/acceleration completion contract.
+- `ARCHITECTURE.md`: requires/receives the durable Wave 1 Project, safe implementation, tool-authority and app-builder evaluation boundaries; no future Wave 3 implementation architecture is recorded as current architecture yet.
 - `PROJECT-CONSTITUTION.md`: unchanged at v1.1; the existing parallel-development governance remains correct.
-- `DESIGN-SYSTEM.md`: unchanged; Wave 1 introduced no client visual or interaction-system change.
+- `DESIGN-SYSTEM.md`: unchanged; no implemented client visual or interaction-system change occurred from this roadmap decision.
 
 Historical release, CI, workstream, preview and deployment evidence remains preserved in GitHub Actions, GitHub issues/PRs and Vercel history.
