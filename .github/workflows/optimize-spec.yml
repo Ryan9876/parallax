@@ -9,6 +9,12 @@ on:
       - 'scripts/compile_spec.py'
       - 'services/api/parallax_api/intelligence/**'
       - '.github/workflows/optimize-spec.yml'
+  pull_request:
+    paths:
+      - 'specs/P2-V0.16.3.md'
+      - 'scripts/compile_spec.py'
+      - 'services/api/parallax_api/intelligence/**'
+      - '.github/workflows/optimize-spec.yml'
 
 jobs:
   compile:
@@ -42,6 +48,7 @@ jobs:
       - name: Compile approved spec with DSPy critic + compiler
         run: python scripts/compile_spec.py "$SPEC_PATH"
       - name: Commit authentic compiled plan on compiler branch
+        if: github.event_name == 'push'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
