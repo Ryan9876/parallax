@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from hashlib import sha256
+from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -21,6 +24,7 @@ from parallax_api.tools.providers import (
     ProviderInvocation,
     ProviderProjectBinding,
 )
+from parallax_api.tools.providers.github import MAX_FILE_BYTES, MAX_TREE_ENTRIES
 
 
 PROJECT_ID = "11111111-1111-1111-1111-111111111111"
@@ -68,8 +72,6 @@ class _GitHub:
         assert source_revision == REVISION
         self.file_reads.append(path)
         content = self._contents[path]
-        from hashlib import sha256
-
         return SimpleNamespace(
             value=GitHubFileResult(
                 REPOSITORY,
@@ -118,3 +120,46 @@ def test_projection_matches_durable_lineage_secret_path_boundary():
     allowed = "apps/client/src/components/ParallaxLogo.tsx"
     assert not is_lineage_secret_sensitive_path(allowed)
     assert SourceLineageStore._normalize_source_path(allowed) == allowed
+
+
+def test_current_parallax_repository_is_compatible_with_projected_provider_source_contract():
+    """Self-hosting gate for the exact repository shape production must bootstrap."""
+
+    root = Path(__file__).resolve().parents[3]
+    listed = subprocess.run(
+        ["git", "ls-tree", "-r", "-t", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    assert len(listed) <= MAX_TREE_ENTRIES, (
+        f"tracked repository tree has {len(listed)} entries; protected provider limit is {MAX_TREE_ENTRIES}"
+    )
+
+    rejected: list[str] = []
+    checked = 0
+    for line in listed:
+        metadata, separator, path = line.partition("\t")
+        assert separator and path
+        fields = metadata.split()
+        assert len(fields) == 3
+        _mode, kind, _object_revision = fields
+        if kind != "blob" or is_lineage_secret_sensitive_path(path):
+            continue
+        candidate = root / path
+        raw = candidate.read_bytes()
+        if len(raw) > MAX_FILE_BYTES:
+            rejected.append(f"{path}:SOURCE_FILE_TOO_LARGE")
+            continue
+        try:
+            content = raw.decode("utf-8", errors="strict")
+            GitHubFileResult(REPOSITORY, REVISION, path, content, sha256(raw).hexdigest())
+        except UnicodeDecodeError:
+            rejected.append(f"{path}:UNSUPPORTED_SOURCE_CONTENT")
+        except (TypeError, ValueError) as exc:
+            rejected.append(f"{path}:{type(exc).__name__}")
+        checked += 1
+
+    assert checked > 0
+    assert rejected == [], "projected provider source rejects tracked files: " + ", ".join(rejected)
