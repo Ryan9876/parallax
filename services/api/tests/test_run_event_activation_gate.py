@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from parallax_api.main import create_app
 from parallax_api.repositories.run_events import PersistentRunEventSink
 from parallax_api.routes import engineering_runs
 
@@ -36,6 +37,22 @@ def test_run_event_sink_activates_only_for_exact_server_flag(monkeypatch) -> Non
         assert isinstance(engineering_runs._run_event_sink(session), PersistentRunEventSink)
     finally:
         session.close()
+
+
+def test_live_observability_routes_require_exact_server_activation(monkeypatch) -> None:
+    event_path = "/v1/engineering-runs/{run_id}/events"
+
+    monkeypatch.delenv("PARALLAX_RUN_EVENTS_ENABLED", raising=False)
+    disabled_paths = {route.path for route in create_app(create_schema=False).routes}
+    assert event_path not in disabled_paths
+
+    monkeypatch.setenv("PARALLAX_RUN_EVENTS_ENABLED", "true")
+    truthy_but_not_authorized_paths = {route.path for route in create_app(create_schema=False).routes}
+    assert event_path not in truthy_but_not_authorized_paths
+
+    monkeypatch.setenv("PARALLAX_RUN_EVENTS_ENABLED", "1")
+    enabled_paths = {route.path for route in create_app(create_schema=False).routes}
+    assert event_path in enabled_paths
 
 
 def test_production_schema_guard_does_not_touch_database_while_wave4_disabled(monkeypatch, capsys) -> None:
