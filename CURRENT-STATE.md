@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: Wave 3 production app-builder runtime with bootstrap hardening; Wave 4 run-event and live-observation source integration in progress
+Release: Wave 3 production app-builder runtime remains deployment-verified; Wave 4 Live Development release candidate is source-integrated and under final production promotion validation
 Date: 2026-08-24
-Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; AUTONOMOUS SOURCE BOOTSTRAP REGRESSION RESOLVED; WAVE 4 RUN-EVENT + LIVE-OBSERVATION SOURCE INTEGRATED BUT MIGRATION UNAPPLIED / TELEMETRY AND READ SURFACE INACTIVE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; WAVE 4 P2-V0.17.0–P2-V0.17.4 SOURCE-INTEGRATED ON MAIN; P2-V0.17.5 RELEASE PROOF ACTIVE; PRODUCTION RUN-EVENT MIGRATION UNAPPLIED / ACTIVATION OFF / WAVE 4 NOT YET DEPLOYMENT-VERIFIED; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
@@ -20,7 +20,7 @@ The current verified production API deployment is:
 - deployment-scoped error/fatal runtime logs are empty after cutover;
 - deployment-scoped `source_bootstrap_failed` logs are empty after cutover.
 
-The Wave 3 protected app-builder runtime remains the deployed execution architecture through `P2-V0.16.5`. Wave 4 source work is being developed separately and is not implicitly activated by this production release.
+The Wave 3 protected app-builder runtime remains the deployment-verified production execution architecture through `P2-V0.16.5`. Wave 4 source through `P2-V0.17.4` is integrated on repository `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`, including the Warm Editorial shell and governed Live Build/Observability client, but those facts do not by themselves establish production activation or deployment. `P2-V0.17.5` is the final integrated release-proof boundary.
 
 ## Resolved production bootstrap regression — #140 / #142
 
@@ -50,7 +50,7 @@ The owner Project/run was not used as a repeated manual test harness. The regres
 
 ## Wave 4 source integration and activation state
 
-Wave 4 durable run-event telemetry (`P2-V0.17.1`, issue #145) and resumable live transport/protected reads (`P2-V0.17.2`, issue #146) are **source integrated but not production activated**.
+Wave 4 experience/design, durable run-event telemetry, resumable transport/protected reads, Warm Editorial shell and Live Build/Observability workspace (`P2-V0.17.0` through `P2-V0.17.4`, issues #144–#148) are **source integrated but not yet production migration/activation/deployment verified**. `P2-V0.17.5` / #149 is the active integrated reference-proof and release boundary.
 
 Current state distinction:
 
@@ -61,7 +61,7 @@ Current state distinction:
 - `PARALLAX_RUN_EVENTS_ENABLED=1` production activation: **NO**;
 - Wave 4 run-event projection active in production: **NO**;
 - Wave 4 live-observability routes active in production: **NO**;
-- Wave 4 client Live Build UI: **NOT DEPLOYED**.
+- Wave 4 client Live Build UI source integrated on `main`: **YES**; production deployment verified: **NO**.
 
 The production activation boundary now governs both emission and observation. The Engineering Run route attaches `PersistentRunEventSink` only when the server-owned environment value `PARALLAX_RUN_EVENTS_ENABLED` equals exactly `1`, and the live-observability router is registered only under that same exact activation value. Values such as `true`, `yes` or an absent flag do not activate Wave 4.
 
@@ -114,18 +114,22 @@ Production startup performs no implicit DDL. Schema changes remain migration-dri
 
 Wave 4's `engineering_run_events` table is intentionally not part of the active production schema yet.
 
-## Active parallel work
+## Active Wave 4 release work
 
-Wave 4 work continues on isolated workstreams. At this record update:
+Wave 4 implementation workstreams #144–#148 are integrated. Current release facts:
 
-- #145 / `P2-V0.17.1` run-event telemetry source is integrated but inactive as described above;
-- #146 / `P2-V0.17.2` live transport and protected reads is integrated on `main` at merge `ee5b55ebcf3a6da14dfb2233cb69ed9dedee774f`, but remains inactive and undeployed;
-- #147 / `P2-V0.17.3` warm editorial application shell is the next planned implementation slice;
-- #148 / `P2-V0.17.4` Live Build/Observability workspace remains dependent on the accepted shell and integrated transport;
-- #149 / `P2-V0.17.5` remains the integrated reference proof/release boundary;
-- no Wave 4 migration or production activation was performed by the #146 integration.
+- #144 / `P2-V0.17.0`: experience/design contract integrated;
+- #145 / `P2-V0.17.1`: durable run-event projection integrated, production activation still off;
+- #146 / `P2-V0.17.2`: resumable SSE and protected source/diff/evidence reads integrated;
+- #147 / `P2-V0.17.3`: Warm Editorial application shell integrated;
+- #148 / `P2-V0.17.4`: governed Live Build/Observability workspace integrated on `main` at `22fa4f34b617bceafe5b6a0ad7cf520af2c7c403` after exact-head protected gates;
+- #149 / `P2-V0.17.5`: active final integrated reference proof and release boundary; authentic DSPy plan is committed and the permanent reference proof now exercises durable failed TEST evidence, bounded autonomous correction to a fresh immutable lineage, exact-lineage observation/diff, REVIEW/HUMAN_REQUIRED and explicit operator completion;
+- the #149 reference proof identified and fixed an observability privacy gap so secret/private-reasoning-like command excerpts are redacted at the protected read boundary;
+- production `engineering_run_events` migration applied: **NO**;
+- production `PARALLAX_RUN_EVENTS_ENABLED=1`: **NO**;
+- Wave 4 production deployment verified: **NO**.
 
-Parallel workers must reconcile against current `main` before integration and rerun the applicable cumulative protected gates after material composition changes.
+The final release candidate must still pass the full exact-head release-mode P2 CI, browser/Skia, protected promotion evaluation, DSPy, Bounded Autonomy and migration-readiness gates before any production migration or activation occurs.
 
 ## Closed production repair chain
 

@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.8
+Version: 2.9
 Status: Authoritative
 
 ## System shape
@@ -16,7 +16,7 @@ Expo / React Native client
   ├─ bounded-autonomy controls
   ├─ Google PKCE sign-in + owner access panel
   ├─ same-origin /p2-api web gateway
-  └─ bounded API / future live-observation client
+  └─ bounded API + governed Live Build / observability client
           │
           ▼
 FastAPI intelligence service
@@ -36,7 +36,7 @@ FastAPI intelligence service
   ├─ Reason / Work Specification / DSPy programs
   ├─ protected command registry
   ├─ protected evaluation + observable execution/provider evidence
-  └─ optional Wave 4 non-authoritative run-event projection
+  └─ migration-gated Wave 4 non-authoritative run-event projection
           │
           ├────────────► Vercel Sandbox execution plane
           │               ├─ exact accepted source lineage

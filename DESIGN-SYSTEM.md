@@ -1,7 +1,7 @@
 # Parallax 2.0 Design System
 
 Version: 3.0
-Status: Authoritative candidate under `P2-V0.17.0` until integrated
+Status: Authoritative
 
 ## Design direction
 
