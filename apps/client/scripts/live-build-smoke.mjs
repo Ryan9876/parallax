@@ -269,7 +269,7 @@ try {
 
   await desktop.getByRole('tab', { name: 'Terminal' }).click();
   await desktop.getByText('BUILD · #5', { exact: true }).click();
-  await desktop.getByText('python-compile', { exact: false }).waitFor();
+  await desktop.getByText('python-compile', { exact: true }).waitFor();
 
   await desktop.getByRole('tab', { name: 'Tests' }).click();
   await desktop.getByText('TEST · #6', { exact: true }).click();
