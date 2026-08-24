@@ -3,6 +3,10 @@
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
   "rewrites": [
     {
+      "source": "/__connect_probe",
+      "destination": "/api/connect_probe.py"
+    },
+    {
       "source": "/(.*)",
       "destination": "/api/index.py"
     }
