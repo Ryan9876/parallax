@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Warm Editorial Shell Theme System"
+  ],
+  "work_items": [
+    "Replace the current Deep Violet Optical application chrome with the approved Warm Editorial Parallax shell while preserving all existing authenticated conversation, Project selection/create, Work Specification, Engineering Run, response-streaming, accessibility and mobile keyboard behavior."
+  ],
+  "validations": [
+    "The implementation closely follows the approved mockup family: dark forest/olive navigation, warm ivory/cream workplane, rust active/action treatment, flat teal live interaction, restrained olive support state, charcoal copy, editorial serif hierarchy, soft rounded cards and subtle organic depth. This workstream changes presentation architecture, not runtime authority.",
+    "AC-01: validate protected requirement — The client has one centralized raw/semantic theme source whose dominant navigation, workplane, action, live-interaction, support and content roles are forest/ivory/rust/teal/olive/charcoal, and permanent checks prevent a return to dominant violet/cyan treatment.",
+    "AC-02: validate protected requirement — At protected desktop viewport sizes the application renders a dark bounded navigation rail and dominant warm workplane with approved editorial hierarchy, consistent card material and rust/teal/olive role separation; browser/screenshot evidence checks these relationships.",
+    "AC-03: validate protected requirement — Authentication, conversation create/select/load, Reason/Code mode, response streaming, Project selection/create, Work Specification behavior and Engineering Run controls keep their existing functional semantics and protected tests remain green.",
+    "AC-04: validate protected requirement — No run progress, observability metrics, provider status, alerts, test progress or deployment state is displayed as live unless backed by existing authoritative product state; inactive #146 routes are not required for shell startup.",
+    "AC-05: validate protected requirement — The visible Parallax identity and navigation use the approved forest substrate, orbital brand language, restrained organic depth and rust active treatment without reintroducing Deep Violet Optical as the dominant brand expression.",
+    "AC-06: validate protected requirement — New shell/navigation/card/header/layout concerns are encapsulated in reusable bounded components, while `App.tsx` remains the established product-state orchestration layer instead of absorbing a new monolithic styling implementation.",
+    "AC-07: validate protected requirement — Phone layouts use a focused single-column/collapsed-navigation treatment, preserve practical 44 pt targets, at least 16 CSS px editable text, user zoom and visualViewport/keyboard composer clearance, and pass existing/new mobile browser checks.",
+    "AC-08: validate protected requirement — Selectable text, visible focus/labels, non-color state meaning, contrast, reduced-motion and reduced-graphics modes preserve equivalent product capability; visual fidelity does not waive deterministic accessibility failures.",
+    "AC-09: validate protected requirement — Typecheck, state tests, web export, browser/Skia acceptance and inherited API/protected evaluation suites pass without weakening existing test expectations to accommodate the theme.",
+    "AC-10: validate protected requirement — Permanent deterministic/visual assertions verify the major Warm Editorial token roles, navigation/workplane relationship, responsive region behavior and absence of dominant legacy violet treatment at protected viewports.",
+    "AC-11: validate protected requirement — #147 does not enable `PARALLAX_RUN_EVENTS_ENABLED`, apply the run-event migration, require the live-observation route at startup, alter provider/credential authority or claim deployment from source/Preview evidence.",
+    "AC-12: validate protected requirement — The final candidate contains authentic committed DSPy SpecCritic/SpecCompiler plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact final reconciled head. The worker stops review-ready before merge or deployment."
+  ],
+  "risks": [
+    "No fake observability. #147 may reserve layout affordances needed by #148, but it cannot display fabricated run metrics, alerts, timelines or live progress when authoritative data is unavailable/inactive."
+  ],
+  "spec_id": "P2-V0.17.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Warm Editorial semantic tokens replace the dominant violet identity",
+      "protected_requirement": "The client has one centralized raw/semantic theme source whose dominant navigation, workplane, action, live-interaction, support and content roles are forest/ivory/rust/teal/olive/charcoal, and permanent checks prevent a return to dominant violet/cyan treatment."
+    },
+    {
+      "id": "AC-02",
+      "title": "Desktop shell follows the approved mockup hierarchy",
+      "protected_requirement": "At protected desktop viewport sizes the application renders a dark bounded navigation rail and dominant warm workplane with approved editorial hierarchy, consistent card material and rust/teal/olive role separation; browser/screenshot evidence checks these relationships."
+    },
+    {
+      "id": "AC-03",
+      "title": "Existing product semantics survive the redesign",
+      "protected_requirement": "Authentication, conversation create/select/load, Reason/Code mode, response streaming, Project selection/create, Work Specification behavior and Engineering Run controls keep their existing functional semantics and protected tests remain green."
+    },
+    {
+      "id": "AC-04",
+      "title": "The shell never fabricates Live Build or production state",
+      "protected_requirement": "No run progress, observability metrics, provider status, alerts, test progress or deployment state is displayed as live unless backed by existing authoritative product state; inactive #146 routes are not required for shell startup."
+    },
+    {
+      "id": "AC-05",
+      "title": "Parallax brand/navigation treatment matches the Warm Editorial direction",
+      "protected_requirement": "The visible Parallax identity and navigation use the approved forest substrate, orbital brand language, restrained organic depth and rust active treatment without reintroducing Deep Violet Optical as the dominant brand expression."
+    },
+    {
+      "id": "AC-06",
+      "title": "Reusable shell components prevent presentation drift",
+      "protected_requirement": "New shell/navigation/card/header/layout concerns are encapsulated in reusable bounded components, while `App.tsx` remains the established product-state orchestration layer instead of absorbing a new monolithic styling implementation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Mobile reflows and preserves keyboard/touch behavior",
+      "protected_requirement": "Phone layouts use a focused single-column/collapsed-navigation treatment, preserve practical 44 pt targets, at least 16 CSS px editable text, user zoom and visualViewport/keyboard composer clearance, and pass existing/new mobile browser checks."
+    },
+    {
+      "id": "AC-08",
+      "title": "Accessibility and reduced-motion/graphics remain equivalent",
+      "protected_requirement": "Selectable text, visible focus/labels, non-color state meaning, contrast, reduced-motion and reduced-graphics modes preserve equivalent product capability; visual fidelity does not waive deterministic accessibility failures."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing cumulative client and protected runtime gates remain green",
+      "protected_requirement": "Typecheck, state tests, web export, browser/Skia acceptance and inherited API/protected evaluation suites pass without weakening existing test expectations to accommodate the theme."
+    },
+    {
+      "id": "AC-10",
+      "title": "Visual regression checks protect palette, geometry and hierarchy",
+      "protected_requirement": "Permanent deterministic/visual assertions verify the major Warm Editorial token roles, navigation/workplane relationship, responsive region behavior and absence of dominant legacy violet treatment at protected viewports."
+    },
+    {
+      "id": "AC-11",
+      "title": "Wave 4 activation and production boundaries remain untouched",
+      "protected_requirement": "#147 does not enable `PARALLAX_RUN_EVENTS_ENABLED`, apply the run-event migration, require the live-observation route at startup, alter provider/credential authority or claim deployment from source/Preview evidence."
+    },
+    {
+      "id": "AC-12",
+      "title": "Authentic plan evidence and exact-head release gates remain mandatory",
+      "protected_requirement": "The final candidate contains authentic committed DSPy SpecCritic/SpecCompiler plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact final reconciled head. The worker stops review-ready before merge or deployment."
+    }
+  ],
+  "critique": [
+    "The current Deep Violet Optical application chrome is replaced with the approved Warm Editorial Parallax shell, preserving all existing authenticated conversation, Project selection/create, Work Specification, Engineering Run, response-streaming, accessibility, and mobile keyboard behavior. The implementation closely follows the approved mockup family: dark forest/olive navigation, warm ivory/cream workplane, rust active/action treatment, flat teal live interaction, restrained olive support state, charcoal copy, editorial serif hierarchy, soft rounded cards and subtle organic depth. This workstream changes presentation architecture, not runtime authority. It must not activate Wave 4 telemetry, apply the `engineering_run_events` migration, simulate Live Build state, expose inactive observability data or rewrite the Wave 3 execution model."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
