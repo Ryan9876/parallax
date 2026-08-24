@@ -55,20 +55,11 @@ Preview remains the ordinary autonomous provider ceiling. Production deployment 
 
 ## Release and production authority
 
-`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active.
-
-It authorizes promotion of an already validated Parallax release/hotfix without a separate per-release approval while Parallax remains effectively single-user. It does not waive exact-head CI, protected evaluation, provider/security boundaries, rollback requirements, deployment evidence or post-deploy verification, and it does not pre-authorize destructive database changes, data loss or materially broader provider/credential authority.
+`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. It authorizes promotion of an already validated Parallax release/hotfix without a separate per-release approval while Parallax remains effectively single-user. It does not waive exact-head CI, protected evaluation, provider/security boundaries, rollback requirements, deployment evidence or post-deploy verification, and it does not pre-authorize destructive database changes, data loss or materially broader provider/credential authority.
 
 ## Production infrastructure and persistence
 
-Production uses:
-
-- Vercel for API deployment and Vercel Sandbox execution;
-- Vercel Connect / OIDC for short-lived project-scoped GitHub credentials;
-- private Vercel Blob for immutable content-addressed source objects;
-- hosted PostgreSQL / Supabase for conversations, Work Specifications, Engineering Runs/attempts, Projects, authorized users, durable worker execution and source-lineage metadata/current heads.
-
-Production startup performs no implicit DDL. Schema changes remain migration-driven. Wave 4's `engineering_run_events` table is not yet recorded here as active production schema.
+Production uses Vercel for API deployment and Sandbox execution, Vercel Connect/OIDC for short-lived project-scoped GitHub credentials, private Vercel Blob for immutable content-addressed source objects, and hosted PostgreSQL/Supabase for authoritative relational state. Production startup performs no implicit DDL; schema changes remain migration-driven. Wave 4's `engineering_run_events` table is not yet recorded here as active production schema.
 
 ## Active Wave 4 release work
 
