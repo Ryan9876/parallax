@@ -16,6 +16,7 @@ import { ParallaxLogo } from './components/ParallaxLogo';
 import { EngineeringRunStatus } from './components/EngineeringRunStatus';
 import { WorkSpecificationStatus } from './components/WorkSpecificationStatus';
 import { EditorialUtilityRail } from './components/EditorialUtilityRail';
+import { LiveBuildWorkspace } from './components/observability/LiveBuildWorkspace';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
 import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
 import { useEngineeringRun } from './hooks/useEngineeringRun';
@@ -39,13 +40,14 @@ const FALLBACK_MESSAGES: MessageDto[] = [
   },
 ];
 
-const NAV_ITEMS = ['Conversations', 'Projects', 'Templates', 'Tools', 'Knowledge', 'Integrations', 'Settings'] as const;
+const NAV_ITEMS = ['Conversations', 'Observability', 'Projects', 'Templates', 'Tools', 'Knowledge', 'Integrations', 'Settings'] as const;
 
 export default function App() {
   const { width } = useWindowDimensions();
   const compact = width < 760;
   const showUtilityRail = width >= 1180;
   const [mode, setMode] = React.useState<'reason' | 'code'>('reason');
+  const [workspaceView, setWorkspaceView] = React.useState<'conversation' | 'observability'>('conversation');
   const [draft, setDraft] = React.useState('');
   const [state, dispatch] = React.useReducer(responseReducer, initialResponseState);
   const [conversationId, setConversationId] = React.useState<string | null>(null);
@@ -105,6 +107,7 @@ export default function App() {
   }, []);
 
   const applyConversation = React.useCallback((conversation: ConversationDto) => {
+    setWorkspaceView('conversation');
     setConversationId(conversation.id);
     setMode(conversation.mode);
     setMessages(conversation.messages);
@@ -396,12 +399,24 @@ export default function App() {
               </View>
 
               <View style={styles.navList}>
-                {NAV_ITEMS.map((item) => (
-                  <View key={item} style={[styles.navRow, item === 'Conversations' && styles.navRowActive]}>
-                    <View style={[styles.navDot, item === 'Conversations' && styles.navDotActive]} />
-                    <Text style={[styles.navText, item === 'Conversations' && styles.navTextActive]}>{item}</Text>
-                  </View>
-                ))}
+                {NAV_ITEMS.map((item) => {
+                  const actionable = item === 'Conversations' || item === 'Observability';
+                  const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
+                  const active = item === 'Conversations' ? workspaceView === 'conversation' : item === 'Observability' && workspaceView === 'observability';
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      accessibilityRole={actionable ? 'button' : undefined}
+                      accessibilityState={{ disabled: !actionable || (item === 'Observability' && !observabilityAvailable), selected: active }}
+                      disabled={!actionable || (item === 'Observability' && !observabilityAvailable)}
+                      onPress={() => item === 'Observability' ? setWorkspaceView('observability') : item === 'Conversations' ? setWorkspaceView('conversation') : undefined}
+                      style={[styles.navRow, active && styles.navRowActive, !actionable && styles.navRowDormant]}
+                    >
+                      <View style={[styles.navDot, active && styles.navDotActive]} />
+                      <Text style={[styles.navText, active && styles.navTextActive, !actionable && styles.navTextDormant]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <View style={styles.railHeading}>
@@ -426,7 +441,7 @@ export default function App() {
           )}
 
           <View style={styles.main}>
-            <View style={styles.topbar}>
+            <View style={[styles.topbar, workspaceView === 'observability' && styles.hidden]}>
               <View style={styles.topbarTitleRow}>
                 {compact && <ParallaxLogo size={38} />}
                 <View style={styles.headerCopy}>
@@ -453,13 +468,23 @@ export default function App() {
               onApprove={() => void workSpecification.approve()}
             />
 
-            {mode === 'code' && engineering.run && (
+            {workspaceView === 'conversation' && mode === 'code' && engineering.run && (
               <EngineeringRunStatus run={engineering.run} busy={engineering.busy} onPause={() => void engineering.pause()} onResume={() => void engineering.resume()} onCancel={() => void engineering.cancel()} />
             )}
 
+            {compact && workspaceView === 'conversation' && mode === 'code' && engineering.run ? (
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open Live Build observability" onPress={() => setWorkspaceView('observability')} style={styles.mobileLiveBuild}>
+                <Text style={styles.mobileLiveBuildText}>Open Live Build · Observability</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {workspaceView === 'observability' && mode === 'code' && engineering.run ? (
+              <LiveBuildWorkspace run={engineering.run} onBack={() => setWorkspaceView('conversation')} />
+            ) : null}
+
             <ScrollView
               ref={threadRef}
-              style={styles.threadScroll}
+              style={[styles.threadScroll, workspaceView === 'observability' && styles.hidden]}
               contentContainerStyle={styles.thread}
               keyboardShouldPersistTaps="handled"
               onScroll={handleThreadScroll}
@@ -507,7 +532,7 @@ export default function App() {
               {state.phase === 'ERROR' && <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text>}
             </ScrollView>
 
-            <View style={styles.composerWrap}>
+            <View style={[styles.composerWrap, workspaceView === 'observability' && styles.hidden]}>
               <View style={styles.composer}>
                 {compact && <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation"><Text style={styles.newMobileText}>＋</Text></TouchableOpacity>}
                 <TextInput
@@ -525,7 +550,7 @@ export default function App() {
             </View>
           </View>
 
-          {showUtilityRail && (
+          {showUtilityRail && workspaceView === 'conversation' && (
             <EditorialUtilityRail apiOnline={apiOnline} phase={state.phase} mode={mode} run={engineering.run} specification={workSpecification.specification} />
           )}
         </View>
@@ -553,6 +578,8 @@ const styles = StyleSheet.create({
   navList: { gap: 4, marginBottom: 22 },
   navRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12 },
   navRowActive: { backgroundColor: palette.rust600 },
+  navRowDormant: { opacity: 0.68 },
+  navTextDormant: { color: '#AEB79A' },
   navDot: { width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: palette.olive500 },
   navDotActive: { backgroundColor: palette.ivory50, borderColor: palette.ivory50 },
   navText: { color: '#E2E5D4', fontSize: 12, fontWeight: '600' },
@@ -571,6 +598,9 @@ const styles = StyleSheet.create({
   onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.olive500 },
   offlineDot: { backgroundColor: '#A86714' },
   main: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },
+  hidden: { display: 'none' },
+  mobileLiveBuild: { minHeight: 44, marginHorizontal: 12, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.teal600 },
+  mobileLiveBuildText: { color: palette.teal700, fontSize: 10, fontWeight: '800' },
   topbar: { minHeight: 112, paddingHorizontal: 28, paddingTop: 18, paddingBottom: 15, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
   topbarTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   headerCopy: { flex: 1, minWidth: 0 },

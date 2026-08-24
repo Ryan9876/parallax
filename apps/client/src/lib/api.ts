@@ -201,6 +201,17 @@ async function responseDetail(response: Response): Promise<string> {
   return detail;
 }
 
+export async function authenticatedRequest(path: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    credentials: requestCredentials(),
+    headers: { ...authenticatedHeaders(), ...(init?.headers ?? {}) },
+  });
+  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
+  return response;
+}
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...init,

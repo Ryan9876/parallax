@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "4.1 Observer state model"
+  ],
+  "work_items": [
+    "Add a focused `useRunObservability` hook under `apps/client/src/hooks/**` backed by the existing `RunObservabilityClient` and `RunEventCursor`. The hook owns only observer state: - selected run ID; - ordered accepted event list; - highest accepted sequence; - transport state `CONNECTING | LIVE | RECONNECTING | CLOSED | ERROR`; - follow-live preference; - view-paused state; - selected tab and selected exact-lineage/path/attempt evidence reference; - loading/error state for protected reads."
+  ],
+  "validations": [
+    "No validation needed as the provided specifications do not contain any specific validation requirements.",
+    "AC-01: validate protected requirement \u2014 For a selected Engineering Run, persisted replay plus SSE resume uses the run sequence/Last-Event-ID contract and produces one ordered UI event per accepted sequence across disconnect/reconnect, with deterministic tests covering gaps, duplicates and run switching.",
+    "AC-02: validate protected requirement \u2014 SPECIFY/PLAN/IMPLEMENT/BUILD/TEST/VERIFY/REVIEW states are derived only from authoritative run/event/evidence facts; the client never advances a stage optimistically or marks absent future stages successful.",
+    "AC-03: validate protected requirement \u2014 Pause View disables viewport auto-follow only while accepted events continue accumulating. Jump to Latest and Follow Live restore observation behavior. Existing protected Pause Run semantics are unchanged and visually distinct.",
+    "AC-04: validate protected requirement \u2014 Source trees/files and diffs can be requested only for lineage IDs observed on the active run through protected APIs; no unrestricted filesystem browsing or arbitrary lineage/source path construction is introduced.",
+    "AC-05: validate protected requirement \u2014 Terminal/Tests render normalized attempt evidence and Evidence renders allowlisted durable references/status only. The workspace cannot execute commands, edit source, dump raw provider payloads or expose unavailable/redacted evidence as if present.",
+    "AC-06: validate protected requirement \u2014 System/Component Health, Active Run, Recent Alerts, GitHub PR and Vercel Preview information are rendered only when supported by persisted run/transport/evidence facts, with unavailable/unknown states instead of fabricated metrics.",
+    "AC-07: validate protected requirement \u2014 The UI differentiates active, recoverable failure/retry/correction, terminal failure and HUMAN_REQUIRED/REVIEW states and never presents REVIEW as autonomous completion.",
+    "AC-08: validate protected requirement \u2014 The workspace follows the integrated forest/ivory/rust/teal/olive design system on desktop, reflows into usable mobile tabs/stacked contextual surfaces, preserves 44 pt practical targets, 16 CSS px editable text where applicable, user zoom, keyboard safety and reduced-graphics parity.",
+    "AC-09: validate protected requirement \u2014 When Wave 4 routes are disabled, unavailable or disconnected, the application continues to support authentication, conversation, Project, Work Specification and Engineering Run behavior and renders an explicit Live observation unavailable state without fake data.",
+    "AC-10: validate protected requirement \u2014 Switching conversation/project/run clears prior protected source/evidence selections and event state before observing the new run; server cross-Project failures remain visible and no stale data is reused.",
+    "AC-11: validate protected requirement \u2014 Inherited API, protected evaluation, authentication, Project, Work Specification, Engineering Run, response streaming, mobile keyboard, reduced-graphics and visual acceptance suites remain unchanged or stronger.",
+    "AC-12: validate protected requirement \u2014 The final #148 candidate contains an authentic committed DSPy SpecCritic/SpecCompiler plan for P2-V0.17.4 and passes deterministic workstream-spec validation, Parallax P2 CI and Bounded Autonomy on the exact final head. The worker stops review-ready before merge/deploy so #149 can integrate and release it."
+  ],
+  "risks": [
+    "No material risk and mitigation required as the provided specifications do not contain any specific risk mitigation requirements."
+  ],
+  "spec_id": "P2-V0.17.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Observer replay and SSE reconnect converge without duplicate events",
+      "protected_requirement": "For a selected Engineering Run, persisted replay plus SSE resume uses the run sequence/Last-Event-ID contract and produces one ordered UI event per accepted sequence across disconnect/reconnect, with deterministic tests covering gaps, duplicates and run switching."
+    },
+    {
+      "id": "AC-02",
+      "title": "Pipeline progress is a truthful projection of persisted facts",
+      "protected_requirement": "SPECIFY/PLAN/IMPLEMENT/BUILD/TEST/VERIFY/REVIEW states are derived only from authoritative run/event/evidence facts; the client never advances a stage optimistically or marks absent future stages successful."
+    },
+    {
+      "id": "AC-03",
+      "title": "Pause View never pauses execution",
+      "protected_requirement": "Pause View disables viewport auto-follow only while accepted events continue accumulating. Jump to Latest and Follow Live restore observation behavior. Existing protected Pause Run semantics are unchanged and visually distinct."
+    },
+    {
+      "id": "AC-04",
+      "title": "Code and Diff are exact-lineage protected reads",
+      "protected_requirement": "Source trees/files and diffs can be requested only for lineage IDs observed on the active run through protected APIs; no unrestricted filesystem browsing or arbitrary lineage/source path construction is introduced."
+    },
+    {
+      "id": "AC-05",
+      "title": "Terminal, Tests and Evidence remain bounded read-only projections",
+      "protected_requirement": "Terminal/Tests render normalized attempt evidence and Evidence renders allowlisted durable references/status only. The workspace cannot execute commands, edit source, dump raw provider payloads or expose unavailable/redacted evidence as if present."
+    },
+    {
+      "id": "AC-06",
+      "title": "Health, alerts and provider identity remain evidence-backed",
+      "protected_requirement": "System/Component Health, Active Run, Recent Alerts, GitHub PR and Vercel Preview information are rendered only when supported by persisted run/transport/evidence facts, with unavailable/unknown states instead of fabricated metrics."
+    },
+    {
+      "id": "AC-07",
+      "title": "Recoverable failure and HUMAN_REQUIRED boundaries are explicit",
+      "protected_requirement": "The UI differentiates active, recoverable failure/retry/correction, terminal failure and HUMAN_REQUIRED/REVIEW states and never presents REVIEW as autonomous completion."
+    },
+    {
+      "id": "AC-08",
+      "title": "Warm Editorial desktop and responsive mobile composition are preserved",
+      "protected_requirement": "The workspace follows the integrated forest/ivory/rust/teal/olive design system on desktop, reflows into usable mobile tabs/stacked contextual surfaces, preserves 44 pt practical targets, 16 CSS px editable text where applicable, user zoom, keyboard safety and reduced-graphics parity."
+    },
+    {
+      "id": "AC-09",
+      "title": "Inactive/unavailable observability never breaks the core application",
+      "protected_requirement": "When Wave 4 routes are disabled, unavailable or disconnected, the application continues to support authentication, conversation, Project, Work Specification and Engineering Run behavior and renders an explicit Live observation unavailable state without fake data."
+    },
+    {
+      "id": "AC-10",
+      "title": "Cross-context observer state fails closed",
+      "protected_requirement": "Switching conversation/project/run clears prior protected source/evidence selections and event state before observing the new run; server cross-Project failures remain visible and no stale data is reused."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing protected runtime and client regressions remain green",
+      "protected_requirement": "Inherited API, protected evaluation, authentication, Project, Work Specification, Engineering Run, response streaming, mobile keyboard, reduced-graphics and visual acceptance suites remain unchanged or stronger."
+    },
+    {
+      "id": "AC-12",
+      "title": "Authentic plan evidence and exact-head release gates remain mandatory",
+      "protected_requirement": "The final #148 candidate contains an authentic committed DSPy SpecCritic/SpecCompiler plan for P2-V0.17.4 and passes deterministic workstream-spec validation, Parallax P2 CI and Bounded Autonomy on the exact final head. The worker stops review-ready before merge/deploy so #149 can integrate and release it."
+    }
+  ],
+  "critique": [
+    "The workspace must make active and historical engineering execution understandable without granting new execution, filesystem, provider, merge, deployment or production-promotion authority. The visible experience must follow the approved Warm Editorial mockup direction while remaining evidence-first: stage progress, run health, retries, failures, source lineage, tests, evidence, GitHub PR and Vercel Preview identity are displayed only when backed by authoritative persisted facts or protected read APIs. The UI must never infer successful progress ahead of server state, fabricate telemetry, expose hidden reasoning, or turn Parallax into a generic IDE or shell."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
