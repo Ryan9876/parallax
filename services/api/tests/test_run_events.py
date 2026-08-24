@@ -198,7 +198,7 @@ def test_event_contract_rejects_secrets_raw_fields_nested_payloads_and_invalid_l
             occurred_at=NOW,
         )
 
-    with pytest.raises(RunEventValidationError, match="nested"):
+    with pytest.raises(RunEventValidationError, match="unsupported value type"):
         RunEventAppend(
             project_id=project_id,
             run_id=run_id,
