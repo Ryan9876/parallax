@@ -80,7 +80,10 @@ def approve_spec(Session, conversation_id: str):
                 title="Live observability",
                 objective="Observe one protected engineering run.",
                 constraints=["Read only."],
-                acceptance_criteria=["Durable events remain owner scoped."],
+                acceptance_criteria=[
+                    "Durable events remain owner scoped.",
+                    "Observer transport never mutates authoritative engineering state.",
+                ],
                 risks=["Observers must not mutate the run."],
                 open_questions=[],
                 confidence=0.99,
