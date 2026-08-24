@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import base64
 from hashlib import sha256
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from parallax_api.code.production_source_projection import (
     ProjectedGitHubFileResult,
+    ProjectedGitHubReadClient,
     ProjectedRepositoryBoundSourceProvider,
     is_lineage_secret_sensitive_path,
 )
@@ -23,10 +26,13 @@ from parallax_api.tools.providers import (
     GitHubRepositoryState,
     GitHubTreeEntry,
     GitHubTreeResult,
+    ProviderClientError,
     ProviderInvocation,
     ProviderProjectBinding,
 )
+from parallax_api.tools.providers.credentials import ProviderCredentialKind, ScopedBearerCredential
 from parallax_api.tools.providers.github import MAX_FILE_BYTES, MAX_TREE_ENTRIES
+from parallax_api.tools.providers.github_client import GitHubRestProviderClient
 
 
 PROJECT_ID = "11111111-1111-1111-1111-111111111111"
@@ -85,6 +91,18 @@ class _GitHub:
         )
 
 
+class _CredentialProvider:
+    def credential_for_repository(self, repository_ref: str) -> ScopedBearerCredential:
+        assert repository_ref == REPOSITORY
+        return ScopedBearerCredential(
+            provider="github",
+            resource_ref=repository_ref,
+            kind=ProviderCredentialKind.GITHUB_APP_INSTALLATION,
+            secret="projection-test-token",
+            expires_at=None,
+        )
+
+
 def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads():
     github = _GitHub()
     identity = ProjectRunIdentity(PROJECT_ID, RUN_ID)
@@ -139,6 +157,51 @@ def test_canonical_source_read_allows_auth_code_but_publication_rejects_same_sec
 
     with pytest.raises(ValueError, match="possible secret-bearing content"):
         GitHubCommitFile("apps/client/src/lib/auth.ts", content, digest)
+
+
+def test_projected_rest_read_accepts_auth_source_and_refuses_secret_sensitive_path_before_http():
+    content = 'const authorization = "replace-with-auth-fixture-value";\n'
+    encoded = base64.b64encode(content.encode()).decode()
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        assert request.url.path == "/repos/Ryan9876/parallax/contents/apps/client/src/lib/auth.ts"
+        assert request.url.params["ref"] == REVISION
+        return httpx.Response(
+            200,
+            json={
+                "type": "file",
+                "encoding": "base64",
+                "path": "apps/client/src/lib/auth.ts",
+                "size": len(content.encode()),
+                "content": encoded,
+            },
+        )
+
+    delegate = GitHubRestProviderClient(
+        _CredentialProvider(),
+        transport=httpx.MockTransport(handler),
+    )
+    client = ProjectedGitHubReadClient(delegate)
+
+    result = client.read_file(
+        REPOSITORY,
+        REVISION,
+        "apps/client/src/lib/auth.ts",
+        max_bytes=MAX_FILE_BYTES,
+    )
+    assert result.content == content
+    assert calls == ["/repos/Ryan9876/parallax/contents/apps/client/src/lib/auth.ts"]
+
+    with pytest.raises(ProviderClientError, match="SOURCE_PATH_EXCLUDED"):
+        client.read_file(
+            REPOSITORY,
+            REVISION,
+            "apps/client/.env.example",
+            max_bytes=MAX_FILE_BYTES,
+        )
+    assert len(calls) == 1
 
 
 def test_current_parallax_repository_is_compatible_with_projected_provider_source_contract():
