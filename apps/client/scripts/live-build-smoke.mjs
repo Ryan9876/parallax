@@ -250,7 +250,7 @@ try {
   await desktop.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await desktop.getByText('Observability', { exact: true }).click();
   await desktop.getByText('Run observability', { exact: true }).waitFor({ timeout: 8000 });
-  await desktop.getByText('Operator review required before completion.').waitFor({ timeout: 8000 });
+  await desktop.getByTestId('run-event-11').getByText('Operator review required before completion.').waitFor({ timeout: 8000 });
   await desktop.getByText('System Health', { exact: true }).waitFor();
   await desktop.getByText('REVIEW', { exact: true }).first().waitFor();
 
