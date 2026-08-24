@@ -1,6 +1,6 @@
 # Parallax 2.0 Project Constitution
 
-Version: 1.3
+Version: 1.4
 Status: Authoritative
 
 ## Product purpose
@@ -14,7 +14,7 @@ Parallax 2.0 is an outcome-focused AI reasoning and software-engineering environ
 3. **Parallax 2.0 must be built with the same methodology it provides.** Its own development uses spec-first artifacts, DSPy-compatible program boundaries, explicit metrics, held-out evaluation, and traceable implementation evidence.
 4. **Conversation is the primary product surface.** Engineering machinery and evidence remain inspectable without turning the interface into a dense IDE or dashboard.
 5. **Persistent context is mandatory.** Conversations, specifications, decisions, execution state, and recoverable work survive refreshes and resumptions.
-6. **Human control is explicit.** Consequential, destructive, security-sensitive, expensive, or hard-to-reverse decisions require human approval. Low-risk reversible work may proceed autonomously.
+6. **Human control is explicit.** Consequential, destructive, security-sensitive, expensive, or hard-to-reverse decisions require human approval. Low-risk reversible work may proceed autonomously. A bounded standing authorization recorded in this Constitution may satisfy the approval requirement for the exact class of actions it covers until that authorization expires or is revoked.
 7. **Release status is evidence-based.** Generated, validated, deployed, and deployment-verified are distinct states. A package is never recorded as deployed without deployment evidence.
 8. **Accessibility and reduced-motion behavior are first-class.** Visual effects must degrade gracefully without hiding content or blocking work.
 9. **Security boundaries are product requirements, not later hardening.** Secrets, authorization, tool trust, and data isolation are designed deliberately.
@@ -22,6 +22,7 @@ Parallax 2.0 is an outcome-focused AI reasoning and software-engineering environ
 11. **Parallel development is isolated; integration is serialized.** Concurrent ChatGPT workers use GitHub-authoritative workstream reservations, isolated branches, explicit dependency/path ownership, and validated PRs. Individual chat history does not establish current code ownership or release state. Final integration occurs one candidate at a time against the latest relevant `main`, with applicable gates rerun before merge and production promotion.
 12. **The Parallax development-policy baseline is inherited by every Parallax-developed project.** Project-specific policy may add stricter requirements or capability-specific validation, but it may not silently weaken the platform baseline for specification binding, canonical identity, source lineage, tool authority, durable checkpoints, bounded autonomy, stall/recovery controls, protected evaluation, evidence integrity, rollback, or human-control boundaries.
 13. **Development efficiency is optimized for validated outcome time, not raw worker activity.** Parallax's own development and every Project it develops must prefer critical-path reduction, impact-aware validation, safe reuse, early conflict detection, right-sized workstreams and measured bottleneck reduction. Efficiency mechanisms may reduce redundant work but may never weaken exact-head evidence, source lineage, privacy, authorization, protected promotion, rollback or human-control requirements.
+14. **Single-user Parallax production promotion is standing pre-authorized while the owner remains the only real production user.** Once a Parallax release or hotfix has passed the applicable exact-head release gates and has a viable rollback path, the development operator may merge and promote that validated candidate to Parallax production without requesting a separate per-release approval. This standing authority expires automatically when additional real users begin relying on Parallax production, or immediately if the owner revokes it. It does not waive validation, evidence, rollback, least-privilege, or security boundaries and does not authorize unrelated destructive database operations, data loss, broader credential/provider scope, materially new external commitments, or weakening protected acceptance or evaluation controls.
 
 ## Inherited development policy
 
@@ -51,6 +52,20 @@ Wave 3 must also apply the same development-efficiency baseline to Parallax self
 Reusable patterns, failure memory, telemetry, caches and warm environments must not become cross-Project data-exfiltration paths. Project-private source, secrets and sensitive evidence are not reusable global memory unless an explicit protected policy permits that exact artifact class.
 
 These Wave 3 controls are constitutional requirements for the future development runtime; recording them here does not assert that the current production runtime already implements them.
+
+## Standing single-user release authority
+
+The project owner has granted standing authorization for Parallax's own validated releases and hotfixes to be promoted to production without a separate approval request while Parallax has no additional real production users. This is a release-promotion authorization, not a blanket authorization for every consequential mutation.
+
+A candidate may use this standing authority only when:
+
+- the candidate is the exact head that passed all applicable required release gates;
+- production promotion does not weaken protected evaluation, canonical identity, source-lineage, tool/provider authority, security, or evidence boundaries;
+- rollback or forward-recovery evidence is available for the affected deployable surface;
+- any required migration is additive/forward-compatible or separately authorized if destructive or difficult to reverse;
+- deployment evidence is collected before the release is recorded as deployed or deployment-verified.
+
+The operator must stop relying on this standing authority when a second real user or any broader user population begins relying on Parallax production. At that point per-release production authority must be re-established explicitly before further production promotion.
 
 ## Required authoritative records
 
