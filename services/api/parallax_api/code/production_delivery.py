@@ -41,11 +41,11 @@ from ..tools.providers.credentials import (
 from ..tools.providers.github_client import GitHubRestProviderClient
 from ..tools.providers.vercel_client import VercelApiTarget, VercelPreviewRestClient
 from ..tools.registry import ToolCapabilityRegistry
+from .production_source_projection import ProjectedRepositoryLineageBootstrap
 from .source_delivery_composition import (
     EngineeringAttemptDeliveryRecordStore,
     OwnerScopedProjectBindingResolver,
     PreviewTargetResolver,
-    RepositoryLineageBootstrap,
     ScopedProviderInvocationFactory,
     SourceDeliveryComposition,
     VerifiedLineageDelivery,
@@ -427,7 +427,7 @@ def production_source_delivery(
     )
     projects = OwnerScopedProjectBindingResolver(project_repository, owner_subject=owner_subject.strip())
     records = EngineeringAttemptDeliveryRecordStore(EngineeringRunRepository(session))
-    bootstrap = RepositoryLineageBootstrap(
+    bootstrap = ProjectedRepositoryLineageBootstrap(
         allocator=allocator,
         projects=projects,
         github=github,
