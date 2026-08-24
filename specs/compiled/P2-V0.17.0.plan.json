@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Wave 4 preserves the deployed Wave 3 authority model: The durable experience contract explicitly keeps canonical Project/Work Specification/run/source-lineage/worker/tool/provider/evaluation/REVIEW\u2026"
+  ],
+  "work_items": [
+    "Wave 4 maintains the same design and execution model as Wave 3, ensuring that the product remains consistent with the previous version."
+  ],
+  "validations": [
+    "Wave 4 adheres to the same design principles and execution strategy as Wave 3, ensuring that the product remains functional and reliable.",
+    "AC-01: validate protected requirement \u2014 The durable experience contract explicitly keeps canonical Project/Work Specification/run/source-lineage/worker/tool/provider/evaluation/REVIEW authority server-owned and forbids Live Development/Observability from creating a competing state or mutation path.",
+    "AC-02: validate protected requirement \u2014 The product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden chain-of-thought, scratchpad, raw provider payloads, credentials and unrestricted logs.",
+    "AC-03: validate protected requirement \u2014 SPECIFY/PLAN/IMPLEMENT/BUILD/TEST/VERIFY/REVIEW presentation, completion state, retries, recovery and stop reasons derive only from persisted runtime facts; fixture/placeholder/loading state cannot masquerade as live successful work.",
+    "AC-04: validate protected requirement \u2014 Follow Live, Pause View, tab selection, scrolling, disconnect and reconnect cannot pause, cancel, resume, advance or duplicate the worker. Protected Pause/Resume/Cancel/REVIEW controls remain distinct server-authorized actions.",
+    "AC-05: validate protected requirement \u2014 Code/diff views are tied to exact immutable source-lineage identities, and terminal/test views consume bounded redacted registered-command evidence. No general filesystem write, shell, command or network surface is authorized.",
+    "AC-06: validate protected requirement \u2014 The durable design direction specifies dark forest/olive navigation, warm ivory/cream workplane, rust active/action color, flat teal live interaction, restrained olive status/support and charcoal content, with centralized semantic tokens and no silent fallback to the previous dominant violet/cyan theme.",
+    "AC-07: validate protected requirement \u2014 Later client acceptance must preserve the three-region desktop hierarchy, prominent run pipeline, compact KPI row, dominant central event/Live Build workspace, secondary right utility rail and subordinate summary rhythm, with screenshot/browser assertions rather than subjective prose alone.",
+    "AC-08: validate protected requirement \u2014 Phone layouts reflow into focused tabs/drawers/stacked content; touch, text size, zoom, keyboard/visualViewport safety, selectable content, explicit state labels, reduced motion and reduced graphics preserve equivalent capability.",
+    "AC-09: validate protected requirement \u2014 Later telemetry implementation must use stable Project/run-scoped event identity with monotonic per-run ordering, preserve source/attempt/evidence references, resume after process/observer recreation and avoid duplicate accepted event display or duplicate runtime/provider mutation.",
+    "AC-10: validate protected requirement \u2014 Unavailable/degraded telemetry, recoverable execution failures, process recovery, HUMAN_REQUIRED, specification amendment, credential/authority boundaries and REVIEW are visually/textually distinct and cannot be converted into success or generic retry by the client.",
+    "AC-11: validate protected requirement \u2014 Mockup/screenshot similarity is a protected product requirement, but deterministic functional/accessibility/security/runtime evidence remains higher precedence. Visual acceptance may not waive protected failures or production boundaries.",
+    "AC-12: validate protected requirement \u2014 Every implementation workstream remains spec-first with authentic DSPy evidence and exact-head protected gates. Final integrated release requires browser/accessibility/visual proof, migration readiness where applicable, Preview/rollback evidence and deployment verification before `CURRENT-STATE.md` records production; standing single-user release authorization removes only a repeated approval wait."
+  ],
+  "risks": [
+    "Wave 4 maintains the same risk and mitigation strategies as Wave 3, ensuring that the product remains secure and compliant with the previous version."
+  ],
+  "spec_id": "P2-V0.17.0",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Wave 4 preserves the deployed Wave 3 authority model",
+      "protected_requirement": "The durable experience contract explicitly keeps canonical Project/Work Specification/run/source-lineage/worker/tool/provider/evaluation/REVIEW authority server-owned and forbids Live Development/Observability from creating a competing state or mutation path."
+    },
+    {
+      "id": "AC-02",
+      "title": "Live Development exposes real bounded engineering activity without hidden reasoning",
+      "protected_requirement": "The product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden chain-of-thought, scratchpad, raw provider payloads, credentials and unrestricted logs."
+    },
+    {
+      "id": "AC-03",
+      "title": "Run progress is authoritative and never simulated",
+      "protected_requirement": "SPECIFY/PLAN/IMPLEMENT/BUILD/TEST/VERIFY/REVIEW presentation, completion state, retries, recovery and stop reasons derive only from persisted runtime facts; fixture/placeholder/loading state cannot masquerade as live successful work."
+    },
+    {
+      "id": "AC-04",
+      "title": "Observation remains independent from execution authority",
+      "protected_requirement": "Follow Live, Pause View, tab selection, scrolling, disconnect and reconnect cannot pause, cancel, resume, advance or duplicate the worker. Protected Pause/Resume/Cancel/REVIEW controls remain distinct server-authorized actions."
+    },
+    {
+      "id": "AC-05",
+      "title": "Source, diff and terminal views remain bounded read-only evidence surfaces",
+      "protected_requirement": "Code/diff views are tied to exact immutable source-lineage identities, and terminal/test views consume bounded redacted registered-command evidence. No general filesystem write, shell, command or network surface is authorized."
+    },
+    {
+      "id": "AC-06",
+      "title": "Warm editorial design replaces the prior dominant violet visual identity",
+      "protected_requirement": "The durable design direction specifies dark forest/olive navigation, warm ivory/cream workplane, rust active/action color, flat teal live interaction, restrained olive status/support and charcoal content, with centralized semantic tokens and no silent fallback to the previous dominant violet/cyan theme."
+    },
+    {
+      "id": "AC-07",
+      "title": "Desktop implementation is constrained by the approved mockup composition",
+      "protected_requirement": "Later client acceptance must preserve the three-region desktop hierarchy, prominent run pipeline, compact KPI row, dominant central event/Live Build workspace, secondary right utility rail and subordinate summary rhythm, with screenshot/browser assertions rather than subjective prose alone."
+    },
+    {
+      "id": "AC-08",
+      "title": "Mobile, accessibility and reduced-motion behavior remain first-class",
+      "protected_requirement": "Phone layouts reflow into focused tabs/drawers/stacked content; touch, text size, zoom, keyboard/visualViewport safety, selectable content, explicit state labels, reduced motion and reduced graphics preserve equivalent capability."
+    },
+    {
+      "id": "AC-09",
+      "title": "Durable event projection is append-only, scoped and replay-safe",
+      "protected_requirement": "Later telemetry implementation must use stable Project/run-scoped event identity with monotonic per-run ordering, preserve source/attempt/evidence references, resume after process/observer recreation and avoid duplicate accepted event display or duplicate runtime/provider mutation."
+    },
+    {
+      "id": "AC-10",
+      "title": "Failure and human boundaries remain truthful",
+      "protected_requirement": "Unavailable/degraded telemetry, recoverable execution failures, process recovery, HUMAN_REQUIRED, specification amendment, credential/authority boundaries and REVIEW are visually/textually distinct and cannot be converted into success or generic retry by the client."
+    },
+    {
+      "id": "AC-11",
+      "title": "Visual validation is subordinate to deterministic correctness and security",
+      "protected_requirement": "Mockup/screenshot similarity is a protected product requirement, but deterministic functional/accessibility/security/runtime evidence remains higher precedence. Visual acceptance may not waive protected failures or production boundaries."
+    },
+    {
+      "id": "AC-12",
+      "title": "Wave 4 releases retain Wave 3 exact-head and production evidence rules",
+      "protected_requirement": "Every implementation workstream remains spec-first with authentic DSPy evidence and exact-head protected gates. Final integrated release requires browser/accessibility/visual proof, migration readiness where applicable, Preview/rollback evidence and deployment verification before `CURRENT-STATE.md` records production; standing single-user release authorization removes only a repeated approval wait."
+    }
+  ],
+  "critique": [
+    "The product contract for the Wave 4 implementation includes a durable experience that is coherent and understandable. It uses a three-region product composition with a dark forest navigation rail, a warm primary workplane, and a warm right utility rail. The product contract specifies that the live development and observability features are one Wave 4 program and are validated together before release. The product contract also specifies that the live development and observability features are not simulated, exposed, or created a generic IDE/shell. The visual target is the user-approved Parallax mockup family from the active autonomous app-builder runtime. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file/diff/registered-command/test/provider/evaluation/recovery evidence while explicitly rejecting hidden reasoning. The product contract specifies that the product contract permits actual stage/action/file"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
