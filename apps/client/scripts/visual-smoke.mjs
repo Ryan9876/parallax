@@ -67,7 +67,7 @@ const mockStreamState = {
 function apiServer() {
   let conversation = null;
   let workSpecification = null;
-  const answer = 'The response is being inscribed line by line. The optical head should follow the active wrapped line, leave a short cool-blue energized edge on fresh glyphs, and then cool into normal selectable text without disturbing the calm surface behind it.';
+  const answer = 'The response streams into the warm editorial workspace as normal selectable text. A restrained live trace may mark current output without delaying content or implying progress beyond server evidence.';
 
   function baseConversation(mode = 'reason') {
     return {
@@ -89,14 +89,14 @@ function apiServer() {
       conversation_id: conversation?.id ?? '11111111-1111-4111-8111-111111111111',
       revision: (workSpecification?.revision ?? 0) + 1,
       status: 'DRAFT',
-      title: 'Optical response behavior',
-      objective: 'Preserve the calm Parallax conversation while verifying durable specification capture and optical response behavior.',
+      title: 'Warm editorial response behavior',
+      objective: 'Preserve the calm Parallax conversation while verifying durable specification capture and warm editorial live-response behavior.',
       constraints: ['Keep conversation as the primary product surface.'],
       acceptance_criteria: [
         'The work specification persists as a durable draft.',
         'The operator explicitly approves the specification before it is treated as approved.',
       ],
-      risks: ['Specification chrome could compete with the conversation.'],
+      risks: ['Shell chrome could compete with the conversation.'],
       open_questions: [],
       confidence: 0.94,
       program_version: 'work-spec-v0.7.0',
@@ -286,8 +286,8 @@ async function inspectViewport(browser, name, width, height, report) {
   await page.getByLabel('Message Parallax').waitFor();
   await page.waitForTimeout(500);
 
-  const logoCount = await page.getByLabel('Parallax animated knot mark').count();
-  assert(logoCount > 0, `${name}: approved knot identity was not rendered`);
+  const logoCount = await page.getByLabel('Parallax orbital planet mark').count();
+  assert(logoCount > 0, `${name}: approved orbital identity was not rendered`);
 
   const first = await page.screenshot({ path: `${evidenceDir}/${name}-idle-a.png` });
   await page.waitForTimeout(1100);
@@ -311,16 +311,16 @@ async function inspectViewport(browser, name, width, height, report) {
 
   if (name === 'desktop') {
     const idleCanvasCount = geometry.canvasCount;
-    await page.getByLabel('Message Parallax').fill('Show the optical printing behavior on a wrapped response.');
+    await page.getByLabel('Message Parallax').fill('Show the live response behavior on a wrapped response.');
     await page.getByLabel('Send message').click();
-    await page.getByText('OPTICAL ENGRAVING ACTIVE').waitFor({ timeout: 5000 });
+    await page.getByText('Live response').waitFor({ timeout: 5000 });
     await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
 
-    assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live optical inscription was observed');
+    assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live response was observed');
     assert(mockStreamState.chunksSent >= 1 && mockStreamState.chunksSent < 3, `desktop: expected an intermediate streamed chunk, observed ${mockStreamState.chunksSent}`);
 
-    const headCount = await page.getByLabel('Optical engraving head').count();
-    assert(headCount > 0, 'desktop: compact optical engraving head was not rendered');
+    const headCount = await page.getByLabel('Live response trace').count();
+    assert(headCount > 0, 'desktop: compact live response trace was not rendered');
     const responseBox = await page.getByLabel('Parallax response').last().boundingBox();
     const inputBox = await page.getByLabel('Message Parallax').boundingBox();
     assert(responseBox && inputBox && responseBox.y < inputBox.y, 'desktop: response start was not automatically brought above the composer');
@@ -334,7 +334,7 @@ async function inspectViewport(browser, name, width, height, report) {
     assert(respondingCanvasCount >= idleCanvasCount, `desktop: responding state lost a required canvas (${respondingCanvasCount} < ${idleCanvasCount})`);
 
     await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
-    await page.getByText(/The response is being inscribed line by line/).first().waitFor();
+    await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor();
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
 
     await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
@@ -350,17 +350,17 @@ async function inspectViewport(browser, name, width, height, report) {
       };
     });
     assert(specStyle.borderLeftWidth <= 1, `desktop: Work Specification retained a heavy left rule (${specStyle.borderLeftWidth}px)`);
-    assert(specStyle.borderRadius >= 14, `desktop: Work Specification is not using rounded optical material (${specStyle.borderRadius}px)`);
+    assert(specStyle.borderRadius >= 14, `desktop: Work Specification is not using rounded editorial material (${specStyle.borderRadius}px)`);
     await page.getByLabel('Expand work specification').click();
     await page.getByText('The work specification persists as a durable draft.').waitFor({ timeout: 5000 });
     await page.getByLabel('Approve work specification').click();
     await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
     await page.screenshot({ path: `${evidenceDir}/desktop-spec-approved.png` });
 
-    report.opticalTypesetter = {
+    report.liveResponseTreatment = {
       idleCanvasCount,
       respondingCanvasCount,
-      engravingHeadRendered: true,
+      liveTraceRendered: true,
       streamedTextVisibleImmediately: true,
       responseFollowedAboveComposer: true,
       liveChunkObservedBeforeStreamCompletion: true,
@@ -368,7 +368,7 @@ async function inspectViewport(browser, name, width, height, report) {
     };
     report.workSpecification = {
       captured: true,
-      roundedOpticalMaterial: true,
+      roundedEditorialMaterial: true,
       heavyLeftRuleRemoved: true,
       expanded: true,
       operatorApproved: true,
@@ -394,7 +394,7 @@ async function inspectFallback(browser, report) {
 
   await page.getByLabel('Message Parallax').fill('Continue without Skia.');
   await page.getByLabel('Send message').click();
-  await page.getByText(/The response is being inscribed line by line/).first().waitFor({ timeout: 10000 });
+  await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
   await page.getByText(/Reduced graphics mode · complete/i).waitFor({ timeout: 10000 });
@@ -439,7 +439,7 @@ const report = {
   releaseSpecId: 'P2-V0.13.0',
   conversationPolicySpecId: 'P2-V0.5.0',
   viewports: [],
-  opticalTypesetter: null,
+  liveResponseTreatment: null,
   workSpecification: null,
   fallback: null,
 };
