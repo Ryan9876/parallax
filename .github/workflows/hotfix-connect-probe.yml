@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - hotfix/vercel-connect-connector-encoding
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -20,7 +23,7 @@ jobs:
           script: |
             const token = await core.getIDToken();
             core.setSecret(token);
-            core.setOutput('token', token);
+            core.setOutput('token', token)
 
       - name: Wait for Preview and exercise real Connect chain
         env:
