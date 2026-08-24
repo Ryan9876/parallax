@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -11,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from parallax_api.auth import AccessPrincipal, access_principal
 from parallax_api.code.lineage_persistence import InMemoryImmutableObjectStore, InMemoryLineageMetadataStore
 from parallax_api.code.live_observability import resolve_event_cursor
+from parallax_api.code.run_events import RunEventAppend, RunEventOutcome, RunEventSubsystem, RunEventType
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
 from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
 from parallax_api.db import Base, get_session, make_engine
@@ -21,6 +23,7 @@ from parallax_api.repositories.run_events import RunEventRepository
 from parallax_api.repositories.work_specifications import WorkSpecificationRepository
 from parallax_api.routes.conversations import router as conversations_router
 from parallax_api.routes.engineering_runs import router as engineering_runs_router, runtime_lineage_allocator
+from parallax_api.routes import observability as observability_routes
 from parallax_api.routes.observability import router as observability_router
 from parallax_api.routes.work_specifications import router as work_specifications_router
 
@@ -112,9 +115,30 @@ def activate_run(client: TestClient, Session):
     return project, response.json()
 
 
+def seed_events(Session, *, project_id: str, run_id: str, count: int = 2) -> None:
+    with Session() as session:
+        repository = RunEventRepository(session)
+        for index in range(1, count + 1):
+            repository.append(
+                RunEventAppend(
+                    project_id=project_id,
+                    run_id=run_id,
+                    event_key=f"ws146:test:{index}",
+                    event_type=RunEventType.STAGE_RESULT,
+                    stage="PLAN",
+                    outcome=RunEventOutcome.SUCCEEDED,
+                    subsystem=RunEventSubsystem.RUN,
+                    summary=f"Durable test event {index}.",
+                    metadata={"run_revision": index},
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+
+
 def test_json_replay_is_ordered_resumable_and_owner_scoped(tmp_path):
     client, Session, owner, _, _ = api_context(tmp_path)
     project, run = activate_run(client, Session)
+    seed_events(Session, project_id=project.id, run_id=run["id"])
 
     first = client.get(f"/v1/engineering-runs/{run['id']}/events?after_sequence=0&limit=1")
     assert first.status_code == 200
@@ -149,10 +173,13 @@ def test_last_event_id_precedence_and_invalid_header_fail_closed():
             raise AssertionError(f"invalid Last-Event-ID accepted: {invalid!r}")
 
 
-def test_sse_replays_durable_event_and_disconnect_does_not_mutate_run(tmp_path):
+def test_sse_replays_durable_event_and_disconnect_does_not_mutate_run(tmp_path, monkeypatch):
     client, Session, _, _, _ = api_context(tmp_path)
-    _, run = activate_run(client, Session)
+    project, run = activate_run(client, Session)
+    seed_events(Session, project_id=project.id, run_id=run["id"], count=1)
     before = client.get(f"/v1/engineering-runs/{run['id']}").json()
+    monkeypatch.setattr(observability_routes, "_SSE_MAX_SECONDS", 0.05)
+    monkeypatch.setattr(observability_routes, "_SSE_POLL_SECONDS", 0.01)
 
     with client.stream("GET", f"/v1/engineering-runs/{run['id']}/events/stream") as response:
         assert response.status_code == 200
@@ -160,8 +187,6 @@ def test_sse_replays_durable_event_and_disconnect_does_not_mutate_run(tmp_path):
         for line in response.iter_lines():
             if line.startswith("id:"):
                 seen_id = int(line.split(":", 1)[1].strip())
-            if seen_id is not None and line == "":
-                break
         assert seen_id == 1
 
     after = client.get(f"/v1/engineering-runs/{run['id']}").json()
