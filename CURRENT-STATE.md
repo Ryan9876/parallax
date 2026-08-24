@@ -2,15 +2,15 @@
 
 Release: App-builder Wave 3 production runtime + production hotfixes
 Date: 2026-08-23
-Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; PROJECT-CREATE AND AUTONOMOUS-RUN PRODUCTION REGRESSIONS CORRECTED THROUGH HOTFIX #134**
+Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; HOTFIX #134 DEPLOYED; PRODUCTION REGRESSION #136 DIAGNOSED / HOTFIX #137 IN VALIDATION; SINGLE-USER PRODUCTION PROMOTION STANDING PRE-AUTHORIZED**
 
 ## Production truth
 
 Wave 3 remains the deployed app-builder runtime through `P2-V0.16.5`. Its guarded production release was completed under #121/#122 with application merge `cbe7a967e37b90e4254fe838aff831eafe33536b`, worker-recovery migration `20260824002126 worker_recovery`, and deployment verification.
 
-Three operator-discovered production regressions were subsequently corrected without weakening canonical Project identity, source lineage, provider credential scope, protected evaluation, deterministic validation precedence, worker authority, publication safety, or explicit production-promotion authority.
+Three operator-discovered production regressions were subsequently corrected without weakening canonical Project identity, source lineage, provider credential scope, protected evaluation, deterministic validation precedence, worker authority, publication safety, or production-control boundaries.
 
-The current repository `main` application head after the third hotfix is:
+The current repository `main` application head after the third deployed hotfix is:
 
 - `389ef2ab17999db23abd7f4a77ea616b7ba5252b` — production hotfix #134 merge.
 
@@ -19,13 +19,30 @@ Because the hotfixes affect different deployable roots, current production artif
 - client: hotfix #125 source `c088c363f75e7b825fc417441649f9e5069606ff`;
 - API: hotfix #134 source `389ef2ab17999db23abd7f4a77ea616b7ba5252b`.
 
+A fourth production regression is currently diagnosed but not yet deployed as corrected:
+
+- issue #136 — the Vercel Connect connector `github/parallax-runtime` was placed into the token endpoint without percent-encoding the `/` as part of the single connector path parameter;
+- PR #137 — repair changes the wire path to the encoded connector form and adds a raw-wire-path regression that cannot be masked by decoded URL assertions;
+- production remains safely on hotfix #134 while #137 completes final exact-head validation;
+- the preserved Engineering Run remains before source-lineage/worker mutation, so failed retries have not created accepted source mutation/publication.
+
+## Standing single-user production promotion authority
+
+On 2026-08-23 the project owner granted standing authorization for Parallax's own validated releases and hotfixes to be promoted to production without a separate per-release approval while Parallax remains effectively single-user.
+
+This standing authorization applies only to promotion of a release candidate that has already passed the applicable exact-head release gates and has an acceptable rollback/forward-recovery path. It does not waive required CI, protected evaluation, source/provider/security boundaries, deployment evidence, or rollback requirements, and it does not pre-authorize unrelated destructive database changes, data loss, materially broader credential/provider authority, or other materially different high-risk mutations.
+
+The standing authorization expires automatically when additional real users begin relying on Parallax production, or earlier if the owner revokes it. When that condition is reached, explicit per-release production authority must be re-established.
+
+Under this authority, hotfix #137 may be promoted automatically once its final exact-head required gates are green and the production cutover path is verified. No additional operator approval is required for that promotion.
+
 ## Wave 3 production capability
 
 Production retains the complete protected Wave 3 route:
 
 `authenticated Project selection/binding -> approved Work Specification -> PLAN -> repository bootstrap/current durable lineage -> typed IMPLEMENT proposal -> confined safe mutation -> durable accepted source lineage -> exact-lineage BUILD/TEST/VERIFY -> deterministic browser/accessibility/console/network/layout validation -> screenshot regression -> bounded multimodal review -> bounded correction/retry with LKG + convergence limits -> bounded GitHub publication -> project-scoped Vercel Preview -> persisted provider/runtime evidence -> protected AppBuilder evaluation -> explicit operator REVIEW`
 
-Durable worker recovery, stale-worker rejection, replay-safe mutation/publication, last-known-good preservation, bounded correction, protected deterministic-browser precedence, privacy-safe reuse/telemetry, and explicit production authority remain unchanged.
+Durable worker recovery, stale-worker rejection, replay-safe mutation/publication, last-known-good preservation, bounded correction, protected deterministic-browser precedence, privacy-safe reuse/telemetry, and explicit production authority remain unchanged. The standing authorization changes Parallax self-development release procedure only; it does not silently grant Parallax-developed Projects or their runtime agents unrestricted production deployment authority.
 
 ## Production hotfix #125 — Project repository shorthand
 
@@ -135,7 +152,27 @@ Production evidence:
 - production runtime error clusters in the immediate post-deploy window — **none observed**;
 - the client production build for the API-only merge was path-filtered/canceled, intentionally preserving verified client deployment `dpl_CKmaLXMvrcjBgxo2zum6mQthtDnj` at `c088c363f75e7b825fc417441649f9e5069606ff`.
 
-The original authenticated `Parallax logo` run remains preserved for operator functional confirmation. Deployment verification deliberately did not manufacture a synthetic authenticated production mutation.
+The original authenticated `Parallax logo` run remains preserved for functional confirmation after the current #136 repair. Deployment verification deliberately did not manufacture a synthetic authenticated production mutation.
+
+## Production regression #136 — Vercel Connect connector wire path
+
+Production evidence after #134 showed the preserved autonomous run still returning HTTP 503 before any root source-lineage manifest/head or worker execution row was created.
+
+Diagnosis:
+
+- `VercelConnectGitHubCredentialProvider` used `quote(connector, safe='/')` for connector `github/parallax-runtime`;
+- Vercel Connect defines the connector as one path parameter and expects slash-bearing identifiers to be percent-encoded, e.g. `github%2Fparallax-runtime`;
+- the existing test asserted the decoded `request.url.path`, which could not distinguish the incorrect raw URL from the required wire representation and therefore allowed CI to pass incorrectly.
+
+Repair in PR #137:
+
+- encode the full connector path parameter with no safe slash;
+- add a raw-path regression that requires `/v1/connect/token/github%2Fparallax-runtime`;
+- preserve server-owned connector identity, Project/repository binding, OIDC credential exchange, exact GitHub installation-scope verification, source-lineage safety, provider authority, and production-promotion boundaries.
+
+Additional validation discovered that the GitHub Connect connector is intentionally not enabled for Preview deployments (`403 Connector is not enabled for this environment`). That least-privilege boundary will remain in place rather than broadening GitHub authority to every Preview branch. The release strategy is therefore to verify the real connector/provider chain at the production pre-cutover boundary while retaining non-mutating exact-head CI and Preview coverage before promotion.
+
+Hotfix #137 is not yet recorded as validated, merged, deployed, or deployment-verified. Those states require evidence from the cleaned final candidate.
 
 ## Production database
 
@@ -145,44 +182,47 @@ Production Supabase project `Parallax 2.0` / `kjyenifnfjqnzfgshpwg` remains heal
 - `20260823194310 durable_source_lineage`;
 - `20260824002126 worker_recovery`.
 
-None of production hotfixes #125, #131, or #134 required a database migration or schema mutation.
+None of production hotfixes #125, #131, or #134 required a database migration or schema mutation. Hotfix #137 currently requires no database migration.
 
 ## Production provider prerequisites
 
-The existing least-privilege production composition remains active and unchanged:
+The existing least-privilege production composition remains active:
 
 - private Blob store `parallax-source-lineage`;
 - `BLOB_READ_WRITE_TOKEN` for the accepted server-owned lineage adapter;
-- GitHub Vercel Connect connector `github/parallax-runtime`;
+- production GitHub Vercel Connect connector `github/parallax-runtime`;
 - target-scoped Vercel credential `PARALLAX_VERCEL_TOKEN_PARALLAX`;
 - server-owned `PARALLAX_VERCEL_PREVIEW_TARGETS_JSON` registry;
 - registered repository target `github:Ryan9876/parallax`, GitHub repo ID `1340272514`;
 - Vercel Preview project `prj_wLXC5JjjetJf0H97kncRlqczD3OC`, team `team_JgE8AWWz36uzRbeR6V6EWg9k`.
 
-Provider-native GitHub owner/repository casing equivalence is recognized at the matching boundary. Repository bootstrap now applies the durable lineage secret-path boundary before provider file reads, while publication retains its stricter output secret-literal guard. No broader provider identity or credential scope was introduced.
+Provider-native GitHub owner/repository casing equivalence is recognized at the matching boundary. Repository bootstrap applies the durable lineage secret-path boundary before provider file reads, while publication retains its stricter output secret-literal guard. The Connect connector remains production-scoped; no broader provider identity or credential scope is being introduced to repair #136.
 
 ## Rollback readiness
 
 Immediate rollback artifacts remain available:
 
+- current API hotfix #134 deployment `dpl_2bE5DEjCQtE2xDBgSnojAsuZKEdo` — **READY** at `389ef2ab17999db23abd7f4a77ea616b7ba5252b`;
 - previous API hotfix #131 deployment `dpl_7Pk1j3oBe3YvgcbRunP9JF8yBzVZ` — **READY** at `23678383a0a97dfc3df4feadecba507eb290f6ae`;
 - earlier API Wave 3 deployment `dpl_q56DQQZgB6CBoSp8Bh9R5hCPrphr` — **READY** at `cbe7a967e37b90e4254fe838aff831eafe33536b`;
 - pre-hotfix client deployment `dpl_5trK5jmGEVeN6av8avNEv9DnS7ka` remains available at `686d7934044e5018dc3cd324f0b61ee2b548c756`;
-- current client deployment `dpl_CKmaLXMvrcjBgxo2zum6mQthtDnj` and current API deployment `dpl_2bE5DEjCQtE2xDBgSnojAsuZKEdo` are both verified production artifacts.
+- current client deployment `dpl_CKmaLXMvrcjBgxo2zum6mQthtDnj` remains the verified production client artifact.
 
 Database rollback continues to preserve the forward-compatible Project/lineage/worker-recovery schema rather than destructively removing migration history.
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.3 — unchanged; governance/authority did not change;
-- `ARCHITECTURE.md` v2.6 — unchanged; hotfix #134 corrects implementation behavior inside the existing bounded repository/bootstrap and publication trust boundaries rather than changing the durable architecture;
+- `PROJECT-CONSTITUTION.md` v1.4 — updated to record the bounded standing single-user Parallax production-promotion authority and its automatic expiry condition;
+- `ARCHITECTURE.md` v2.6 — unchanged by the authorization decision; the production-control architecture remains bounded and evidence-gated;
 - `DESIGN-SYSTEM.md` v2.1 — unchanged;
-- `CURRENT-STATE.md` — updated for the deployment-verified #134 production state.
+- `CURRENT-STATE.md` — updated for the material governance decision and current #136/#137 production-repair state.
 
 ## Current decision
 
-Wave 3 plus production hotfixes #125, #131, and #134 are **PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED** at the infrastructure, persistence, provider, and security boundaries.
+Wave 3 plus production hotfixes #125, #131, and #134 remain **PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED** at the infrastructure, persistence, provider, and security boundaries.
 
-The next operator action is to retry **Run autonomously** on the preserved `Parallax logo` Project/run `a62f8dbd-4ba5-4fb2-a7a5-3c162b61ea8d`. Success should now pass repository bootstrap and advance into the protected worker/IMPLEMENT path. If a different failure occurs, treat it as new production evidence rather than weakening the accepted runtime contracts.
+Production regression #136 is **DIAGNOSED** and hotfix #137 is **IN VALIDATION**. The user should not be used as the primary test harness for this repair. The development loop is responsible for reproducing, repairing, validating, promoting under the standing authority, and deployment-verifying the fix before asking for another functional user test.
 
-Wave 4 product UX and operating efficiency remains the next planned product phase after this functional production retest.
+Once #137's cleaned exact head passes the required gates and production cutover checks, it may be merged and promoted automatically under the standing single-user production authority. No separate per-release approval is required.
+
+Wave 4 product UX and operating efficiency remains the next planned product phase after the current production functional path is repaired and verified.
