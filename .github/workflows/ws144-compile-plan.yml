@@ -7,6 +7,12 @@ on:
     paths:
       - 'specs/P2-V0.17.0.md'
       - '.github/workflows/ws144-compile-plan.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'specs/P2-V0.17.0.md'
+      - '.github/workflows/ws144-compile-plan.yml'
   workflow_dispatch:
 
 permissions:
