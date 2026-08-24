@@ -26,6 +26,7 @@ _PROVIDER_STAGE = {
 }
 _ALLOWED_STAGES = frozenset(
     {
+        "delivery-composition",
         "lineage-head",
         "project-binding",
         "provider-repository",
@@ -91,7 +92,10 @@ def classify_bootstrap_failure(
         if isinstance(item, (ProviderActionFailed, ProviderActionDenied)):
             action = getattr(getattr(item, "evidence", None), "action", None)
             result_code = getattr(getattr(item, "evidence", None), "result_status", None)
-            stage = _PROVIDER_STAGE.get(action, "provider-authority" if isinstance(item, ProviderActionDenied) else "provider-client")
+            stage = _PROVIDER_STAGE.get(
+                action,
+                "provider-authority" if isinstance(item, ProviderActionDenied) else "provider-client",
+            )
             return BootstrapFailureEvidence(
                 stage=stage,
                 error_class=type(item).__name__,
