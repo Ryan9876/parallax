@@ -233,13 +233,13 @@ try {
     await page.getByText('code', { exact: true }).click();
     await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
     await page.getByLabel('Project name').fill('Mobile Builder');
-    await page.getByLabel('Repository identity').fill('github:owner/mobile-builder');
+    await page.getByLabel('Repository identity').fill('owner/mobile-builder');
     await page.getByLabel('Create Project').click();
     await page.getByText('PROJECT · Mobile Builder').waitFor({ timeout: 5000 });
 
     assert(state.projectPosts.length === 1, 'mobile create flow did not call Project creation exactly once');
     assert(state.projectPosts[0].name === 'Mobile Builder', 'Project create changed the requested name');
-    assert(state.projectPosts[0].repository_ref === 'github:owner/mobile-builder', 'Project create changed bounded repository metadata');
+    assert(state.projectPosts[0].repository_ref === 'github:owner/mobile-builder', 'Project create did not normalize GitHub owner/repository shorthand to canonical repository identity');
     const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
     assert(codePosts.length === 1 && codePosts[0].project_id === CREATED_ID, 'mobile Code creation did not bind the server-returned canonical Project ID');
     await assertComposerVisible(page);
@@ -275,6 +275,7 @@ try {
     desktopExistingProjectSelection: true,
     reasonPayloadPreserved: true,
     mobileProjectCreation: true,
+    repositoryShorthandNormalized: true,
     canonicalProjectIdOnly: true,
     staleProjectFailsClosed: true,
     historicalUnboundVisibleWithoutGuess: true,
