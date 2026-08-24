@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+import base64
+import binascii
+from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import PurePosixPath
+from urllib.parse import quote
 
 from ..models import EngineeringRun
 from ..tools.providers import (
     ACTION_REPOSITORY_RESOLVE,
     ACTION_SOURCE_FILE_READ,
     ACTION_SOURCE_TREE_READ,
+    GitHubProviderActions,
+    ProviderClientError,
 )
+from ..tools.providers.common import require_repository_ref, require_source_revision
+from ..tools.providers.github import MAX_FILE_BYTES
+from ..tools.providers.github_client import GitHubRestProviderClient
 from .source_delivery_composition import (
     BootstrapResult,
     ProjectRepositoryBindingError,
@@ -25,7 +34,7 @@ from .workspace_lineage import (
 )
 
 
-_PROJECTION_VERSION = "lineage-safe-v1"
+_PROJECTION_VERSION = "lineage-safe-v2"
 _SECRET_FILENAMES = frozenset(
     {
         "credentials",
@@ -63,8 +72,128 @@ def is_lineage_secret_sensitive_path(path: str) -> bool:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectedGitHubFileResult:
+    """Bounded canonical repository source read after secret-path projection.
+
+    Source code may legitimately contain credential-related syntax and test
+    fixtures, so the publication-time secret-literal heuristic is intentionally
+    not applied to canonical repository reads. The strict heuristic remains on
+    GitHubCommitFile, so Parallax cannot publish the same suspicious literal.
+    """
+
+    repository_ref: str
+    source_revision: str
+    path: str
+    content: str
+    content_sha256: str
+
+    def __post_init__(self) -> None:
+        require_repository_ref(self.repository_ref)
+        require_source_revision(self.source_revision)
+        if is_lineage_secret_sensitive_path(self.path):
+            raise ValueError("secret-sensitive repository path is excluded from source projection")
+        candidate = PurePosixPath(self.path)
+        if candidate.is_absolute() or not candidate.parts or any(part in {"", ".", ".."} for part in candidate.parts):
+            raise ValueError("projected source path must be a bounded relative path")
+        encoded = self.content.encode("utf-8")
+        if len(encoded) > MAX_FILE_BYTES or "\x00" in self.content:
+            raise ValueError("projected source content exceeds the bounded UTF-8 contract")
+        if sha256(encoded).hexdigest() != self.content_sha256:
+            raise ValueError("projected source content digest does not match content")
+
+
+class ProjectedGitHubReadClient:
+    """Production-only read adapter over the accepted GitHub REST client.
+
+    All provider authentication, repository scoping, timeouts and HTTP status
+    normalization remain owned by the existing client. Only successful file
+    payload construction differs so legitimate auth/security source code can be
+    read after the stricter path projection above.
+    """
+
+    def __init__(self, delegate: GitHubRestProviderClient) -> None:
+        if not isinstance(delegate, GitHubRestProviderClient):
+            raise TypeError("projected GitHub reads require the protected REST client")
+        self._delegate = delegate
+
+    def __getattr__(self, name: str):
+        return getattr(self._delegate, name)
+
+    def read_file(
+        self,
+        repository_ref: str,
+        source_revision: str,
+        path: str,
+        *,
+        max_bytes: int,
+    ) -> ProjectedGitHubFileResult:
+        require_repository_ref(repository_ref)
+        require_source_revision(source_revision)
+        if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes < 1:
+            raise ValueError("max_bytes must be a positive integer")
+        if max_bytes > MAX_FILE_BYTES:
+            raise ValueError("projected read exceeds the protected file bound")
+        if is_lineage_secret_sensitive_path(path):
+            raise ProviderClientError("SOURCE_PATH_EXCLUDED")
+
+        endpoint = f"{self._delegate._repo_path(repository_ref)}/contents/{quote(path, safe='/')}"
+        response = self._delegate._send(
+            "GET",
+            repository_ref,
+            endpoint,
+            params={"ref": source_revision},
+        )
+        self._delegate._raise_status(response, not_found="SOURCE_NOT_FOUND")
+        payload = self._delegate._json(response)
+        if not isinstance(payload, dict):
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+        if payload.get("type") != "file" or payload.get("encoding") != "base64":
+            raise ProviderClientError("UNSUPPORTED_SOURCE_CONTENT")
+        returned_path = payload.get("path")
+        if returned_path != path:
+            raise ProviderClientError("SOURCE_MISMATCH")
+        size = payload.get("size")
+        if not isinstance(size, int) or isinstance(size, bool) or not 0 <= size <= max_bytes:
+            raise ProviderClientError("SOURCE_FILE_TOO_LARGE")
+        encoded = payload.get("content")
+        if not isinstance(encoded, str):
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+        try:
+            content_bytes = base64.b64decode("".join(encoded.split()), validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from exc
+        if len(content_bytes) != size or len(content_bytes) > max_bytes:
+            raise ProviderClientError("SOURCE_FILE_TOO_LARGE")
+        try:
+            content = content_bytes.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise ProviderClientError("UNSUPPORTED_SOURCE_CONTENT") from exc
+        if "\x00" in content:
+            raise ProviderClientError("UNSUPPORTED_SOURCE_CONTENT")
+        try:
+            return ProjectedGitHubFileResult(
+                repository_ref=repository_ref,
+                source_revision=source_revision,
+                path=path,
+                content=content,
+                content_sha256=sha256(content_bytes).hexdigest(),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ProviderClientError("UNSUPPORTED_SOURCE_CONTENT") from exc
+
+
 class ProjectedRepositoryBoundSourceProvider(RepositoryBoundSourceProvider):
     """Read the immutable repository revision after lineage-safe path projection."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._source_reads = self.github
+        if isinstance(self.github, GitHubProviderActions) and isinstance(self.github.client, GitHubRestProviderClient):
+            self._source_reads = GitHubProviderActions(
+                self.github.executor.registry,
+                ProjectedGitHubReadClient(self.github.client),
+            )
 
     def load(self, identity: ProjectRunIdentity) -> SourcePackage:
         if identity != self.identity:
@@ -84,7 +213,7 @@ class ProjectedRepositoryBoundSourceProvider(RepositoryBoundSourceProvider):
         for entry in sorted(tree.entries, key=lambda item: item.path):
             if entry.kind != "file" or is_lineage_secret_sensitive_path(entry.path):
                 continue
-            source = self.github.read_file(
+            source = self._source_reads.read_file(
                 self.binding,
                 self._invocation(ACTION_SOURCE_FILE_READ, f":{read_index}"),
                 source_revision=revision,
@@ -163,6 +292,8 @@ class ProjectedRepositoryLineageBootstrap(RepositoryLineageBootstrap):
 
 
 __all__ = [
+    "ProjectedGitHubFileResult",
+    "ProjectedGitHubReadClient",
     "ProjectedRepositoryBoundSourceProvider",
     "ProjectedRepositoryLineageBootstrap",
     "is_lineage_secret_sensitive_path",
