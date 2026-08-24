@@ -6,6 +6,7 @@ from hashlib import sha256
 from threading import RLock
 from typing import Callable, Protocol
 
+import httpx
 from sqlalchemy import (
     BigInteger,
     Column,
@@ -172,7 +173,9 @@ class VercelPrivateBlobObjectStore:
     """Private Vercel Blob adapter for immutable SHA-256 addressed source bytes.
 
     Only server-derived digest paths are accepted. Tokens are passed only to the
-    provider SDK and are never returned as lineage/evaluation evidence.
+    provider SDK and are never returned as lineage/evaluation evidence. A small
+    request-local cache reuses bytes already verified against their content
+    address; it is disposable and never authoritative durable state.
     """
 
     def __init__(
@@ -180,22 +183,38 @@ class VercelPrivateBlobObjectStore:
         *,
         prefix: str = "parallax/source-lineage/v1/sha256",
         token: str | None = None,
+        transient_attempts: int = 3,
     ) -> None:
         normalized = prefix.strip("/")
         if not normalized or ".." in normalized.split("/"):
             raise ValueError("durable object prefix must be a protected relative prefix")
+        if (
+            not isinstance(transient_attempts, int)
+            or isinstance(transient_attempts, bool)
+            or not 1 <= transient_attempts <= 4
+        ):
+            raise ValueError("durable object transient attempts must be between 1 and 4")
         self.prefix = normalized
         self.token = token
+        self.transient_attempts = transient_attempts
+        self._verified_objects: dict[str, bytes] = {}
+        self._cache_lock = RLock()
 
     def put_if_absent(self, digest: str, content: bytes) -> None:
         _validate_digest(digest)
         payload = bytes(content)
         if sha256(payload).hexdigest() != digest:
             raise ObjectIntegrityError("object content does not match its content address")
-        path = self._path(digest)
 
+        cached = self._cached(digest)
+        if cached is not None:
+            if cached != payload:
+                raise ObjectIntegrityError("cached immutable object differs from its content address")
+            return
+
+        path = self._path(digest)
         try:
-            existing = self._provider_get(path)
+            existing = self._provider_get(path, expected_digest=digest)
         except ObjectMissingError:
             existing = None
         if existing is not None:
@@ -203,51 +222,126 @@ class VercelPrivateBlobObjectStore:
                 raise ObjectIntegrityError("existing private object differs from its content address")
             return
 
-        try:
-            from vercel.blob import BlobError, put
-
-            put(
-                path,
-                payload,
-                access="private",
-                content_type="application/octet-stream",
-                add_random_suffix=False,
-                overwrite=False,
-                token=self.token,
-            )
-        except BlobError as exc:
-            # A concurrent writer may have won the immutable pathname race.
-            # Re-read and accept only the exact content-addressed object.
-            try:
-                raced = self._provider_get(path)
-            except ObjectStoreError:
-                raise ObjectWriteError("private durable object write failed") from exc
-            if raced != payload:
-                raise ObjectWriteError("private durable object write conflicted with different content") from exc
-
-        verified = self._provider_get(path)
+        self._provider_put(path, digest=digest, payload=payload)
+        verified = self._provider_get(path, expected_digest=digest)
         if verified != payload:
             raise ObjectIntegrityError("private durable object failed write-after-read verification")
 
     def get(self, digest: str) -> bytes:
         _validate_digest(digest)
+        cached = self._cached(digest)
+        if cached is not None:
+            return cached
         return self._provider_get(self._path(digest), expected_digest=digest)
 
-    def _provider_get(self, path: str, *, expected_digest: str | None = None) -> bytes:
-        try:
-            from vercel.blob import BlobError, BlobNotFoundError, get
+    def _provider_put(self, path: str, *, digest: str, payload: bytes) -> None:
+        from vercel.blob import BlobError, put
 
-            result = get(path, access="private", token=self.token, use_cache=False)
-        except BlobNotFoundError as exc:
-            raise ObjectMissingError("private durable source object is missing") from exc
-        except BlobError as exc:
-            raise ObjectStoreError("private durable source object read failed") from exc
-        payload = bytes(result.content)
+        last_transient: BaseException | None = None
+        for attempt in range(self.transient_attempts):
+            try:
+                put(
+                    path,
+                    payload,
+                    access="private",
+                    content_type="application/octet-stream",
+                    add_random_suffix=False,
+                    overwrite=False,
+                    token=self.token,
+                )
+                return
+            except BlobError as exc:
+                # A concurrent writer may have won the immutable pathname race.
+                # Re-read and accept only the exact content-addressed object.
+                try:
+                    raced = self._provider_get(path, expected_digest=digest)
+                except ObjectStoreError:
+                    raise ObjectWriteError("private durable object write failed") from exc
+                if raced != payload:
+                    raise ObjectWriteError(
+                        "private durable object write conflicted with different content"
+                    ) from exc
+                return
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                last_transient = exc
+                # The request may have committed remotely before the transport
+                # failed. Re-read first; retry only when the immutable object is
+                # still absent or temporarily unreadable.
+                try:
+                    raced = self._provider_get(path, expected_digest=digest)
+                except ObjectMissingError:
+                    if attempt + 1 < self.transient_attempts:
+                        continue
+                    raise ObjectWriteError("private durable object write failed") from exc
+                except ObjectStoreError:
+                    if attempt + 1 < self.transient_attempts:
+                        continue
+                    raise ObjectWriteError("private durable object write failed") from exc
+                if raced != payload:
+                    raise ObjectWriteError(
+                        "private durable object write conflicted with different content"
+                    ) from exc
+                return
+            except Exception as exc:
+                raise ObjectWriteError("private durable object write failed") from exc
+
+        raise ObjectWriteError("private durable object write failed") from last_transient
+
+    def _provider_get(self, path: str, *, expected_digest: str | None = None) -> bytes:
+        from vercel.blob import BlobError, BlobNotFoundError, get
+
         digest = expected_digest or path.rsplit("/", 1)[-1]
         _validate_digest(digest)
+        cached = self._cached(digest)
+        if cached is not None:
+            return cached
+
+        last_transient: BaseException | None = None
+        for attempt in range(self.transient_attempts):
+            try:
+                result = get(path, access="private", token=self.token, use_cache=False)
+            except BlobNotFoundError as exc:
+                raise ObjectMissingError("private durable source object is missing") from exc
+            except BlobError as exc:
+                raise ObjectStoreError("private durable source object read failed") from exc
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                last_transient = exc
+                if attempt + 1 < self.transient_attempts:
+                    continue
+                raise ObjectStoreError("private durable source object read failed") from exc
+            except Exception as exc:
+                raise ObjectStoreError("private durable source object read failed") from exc
+
+            try:
+                payload = bytes(result.content)
+            except Exception as exc:
+                raise ObjectStoreError("private durable source object content read failed") from exc
+            if sha256(payload).hexdigest() != digest:
+                raise ObjectIntegrityError("private durable source object digest mismatch")
+            self._remember(digest, payload)
+            return payload
+
+        raise ObjectStoreError("private durable source object read failed") from last_transient
+
+    def _cached(self, digest: str) -> bytes | None:
+        with self._cache_lock:
+            content = self._verified_objects.get(digest)
+        if content is None:
+            return None
+        payload = bytes(content)
         if sha256(payload).hexdigest() != digest:
-            raise ObjectIntegrityError("private durable source object digest mismatch")
+            raise ObjectIntegrityError("request-local verified object cache digest mismatch")
         return payload
+
+    def _remember(self, digest: str, content: bytes) -> None:
+        payload = bytes(content)
+        if sha256(payload).hexdigest() != digest:
+            raise ObjectIntegrityError("verified object cache rejected invalid content")
+        with self._cache_lock:
+            current = self._verified_objects.get(digest)
+            if current is not None and current != payload:
+                raise ObjectIntegrityError("verified object cache content changed for immutable digest")
+            self._verified_objects[digest] = payload
 
     def _path(self, digest: str) -> str:
         return f"{self.prefix}/{digest[:2]}/{digest}"

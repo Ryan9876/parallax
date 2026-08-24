@@ -18,6 +18,7 @@ from ..tools.providers import (
 from ..tools.providers.common import require_repository_ref, require_source_revision
 from ..tools.providers.github import MAX_FILE_BYTES
 from ..tools.providers.github_client import GitHubRestProviderClient
+from .bootstrap_observability import record_bootstrap_failure
 from .source_delivery_composition import (
     BootstrapResult,
     ProjectRepositoryBindingError,
@@ -250,15 +251,24 @@ class ProjectedRepositoryLineageBootstrap(RepositoryLineageBootstrap):
         except (LineageIdentityError, LineageNotFoundError):
             current = None
         except Exception as exc:
+            record_bootstrap_failure(exc, default_stage="lineage-head")
             raise SourceBootstrapError("durable source-lineage head could not be resolved") from exc
         if current is not None:
             if current.project_id != identity.project_id or current.run_id != identity.run_id:
-                raise SourceBootstrapError("durable source lineage belongs to a different Project/run")
+                failure = SourceBootstrapError("durable source lineage belongs to a different Project/run")
+                record_bootstrap_failure(failure, default_stage="bootstrap-contract")
+                raise failure
             return BootstrapResult(identity=identity, lineage=current, initialized=False)
 
-        binding = self.projects.resolve(identity.project_id)
+        try:
+            binding = self.projects.resolve(identity.project_id)
+        except Exception as exc:
+            record_bootstrap_failure(exc, default_stage="project-binding")
+            raise
         if binding.project_ref != identity.project_id:
-            raise ProjectRepositoryBindingError("repository binding belongs to a different Project")
+            failure = ProjectRepositoryBindingError("repository binding belongs to a different Project")
+            record_bootstrap_failure(failure, default_stage="project-binding")
+            raise failure
         provider = ProjectedRepositoryBoundSourceProvider(
             identity=identity,
             binding=binding,
@@ -277,17 +287,21 @@ class ProjectedRepositoryLineageBootstrap(RepositoryLineageBootstrap):
                 or lineage.source_kind != "repository"
                 or lineage.source_ref_digest is None
             ):
-                raise SourceBootstrapError("initialized repository lineage violates root-lineage contract")
+                failure = SourceBootstrapError("initialized repository lineage violates root-lineage contract")
+                record_bootstrap_failure(failure, default_stage="bootstrap-contract")
+                raise failure
             return BootstrapResult(identity=identity, lineage=lineage, initialized=True)
         except SourceBootstrapError:
             raise
         except Exception as exc:
+            record_bootstrap_failure(exc, default_stage="lineage-initialize")
             raise SourceBootstrapError("repository-backed durable lineage initialization failed") from exc
         finally:
             if workspace is not None:
                 try:
                     self.allocator.cleanup(workspace)
                 except Exception as exc:
+                    record_bootstrap_failure(exc, default_stage="materialization-cleanup")
                     raise SourceBootstrapError("failed to clean disposable bootstrap materialization") from exc
 
 
