@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "4.1 Owner-scoped observability service A narrow service accepts an owner-scoped Engineering Run service/repository plus #145 `RunEventRepository` and the durable lineage store. It resolves the run first and derives canonical `project_id`; caller-provided Project identity is never an authorization input."
+  ],
+  "work_items": [
+    "4.2 Event replay endpoint Provide an authenticated endpoint under the Engineering Run surface that returns bounded events with: - exact `id`, `project_id`, `run_id`, positive `sequence` and deterministic `event_key`; - typed `event_type`, `stage`, `outcome`, `subsystem`; - safe optional attempt/worker/lineage/operation/artifact/evidence/failure references; - bounded summary/metadata; - `occurred_at` and durable `created_at`; - `next_after_sequence` and `has_more` derived without inventing events."
+  ],
+  "validations": [
+    "4.3 SSE transport Provide an authenticated SSE endpoint for one exact run. It returns bounded events with: - exact `id`, `project_id`, `run_id`, positive `sequence` and deterministic `event_key`; - typed `event_type`, `stage`, `outcome`, `subsystem`; - safe optional attempt/worker/lineage/operation/artifact/evidence/failure references; - bounded summary/metadata; - `occurred_at` and durable `created_at`; - `next_after_sequence` and `has_more` derived without inventing events.",
+    "AC-01: validate protected requirement — Authenticated JSON replay resolves the canonical owner-scoped run first and returns ascending durable #145 events after a nonnegative cursor with bounded limits and stable public identities.",
+    "AC-02: validate protected requirement — The authenticated SSE route replays persisted events after its resolved cursor, emits durable sequence IDs, observes newly committed events through bounded polling and survives process recreation without process-local event authority.",
+    "AC-03: validate protected requirement — Valid `Last-Event-ID` takes precedence over the query cursor, invalid headers fail closed, and permanent tests prove reconnect/replay cannot cause duplicate rendered event identity when the client helper tracks the last accepted sequence.",
+    "AC-04: validate protected requirement — Connect, keepalive, disconnect, reconnect, timeout and stream failure never pause/cancel/advance a run, acquire/reassign a worker, mutate source, publish a provider action or fabricate run-event success.",
+    "AC-05: validate protected requirement — Tree reads require an exact lineage belonging to the owner-scoped Project/run and expose only bounded immutable manifest metadata protected by the existing lineage source-path policy.",
+    "AC-06: validate protected requirement — A requested relative path must be policy-valid and present in the exact lineage. Returned text must match immutable object digest/size and response bounds; binary/oversized/secret/traversal inputs never return raw content.",
+    "AC-07: validate protected requirement — Diffs require two exact same-run lineages, report deterministic added/removed/changed results, explicitly mark binary/oversized/truncated cases and cannot be applied as a mutation request.",
+    "AC-08: validate protected requirement — Read-only attempt evidence is owner scoped and allowlisted. BUILD/TEST/VERIFY may expose bounded already-persisted execution excerpts/digests and identities, while arbitrary commands, raw environment, credentials, provider payloads, prompts/reasoning and unbounded logs remain absent.",
+    "AC-09: validate protected requirement — Tests prove another owner, wrong Project/run, foreign lineage, foreign attempt, invalid path and malformed cursor cannot reveal protected existence or content.",
+    "AC-10: validate protected requirement — Repository/object/evidence failures, cursor errors and diff truncation remain explicit observation failures/states and cannot change authoritative runtime outcomes or be represented as engineering success.",
+    "AC-11: validate protected requirement — Deterministic tests cover JSON paging, SSE replay/live polling/reconnect, client deduplication, process-recreated repository reads, disconnect independence, source/file/diff bounds, secret-path denial, binary behavior, evidence allowlisting and cross-scope isolation.",
+    "AC-12: validate protected requirement — The final candidate has authentic committed DSPy plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact final head with existing Wave 3/#145 protected suites unchanged or stronger. The worker stops review-ready before merge, migration application or deployment."
+  ],
+  "risks": [
+    "4.4 Observer independence. Stream connect, disconnect, timeout or retry has no Engineering Run/worker mutation effect."
+  ],
+  "spec_id": "P2-V0.17.2",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Owner-scoped event replay is deterministic and bounded",
+      "protected_requirement": "Authenticated JSON replay resolves the canonical owner-scoped run first and returns ascending durable #145 events after a nonnegative cursor with bounded limits and stable public identities."
+    },
+    {
+      "id": "AC-02",
+      "title": "SSE replays and resumes from durable sequence",
+      "protected_requirement": "The authenticated SSE route replays persisted events after its resolved cursor, emits durable sequence IDs, observes newly committed events through bounded polling and survives process recreation without process-local event authority."
+    },
+    {
+      "id": "AC-03",
+      "title": "Reconnect cursor semantics are unambiguous and duplicate-safe",
+      "protected_requirement": "Valid `Last-Event-ID` takes precedence over the query cursor, invalid headers fail closed, and permanent tests prove reconnect/replay cannot cause duplicate rendered event identity when the client helper tracks the last accepted sequence."
+    },
+    {
+      "id": "AC-04",
+      "title": "Observer connection state cannot mutate engineering state",
+      "protected_requirement": "Connect, keepalive, disconnect, reconnect, timeout and stream failure never pause/cancel/advance a run, acquire/reassign a worker, mutate source, publish a provider action or fabricate run-event success."
+    },
+    {
+      "id": "AC-05",
+      "title": "Exact-lineage source tree reads preserve Project/run and secret-path isolation",
+      "protected_requirement": "Tree reads require an exact lineage belonging to the owner-scoped Project/run and expose only bounded immutable manifest metadata protected by the existing lineage source-path policy."
+    },
+    {
+      "id": "AC-06",
+      "title": "Exact-lineage file reads return only verified bounded UTF-8 source",
+      "protected_requirement": "A requested relative path must be policy-valid and present in the exact lineage. Returned text must match immutable object digest/size and response bounds; binary/oversized/secret/traversal inputs never return raw content."
+    },
+    {
+      "id": "AC-07",
+      "title": "Immutable diffs are deterministic, bounded and non-authoritative",
+      "protected_requirement": "Diffs require two exact same-run lineages, report deterministic added/removed/changed results, explicitly mark binary/oversized/truncated cases and cannot be applied as a mutation request."
+    },
+    {
+      "id": "AC-08",
+      "title": "Protected attempt/evidence reads cannot become a terminal or log dump",
+      "protected_requirement": "Read-only attempt evidence is owner scoped and allowlisted. BUILD/TEST/VERIFY may expose bounded already-persisted execution excerpts/digests and identities, while arbitrary commands, raw environment, credentials, provider payloads, prompts/reasoning and unbounded logs remain absent."
+    },
+    {
+      "id": "AC-09",
+      "title": "Cross-Project/run and reference probing fail closed",
+      "protected_requirement": "Tests prove another owner, wrong Project/run, foreign lineage, foreign attempt, invalid path and malformed cursor cannot reveal protected existence or content."
+    },
+    {
+      "id": "AC-10",
+      "title": "Transport and protected-read failures remain truthful",
+      "protected_requirement": "Repository/object/evidence failures, cursor errors and diff truncation remain explicit observation failures/states and cannot change authoritative runtime outcomes or be represented as engineering success."
+    },
+    {
+      "id": "AC-11",
+      "title": "Permanent tests cover replay, process recreation, disconnect, privacy and bounds",
+      "protected_requirement": "Deterministic tests cover JSON paging, SSE replay/live polling/reconnect, client deduplication, process-recreated repository reads, disconnect independence, source/file/diff bounds, secret-path denial, binary behavior, evidence allowlisting and cross-scope isolation."
+    },
+    {
+      "id": "AC-12",
+      "title": "Existing protected runtime and exact-head gates remain green",
+      "protected_requirement": "The final candidate has authentic committed DSPy plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact final head with existing Wave 3/#145 protected suites unchanged or stronger. The worker stops review-ready before merge, migration application or deployment."
+    }
+  ],
+  "critique": [
+    "The project runs are identified by their unique `project_id` and `run_id`. The `sequence` field in the SSE event represents the exact run event sequence. The `event_key` is a deterministic identifier for the event. The `event_type` and `stage` fields indicate the type of event and the stage it represents. The `outcome` field specifies the outcome of the event. The `subsystem` field provides additional information about the event. The `event_key` is a deterministic identifier for the event. The `sequence` field represents the exact run event sequence. The `event_type` and `stage` fields indicate the type of event and the stage it represents. The `outcome` field specifies the outcome of the event. The `subsystem` field provides additional information about the event. The `event_key` is a deterministic identifier for the event. The `sequence` field represents the exact run event sequence. The `event_type` and `stage` fields indicate the type of event and the stage it represents. The `outcome` field specifies the outcome of the event. The `subsystem` field provides additional information about the event. The `event_key` is a deterministic identifier for the event. The `sequence` field represents the exact run event sequence. The `event_type` and `stage` fields indicate the type of event and the stage it represents. The `outcome` field specifies the outcome of the event. The `subsystem` field provides additional information about the event. The `event_key` is a deterministic identifier for the event. The `sequence` field represents the exact run event sequence. The `event_type` and `stage` fields indicate the type of event and the stage it represents. The `outcome` field specifies the outcome of the event. The `subsystem` field provides additional information about the event. The `event"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
