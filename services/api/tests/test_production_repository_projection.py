@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from parallax_api.code.production_source_projection import (
+    ProjectedGitHubFileResult,
     ProjectedRepositoryBoundSourceProvider,
     is_lineage_secret_sensitive_path,
 )
@@ -17,6 +18,7 @@ from parallax_api.code.workspace_lineage import (
     SourcePolicyError,
 )
 from parallax_api.tools.providers import (
+    GitHubCommitFile,
     GitHubFileResult,
     GitHubRepositoryState,
     GitHubTreeEntry,
@@ -101,7 +103,7 @@ def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads(
         "apps/client/src/components/ParallaxLogo.tsx",
     )
     assert github.file_reads == list(sorted(package.files))
-    assert package.source_ref == f"{REPOSITORY}@{REVISION}:projection:lineage-safe-v1"
+    assert package.source_ref == f"{REPOSITORY}@{REVISION}:projection:lineage-safe-v2"
 
 
 def test_projection_matches_durable_lineage_secret_path_boundary():
@@ -120,6 +122,23 @@ def test_projection_matches_durable_lineage_secret_path_boundary():
     allowed = "apps/client/src/components/ParallaxLogo.tsx"
     assert not is_lineage_secret_sensitive_path(allowed)
     assert SourceLineageStore._normalize_source_path(allowed) == allowed
+
+
+def test_canonical_source_read_allows_auth_code_but_publication_rejects_same_secret_like_literal():
+    content = 'const token = "replace-with-user-token-value";\n'
+    digest = sha256(content.encode()).hexdigest()
+
+    result = ProjectedGitHubFileResult(
+        REPOSITORY,
+        REVISION,
+        "apps/client/src/lib/auth.ts",
+        content,
+        digest,
+    )
+    assert result.content == content
+
+    with pytest.raises(ValueError, match="possible secret-bearing content"):
+        GitHubCommitFile("apps/client/src/lib/auth.ts", content, digest)
 
 
 def test_current_parallax_repository_is_compatible_with_projected_provider_source_contract():
@@ -154,7 +173,7 @@ def test_current_parallax_repository_is_compatible_with_projected_provider_sourc
             continue
         try:
             content = raw.decode("utf-8", errors="strict")
-            GitHubFileResult(REPOSITORY, REVISION, path, content, sha256(raw).hexdigest())
+            ProjectedGitHubFileResult(REPOSITORY, REVISION, path, content, sha256(raw).hexdigest())
         except UnicodeDecodeError:
             rejected.append(f"{path}:UNSUPPORTED_SOURCE_CONTENT")
         except (TypeError, ValueError) as exc:
