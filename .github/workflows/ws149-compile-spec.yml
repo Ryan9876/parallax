@@ -1,0 +1,47 @@
+name: WS149 Compile P2-V0.17.5
+
+on:
+  push:
+    branches: [integration/wave4-live-development]
+    paths: ['.github/workflows/ws149-compile-spec.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/wave4-live-development
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - name: Install local DSPy development LM
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull qwen2.5:0.5b
+      - name: Compile and validate approved specification
+        env:
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: ''
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.17.5.md
+          python scripts/validate_spec.py specs/P2-V0.17.5.md
+      - name: Commit authentic compiled plan
+        run: |
+          git config user.name 'Parallax Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add specs/compiled/P2-V0.17.5.plan.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Compile P2-V0.17.5 with DSPy'
+          git push origin HEAD:integration/wave4-live-development
