@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.com/vercel.json",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
-  "buildCommand": "python scripts/production_provider_preflight.py && mkdir -p public && printf 'parallax-api-build\\n' > public/build-marker.txt",
+  "buildCommand": "python scripts/production_provider_preflight.py && python scripts/production_projected_source_preflight.py && mkdir -p public && printf 'parallax-api-build\\n' > public/build-marker.txt",
   "rewrites": [
     {
       "source": "/(.*)",
