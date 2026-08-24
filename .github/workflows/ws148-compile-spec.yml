@@ -28,15 +28,15 @@ jobs:
             sleep 1
           done
           ollama pull qwen2.5:0.5b
-      - name: Validate and compile approved specification
+      - name: Compile and validate approved specification
         env:
           DSPY_MODEL: ollama_chat/qwen2.5:0.5b
           DSPY_API_BASE: http://127.0.0.1:11434
           DSPY_API_KEY: ''
           DSPY_LOCAL_DEVELOPMENT: '1'
         run: |
-          python scripts/validate_spec.py specs/P2-V0.17.4.md
           python scripts/compile_spec.py specs/P2-V0.17.4.md
+          python scripts/validate_spec.py specs/P2-V0.17.4.md
       - name: Commit authentic compiled plan
         run: |
           git config user.name 'Parallax Release Bot'
