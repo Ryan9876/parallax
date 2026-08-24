@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from hashlib import sha256
 import json
 
 from ..models import Conversation, EngineeringRun, WorkSpecification
@@ -9,6 +11,13 @@ from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
 from ..repositories.work_specifications import WorkSpecificationRepository
 from .domain import ACTIVE_STAGES, TERMINAL_STAGES, AttemptStatus, WorkflowStage
+from .run_events import (
+    RunEventAppend,
+    RunEventOutcome,
+    RunEventSink,
+    RunEventSubsystem,
+    RunEventType,
+)
 from .state_machine import ProtectedRunPolicy, RevisionConflict, RunTransitionError, SpecBindingError
 from .protected import (
     validate_execution,
@@ -42,6 +51,7 @@ class EngineeringRunService:
         owner_subject: str | None = None,
         require_project_binding: bool = False,
         policy: ProtectedRunPolicy | None = None,
+        event_sink: RunEventSink | None = None,
     ):
         self.runs = run_repository
         self.conversations = conversation_repository
@@ -50,6 +60,225 @@ class EngineeringRunService:
         self.owner_subject = owner_subject.strip() if owner_subject else None
         self.require_project_binding = require_project_binding
         self.policy = policy or ProtectedRunPolicy()
+        self.event_sink = event_sink
+
+    @staticmethod
+    def _event_time(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _operation_ref(operation_key: str) -> str:
+        return "op:" + sha256(operation_key.encode("utf-8")).hexdigest()
+
+    def emit_event(self, event: RunEventAppend) -> None:
+        """Persist one non-authoritative observation when Wave 4 is configured."""
+
+        if self.event_sink is not None:
+            self.event_sink.emit(event)
+
+    def _emit_run_created(self, run: EngineeringRun) -> None:
+        if self.event_sink is None or not run.project_id:
+            return
+        self.emit_event(
+            RunEventAppend(
+                project_id=run.project_id,
+                run_id=run.id,
+                event_key=f"run:{run.id}:created",
+                event_type=RunEventType.RUN_CREATED,
+                stage=WorkflowStage.SPECIFY.value,
+                outcome=RunEventOutcome.INFO,
+                subsystem=RunEventSubsystem.RUN,
+                summary="Engineering Run created with canonical Project and approved Work Specification binding.",
+                metadata={"current_state": WorkflowStage.SPECIFY.value, "run_revision": 0},
+                occurred_at=self._event_time(run.created_at),
+            )
+        )
+
+    @staticmethod
+    def _attempt_subsystem(stage: str) -> RunEventSubsystem:
+        if stage == WorkflowStage.IMPLEMENT.value:
+            return RunEventSubsystem.IMPLEMENTATION
+        if stage in {
+            WorkflowStage.BUILD.value,
+            WorkflowStage.TEST.value,
+            WorkflowStage.VERIFY.value,
+        }:
+            return RunEventSubsystem.EXECUTION
+        if stage == WorkflowStage.REVIEW.value:
+            return RunEventSubsystem.REVIEW
+        return RunEventSubsystem.RUN
+
+    @staticmethod
+    def _attempt_metadata(mutation: RecordedMutation) -> dict[str, object]:
+        attempt = mutation.attempt
+        metadata: dict[str, object] = {"attempt_number": int(attempt.attempt_number)}
+        if attempt.program_id:
+            metadata["program_id"] = attempt.program_id
+        if attempt.tool_id:
+            metadata["tool_id"] = attempt.tool_id
+        try:
+            evidence = json.loads(attempt.evidence_json or "{}")
+        except json.JSONDecodeError:
+            evidence = {}
+        if not isinstance(evidence, dict):
+            evidence = {}
+        for key in ("workspace_digest", "content_digest"):
+            value = evidence.get(key)
+            if isinstance(value, str) and len(value) == 64:
+                metadata[key] = value
+        for key in ("lineage_bound_execution", "timed_out", "redacted"):
+            value = evidence.get(key)
+            if isinstance(value, bool):
+                metadata[key] = value
+        value = evidence.get("exit_code")
+        if isinstance(value, int):
+            metadata["exit_code"] = value
+        artifacts = evidence.get("artifacts")
+        if isinstance(artifacts, list):
+            metadata["artifact_count"] = len(artifacts)
+        for acceptance_key in (
+            "acceptance_ids",
+            "acceptance_ids_covered",
+            "acceptance_ids_targeted",
+            "acceptance_ids_verified",
+        ):
+            ids = evidence.get(acceptance_key)
+            if isinstance(ids, list):
+                metadata["acceptance_count"] = len(ids)
+                break
+        return metadata
+
+    @staticmethod
+    def _attempt_lineage(mutation: RecordedMutation, key: str) -> str | None:
+        try:
+            evidence = json.loads(mutation.attempt.evidence_json or "{}")
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(evidence, dict):
+            return None
+        value = evidence.get(key)
+        return value if isinstance(value, str) and value.startswith("src:") else None
+
+    def _emit_attempt_result(self, mutation: RecordedMutation) -> None:
+        if self.event_sink is None or not mutation.run.project_id:
+            return
+        attempt = mutation.attempt
+        status = attempt.status
+        control = status in {
+            AttemptStatus.PAUSED.value,
+            AttemptStatus.RESUMED.value,
+            AttemptStatus.CANCELLED.value,
+            AttemptStatus.SPEC_AMENDMENT.value,
+        }
+        if status == AttemptStatus.PASSED.value:
+            outcome = RunEventOutcome.SUCCEEDED
+        elif status == AttemptStatus.FAILED.value:
+            outcome = RunEventOutcome.FAILED
+        elif status == AttemptStatus.SPEC_AMENDMENT.value:
+            outcome = RunEventOutcome.HUMAN_REQUIRED
+        elif status in {AttemptStatus.PAUSED.value, AttemptStatus.RESUMED.value}:
+            outcome = RunEventOutcome.PROGRESSED
+        else:
+            outcome = RunEventOutcome.INFO
+
+        metadata = self._attempt_metadata(mutation)
+        if control:
+            metadata["control_status"] = status
+        self.emit_event(
+            RunEventAppend(
+                project_id=mutation.run.project_id,
+                run_id=mutation.run.id,
+                event_key=f"attempt:{attempt.id}:result",
+                event_type=RunEventType.RUN_CONTROL if control else RunEventType.STAGE_RESULT,
+                stage=attempt.stage,
+                outcome=outcome,
+                subsystem=self._attempt_subsystem(attempt.stage),
+                attempt_id=attempt.id,
+                source_lineage_ref=self._attempt_lineage(mutation, "source_lineage_ref"),
+                operation_ref=self._operation_ref(attempt.operation_key),
+                evidence_ref=f"attempt:{attempt.id}",
+                failure_code=attempt.failure_code,
+                summary=(
+                    f"Engineering Run control recorded as {status}."
+                    if control
+                    else f"Protected {attempt.stage} attempt recorded as {status}."
+                ),
+                metadata=metadata,
+                occurred_at=self._event_time(attempt.completed_at),
+            )
+        )
+
+        if attempt.stage == WorkflowStage.IMPLEMENT.value and status == AttemptStatus.PASSED.value:
+            lineage = self._attempt_lineage(mutation, "source_lineage_ref")
+            parent = self._attempt_lineage(mutation, "base_source_lineage_ref")
+            if lineage is not None:
+                lineage_metadata = {
+                    key: value
+                    for key, value in metadata.items()
+                    if key in {"workspace_digest", "artifact_count", "program_id", "tool_id"}
+                }
+                self.emit_event(
+                    RunEventAppend(
+                        project_id=mutation.run.project_id,
+                        run_id=mutation.run.id,
+                        event_key=f"lineage:{attempt.id}",
+                        event_type=RunEventType.SOURCE_LINEAGE_ACCEPTED,
+                        stage=WorkflowStage.IMPLEMENT.value,
+                        outcome=RunEventOutcome.SUCCEEDED,
+                        subsystem=RunEventSubsystem.SOURCE_LINEAGE,
+                        attempt_id=attempt.id,
+                        source_lineage_ref=lineage,
+                        parent_source_lineage_ref=parent,
+                        evidence_ref=f"attempt:{attempt.id}",
+                        summary="Protected implementation accepted a new immutable source lineage.",
+                        metadata=lineage_metadata,
+                        occurred_at=self._event_time(attempt.completed_at),
+                    )
+                )
+
+    def _emit_replay(self, mutation: RecordedMutation) -> None:
+        if self.event_sink is None or not mutation.run.project_id or not mutation.replayed:
+            return
+        attempt = mutation.attempt
+        self.emit_event(
+            RunEventAppend(
+                project_id=mutation.run.project_id,
+                run_id=mutation.run.id,
+                event_key=f"attempt:{attempt.id}:replay",
+                event_type=RunEventType.OPERATION_REPLAY,
+                stage=attempt.stage,
+                outcome=RunEventOutcome.REPLAYED,
+                subsystem=self._attempt_subsystem(attempt.stage),
+                attempt_id=attempt.id,
+                operation_ref=self._operation_ref(attempt.operation_key),
+                evidence_ref=f"attempt:{attempt.id}",
+                summary="Idempotent operation retry resolved the existing authoritative attempt without a new mutation.",
+                metadata={"attempt_number": int(attempt.attempt_number)},
+                occurred_at=self._event_time(attempt.completed_at),
+            )
+        )
+
+    def _emit_review_required(self, run: EngineeringRun, attempt_id: str) -> None:
+        if self.event_sink is None or not run.project_id or run.state != WorkflowStage.REVIEW.value:
+            return
+        self.emit_event(
+            RunEventAppend(
+                project_id=run.project_id,
+                run_id=run.id,
+                event_key=f"run:{run.id}:review:{run.revision}",
+                event_type=RunEventType.REVIEW_REQUIRED,
+                stage=WorkflowStage.REVIEW.value,
+                outcome=RunEventOutcome.HUMAN_REQUIRED,
+                subsystem=RunEventSubsystem.REVIEW,
+                attempt_id=attempt_id,
+                evidence_ref=f"attempt:{attempt_id}",
+                summary="Protected autonomous execution reached the explicit operator REVIEW boundary.",
+                metadata={"current_state": WorkflowStage.REVIEW.value, "run_revision": int(run.revision)},
+                occurred_at=self._event_time(run.updated_at),
+            )
+        )
 
     def _conversation_for_access(self, conversation_id: str) -> Conversation | None:
         if self.owner_subject:
@@ -161,7 +390,7 @@ class EngineeringRunService:
             conversation_id=conversation.id,
             work_specification_id=work_specification_id,
         )
-        return self.runs.create(
+        run = self.runs.create(
             conversation_id=conversation.id,
             spec_id=conversation.spec_id,
             project_id=conversation.project_id,
@@ -170,6 +399,8 @@ class EngineeringRunService:
             work_specification_digest=work_specification_digest(specification),
             workspace_ref=None if self.require_project_binding else workspace_ref,
         )
+        self._emit_run_created(run)
+        return run
 
     def activate_run(
         self,
@@ -210,6 +441,7 @@ class EngineeringRunService:
                 workspace_ref=None if self.require_project_binding else workspace_ref,
             )
 
+        self._emit_run_created(run)
         if run.state != WorkflowStage.SPECIFY.value:
             return run
 
@@ -253,7 +485,9 @@ class EngineeringRunService:
         existing = self.runs.find_operation(run.id, operation_key)
         if existing is None:
             return None
-        return RunOperationResult(run=self.get(run.id), attempt_id=existing.id, replayed=True)
+        return self._result(
+            RecordedMutation(run=self.get(run.id), attempt=existing, replayed=True)
+        )
 
     @staticmethod
     def _require_revision(run: EngineeringRun, expected_revision: int) -> None:
@@ -450,8 +684,10 @@ class EngineeringRunService:
         )
         return self._result(mutation)
 
-    @staticmethod
-    def _result(mutation: RecordedMutation) -> RunOperationResult:
+    def _result(self, mutation: RecordedMutation) -> RunOperationResult:
+        self._emit_attempt_result(mutation)
+        self._emit_replay(mutation)
+        self._emit_review_required(mutation.run, mutation.attempt.id)
         return RunOperationResult(
             run=mutation.run,
             attempt_id=mutation.attempt.id,
