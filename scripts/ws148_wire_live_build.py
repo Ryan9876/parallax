@@ -1,0 +1,120 @@
+from pathlib import Path
+
+api = Path('apps/client/src/lib/api.ts')
+text = api.read_text(encoding='utf-8')
+anchor = "async function json<T>(path: string, init?: RequestInit): Promise<T> {\n"
+if 'export async function authenticatedRequest(' not in text:
+    insertion = """export async function authenticatedRequest(path: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    credentials: requestCredentials(),
+    headers: { ...authenticatedHeaders(), ...(init?.headers ?? {}) },
+  });
+  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
+  return response;
+}
+
+"""
+    if anchor not in text:
+        raise SystemExit('api json anchor missing')
+    text = text.replace(anchor, insertion + anchor)
+api.write_text(text, encoding='utf-8')
+
+app = Path('apps/client/src/App.tsx')
+text = app.read_text(encoding='utf-8')
+old = "import { EditorialUtilityRail } from './components/EditorialUtilityRail';\n"
+new = old + "import { LiveBuildWorkspace } from './components/observability/LiveBuildWorkspace';\n"
+if "LiveBuildWorkspace" not in text:
+    if old not in text:
+        raise SystemExit('App import anchor missing')
+    text = text.replace(old, new)
+
+text = text.replace(
+    "const NAV_ITEMS = ['Conversations', 'Projects', 'Templates', 'Tools', 'Knowledge', 'Integrations', 'Settings'] as const;",
+    "const NAV_ITEMS = ['Conversations', 'Observability', 'Projects', 'Templates', 'Tools', 'Knowledge', 'Integrations', 'Settings'] as const;",
+)
+
+mode_anchor = "  const [mode, setMode] = React.useState<'reason' | 'code'>('reason');\n"
+if "workspaceView" not in text:
+    if mode_anchor not in text:
+        raise SystemExit('mode state anchor missing')
+    text = text.replace(mode_anchor, mode_anchor + "  const [workspaceView, setWorkspaceView] = React.useState<'conversation' | 'observability'>('conversation');\n")
+
+apply_anchor = "  const applyConversation = React.useCallback((conversation: ConversationDto) => {\n    setConversationId(conversation.id);\n"
+if apply_anchor in text and "setWorkspaceView('conversation');\n    setConversationId" not in text:
+    text = text.replace(apply_anchor, "  const applyConversation = React.useCallback((conversation: ConversationDto) => {\n    setWorkspaceView('conversation');\n    setConversationId(conversation.id);\n")
+
+old_nav = """                {NAV_ITEMS.map((item) => (
+                  <View key={item} style={[styles.navRow, item === 'Conversations' && styles.navRowActive]}>
+                    <View style={[styles.navDot, item === 'Conversations' && styles.navDotActive]} />
+                    <Text style={[styles.navText, item === 'Conversations' && styles.navTextActive]}>{item}</Text>
+                  </View>
+                ))}
+"""
+new_nav = """                {NAV_ITEMS.map((item) => {
+                  const actionable = item === 'Conversations' || item === 'Observability';
+                  const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
+                  const active = item === 'Conversations' ? workspaceView === 'conversation' : item === 'Observability' && workspaceView === 'observability';
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      accessibilityRole={actionable ? 'button' : undefined}
+                      accessibilityState={{ disabled: !actionable || (item === 'Observability' && !observabilityAvailable), selected: active }}
+                      disabled={!actionable || (item === 'Observability' && !observabilityAvailable)}
+                      onPress={() => item === 'Observability' ? setWorkspaceView('observability') : item === 'Conversations' ? setWorkspaceView('conversation') : undefined}
+                      style={[styles.navRow, active && styles.navRowActive, !actionable && styles.navRowDormant]}
+                    >
+                      <View style={[styles.navDot, active && styles.navDotActive]} />
+                      <Text style={[styles.navText, active && styles.navTextActive, !actionable && styles.navTextDormant]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+"""
+if old_nav not in text:
+    raise SystemExit('desktop nav block missing')
+text = text.replace(old_nav, new_nav)
+
+text = text.replace("            <View style={styles.topbar}>\n", "            <View style={[styles.topbar, workspaceView === 'observability' && styles.hidden]}>\n", 1)
+
+run_block = """            {mode === 'code' && engineering.run && (
+              <EngineeringRunStatus run={engineering.run} busy={engineering.busy} onPause={() => void engineering.pause()} onResume={() => void engineering.resume()} onCancel={() => void engineering.cancel()} />
+            )}
+
+            <ScrollView
+"""
+run_replacement = """            {workspaceView === 'conversation' && mode === 'code' && engineering.run && (
+              <EngineeringRunStatus run={engineering.run} busy={engineering.busy} onPause={() => void engineering.pause()} onResume={() => void engineering.resume()} onCancel={() => void engineering.cancel()} />
+            )}
+
+            {compact && workspaceView === 'conversation' && mode === 'code' && engineering.run ? (
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open Live Build observability" onPress={() => setWorkspaceView('observability')} style={styles.mobileLiveBuild}>
+                <Text style={styles.mobileLiveBuildText}>Open Live Build · Observability</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {workspaceView === 'observability' && mode === 'code' && engineering.run ? (
+              <LiveBuildWorkspace run={engineering.run} onBack={() => setWorkspaceView('conversation')} />
+            ) : null}
+
+            <ScrollView
+"""
+if run_block not in text:
+    raise SystemExit('engineering run composition anchor missing')
+text = text.replace(run_block, run_replacement)
+
+text = text.replace("              style={styles.threadScroll}\n", "              style={[styles.threadScroll, workspaceView === 'observability' && styles.hidden]}\n", 1)
+text = text.replace("            <View style={styles.composerWrap}>\n", "            <View style={[styles.composerWrap, workspaceView === 'observability' && styles.hidden]}>\n", 1)
+text = text.replace("          {showUtilityRail && (\n", "          {showUtilityRail && workspaceView === 'conversation' && (\n", 1)
+
+styles_anchor = "  navRowActive: { backgroundColor: palette.rust600 },\n"
+if "navRowDormant" not in text:
+    if styles_anchor not in text:
+        raise SystemExit('nav style anchor missing')
+    text = text.replace(styles_anchor, styles_anchor + "  navRowDormant: { opacity: 0.68 },\n  navTextDormant: { color: '#AEB79A' },\n")
+main_anchor = "  main: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },\n"
+if "mobileLiveBuild:" not in text:
+    if main_anchor not in text:
+        raise SystemExit('main style anchor missing')
+    text = text.replace(main_anchor, main_anchor + "  hidden: { display: 'none' },\n  mobileLiveBuild: { minHeight: 44, marginHorizontal: 12, marginTop: 8, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.teal600 },\n  mobileLiveBuildText: { color: palette.teal700, fontSize: 10, fontWeight: '800' },\n")
+app.write_text(text, encoding='utf-8')
