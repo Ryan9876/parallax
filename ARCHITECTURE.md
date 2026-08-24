@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.6
+Version: 2.7
 Status: Authoritative
 
 ## System shape
@@ -247,13 +247,15 @@ Each registered target binds:
 
 The current Parallax self-target uses `github/parallax-runtime` and `vercel:preview:parallax`.
 
-GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
+GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. A slash-bearing connector identity is serialized as one percent-encoded URL path parameter at the Connect wire boundary; decoded URL representations are not accepted as sufficient contract evidence. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
 
 Vercel Preview credentials are scoped per registered target project. Request-scoped provider composition receives only the selected target/credential, preventing one Project from inheriting another Project's provider authority.
 
 Publication is replay-aware and durable: request/process recreation resolves the accepted delivery record and does not duplicate branch/commit/PR/Preview mutation when the same exact action was already accepted.
 
-Preview remains the autonomous deployment ceiling. Production promotion/merge is an operator/release boundary unless future governance explicitly changes it.
+The Parallax self-development API release path additionally performs a production-only, read-only provider preflight before a new production deployment may become READY. Using the deployment's Vercel OIDC identity and the same server-owned target registry, the preflight verifies the encoded Vercel Connect exchange, exactly one GitHub installation repository, matching repository numeric identity, registered production branch resolution and presence of the target-scoped Vercel Preview credential. Preview deployments intentionally skip this provider call because the Connect connector remains production-only; the gate does not broaden Preview authority.
+
+Preview remains the autonomous deployment ceiling for Parallax-developed Projects. Parallax's own production promotion/merge remains a governed release boundary. While the standing single-user authority in `PROJECT-CONSTITUTION.md` is active, that durable authorization can satisfy the per-release human-approval step only after all required exact-head gates and rollback requirements pass; it does not give the Project runtime autonomous production-deployment authority.
 
 ## App-builder evaluation and observability
 
@@ -311,7 +313,9 @@ Two authoritative Vercel projects deploy from the same repository:
 
 The Vercel Sandbox execution plane, private Blob store and Vercel Connect connectors are runtime infrastructure, not additional long-lived Parallax application deployments.
 
-Release promotion requires exact-head CI, relevant preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. A green Preview is not production deployment evidence.
+Release promotion requires exact-head CI, relevant preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, a production build must also pass the read-only provider preflight before Vercel cutover. A green Preview is not production deployment evidence, and the production-only provider preflight does not replace post-deploy smoke/observability checks.
+
+While Parallax remains effectively single-user, `PROJECT-CONSTITUTION.md` v1.4 provides standing authority to promote an already validated Parallax release/hotfix without another per-release approval request. The authority expires when additional real users begin relying on production and never waives the release gates above.
 
 ## Parallel development and Control Tower
 
@@ -339,11 +343,12 @@ The deployed Wave 3 runtime includes generalized durable worker lease/checkpoint
 - unknown change impact or incomplete reuse/cache provenance: discard optimization and run the conservative/full path;
 - capability unknown/disabled/mismatched/unapproved: deny before provider action;
 - provider target/credential/repository mismatch: fail before mutation;
+- malformed connector wire identity or production provider preflight failure: fail the candidate production build before cutover;
 - provider failure: return `FAILED`, never `SUCCEEDED`;
 - replay of an already accepted exact provider action: resolve durable delivery rather than duplicate mutation;
 - protected evaluation regression: block promotion;
 - database readiness failure: block deployment verification;
-- unsupported destructive or production authority: return control to the operator.
+- unsupported destructive or production authority outside an active explicit/standing authorization: return control to the operator.
 
 ## Security invariants
 
@@ -364,10 +369,10 @@ Major trust boundaries are:
 9. bounded visual review and correction/LKG/convergence policy;
 10. server-owned optimization policy with non-authoritative speculation/reuse;
 11. server-owned tool capability registry;
-12. server-owned provider target/credential registry;
+12. server-owned provider target/credential registry and encoded connector wire contract;
 13. persisted provider action/audit and replay identity;
 14. protected evaluation/promotion policy;
-15. operator authority over production/destructive boundaries.
+15. governed production release authority plus fail-closed production provider preflight.
 
 ## Inherited development-policy architecture
 
