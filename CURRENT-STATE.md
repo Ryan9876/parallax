@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: App-builder Wave 2 production runtime
+Release: App-builder Wave 2 production runtime; Wave 3 development integration complete at promotion boundary
 Date: 2026-08-23
-Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = UNLOCKED / NOT YET STARTED**
+Status: **WAVE 2 = MERGED / PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED; WAVE 3 = DEVELOPMENT INTEGRATED THROUGH P2-V0.16.5 / CUMULATIVELY VALIDATED / READY FOR PRODUCTION PROMOTION / NOT MERGED TO MAIN / NOT DEPLOYED**
 
 ## Production truth
 
@@ -15,12 +15,42 @@ The production application merge is:
 - `main` was verified at that exact merge SHA immediately after promotion;
 - later root documentation/authoritative-record commits do not redefine the deployed application release identity.
 
+## Wave 3 development truth
+
+Wave 3 development is complete on the serialized integration branch `integration/wave3-autonomy` at the production-promotion boundary. This is validated development state only; it has **not** been merged to `main`, deployed to production, had Wave 3 migration `0009` applied to production, or been deployment-verified.
+
+Validated integrated Wave 3 capabilities:
+
+1. `P2-V0.16.1` / #95 — durable worker lifecycle, renewable leases, canonical checkpoints, stall classification, bounded recovery/reassignment and stale-worker fail-closed behavior;
+2. `P2-V0.16.2` / #96 — protected deterministic browser/accessibility/network/layout validation, provenance-bound screenshot regression and secondary multimodal visual review;
+3. `P2-V0.16.3` / #97 — bounded autonomous defect normalization, diagnose/correct/revalidate convergence, last-known-good preservation, finite resource/no-progress/oscillation bounds and data-only failure dispatch;
+4. `P2-V0.16.4` / #98 — deterministic dependency/critical-path scheduling, integration backpressure, #95-bound work stealing, conservative change-impact validation, provenance-safe environment/pattern/repair reuse, bounded model routing, spec preflight, non-authoritative speculative integration, acceptance-preserving workstream sizing and privacy-safe development-performance telemetry;
+5. `P2-V0.16.5` / #99 — permanent integrated reference-app/recovery proof composing the accepted Wave 2 route with Wave 3 worker recovery, browser/visual precedence, autonomous correction, optimization non-authority, replay-safe Preview delivery, protected evaluation and explicit operator REVIEW.
+
+Current serialized Wave 3 integration head after #99:
+
+`5ec35a7b00d41fb3b18307b599ba445fa081c6ac`
+
+Cumulative exact-head evidence on that integration tree:
+
+- Workstream Spec Validation `32675365125` — **SUCCESS**;
+- Bounded Autonomy Pilot `32675365141` — **SUCCESS**;
+- Parallax P2 CI `32675365124` — **SUCCESS**;
+  - full API + contract regression, including the permanent Wave 3 reference/recovery harness — success;
+  - client type/state/export + browser/Skia acceptance — success;
+  - protected promotion evaluation — success;
+  - DSPy release compilation — success.
+
+P2-V0.16.5 also has authentic spec-first DSPy evidence: SpecCritic/SpecCompiler run `32674257003` succeeded and its protected compiled plan was committed before implementation. The first #99 implementation validation exposed an interface mismatch between the legacy Wave 2 PAUSED/RESUMED recovery proof and Wave 3's accepted durable worker-reassignment protocol. The final implementation did not lower #46 scoring: it accepts the #95 recovery fact only after proving lease generation greater than one, a fresh post-reassignment canonical checkpoint and exact Project/Work Specification/source-lineage/LKG identity. The permanent harness proves deliberate process loss, `STALLED -> RECOVERING -> REASSIGNED`, stale-worker rejection, no manual Engineering Run resume, no duplicate IMPLEMENT or Git/Preview publication, unchanged protected evaluation and explicit operator REVIEW.
+
+Wave 3 is therefore **READY FOR PRODUCTION PROMOTION**, not production-deployed. Production merge, migration application and deployment remain a separate authorized release operation.
+
 ## Authoritative governance
 
 - `PROJECT-CONSTITUTION.md` v1.3 — unchanged;
-- `ARCHITECTURE.md` v2.5 — updated for the deployed Wave 2 runtime;
+- `ARCHITECTURE.md` v2.5 — unchanged by the Wave 3 development integration; the durable production architecture remains Wave 2 until promotion;
 - `DESIGN-SYSTEM.md` v2.1 — unchanged;
-- `CURRENT-STATE.md` — this deployment-verified snapshot;
+- `CURRENT-STATE.md` — this production + validated-development/promotion-candidate snapshot;
 - `PARALLEL-DEVELOPMENT.md` — concurrent-development protocol.
 
 GitHub issues/PRs/workflows, Supabase migration/schema evidence and Vercel deployment/runtime evidence remain operational authority when chat recollection differs.
@@ -50,7 +80,7 @@ Process/request recreation, durable lineage reconstruction, duplicate IMPLEMENT 
 
 ## Final pre-merge validation
 
-Final tree-identical release-refresh head:
+Final tree-identical Wave 2 release-refresh head:
 
 `2cd5a29971912a896a379ff82725fbeb65e69d95`
 
@@ -123,6 +153,8 @@ Direct verification proved:
 - `anon` and `authenticated` have no SELECT privilege on either lineage table.
 
 Post-migration security/performance advisors introduced no release-blocking finding. RLS-with-no-policy notices on server-owned tables are intentional fail-closed INFO findings. The leaked-password-protection warning predates Wave 2 and was not changed as part of this release. New-index/foreign-key advisor entries are INFO only and are not evidence to remove fresh release indexes.
+
+Wave 3 worker-recovery migration `20260823_0009_worker_recovery.sql` exists only in validated development state and remains unapplied to production.
 
 ## Production deployments
 
@@ -207,18 +239,23 @@ Evidence satisfies the release objective without claiming unsupported facts:
 - rollback targets verified;
 - temporary broad bootstrap credential revoked.
 
-## Next phase — Wave 3 unlocked
+## Wave 3 current decision
 
-Wave 3 may now begin. Its approved platform objective is generalized end-to-end bounded autonomous development through implementation, deterministic/browser/visual validation, correction/retry, provider Preview publication and protected evaluation until success or a defined human/resource boundary.
+Wave 3 development is **READY FOR PRODUCTION PROMOTION** and cumulatively validated through `P2-V0.16.5` on `integration/wave3-autonomy`. This does not alter Wave 2 production truth.
 
-Approved Wave 3 additions include:
+The accepted Wave 3 development baseline now contains:
 
-- deterministic DOM/accessibility/console/network validation before screenshot/multimodal judgment;
-- screenshot regression and multimodal visual QA;
-- autonomous diagnose/correct/retest with last-known-good preservation and convergence budgets;
-- durable worker leases/checkpoints/heartbeats plus `STALLED`, `RECOVERING`, `REASSIGNED` and `HUMAN_REQUIRED` recovery behavior;
-- deliberate worker-kill/stall recovery proof;
-- critical-path scheduling, bounded work stealing, change-impact validation, warm secret-free environments, validated pattern reuse, privacy-safe repair memory, adaptive model routing, spec preflight, speculative integration, automatic workstream sizing and development-performance telemetry;
-- the same protected baseline for Parallax self-development and every Project Parallax develops.
+- durable worker lease/checkpoint/recovery semantics;
+- deterministic browser/accessibility/network/layout validation before visual judgment;
+- provenance-bound screenshot regression and bounded secondary multimodal review;
+- autonomous diagnose/correct/retest with immutable lineage, strict LKG preservation, convergence/resource bounds and explicit human/resource stop conditions;
+- deterministic dependency/critical-path scheduling, integration backpressure and safe-boundary cancellation;
+- graph/lease/path-bound work stealing through the existing worker recovery authority;
+- conservative impact-aware validation with full promotion gates preserved;
+- immutable secret-free environment/cache identity, validated reusable patterns and Project-isolated repair memory;
+- adaptive model routing inside approved capability classes;
+- spec preflight, non-authoritative speculative integration and acceptance-preserving workstream sizing;
+- bounded privacy-safe development-performance telemetry;
+- a permanent final reference proof that composes the complete protected route, performs deliberate process-loss recovery without manual run resume, rejects stale workers, preserves exact lineage/LKG and replay identities, proves deterministic/visual/correction precedence and stops only after unchanged protected evaluation plus explicit operator REVIEW.
 
-Production merge/promotion remains outside the ordinary autonomous Wave 3 ceiling unless durable governance is explicitly changed later.
+The Wave 3 development tranche is complete at its guarded promotion boundary. A separate authorized release operation is required to merge to `main`, apply migration `0009`, deploy and perform production verification. Until that happens, production remains the deployment-verified Wave 2 release.
