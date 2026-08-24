@@ -13,12 +13,34 @@ SCOPE_URL = "https://api.github.com/installation/repositories?per_page=2"
 GITHUB_API_VERSION = "2026-03-10"
 
 
+def _bounded_http_error(exc: HTTPError) -> str:
+    try:
+        raw = exc.read(4096).decode("utf-8", errors="replace")
+        payload = json.loads(raw)
+    except Exception:
+        return f"HTTP {exc.code}"
+    if not isinstance(payload, dict):
+        return f"HTTP {exc.code}"
+    candidates: list[str] = []
+    for key in ("code", "message", "error"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            candidates.append(value[:240])
+        elif isinstance(value, dict):
+            for nested in ("code", "message"):
+                nested_value = value.get(nested)
+                if isinstance(nested_value, str) and nested_value:
+                    candidates.append(nested_value[:240])
+    detail = " | ".join(candidates[:3])
+    return f"HTTP {exc.code}" + (f": {detail}" if detail else "")
+
+
 def _json_request(request: Request) -> object:
     try:
         with urlopen(request, timeout=20) as response:
             payload = response.read()
     except HTTPError as exc:
-        raise RuntimeError(f"provider preflight HTTP {exc.code}") from exc
+        raise RuntimeError(_bounded_http_error(exc)) from exc
     except URLError as exc:
         raise RuntimeError("provider preflight network failure") from exc
     return json.loads(payload)
