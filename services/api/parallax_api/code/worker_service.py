@@ -4,6 +4,13 @@ from datetime import datetime, timezone
 import json
 import re
 
+from .run_events import (
+    RunEventAppend,
+    RunEventOutcome,
+    RunEventSink,
+    RunEventSubsystem,
+    RunEventType,
+)
 from .worker_recovery import (
     DEFAULT_LEASE_SECONDS,
     DEFAULT_MAX_NO_PROGRESS,
@@ -44,7 +51,7 @@ def _utc(value: datetime | None = None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None:
         return result.replace(tzinfo=timezone.utc)
-    return result
+    return result.astimezone(timezone.utc)
 
 
 def _lease_seconds(value: int) -> int:
@@ -86,6 +93,7 @@ class WorkerRecoveryService:
         max_retries: int = DEFAULT_MAX_RETRIES,
         max_no_progress: int = DEFAULT_MAX_NO_PROGRESS,
         max_oscillations: int = DEFAULT_MAX_OSCILLATIONS,
+        event_sink: RunEventSink | None = None,
     ):
         if min(max_retries, max_no_progress, max_oscillations) < 0:
             raise ValueError("worker recovery bounds must be nonnegative")
@@ -94,6 +102,7 @@ class WorkerRecoveryService:
         self.max_retries = max_retries
         self.max_no_progress = max_no_progress
         self.max_oscillations = max_oscillations
+        self.event_sink = event_sink
 
     def _run(self, run_id: str):
         run = self.runs.get(run_id)
@@ -109,6 +118,55 @@ class WorkerRecoveryService:
             raise WorkerExecutionNotFound(f"worker execution for Engineering Run {run_id} was not found")
         return execution
 
+    def _emit_worker_event(
+        self,
+        execution: EngineeringWorkerExecution,
+        *,
+        event_key: str,
+        outcome: RunEventOutcome,
+        summary: str,
+        failure_code: str | None = None,
+        meaningful_progress: bool | None = None,
+        bounded_stop: bool | None = None,
+    ) -> None:
+        if self.event_sink is None:
+            return
+        run = self._run(execution.run_id)
+        metadata: dict[str, object] = {
+            "worker_state": execution.state,
+            "lease_generation": int(execution.lease_generation),
+            "checkpoint_revision": int(execution.checkpoint_revision),
+            "retry_count": int(execution.retry_count),
+            "no_progress_count": int(execution.no_progress_count),
+            "oscillation_count": int(execution.oscillation_count),
+        }
+        if execution.current_step:
+            metadata["current_step"] = execution.current_step
+        if execution.stall_classification:
+            metadata["stall_classification"] = execution.stall_classification
+        if execution.next_recovery_action:
+            metadata["next_recovery_action"] = execution.next_recovery_action
+        if meaningful_progress is not None:
+            metadata["meaningful_progress"] = meaningful_progress
+        if bounded_stop is not None:
+            metadata["bounded_stop"] = bounded_stop
+        self.event_sink.emit(
+            RunEventAppend(
+                project_id=run.project_id or "",
+                run_id=run.id,
+                event_key=event_key,
+                event_type=RunEventType.WORKER_STATE,
+                outcome=outcome,
+                subsystem=RunEventSubsystem.WORKER,
+                worker_execution_id=execution.id,
+                source_lineage_ref=execution.source_lineage_ref,
+                failure_code=failure_code,
+                summary=summary,
+                metadata=metadata,
+                occurred_at=_utc(execution.updated_at),
+            )
+        )
+
     def acquire(
         self,
         *,
@@ -121,6 +179,12 @@ class WorkerRecoveryService:
             run_id=run_id,
             now=_utc(now),
             lease_seconds=_lease_seconds(lease_seconds),
+        )
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:lease:{execution.lease_generation}:acquired",
+            outcome=RunEventOutcome.STARTED,
+            summary="Protected worker mutation lease acquired for the Project-bound Engineering Run.",
         )
         return _lease_from(execution)
 
@@ -138,6 +202,7 @@ class WorkerRecoveryService:
             now=_utc(now),
             lease_seconds=_lease_seconds(lease_seconds),
         )
+        # Lease heartbeat chatter is deliberately not a product event.
         return _lease_from(execution)
 
     def checkpoint(
@@ -224,9 +289,6 @@ class WorkerRecoveryService:
             else:
                 blocker_code = "WORKER_OSCILLATION_LIMIT"
 
-        # Counters and run revision are server-derived checkpoint context. They
-        # are intentionally appended after the meaningful-progress fingerprint
-        # so retries/heartbeat bookkeeping cannot manufacture progress.
         payload.update(
             {
                 "engineering_run_revision": int(run.revision),
@@ -263,7 +325,23 @@ class WorkerRecoveryService:
             next_recovery_action=next_action,
             release_lease=release_lease,
         )
-        return WorkerProgressResult(execution=execution, meaningful_progress=meaningful, bounded_stop=bounded_stop)
+        result = WorkerProgressResult(execution=execution, meaningful_progress=meaningful, bounded_stop=bounded_stop)
+        if target_state is WorkerLifecycleState.FAILED:
+            outcome = RunEventOutcome.FAILED
+        elif target_state is WorkerLifecycleState.READY_FOR_INTEGRATION:
+            outcome = RunEventOutcome.HUMAN_REQUIRED
+        else:
+            outcome = RunEventOutcome.PROGRESSED
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:checkpoint:{execution.checkpoint_revision}",
+            outcome=outcome,
+            summary=f"Protected worker checkpoint recorded in {execution.state} state.",
+            failure_code=blocker_code if target_state is WorkerLifecycleState.FAILED else None,
+            meaningful_progress=meaningful,
+            bounded_stop=bounded_stop,
+        )
+        return result
 
     def classify_and_stall(
         self,
@@ -281,13 +359,26 @@ class WorkerRecoveryService:
             state = WorkerLifecycleState.HUMAN_REQUIRED
         else:
             state = WorkerLifecycleState.STALLED
-        self.executions.mark_stalled(
+        execution = self.executions.mark_stalled(
             run_id=run_id,
             now=_utc(now),
             state=state,
             stall_classification=decision.classification.value,
             blocker_code=_blocker_code(blocker_code),
             next_recovery_action=decision.action.value,
+        )
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:state:{execution.revision}:{execution.state}",
+            outcome=(
+                RunEventOutcome.HUMAN_REQUIRED
+                if state is WorkerLifecycleState.HUMAN_REQUIRED
+                else RunEventOutcome.FAILED
+                if state is WorkerLifecycleState.FAILED
+                else RunEventOutcome.INFO
+            ),
+            summary=f"Protected worker stall classification produced {execution.state} state.",
+            failure_code=execution.blocker_code if state in {WorkerLifecycleState.FAILED, WorkerLifecycleState.HUMAN_REQUIRED} else None,
         )
         return decision
 
@@ -297,7 +388,7 @@ class WorkerRecoveryService:
             raise WorkerRecoveryError("automatic recovery requires a STALLED worker execution")
         classification = execution.stall_classification or StallClassification.PROCESS_LOSS.value
         action = execution.next_recovery_action or RecoveryAction.REASSIGN.value
-        return self.executions.mark_stalled(
+        execution = self.executions.mark_stalled(
             run_id=run_id,
             now=_utc(now),
             state=WorkerLifecycleState.RECOVERING,
@@ -305,6 +396,13 @@ class WorkerRecoveryService:
             blocker_code=execution.blocker_code,
             next_recovery_action=action,
         )
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:state:{execution.revision}:RECOVERING",
+            outcome=RunEventOutcome.RECOVERING,
+            summary="Protected worker recovery began after accepted stall classification.",
+        )
+        return execution
 
     def reassign(
         self,
@@ -318,6 +416,12 @@ class WorkerRecoveryService:
             run_id=run_id,
             now=_utc(now),
             lease_seconds=_lease_seconds(lease_seconds),
+        )
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:lease:{execution.lease_generation}:reassigned",
+            outcome=RunEventOutcome.RECOVERING,
+            summary="Protected worker recovery reassigned mutation authority with a fresh lease generation.",
         )
         return _lease_from(execution)
 
