@@ -34,6 +34,23 @@ MAX_EVIDENCE_LIST = 64
 
 _LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
 _SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}$")
+_SECRET_EXCERPT_PATTERNS = (
+    re.compile(
+        r"(?i)(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|authorization|cookie|credential)"
+        r"\s*[:=]\s*[\"\']?[^\s,\"\']{8,}"
+    ),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{8,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+)
+_PRIVATE_REASONING_EXCERPT_TERMS = (
+    "chain_of_thought",
+    "chain-of-thought",
+    "scratchpad",
+    "hidden_reasoning",
+    "hidden-reasoning",
+    "internal_reasoning",
+    "internal-reasoning",
+)
 
 _ALLOWED_EXECUTION_EVIDENCE = frozenset(
     {
@@ -145,7 +162,12 @@ def _safe_excerpt(value: object) -> tuple[str | None, bool]:
         return None, False
     candidate = value[:MAX_EVIDENCE_EXCERPT]
     truncated = len(candidate) != len(value)
-    if security_findings({"excerpt": candidate}):
+    lowered = candidate.casefold()
+    if (
+        any(pattern.search(candidate) for pattern in _SECRET_EXCERPT_PATTERNS)
+        or any(term in lowered for term in _PRIVATE_REASONING_EXCERPT_TERMS)
+        or security_findings({"excerpt": candidate})
+    ):
         return "[REDACTED]", True
     return candidate, truncated
 
