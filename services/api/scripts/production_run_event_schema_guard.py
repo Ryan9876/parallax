@@ -15,6 +15,7 @@ from parallax_api.db import make_engine
 
 
 _TABLE = "engineering_run_events"
+_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
 
 
 def main() -> None:
@@ -23,6 +24,13 @@ def main() -> None:
         print(
             "Production run-event schema guard: SKIP "
             f"(VERCEL_ENV={environment}; production schema authority remains production-only)"
+        )
+        return
+
+    if os.getenv(_ENABLE_ENV) != "1":
+        print(
+            "Production run-event schema guard: PASS "
+            "(Wave 4 run-event projection explicitly disabled; migration remains unapplied/not activated)"
         )
         return
 
@@ -42,12 +50,12 @@ def main() -> None:
     if not present:
         print(
             "Production run-event schema guard: BLOCK "
-            "(engineering_run_events absent; Wave 4 remains source-integrated/not-deployed)",
+            "(PARALLAX_RUN_EVENTS_ENABLED=1 but engineering_run_events is absent)",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
-    print("Production run-event schema guard: PASS (engineering_run_events present)")
+    print("Production run-event schema guard: PASS (Wave 4 enabled; engineering_run_events present)")
 
 
 if __name__ == "__main__":

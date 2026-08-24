@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -52,12 +53,28 @@ from ..schemas import (
 
 router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
+_RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
+
+
+def _run_event_sink(session: Session) -> PersistentRunEventSink | None:
+    """Activate Wave 4 observation only after explicit deployment authority.
+
+    Run events are non-authoritative. Keeping the sink disabled by default lets
+    production carry source-integrated Wave 4 code while the migration remains
+    intentionally unapplied, without making Engineering Run authority depend on
+    a table that does not exist yet. Enabling the flag remains server-owned and
+    is guarded at build time by an exact schema-presence check.
+    """
+
+    if os.getenv(_RUN_EVENTS_ENABLE_ENV) != "1":
+        return None
+    return PersistentRunEventSink(RunEventRepository(session))
+
 
 def service(
     session: Session = Depends(get_session),
     principal: AccessPrincipal = Depends(access_principal),
 ) -> EngineeringRunService:
-    event_sink = PersistentRunEventSink(RunEventRepository(session))
     return EngineeringRunService(
         EngineeringRunRepository(session),
         ConversationRepository(session),
@@ -65,7 +82,7 @@ def service(
         ProjectRepository(session),
         owner_subject=principal.subject,
         require_project_binding=True,
-        event_sink=event_sink,
+        event_sink=_run_event_sink(session),
     )
 
 
