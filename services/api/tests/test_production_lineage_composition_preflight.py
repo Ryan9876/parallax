@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 from uuid import UUID, uuid4
 
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
@@ -19,7 +20,6 @@ from parallax_api.code.lineage_persistence import (
 )
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
 from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
-from parallax_api.db import make_engine
 
 
 def test_canary_identity_is_stable_canonical_and_repository_scoped() -> None:
@@ -65,7 +65,15 @@ def test_lineage_composition_source_policy_excludes_secret_paths() -> None:
 
 
 def test_outer_transaction_rolls_back_synthetic_lineage_metadata(tmp_path) -> None:
-    engine = make_engine(f"sqlite:///{tmp_path / 'lineage-canary.db'}", environment="test")
+    # Python's sqlite3 defaults to legacy transaction control through 3.15,
+    # where released SAVEPOINTs can escape an outer rollback. Enable modern
+    # transaction control so this test exercises the same external-transaction
+    # invariant the production PostgreSQL canary relies on.
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'lineage-canary.db'}",
+        future=True,
+        connect_args={"check_same_thread": False, "autocommit": False},
+    )
     create_lineage_metadata_schema(engine)
     identity = preflight._canary_identity("github:Ryan9876/parallax")
     package = SourcePackage(
