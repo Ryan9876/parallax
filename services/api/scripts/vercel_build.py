@@ -11,10 +11,10 @@ def _run(*args: str) -> None:
     subprocess.run([sys.executable, *args], check=True)
 
 
-def _run_blob_sdk_preflight() -> None:
+def _run_lineage_composition_preflight() -> None:
     uv = shutil.which("uv")
     if uv is None:
-        raise RuntimeError("Vercel Blob SDK preflight requires uv in the production build environment")
+        raise RuntimeError("production lineage composition preflight requires uv")
     subprocess.run(
         [
             uv,
@@ -25,8 +25,12 @@ def _run_blob_sdk_preflight() -> None:
             "--no-python-downloads",
             "--with",
             "vercel>=0.9,<0.10",
+            "--with",
+            "sqlalchemy>=2.0.50,<3",
+            "--with",
+            "psycopg[binary]>=3.2,<4",
             "python",
-            "scripts/production_blob_sdk_preflight.py",
+            "scripts/production_lineage_composition_preflight.py",
         ],
         check=True,
     )
@@ -37,9 +41,9 @@ def main() -> None:
     _run("scripts/production_projected_source_preflight.py")
 
     if (os.getenv("VERCEL_ENV") or "unknown") == "production":
-        _run_blob_sdk_preflight()
+        _run_lineage_composition_preflight()
     else:
-        print("Production Blob SDK preflight: SKIP (non-production)")
+        print("Production lineage composition preflight: SKIP (non-production)")
 
     public = Path("public")
     public.mkdir(parents=True, exist_ok=True)
