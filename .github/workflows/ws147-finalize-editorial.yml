@@ -1,0 +1,109 @@
+name: WS147 Finalize Editorial Parity
+
+on:
+  push:
+    branches: [ws/w4-editorial-shell]
+    paths:
+      - '.github/workflows/ws147-finalize-editorial.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/w4-editorial-shell
+      - name: Finalize warm visual parity and acceptance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          visual = Path('apps/client/scripts/visual-smoke.mjs')
+          text = visual.read_text(encoding='utf-8')
+          text = text.replace(
+              "document.body.innerText.includes('The response is being')",
+              "document.body.innerText.includes('The response streams into the warm editorial workspace')",
+          )
+          anchor = "  assert(logoCount > 0, `${name}: approved orbital identity was not rendered`);\n"
+          insertion = anchor + """
+
+          const navCount = await page.getByTestId('editorial-navigation-rail').count();
+          const utilityCount = await page.getByTestId('editorial-utility-rail').count();
+          if (name === 'mobile') {
+            assert(navCount === 0, 'mobile: desktop navigation rail must reflow away');
+            assert(utilityCount === 0, 'mobile: utility rail must reflow away');
+          } else if (name === 'tablet') {
+            assert(navCount === 1, 'tablet: navigation rail should remain available at 768px');
+            assert(utilityCount === 0, 'tablet: desktop utility rail must not compress the workplane');
+          } else if (name === 'desktop') {
+            assert(navCount === 1, 'desktop: warm editorial navigation rail missing');
+            assert(utilityCount === 1, 'desktop: warm editorial utility rail missing');
+            await page.getByText('What shall we build today?').waitFor();
+            const railStyle = await page.getByTestId('editorial-navigation-rail').evaluate((node) => getComputedStyle(node).backgroundColor);
+            assert(!railStyle.includes('139, 156, 255') && !railStyle.includes('209, 139, 255'), `desktop: legacy violet rail detected (${railStyle})`);
+          }
+          """
+          if "const navCount = await page.getByTestId('editorial-navigation-rail').count();" not in text:
+              text = text.replace(anchor, insertion)
+          visual.write_text(text, encoding='utf-8')
+
+          spec = Path('apps/client/src/components/WorkSpecificationStatus.tsx')
+          text = spec.read_text(encoding='utf-8')
+          replacements = {
+            "backgroundColor: 'rgba(115, 108, 139, 0.12)'": "backgroundColor: 'rgba(245, 238, 223, 0.90)'",
+            "backgroundColor: 'rgba(115, 108, 139, 0.10)'": "backgroundColor: 'rgba(245, 238, 223, 0.86)'",
+            "shadowColor: '#8F63D8'": "shadowColor: '#564B38'",
+            "backgroundColor: 'rgba(139,156,255,0.08)'": "backgroundColor: 'rgba(0,132,135,0.05)'",
+            "backgroundColor: 'rgba(209,139,255,0.10)'": "backgroundColor: 'rgba(196,74,27,0.10)'",
+            "backgroundColor: 'rgba(159,185,165,0.11)'": "backgroundColor: 'rgba(102,117,58,0.11)'",
+            "backgroundColor: palette.violet": "backgroundColor: palette.rust600",
+            "backgroundColor: palette.sage": "backgroundColor: palette.olive700",
+            "color: '#D9B6FF'": "color: palette.rust700",
+            "color: palette.sage": "color: palette.olive700",
+            "backgroundColor: 'rgba(139,156,255,0.12)'": "backgroundColor: 'rgba(196,74,27,0.08)'",
+            "backgroundColor: 'rgba(125,231,255,0.10)'": "backgroundColor: 'rgba(0,132,135,0.09)'",
+            "backgroundColor: 'rgba(159,185,165,0.13)'": "backgroundColor: 'rgba(102,117,58,0.11)'",
+            "color: palette.cyan": "color: palette.teal700",
+            "borderTopColor: 'rgba(167,151,255,0.12)'": "borderTopColor: 'rgba(102,117,58,0.16)'",
+            "color: palette.indigo": "color: palette.olive700",
+          }
+          for old, new in replacements.items(): text = text.replace(old, new)
+          spec.write_text(text, encoding='utf-8')
+
+          fallback = Path('apps/client/src/FallbackApp.tsx')
+          text = fallback.read_text(encoding='utf-8')
+          replacements = {
+            "borderColor: palette.violet": "borderColor: palette.teal600",
+            "borderColor: palette.indigo": "borderColor: palette.olive500",
+            "backgroundColor: palette.cyan": "backgroundColor: palette.rust600",
+            "backgroundColor: 'rgba(8,11,18,0.88)'": "backgroundColor: palette.forest950",
+            "color: palette.text }": "color: palette.ivory50 }",
+            "color: palette.violet }": "color: palette.olive200 }",
+            "color: palette.cyan, fontWeight": "color: palette.teal500, fontWeight",
+            "backgroundColor: palette.indigoWash": "backgroundColor: 'rgba(196,74,27,0.22)'",
+            "color: palette.textSoft": "color: palette.cream100",
+            "main: { flex: 1, minWidth: 0, minHeight: 0 }": "main: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: palette.ivory50 }",
+            "backgroundColor: 'rgba(8,11,18,0.58)'": "backgroundColor: 'rgba(251,247,238,0.92)'",
+            "modeActive: { backgroundColor: palette.violetDeep }": "modeActive: { backgroundColor: palette.rust600 }",
+            "modeTextActive: { color: palette.text }": "modeTextActive: { color: palette.ivory50 }",
+            "backgroundColor: palette.glassStrong, borderWidth": "backgroundColor: palette.teal100, borderWidth",
+            "backgroundColor: palette.glass, borderWidth": "backgroundColor: palette.cream100, borderWidth",
+            "assistantName: { color: palette.indigo": "assistantName: { color: palette.olive700",
+            "backgroundColor: palette.violetDeep }": "backgroundColor: palette.teal600 }",
+            "input: { flex: 1, minHeight: 42, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: palette.text, fontSize: 14 }": "input: { flex: 1, minHeight: 44, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: palette.charcoal950, fontSize: 16 }",
+            "sendText: { color: palette.text": "sendText: { color: palette.ivory50",
+          }
+          for old, new in replacements.items(): text = text.replace(old, new)
+          fallback.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit parity fixes
+        run: |
+          git config user.name 'Parallax Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add apps/client/scripts/visual-smoke.mjs apps/client/src/components/WorkSpecificationStatus.tsx apps/client/src/FallbackApp.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'Finalize warm editorial parity and visual acceptance'
+          git push origin HEAD:ws/w4-editorial-shell
