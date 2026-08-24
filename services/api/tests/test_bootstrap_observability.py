@@ -53,6 +53,20 @@ def test_source_policy_failure_is_distinct_from_durable_failures() -> None:
     assert evidence.result_code is None
 
 
+def test_delivery_composition_stage_is_registered_and_does_not_emit_message_text(caplog) -> None:
+    secret_marker = "never-log-delivery-config-secret"
+    failure = RuntimeError(secret_marker)
+
+    with caplog.at_level(logging.ERROR, logger="parallax.bootstrap"):
+        evidence = record_bootstrap_failure(failure, default_stage="delivery-composition")
+
+    assert evidence.stage == "delivery-composition"
+    assert evidence.error_class == "RuntimeError"
+    assert evidence.result_code is None
+    assert "stage=delivery-composition" in caplog.text
+    assert secret_marker not in caplog.text
+
+
 def test_runtime_log_contains_only_stage_class_and_safe_code(caplog) -> None:
     secret_marker = "do-not-log-this-provider-secret"
     failure = _caused_by(
