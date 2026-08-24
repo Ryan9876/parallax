@@ -34,8 +34,16 @@ type ActiveBinding = {
   status: ConversationDto['project_binding_status'];
 };
 
+const REPOSITORY_SHORTHAND_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?\/[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?$/;
+
 function messageFor(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message.trim() ? cause.message : fallback;
+}
+
+function normalizeRepositoryInput(value: string): string {
+  const candidate = value.trim();
+  if (!candidate) return '';
+  return REPOSITORY_SHORTHAND_PATTERN.test(candidate) ? `github:${candidate}` : candidate;
 }
 
 export function ProjectCompatibilityGate({ children }: { children: React.ReactNode }) {
@@ -193,7 +201,7 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
 
   const createProject = React.useCallback(async () => {
     const name = projectName.trim();
-    const repository = repositoryRef.trim();
+    const repository = normalizeRepositoryInput(repositoryRef);
     if (!name) {
       setError('Enter a Project name.');
       return;
@@ -309,7 +317,7 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
                   autoCorrect={false}
                   value={repositoryRef}
                   onChangeText={setRepositoryRef}
-                  placeholder="Optional · github:owner/repository"
+                  placeholder="Optional · owner/repository"
                   placeholderTextColor={palette.muted}
                   style={styles.input}
                   maxLength={240}
