@@ -578,6 +578,8 @@ const styles = StyleSheet.create({
   navList: { gap: 4, marginBottom: 22 },
   navRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12 },
   navRowActive: { backgroundColor: palette.rust600 },
+  navRowDormant: { opacity: 0.68 },
+  navTextDormant: { color: '#AEB79A' },
   navDot: { width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: palette.olive500 },
   navDotActive: { backgroundColor: palette.ivory50, borderColor: palette.ivory50 },
   navText: { color: '#E2E5D4', fontSize: 12, fontWeight: '600' },

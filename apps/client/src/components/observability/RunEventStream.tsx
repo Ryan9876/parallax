@@ -49,7 +49,7 @@ export function RunEventStream({
       <View style={styles.toolbar}>
         <View>
           <Text style={styles.title}>Run Event Stream</Text>
-          <Text style={styles.transport}>{transport.toLowerCase()} · {events.length ? `through sequence ${events[events.length - 1].sequence}` : 'no persisted events yet'}</Text>
+          <Text style={styles.transport}>{transport.toLowerCase()} · {events.length ? `through sequence ${events.at(-1)?.sequence ?? '—'}` : 'no persisted events yet'}</Text>
         </View>
         <View style={styles.controls}>
           <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: followLive }} onPress={() => onFollowLive(!followLive)} style={[styles.control, followLive && styles.controlSelected]}>

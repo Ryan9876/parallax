@@ -122,6 +122,7 @@ export function observedAttempts(events: RunEventDto[]): string[] {
 export function latestCandidateLineage(events: RunEventDto[]): { candidate: string | null; parent: string | null } {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
+    if (!event) continue;
     if (event.source_lineage_ref) return { candidate: event.source_lineage_ref, parent: event.parent_source_lineage_ref };
   }
   return { candidate: null, parent: null };

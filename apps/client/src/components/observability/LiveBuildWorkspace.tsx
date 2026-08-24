@@ -182,7 +182,7 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
           <Text style={styles.title}>Run observability</Text>
           <Text numberOfLines={2} style={styles.subtitle}>{run.id} · {run.state}{run.project_id ? ` · Project ${run.project_id}` : ''}</Text>
         </View>
-        <View style={styles.headerState}><TinyPill tone={observer.view.transport === 'LIVE' ? 'olive' : observer.view.transport === 'ERROR' ? 'rust' : 'teal'}>{observer.view.transport}</TinyPill><Text style={styles.sequenceText}>{observer.view.events.length ? `Sequence ${observer.view.events[observer.view.events.length - 1].sequence}` : 'Awaiting persisted events'}</Text></View>
+        <View style={styles.headerState}><TinyPill tone={observer.view.transport === 'LIVE' ? 'olive' : observer.view.transport === 'ERROR' ? 'rust' : 'teal'}>{observer.view.transport}</TinyPill><Text style={styles.sequenceText}>{observer.view.events.length ? `Sequence ${observer.view.events.at(-1)?.sequence ?? '—'}` : 'Awaiting persisted events'}</Text></View>
       </View>
 
       <View style={styles.pipelineWrap}><RunPipeline items={pipeline} /></View>
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   pillText: { color: palette.charcoal800, fontSize: 8, lineHeight: 11, fontWeight: '800' },
   unavailable: { marginHorizontal: 20, marginTop: 12, borderRadius: 14, padding: 13, backgroundColor: palette.rust100, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(196,74,27,0.28)' },
   unavailableTitle: { color: palette.rust700, fontSize: 12, fontWeight: '800' },
-  unavailableText: { color: palette.charcoal700, fontSize: 10, lineHeight: 16, marginTop: 4 },
+  unavailableText: { color: palette.charcoal800, fontSize: 10, lineHeight: 16, marginTop: 4 },
   retry: { minHeight: 40, alignSelf: 'flex-start', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 11, backgroundColor: palette.rust600, marginTop: 9 },
   retryText: { color: palette.ivory50, fontSize: 9, fontWeight: '800' },
   tabBar: { minHeight: 54, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   sectionLabel: { color: palette.olive700, fontSize: 8, fontWeight: '800', letterSpacing: 0.85, marginBottom: 8 },
   sectionSpacing: { marginTop: 20 },
   lineageButton: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 10, marginBottom: 5 },
-  lineageText: { color: palette.charcoal700, fontSize: 8 },
+  lineageText: { color: palette.charcoal800, fontSize: 8 },
   fileButton: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 10, marginBottom: 4 },
   fileText: { color: palette.charcoal800, fontSize: 10, lineHeight: 14, fontWeight: '600' },
   mini: { color: palette.charcoal450, fontSize: 7, marginTop: 2 },
