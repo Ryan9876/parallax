@@ -278,7 +278,7 @@ try {
   await desktop.getByRole('tab', { name: 'Evidence' }).click();
   await desktop.getByText('GitHub', { exact: true }).waitFor();
   await desktop.getByText('Vercel', { exact: true }).waitFor();
-  await desktop.getByText('PR #165', { exact: true }).waitFor();
+  await desktop.getByText(/PR #165/).waitFor();
   await desktop.getByText(/preview-wave4-165/).waitFor();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
