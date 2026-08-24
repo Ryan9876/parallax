@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "The proposed architecture decision is: **Reference-proof coordinator with canonical identity and durable reconstruction**."
+  ],
+  "work_items": [
+    "The proposed work item is: **Complete Wave 3 by serializing accepted development foundations into one permanent reference-proof proof**."
+  ],
+  "validations": [
+    "The proposed validation is: **Process-loss recovery through the accepted worker protocol without manual run-resume instruction**.",
+    "AC-01: validate protected requirement \u2014 The permanent harness proves approved Project/Work Specification/run identity through PLAN, typed IMPLEMENT, immutable accepted lineage, exact-lineage BUILD/TEST/VERIFY, Preview delivery, browser/screenshot/multimodal validation, correction, replay-safe publication, protected evaluation and explicit operator REVIEW. Every phase rejects mismatched Project/spec/lineage/Preview evidence.",
+    "AC-02: validate protected requirement \u2014 A deliberate functional browser regression fails deterministically, enters the existing bounded correction path, produces a new immutable candidate lineage and reaches PASS only after fresh validation of that exact lineage. Accessibility, layout, console and network deterministic failures are also proven to block protected PASS even when visual judgment would otherwise pass.",
+    "AC-03: validate protected requirement \u2014 A deliberate screenshot or multimodal visual regression is detected and may be corrected, but screenshot/multimodal improvement cannot compensate for deterministic or protected acceptance failure. Visual evidence remains Preview/lineage provenance-bound and secondary.",
+    "AC-04: validate protected requirement \u2014 A correction introducing a higher-precedence regression cannot replace LKG. Equivalent repeated defects terminate at the configured repeat/no-progress bound, and an A/B/A failing-state sequence terminates at the oscillation bound without unbounded source churn or further mutation after stop.",
+    "AC-05: validate protected requirement \u2014 After a durable worker checkpoint, deliberate process loss and lease expiry are classified as PROCESS_LOSS; a recreated service performs `STALLED -> RECOVERING -> REASSIGNED`, increments the accepted lease generation and continues from durable accepted lineage without manual Engineering Run resume, duplicate IMPLEMENT mutation, duplicate Git/Preview publication, lost accepted work or corrupted LKG.",
+    "AC-06: validate protected requirement \u2014 The pre-loss lease/generation cannot checkpoint or mutate after reassignment. Provider outage, rate limit, dependency/test stall and credential cases remain distinct from human approval/material-specification boundaries, and only classifications permitted by P2-V0.16.1 may automatically recover/retry.",
+    "AC-07: validate protected requirement \u2014 Recreated delivery of the same accepted lineage returns the original published revision, PR identity and Preview deployment ID with replay evidence and performs no duplicate provider mutation. Preview validation may continue autonomously; no reference result can claim or perform production promotion/deployment.",
+    "AC-08: validate protected requirement \u2014 Runtime/provider/browser evidence is derived from durable accepted facts and evaluated with the unchanged protected AppBuilder suite/thresholds. Deliberate forbidden production-authority or stale/unrelated evidence remains a critical failure. Autonomous success stops at REVIEW until explicit operator completion.",
+    "AC-09: validate protected requirement \u2014 P2-V0.16.4 speculative integration remains non-authoritative, stale graph/lease scheduling fails, uncertain impact selects the conservative/full checks, full worker/integration/release promotion suites remain mandatory, and cache/pattern/repair recommendations cannot become accepted lineage or validation evidence by themselves.",
+    "AC-10: validate protected requirement \u2014 Deliberate cross-Project provider target/evidence, cache/pattern compatibility and repair-memory queries are rejected or return no private result. A second Project cannot inherit the first Project's accepted lineage, Preview identity, private repair memory or provider authority.",
+    "AC-11: validate protected requirement \u2014 The reference run records bounded Project/run-scoped phase telemetry covering correction/retry/recovery/integration wait and produces validated-outcome lead time plus blocked/wait metrics. Secret/private-source/raw-log/prompt/hidden-reasoning material is rejected and token/worker occupancy is not treated as success.",
+    "AC-12: validate protected requirement \u2014 P2-V0.16.5 has authentic committed DSPy critic/compiler evidence. The final exact integration head passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy with the permanent Wave 3 reference harness and deliberate negative cases. Authoritative records distinguish validated Wave 3 development from Wave 2 production. Completion state is READY FOR PRODUCTION PROMOTION; no production deployment, migration or credential/storage provisioning occurs automatically."
+  ],
+  "risks": [
+    "The proposed risk is: **Provider publication replay must retain the original durable external references and evidence**."
+  ],
+  "spec_id": "P2-V0.16.5",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Full protected reference route preserves canonical identity",
+      "protected_requirement": "The permanent harness proves approved Project/Work Specification/run identity through PLAN, typed IMPLEMENT, immutable accepted lineage, exact-lineage BUILD/TEST/VERIFY, Preview delivery, browser/screenshot/multimodal validation, correction, replay-safe publication, protected evaluation and explicit operator REVIEW. Every phase rejects mismatched Project/spec/lineage/Preview evidence."
+    },
+    {
+      "id": "AC-02",
+      "title": "Functional and deterministic browser failures are corrected only through fresh exact-lineage validation",
+      "protected_requirement": "A deliberate functional browser regression fails deterministically, enters the existing bounded correction path, produces a new immutable candidate lineage and reaches PASS only after fresh validation of that exact lineage. Accessibility, layout, console and network deterministic failures are also proven to block protected PASS even when visual judgment would otherwise pass."
+    },
+    {
+      "id": "AC-03",
+      "title": "Visual and screenshot evidence cannot override higher-precedence failures",
+      "protected_requirement": "A deliberate screenshot or multimodal visual regression is detected and may be corrected, but screenshot/multimodal improvement cannot compensate for deterministic or protected acceptance failure. Visual evidence remains Preview/lineage provenance-bound and secondary."
+    },
+    {
+      "id": "AC-04",
+      "title": "Last-known-good and convergence bounds survive regressive, repeated and oscillating corrections",
+      "protected_requirement": "A correction introducing a higher-precedence regression cannot replace LKG. Equivalent repeated defects terminate at the configured repeat/no-progress bound, and an A/B/A failing-state sequence terminates at the oscillation bound without unbounded source churn or further mutation after stop."
+    },
+    {
+      "id": "AC-05",
+      "title": "Process loss recovers automatically through the accepted worker protocol without duplicate work",
+      "protected_requirement": "After a durable worker checkpoint, deliberate process loss and lease expiry are classified as PROCESS_LOSS; a recreated service performs `STALLED -> RECOVERING -> REASSIGNED`, increments the accepted lease generation and continues from durable accepted lineage without manual Engineering Run resume, duplicate IMPLEMENT mutation, duplicate Git/Preview publication, lost accepted work or corrupted LKG."
+    },
+    {
+      "id": "AC-06",
+      "title": "Stale workers and inappropriate recovery paths fail closed",
+      "protected_requirement": "The pre-loss lease/generation cannot checkpoint or mutate after reassignment. Provider outage, rate limit, dependency/test stall and credential cases remain distinct from human approval/material-specification boundaries, and only classifications permitted by P2-V0.16.1 may automatically recover/retry."
+    },
+    {
+      "id": "AC-07",
+      "title": "Delivery replay preserves exact external identities and Preview remains the autonomous ceiling",
+      "protected_requirement": "Recreated delivery of the same accepted lineage returns the original published revision, PR identity and Preview deployment ID with replay evidence and performs no duplicate provider mutation. Preview validation may continue autonomously; no reference result can claim or perform production promotion/deployment."
+    },
+    {
+      "id": "AC-08",
+      "title": "Protected AppBuilder scoring and operator REVIEW remain unchanged",
+      "protected_requirement": "Runtime/provider/browser evidence is derived from durable accepted facts and evaluated with the unchanged protected AppBuilder suite/thresholds. Deliberate forbidden production-authority or stale/unrelated evidence remains a critical failure. Autonomous success stops at REVIEW until explicit operator completion."
+    },
+    {
+      "id": "AC-09",
+      "title": "Optimization cannot advance authority or skip mandatory validation",
+      "protected_requirement": "P2-V0.16.4 speculative integration remains non-authoritative, stale graph/lease scheduling fails, uncertain impact selects the conservative/full checks, full worker/integration/release promotion suites remain mandatory, and cache/pattern/repair recommendations cannot become accepted lineage or validation evidence by themselves."
+    },
+    {
+      "id": "AC-10",
+      "title": "Project-private targets, evidence and reuse are isolated",
+      "protected_requirement": "Deliberate cross-Project provider target/evidence, cache/pattern compatibility and repair-memory queries are rejected or return no private result. A second Project cannot inherit the first Project's accepted lineage, Preview identity, private repair memory or provider authority."
+    },
+    {
+      "id": "AC-11",
+      "title": "Development-performance evidence is bounded, privacy-safe and outcome-oriented",
+      "protected_requirement": "The reference run records bounded Project/run-scoped phase telemetry covering correction/retry/recovery/integration wait and produces validated-outcome lead time plus blocked/wait metrics. Secret/private-source/raw-log/prompt/hidden-reasoning material is rejected and token/worker occupancy is not treated as success."
+    },
+    {
+      "id": "AC-12",
+      "title": "Final Wave 3 exact-head proof is reproducible and stops at production-promotion boundary",
+      "protected_requirement": "P2-V0.16.5 has authentic committed DSPy critic/compiler evidence. The final exact integration head passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy with the permanent Wave 3 reference harness and deliberate negative cases. Authoritative records distinguish validated Wave 3 development from Wave 2 production. Completion state is READY FOR PRODUCTION PROMOTION; no production deployment, migration or credential/storage provisioning occurs automatically."
+    }
+  ],
+  "critique": [
+    "The Compact Parallax implementation brief contains a material implementation risk: The proof does not exercise process recreation and deliberate failures, which is a key aspect of demonstrating that a worker can be lost after a durable checkpoint, recovered through the accepted P2-V0.16.1 lease protocol without a manual run-resume instruction."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
