@@ -15,11 +15,13 @@ for _path in (_SCRIPT_ROOT, _API_ROOT):
 from production_lineage_composition_preflight import _canary_identity, _targets
 from sqlalchemy.orm import sessionmaker
 
+from parallax_api.code.autonomy import AutonomyStopReason
 from parallax_api.code.lineage_persistence import (
     PostgresLineageMetadataStore,
     VercelPrivateBlobObjectStore,
 )
 from parallax_api.code.production_delivery import production_source_delivery
+from parallax_api.code.runtime_composition import EngineeringRuntimeComposition
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
 from parallax_api.code.workspace_lineage import SourceLineageStore
 from parallax_api.models import EngineeringRun
@@ -29,6 +31,67 @@ from parallax_api.db import make_engine
 
 _OWNER_SUBJECT = "canary:production-projected-bootstrap"
 _PROJECT_SLUG = "production-projected-bootstrap-canary"
+
+
+class _CanaryService:
+    """Narrow service seam required before the coordinator may mutate PLAN.
+
+    The production runtime bootstrap failure occurs before autonomous stage
+    mutation. The canary therefore exposes only owner-independent run lookup and
+    intentionally supplies an executor probe that fails closed immediately after
+    bootstrap. No PLAN completion, IMPLEMENT mutation, provider publication, or
+    Preview delivery can occur through this service.
+    """
+
+    event_sink = None
+
+    def __init__(self, run: EngineeringRun) -> None:
+        self._run = run
+
+    def get(self, run_id: str) -> EngineeringRun:
+        if run_id != self._run.id:
+            raise RuntimeError("production runtime canary run identity mismatch")
+        return self._run
+
+
+class _ProbeStopExecutor:
+    """Stop autonomy immediately after the protected bootstrap boundary."""
+
+    def probe(self, *, operation_key: str) -> dict[str, object]:
+        if not operation_key:
+            raise RuntimeError("production runtime canary operation key is required")
+        return {
+            "protected_success": False,
+            "tool_id": "production-runtime-bootstrap-canary",
+        }
+
+    def execute(self, spec: object) -> dict[str, object]:
+        raise RuntimeError("production runtime canary must never execute a stage command")
+
+    def execute_on_lineage(
+        self,
+        spec: object,
+        *,
+        project_ref: str,
+        run_id: str,
+        source_lineage_ref: str,
+    ) -> dict[str, object]:
+        raise RuntimeError("production runtime canary must never execute accepted lineage")
+
+
+def _runtime_for(
+    run: EngineeringRun,
+    allocator: ProjectWorkspaceAllocator,
+    composition: object,
+) -> EngineeringRuntimeComposition:
+    executor = _ProbeStopExecutor()
+    return EngineeringRuntimeComposition(
+        _CanaryService(run),  # type: ignore[arg-type]
+        allocator,
+        executor,
+        lineage_executor=executor,
+        source_delivery=composition,  # type: ignore[arg-type]
+    )
 
 
 def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
@@ -89,34 +152,43 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
                         revision=1,
                     )
 
-                    first = composition.bootstrap.ensure(
-                        run,
-                        operation_key="preflight:projected-bootstrap:first",
+                    first_runtime = _runtime_for(run, allocator, composition)
+                    first_result = first_runtime.run(
+                        run_id=identity.run_id,
+                        operation_key="preflight:runtime-bootstrap:first",
+                        expected_revision=run.revision,
                     )
-                    lineage = first.lineage
+                    if first_result.stop_reason is not AutonomyStopReason.EXECUTOR_UNAVAILABLE:
+                        raise RuntimeError("runtime canary crossed the intended executor-probe stop boundary")
+                    if first_result.run is not run or run.state != "PLAN" or run.revision != 1:
+                        raise RuntimeError("runtime canary mutated the synthetic Engineering Run")
+                    if len(first_result.steps) != 1 or first_result.steps[0].stage != "EXECUTOR":
+                        raise RuntimeError("runtime canary produced unexpected autonomous steps")
+
+                    lineage = allocator.current_lineage(identity)
                     lineage_id = lineage.lineage_id
                     file_count = lineage.file_count
                     total_bytes = lineage.total_bytes
-                    if not first.initialized:
-                        raise RuntimeError("first synthetic projected bootstrap did not initialize lineage")
-                    if first.identity != identity:
-                        raise RuntimeError("projected bootstrap returned a different Project/run identity")
                     if lineage.project_id != identity.project_id or lineage.run_id != identity.run_id:
-                        raise RuntimeError("projected bootstrap lineage identity mismatch")
+                        raise RuntimeError("runtime bootstrap lineage identity mismatch")
                     if lineage.parent_lineage_id is not None or lineage.source_kind != "repository":
-                        raise RuntimeError("projected bootstrap violated root-lineage semantics")
+                        raise RuntimeError("runtime bootstrap violated root-lineage semantics")
                     if lineage.source_ref_digest is None or file_count < 1 or total_bytes < 1:
-                        raise RuntimeError("projected bootstrap returned incomplete source evidence")
+                        raise RuntimeError("runtime bootstrap returned incomplete source evidence")
 
-                    replay = composition.bootstrap.ensure(
-                        run,
-                        operation_key="preflight:projected-bootstrap:replay",
+                    recreated_runtime = _runtime_for(run, allocator, composition)
+                    replay_result = recreated_runtime.run(
+                        run_id=identity.run_id,
+                        operation_key="preflight:runtime-bootstrap:recreated",
+                        expected_revision=run.revision,
                     )
-                    if replay.initialized or replay.lineage.lineage_id != lineage.lineage_id:
-                        raise RuntimeError("projected bootstrap replay was not idempotent")
-                    durable_current = allocator.current_lineage(identity)
-                    if durable_current.lineage_id != lineage.lineage_id:
-                        raise RuntimeError("projected bootstrap durable head mismatch")
+                    if replay_result.stop_reason is not AutonomyStopReason.EXECUTOR_UNAVAILABLE:
+                        raise RuntimeError("recreated runtime crossed the intended executor-probe stop boundary")
+                    replay_lineage = allocator.current_lineage(identity)
+                    if replay_lineage.lineage_id != lineage.lineage_id:
+                        raise RuntimeError("recreated runtime bootstrap was not idempotent")
+                    if run.state != "PLAN" or run.revision != 1:
+                        raise RuntimeError("recreated runtime canary mutated the synthetic Engineering Run")
             finally:
                 session.close()
                 outer.rollback()
@@ -150,7 +222,7 @@ def main() -> None:
         return
 
     started = monotonic()
-    stage = "projected-runtime-bootstrap"
+    stage = "engineering-runtime-bootstrap"
     try:
         file_count, total_bytes, _lineage_id = _run_exact_projected_bootstrap()
     except Exception as exc:
@@ -165,7 +237,8 @@ def main() -> None:
     print(
         "Production projected bootstrap preflight: PASS "
         f"(files={file_count}; bytes={total_bytes}; elapsed_ms={elapsed_ms}; "
-        "replay_verified; metadata_rollback_verified; project_rollback_verified)"
+        "engineering_runtime_verified; process_recreation_verified; replay_verified; "
+        "no_stage_mutation_verified; metadata_rollback_verified; project_rollback_verified)"
     )
 
 
