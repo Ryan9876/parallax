@@ -13,6 +13,11 @@ from ..code.production_delivery import (
     ProductionDeliveryConfigurationError,
     production_source_delivery,
 )
+from ..code.run_events import (
+    RunEventConflict,
+    RunEventPersistenceError,
+    RunEventScopeError,
+)
 from ..code.runtime_composition import (
     DurableLineageAllocator,
     EngineeringRuntimeComposition,
@@ -29,6 +34,7 @@ from ..models import EngineeringRun
 from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
+from ..repositories.run_events import PersistentRunEventSink, RunEventRepository
 from ..repositories.worker_executions import WorkerExecutionRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
 from ..schemas import (
@@ -50,6 +56,7 @@ def service(
     session: Session = Depends(get_session),
     principal: AccessPrincipal = Depends(access_principal),
 ) -> EngineeringRunService:
+    event_sink = PersistentRunEventSink(RunEventRepository(session))
     return EngineeringRunService(
         EngineeringRunRepository(session),
         ConversationRepository(session),
@@ -57,19 +64,17 @@ def service(
         ProjectRepository(session),
         owner_subject=principal.subject,
         require_project_binding=True,
+        event_sink=event_sink,
     )
 
 
 def runtime_lineage_allocator(
     session: Session = Depends(get_session),
 ) -> DurableLineageAllocator | None:
-    """Construct #68 durable lineage from server-owned persistence config.
+    """Construct durable lineage from server-owned persistence config.
 
-    Once #68 is present this builds private Blob + transactional metadata
-    persistence; local disk remains disposable materialization only. A missing
-    durable implementation preserves historical Wave 1 behavior, but a present
-    durable allocator now requires the complete #79 delivery composition in the
-    autonomous route rather than silently omitting repository/provider stages.
+    Immutable contents live in private Blob and lineage/head metadata remains
+    transactional. Local disk is disposable materialization only.
     """
 
     return production_durable_lineage_allocator(session.get_bind())
@@ -79,6 +84,7 @@ def worker_recovery_service(svc: EngineeringRunService) -> WorkerRecoveryService
     return WorkerRecoveryService(
         WorkerExecutionRepository(svc.runs.session),
         svc.runs,
+        event_sink=svc.event_sink,
     )
 
 
@@ -125,13 +131,11 @@ def invoke(call):
         return call()
     except (EngineeringRunNotFound, WorkerExecutionNotFound) as exc:
         raise HTTPException(404, str(exc)) from exc
-    except RevisionConflict as exc:
+    except (RevisionConflict, RunEventConflict) as exc:
         raise HTTPException(409, str(exc)) from exc
-    except ProductionDeliveryConfigurationError as exc:
+    except (ProductionDeliveryConfigurationError, RuntimeCompositionError, RunEventPersistenceError) as exc:
         raise HTTPException(503, str(exc)) from exc
-    except RuntimeCompositionError as exc:
-        raise HTTPException(503, str(exc)) from exc
-    except (RunTransitionError, WorkerRecoveryError, ValueError) as exc:
+    except (RunTransitionError, WorkerRecoveryError, RunEventScopeError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
 
@@ -168,8 +172,6 @@ def get_run(run_id: str, svc: EngineeringRunService = Depends(service)):
 
 @router.get("/{run_id}/worker-health", response_model=EngineeringWorkerHealthRead)
 def worker_health(run_id: str, svc: EngineeringRunService = Depends(service)):
-    # Owner-scoped run lookup is the authorization boundary. The recovery
-    # repository itself is deliberately internal and does not derive ownership.
     invoke(lambda: svc.get(run_id))
     snapshot = invoke(lambda: worker_recovery_service(svc).health(run_id=run_id))
     return {
