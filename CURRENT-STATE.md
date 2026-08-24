@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: Wave 3 production app-builder runtime with bootstrap hardening; Wave 4 source integration in progress
+Release: Wave 3 production app-builder runtime with bootstrap hardening; Wave 4 run-event and live-observation source integration in progress
 Date: 2026-08-24
-Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; AUTONOMOUS SOURCE BOOTSTRAP REGRESSION RESOLVED; WAVE 4 RUN-EVENT SOURCE INTEGRATED BUT MIGRATION UNAPPLIED / TELEMETRY INACTIVE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; AUTONOMOUS SOURCE BOOTSTRAP REGRESSION RESOLVED; WAVE 4 RUN-EVENT + LIVE-OBSERVATION SOURCE INTEGRATED BUT MIGRATION UNAPPLIED / TELEMETRY AND READ SURFACE INACTIVE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
@@ -50,24 +50,29 @@ The owner Project/run was not used as a repeated manual test harness. The regres
 
 ## Wave 4 source integration and activation state
 
-Wave 4 durable run-event telemetry (`P2-V0.17.1`, issue #145) is **source integrated but not production activated**.
+Wave 4 durable run-event telemetry (`P2-V0.17.1`, issue #145) and resumable live transport/protected reads (`P2-V0.17.2`, issue #146) are **source integrated but not production activated**.
 
 Current state distinction:
 
 - Wave 4 run-event source integrated: **YES**;
+- Wave 4 live transport/protected read source integrated: **YES**, merge `ee5b55ebcf3a6da14dfb2233cb69ed9dedee774f` from validated #146 / PR #158;
 - `20260824_0010_run_events.sql` migration file integrated: **YES**;
 - production `engineering_run_events` migration applied: **NO**;
 - `PARALLAX_RUN_EVENTS_ENABLED=1` production activation: **NO**;
 - Wave 4 run-event projection active in production: **NO**;
-- Wave 4 live transport / protected reads (#146 / PR #158): **IN DEVELOPMENT / DRAFT, NOT MERGED**;
+- Wave 4 live-observability routes active in production: **NO**;
 - Wave 4 client Live Build UI: **NOT DEPLOYED**.
 
-The production route attaches `PersistentRunEventSink` only when the server-owned environment value `PARALLAX_RUN_EVENTS_ENABLED` equals exactly `1`. The production build guard behaves as follows:
+The production activation boundary now governs both emission and observation. The Engineering Run route attaches `PersistentRunEventSink` only when the server-owned environment value `PARALLAX_RUN_EVENTS_ENABLED` equals exactly `1`, and the live-observability router is registered only under that same exact activation value. Values such as `true`, `yes` or an absent flag do not activate Wave 4.
 
-- if the flag is not exactly `1`, Wave 4 telemetry remains disabled and the build records that the migration is unapplied/not activated;
+The production build guard behaves as follows:
+
+- if the flag is not exactly `1`, Wave 4 telemetry and live reads remain disabled and the build records that the migration is unapplied/not activated;
 - if the flag is `1`, the build requires the `engineering_run_events` table to exist and blocks cutover if it is absent.
 
 This activation boundary allows source-integrated Wave 4 code to coexist with the verified Wave 3 runtime without turning an unapplied observation schema into a runtime dependency or silently deploying Wave 4 capability.
+
+The integrated #146 source provides, when later activated under the governed migration/flag process, owner-scoped paginated run-event replay, resumable authenticated SSE with durable sequence IDs, exact immutable source tree/file/diff reads, bounded allowlisted BUILD/TEST/VERIFY evidence reads, and client cursor/de-duplication helpers. Those capabilities are not production-active merely because their source is now present on `main`.
 
 ## Deployed Wave 3 capability
 
@@ -114,8 +119,11 @@ Wave 4's `engineering_run_events` table is intentionally not part of the active 
 Wave 4 work continues on isolated workstreams. At this record update:
 
 - #145 / `P2-V0.17.1` run-event telemetry source is integrated but inactive as described above;
-- #146 / `P2-V0.17.2` live transport and protected reads is being developed in draft PR #158 and has not been merged or deployed;
-- no Wave 4 migration or production activation was performed by the Wave 3 bootstrap hotfix.
+- #146 / `P2-V0.17.2` live transport and protected reads is integrated on `main` at merge `ee5b55ebcf3a6da14dfb2233cb69ed9dedee774f`, but remains inactive and undeployed;
+- #147 / `P2-V0.17.3` warm editorial application shell is the next planned implementation slice;
+- #148 / `P2-V0.17.4` Live Build/Observability workspace remains dependent on the accepted shell and integrated transport;
+- #149 / `P2-V0.17.5` remains the integrated reference proof/release boundary;
+- no Wave 4 migration or production activation was performed by the #146 integration.
 
 Parallel workers must reconcile against current `main` before integration and rerun the applicable cumulative protected gates after material composition changes.
 
@@ -133,7 +141,7 @@ The production repair chain now includes the earlier Project/repository/provider
 
 ## Authoritative record status
 
-This file records validated production state as of 2026-08-24.
+This file records validated production and source-integration state as of 2026-08-24.
 
 Durable architecture is defined in `ARCHITECTURE.md`; design rules remain in `DESIGN-SYSTEM.md`; governance/authority remains in `PROJECT-CONSTITUTION.md`.
 
