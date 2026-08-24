@@ -4,13 +4,22 @@ from pathlib import Path
 import sys
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import sessionmaker
+
 
 SCRIPTS_ROOT = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
 import production_lineage_composition_preflight as preflight
-from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourcePackage
+from parallax_api.code.lineage_persistence import (
+    InMemoryImmutableObjectStore,
+    PostgresLineageMetadataStore,
+    create_lineage_metadata_schema,
+)
+from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
+from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
+from parallax_api.db import make_engine
 
 
 def test_canary_identity_is_stable_canonical_and_repository_scoped() -> None:
@@ -53,3 +62,41 @@ def test_lineage_composition_source_policy_excludes_secret_paths() -> None:
     assert preflight._provider_path_valid("services/api/parallax_api/main.py") is True
     assert preflight._provider_path_valid("../escape.py") is False
     assert preflight._provider_path_valid("credentials/token.txt") is False
+
+
+def test_outer_transaction_rolls_back_synthetic_lineage_metadata(tmp_path) -> None:
+    engine = make_engine(f"sqlite:///{tmp_path / 'lineage-canary.db'}", environment="test")
+    create_lineage_metadata_schema(engine)
+    identity = preflight._canary_identity("github:Ryan9876/parallax")
+    package = SourcePackage(
+        source_kind="repository",
+        source_ref="github:Ryan9876/parallax@0123456789012345678901234567890123456789",
+        files={"README.md": b"Parallax\n", "src/app.py": b"value = 1\n"},
+    )
+    lineage_id: str | None = None
+
+    with engine.connect() as connection:
+        outer = connection.begin()
+        sessions = sessionmaker(
+            bind=connection,
+            autoflush=False,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+        metadata = PostgresLineageMetadataStore(sessions)
+        store = SourceLineageStore(InMemoryImmutableObjectStore(), metadata)
+        allocator = ProjectWorkspaceAllocator(tmp_path / "workspaces", lineage_store=store)
+        workspace = allocator.initialize(identity, preflight._FixedSourceProvider(identity, package))
+        lineage_id = workspace.lineage.lineage_id
+        assert metadata.get_current(identity.project_id, identity.run_id) == lineage_id
+        assert metadata.get_manifest(lineage_id) is not None
+        allocator.cleanup(workspace)
+        outer.rollback()
+
+    verification = PostgresLineageMetadataStore(
+        sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    )
+    assert verification.get_current(identity.project_id, identity.run_id) is None
+    assert lineage_id is not None
+    assert verification.get_manifest(lineage_id) is None
+    engine.dispose()
