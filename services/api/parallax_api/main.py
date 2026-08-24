@@ -12,6 +12,7 @@ from .routes.access import router as access_router
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
 from .routes.engineering_runs import router as engineering_runs_router
+from .routes.observability import router as observability_router
 from .routes.session import router as session_router
 from .routes.work_specifications import router as work_specifications_router
 from .session import SESSION_HEADER_NAME
@@ -41,7 +42,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
         allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", SESSION_HEADER_NAME],
+        allow_headers=["Content-Type", "Authorization", SESSION_HEADER_NAME, "Last-Event-ID"],
     )
     app.include_router(health_router)
     app.include_router(session_router)
@@ -49,6 +50,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
     protected = [Depends(require_access)]
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)
+    app.include_router(observability_router, dependencies=protected)
     app.include_router(work_specifications_router, dependencies=protected)
     app.include_router(projects_router, dependencies=protected)
     return app
