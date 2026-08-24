@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 2.7
+Version: 2.8
 Status: Authoritative
 
 ## System shape
 
-Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by PostgreSQL, private immutable object storage, bounded provider adapters and isolated execution infrastructure. Conversation remains the primary product surface. Reason, Code, Work Specifications, Project identity, execution, source lineage, worker recovery, deterministic/browser/visual validation, autonomous correction, tool authority, protected evaluation, authentication and release evidence remain separate governed capabilities behind that surface.
+Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by PostgreSQL, private immutable object storage, bounded provider adapters and isolated execution infrastructure. Conversation remains the primary product surface. Reason, Code, Work Specifications, canonical Project identity, execution, source lineage, worker recovery, deterministic/browser/visual validation, autonomous correction, tool authority, protected evaluation, authentication, observation telemetry and release evidence remain separate governed capabilities behind that surface.
 
 ```text
 Expo / React Native client
@@ -16,7 +16,7 @@ Expo / React Native client
   ├─ bounded-autonomy controls
   ├─ Google PKCE sign-in + owner access panel
   ├─ same-origin /p2-api web gateway
-  └─ SSE + JSON API client
+  └─ bounded API / future live-observation client
           │
           ▼
 FastAPI intelligence service
@@ -35,7 +35,8 @@ FastAPI intelligence service
   ├─ bounded GitHub + Vercel Preview source delivery
   ├─ Reason / Work Specification / DSPy programs
   ├─ protected command registry
-  └─ protected evaluation + observable execution/provider evidence
+  ├─ protected evaluation + observable execution/provider evidence
+  └─ optional Wave 4 non-authoritative run-event projection
           │
           ├────────────► Vercel Sandbox execution plane
           │               ├─ exact accepted source lineage
@@ -55,7 +56,8 @@ FastAPI intelligence service
           │               ├─ engineering worker executions
           │               ├─ authorized users
           │               ├─ projects
-          │               └─ source lineage manifests + transactional heads
+          │               ├─ source lineage manifests + transactional heads
+          │               └─ Wave 4 run events only after explicit migration + activation
           │
           └────────────► bounded provider plane
                           ├─ Vercel Connect → short-lived GitHub App credential
@@ -63,13 +65,13 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 extends the protected production app-builder loop with durable worker recovery, deterministic browser/visual validation, bounded autonomous correction/convergence and subordinate optimization controls. Preview publication remains the autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 is the deployed app-builder execution architecture. Wave 4 run-event observation is source-integrated but remains inactive until its production migration and explicit server-side activation are separately completed. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
 ### Client
 
-The client owns presentation and interaction state. It does not own provider credentials, the production root credential, durable Project truth, durable authorization truth, Work Specification approval authority, accepted source lineage, worker leases/checkpoints, executable command definitions, tool capabilities, protected validation/evaluation rules or deployment authority.
+The client owns presentation and interaction state. It does not own provider credentials, the production root credential, durable Project truth, durable authorization truth, Work Specification approval authority, accepted source lineage, worker leases/checkpoints, executable command definitions, tool capabilities, protected validation/evaluation rules, run-event truth or deployment authority.
 
 Assistant text remains ordinary selectable React Native text. React Native Skia is decorative/optical only and reduced-graphics mode preserves equivalent product capability.
 
@@ -96,7 +98,7 @@ Google/Supabase proves interactive identity. Parallax decides application author
 
 Each protected request resolves an `AccessPrincipal`. Project ownership is derived from that authenticated principal; caller-supplied owner identity is never trusted as authorization input.
 
-RLS remains enabled on server-owned hosted tables and direct `anon` / `authenticated` table privileges are revoked where the server-mediated boundary is required. FastAPI remains the application authorization layer.
+RLS remains enabled on server-owned hosted tables where required and direct `anon` / `authenticated` table privileges are revoked for server-mediated control-plane data. FastAPI remains the application authorization layer.
 
 `PARALLAX_ACCESS_TOKEN` is a server-only break-glass/automation credential. It is not the normal browser login path and is not forwarded into sandboxes or provider calls.
 
@@ -164,6 +166,8 @@ Operator REVIEW
 
 No fresh-repository fallback is permitted after an accepted IMPLEMENT lineage exists. Later stages and corrected candidates must reconstruct and validate the exact accepted lineage.
 
+Repository bootstrap is part of `EngineeringRuntimeComposition`. A missing root lineage is created from the exact owner-scoped repository through the protected source projection; an existing durable head is replayed instead of reinitialized. Production rollback-only canaries exercise this composition through `EngineeringRuntimeComposition.run()` itself and deliberately stop before stage mutation.
+
 ## Safe IMPLEMENT mutation
 
 The safe patch engine accepts only an explicit isolated filesystem root plus bounded patch requests. Requests bind to a relative path, expected base digest, supported unified diff and bounded source/patch/result sizes.
@@ -183,7 +187,11 @@ Authoritative source continuity is content-addressed and split across two durabl
 
 Local filesystem roots are disposable materializations only. They may be reconstructed from durable lineage after request/process recreation and must never be represented as authoritative persistence.
 
+The private Blob adapter uses deterministic SHA-256 paths and verifies content after reads/writes. Transient HTTP transport failures are normalized inside the adapter and retried only within a hard bounded attempt count. An uncertain immutable write is reconciled by exact content-address read-back. Request-local caching may reuse only bytes already verified against the expected digest; that cache is disposable and never durable authority.
+
 Accepted IMPLEMENT performs exact parent-lineage validation, verifies mutation artifacts against workspace bytes, advances lineage transactionally and cleans the disposable lease. Duplicate/stale acceptance fails closed.
+
+Production source bootstrap additionally applies a lineage-safe repository projection before file bytes enter source packages or durable storage. Secret-sensitive paths are excluded before provider file reads; strict UTF-8, NUL, per-file, aggregate-size and digest contracts remain fail-closed.
 
 ## Exact-lineage BUILD / TEST / VERIFY
 
@@ -237,25 +245,19 @@ Results distinguish `DENIED`, `FAILED` and `SUCCEEDED`; provider failure or auth
 
 Production source delivery is selected from a server-owned target registry after owner-scoped canonical `Project.repository_ref` resolution.
 
-Each registered target binds:
+Each registered target binds exact repository identity/GitHub repository ID, production branch identity, Vercel Preview project/team identity, a GitHub Vercel Connect connector reference and a Vercel credential environment-variable reference.
 
-- exact repository identity and GitHub repository ID;
-- production branch identity;
-- Vercel Preview project/team identity;
-- one GitHub Vercel Connect connector reference;
-- one Vercel credential environment-variable reference.
+The current Parallax self-target uses `github/parallax-runtime` and `vercel:preview:parallax` capability identities.
 
-The current Parallax self-target uses `github/parallax-runtime` and `vercel:preview:parallax`.
-
-GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. A slash-bearing connector identity is serialized as one percent-encoded URL path parameter at the Connect wire boundary; decoded URL representations are not accepted as sufficient contract evidence. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
+GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. A slash-bearing connector identity is serialized as one percent-encoded URL path parameter at the Connect wire boundary. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
 
 Vercel Preview credentials are scoped per registered target project. Request-scoped provider composition receives only the selected target/credential, preventing one Project from inheriting another Project's provider authority.
 
 Publication is replay-aware and durable: request/process recreation resolves the accepted delivery record and does not duplicate branch/commit/PR/Preview mutation when the same exact action was already accepted.
 
-The Parallax self-development API release path additionally performs a production-only, read-only provider preflight before a new production deployment may become READY. Using the deployment's Vercel OIDC identity and the same server-owned target registry, the preflight verifies the encoded Vercel Connect exchange, exactly one GitHub installation repository, matching repository numeric identity, registered production branch resolution and presence of the target-scoped Vercel Preview credential. Preview deployments intentionally skip this provider call because the Connect connector remains production-only; the gate does not broaden Preview authority.
+The Parallax self-development API release path performs production-only read-only provider and source/durability preflights before a new production deployment may become READY. These preflights use fixed server-owned identities, bounded source, rollback-only metadata and no accepted user source mutation. Preview deployments intentionally skip production-only provider/storage authority.
 
-Preview remains the autonomous deployment ceiling for Parallax-developed Projects. Parallax's own production promotion/merge remains a governed release boundary. While the standing single-user authority in `PROJECT-CONSTITUTION.md` is active, that durable authorization can satisfy the per-release human-approval step only after all required exact-head gates and rollback requirements pass; it does not give the Project runtime autonomous production-deployment authority.
+Preview remains the autonomous deployment ceiling for Parallax-developed Projects. Parallax's own production promotion/merge remains a governed release boundary. Standing single-user release authorization does not give Project runtime autonomous production-deployment authority.
 
 ## App-builder evaluation and observability
 
@@ -267,24 +269,35 @@ Secret-bearing evidence, raw provider responses, credentials, headers/cookies/en
 
 Scoring remains deterministic with critical-failure semantics. Wrong Project/spec/digest/lineage/stage/provider/Preview/evidence identity, forbidden production authority, denial/failure misrepresentation and unrelated/fresh source fail closed.
 
-The permanent Wave 3 protected reference-app proof recreates process/runtime composition between meaningful stages and proves durable worker reassignment, stale-worker rejection, exact lineage/LKG reconstruction, no duplicate implementation mutation, no duplicate publication, browser/visual precedence, bounded correction/convergence and correct retry/replay behavior.
+The permanent protected reference proof recreates process/runtime composition between meaningful stages and proves durable worker reassignment, stale-worker rejection, exact lineage/LKG reconstruction, no duplicate implementation mutation, no duplicate publication, browser/visual precedence, bounded correction/convergence and correct retry/replay behavior.
+
+## Wave 4 run-event observation boundary
+
+Wave 4 introduces an append-only, non-authoritative Project/run event projection. It is an observation layer only; Engineering Run state, attempts, accepted source lineage, worker leases/checkpoints, provider action/audit evidence and protected evaluation remain authoritative.
+
+Source integration alone does not activate this projection in production.
+
+Activation requires both:
+
+1. the migration containing `engineering_run_events` to be applied through the governed production migration process; and
+2. the server-owned environment value `PARALLAX_RUN_EVENTS_ENABLED` to equal exactly `1`.
+
+When the flag is absent or any value other than exact `1`, the Engineering Run route does not attach `PersistentRunEventSink`. The authoritative Wave 3 runtime therefore has no dependency on an unapplied Wave 4 observation table.
+
+The production build guard mirrors the same boundary:
+
+- Wave 4 disabled → PASS while recording that the migration is unapplied/not activated;
+- Wave 4 enabled → require `engineering_run_events` to exist, otherwise block production cutover.
+
+This gate prevents an environment toggle from silently activating telemetry against a missing schema and prevents source integration from being misreported as deployment/activation.
 
 ## Persistence
 
 SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments through `DATABASE_URL`. Production uses the dedicated Parallax Supabase PostgreSQL project. Schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
-Hosted durable schema includes:
+Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads.
 
-- conversations;
-- messages;
-- work specifications;
-- engineering runs;
-- engineering attempts;
-- engineering worker executions;
-- authorized users;
-- projects;
-- source lineage manifests;
-- source lineage heads.
+`engineering_run_events` is a Wave 4 optional observation schema and is not considered active production persistence until its migration and activation gate are both completed.
 
 Project foreign keys bind conversations and Engineering Runs where required. Source-lineage and worker-execution tables use RLS as defense in depth and revoke direct `anon` / `authenticated` table privileges. Server-owned control-plane tables intentionally require no direct-client policy; FastAPI remains the application authorization boundary.
 
@@ -309,11 +322,13 @@ Two authoritative Vercel projects deploy from the same repository:
 1. Web `parallax` — root `apps/client`, Expo static export.
 2. API `parallax-api` — root `services/api`, FastAPI via `api/index.py`.
 
-`main` is the production source branch. Feature/integration branches create previews. Path-aware ignore behavior may suppress redundant builds when a commit does not affect a project root. An API-only production release may therefore deploy a new API SHA while intentionally preserving the existing verified client artifact.
+`main` is the production source branch. Feature/integration branches create previews. Path-aware ignore behavior may suppress redundant builds when a commit does not affect a deployable root. An API-only production release may therefore deploy a new API SHA while intentionally preserving the existing verified client artifact.
 
 The Vercel Sandbox execution plane, private Blob store and Vercel Connect connectors are runtime infrastructure, not additional long-lived Parallax application deployments.
 
-Release promotion requires exact-head CI, relevant preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, a production build must also pass the read-only provider preflight before Vercel cutover. A green Preview is not production deployment evidence, and the production-only provider preflight does not replace post-deploy smoke/observability checks.
+Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover.
+
+A green Preview is not production deployment evidence. Production-only preflights do not replace post-deploy smoke/observability checks.
 
 While Parallax remains effectively single-user, `PROJECT-CONSTITUTION.md` v1.4 provides standing authority to promote an already validated Parallax release/hotfix without another per-release approval request. The authority expires when additional real users begin relying on production and never waives the release gates above.
 
@@ -323,7 +338,7 @@ Parallel development is governed by `PROJECT-CONSTITUTION.md`, `PARALLEL-DEVELOP
 
 Workers develop concurrently on isolated branches. Interacting candidates are integrated serially at authoritative boundaries and cumulative protected gates are rerun after material composition changes.
 
-The deployed Wave 3 runtime includes generalized durable worker lease/checkpoint/recovery orchestration, deterministic browser/visual validation, bounded autonomous correction and subordinate optimization controls in addition to the Wave 2 app-builder foundations.
+Source-integrated future-wave code must not be treated as deployed/active merely because it is present on `main`; migration and activation state remain separate authoritative facts.
 
 ## Failure degradation
 
@@ -333,6 +348,7 @@ The deployed Wave 3 runtime includes generalized durable worker lease/checkpoint
 - Project lookup outside authenticated owner scope: fail as not found;
 - Project/spec/run/source-lineage mismatch: block protected progress;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
+- transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
 - Sandbox unavailable/failure/timeout: persist failure evidence and do not advance as success;
 - expired/stale worker lease: reject checkpoint/mutation authority;
@@ -343,18 +359,20 @@ The deployed Wave 3 runtime includes generalized durable worker lease/checkpoint
 - unknown change impact or incomplete reuse/cache provenance: discard optimization and run the conservative/full path;
 - capability unknown/disabled/mismatched/unapproved: deny before provider action;
 - provider target/credential/repository mismatch: fail before mutation;
-- malformed connector wire identity or production provider preflight failure: fail the candidate production build before cutover;
+- malformed connector wire identity or production provider/source/durability/bootstrap preflight failure: fail the candidate production build before cutover;
 - provider failure: return `FAILED`, never `SUCCEEDED`;
 - replay of an already accepted exact provider action: resolve durable delivery rather than duplicate mutation;
 - protected evaluation regression: block promotion;
 - database readiness failure: block deployment verification;
+- Wave 4 run events disabled: run authoritative Wave 3 path without event projection;
+- Wave 4 run events enabled without migrated table: block production cutover;
 - unsupported destructive or production authority outside an active explicit/standing authorization: return control to the operator.
 
 ## Security invariants
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation or deployment state.
+User/model content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -372,7 +390,8 @@ Major trust boundaries are:
 12. server-owned provider target/credential registry and encoded connector wire contract;
 13. persisted provider action/audit and replay identity;
 14. protected evaluation/promotion policy;
-15. governed production release authority plus fail-closed production provider preflight.
+15. optional non-authoritative run-event projection behind migration + exact activation flag;
+16. governed production release authority plus fail-closed production provider/source/durability/bootstrap preflights.
 
 ## Inherited development-policy architecture
 
@@ -392,35 +411,14 @@ Protected execution / evaluation / promotion
 
 The platform baseline owns non-weakenable guarantees for canonical Project/run identity, specification binding, source lineage, worker/mutation/tool authority, evidence integrity, deterministic validation precedence, protected promotion, rollback and human-control boundaries. Project profiles and Work Specifications may strengthen or narrow requirements but cannot silently weaken the baseline.
 
-The deployed Wave 3 runtime implements generalized policy resolution, worker recovery, browser/visual validation, correction/convergence and development optimization as protected server-owned capability.
-
 ## Deployed Wave 3 architecture
 
 Wave 3 extends the protected app-builder loop through:
 
-`approved objective/spec -> PLAN -> typed proposal -> protected mutation -> same-lineage BUILD/TEST/VERIFY -> browser exercise -> deterministic DOM/accessibility/console/network/layout checks -> screenshot regression -> bounded multimodal visual review -> bounded correction/retry with LKG -> Git/Preview -> protected evaluation -> operator review`
+`approved objective/spec -> PLAN -> repository/durable-lineage bootstrap -> typed proposal -> protected mutation -> same-lineage BUILD/TEST/VERIFY -> browser exercise -> deterministic DOM/accessibility/console/network/layout checks -> screenshot regression -> bounded multimodal visual review -> bounded correction/retry with LKG -> Git/Preview -> protected evaluation -> operator review`
 
 Deterministic failures are authoritative over visual judgment. The controller preserves last-known-good state and enforces retry, churn, runtime, resource, no-progress and oscillation bounds.
 
 Worker states include `RUNNING`, `PROGRESSING`, `CHECKPOINTED`, `STALLED`, `RECOVERING`, `REASSIGNED`, `HUMAN_REQUIRED`, `READY_FOR_INTEGRATION` and terminal success/failure. Bounded leases, meaningful-progress checkpoints and single-writer recovery permit process loss/reassignment without duplicate mutation or corrupted lineage.
 
-The same architecture governs Parallax self-development and every Project Parallax develops.
-
-### Development optimization mechanisms
-
-Wave 3 deploys, subordinate to protected correctness:
-
-1. critical-path scheduling and bounded work stealing;
-2. change-impact-driven validation while retaining full promotion suites;
-3. immutable secret-free warm environments;
-4. validated pattern/component/config reuse;
-5. privacy-safe failure fingerprinting and repair memory;
-6. adaptive model routing without lower promotion thresholds;
-7. specification preflight;
-8. disposable speculative integration;
-9. automatic workstream sizing/rebalancing;
-10. development-performance telemetry.
-
-Additional controller mechanisms include value-of-information scheduling, safe-boundary cancellation/supersession and integration-capacity backpressure. The server-side DAG/policy/controller is authoritative; models may suggest but do not own scheduling or authority.
-
-Optimization targets validated outcome time, not worker utilization or token throughput. Identity, provenance, single-writer, privacy, evaluation and human-control guarantees may not be approximated for speed.
+The same protected architecture governs Parallax self-development and every Project Parallax develops. Wave 4 observation capability may extend visibility around this runtime, but it does not become authoritative over it.
