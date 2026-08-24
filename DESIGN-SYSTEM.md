@@ -1,302 +1,492 @@
 # Parallax 2.0 Design System
 
-Version: 2.1
-Status: Authoritative
+Version: 3.0
+Status: Authoritative candidate under `P2-V0.17.0` until integrated
 
 ## Design direction
 
-Parallax is a premium optical reasoning and engineering workspace. Conversation remains the primary product surface; the interface should feel calm, dimensional, and authored rather than like a conventional dashboard or generic AI chat application.
+Parallax is a premium reasoning and engineering workspace that should feel calm, capable, legible and authored. Conversation remains the primary creation surface. Governed engineering state becomes visibly inspectable when it matters, but the product must not feel like a generic IDE, log console or dense operations dashboard.
 
-The visual system remains **Editorial Optical**: Deep Violet Optical provides precision and technical depth, while restrained editorial composition supplies hierarchy, asymmetry, negative space, tactile material, and selective warmth.
+Wave 4 replaces the prior Deep Violet Optical visual identity with **Warm Editorial Observatory**, based on the user-approved Parallax home and Observability mockups.
 
-Content wins every visual competition. Ambient color, identity motion, optical engraving, governed surfaces, and workspace chrome must support reading rather than compete with it.
+The dominant visual language is:
 
-## Material palette
+- dark forest / olive navigation;
+- warm ivory / cream workplane;
+- burnt rust primary action and active-navigation treatment;
+- flat deep teal for live focus and interaction;
+- restrained olive for support, ready and verified treatment;
+- near-charcoal primary text;
+- warm low-contrast cards, dividers and shadows;
+- editorial display hierarchy paired with highly legible application typography;
+- subtle organic topographic / landscape depth that never competes with content.
 
-Core production tokens:
+Content and authoritative state win every visual competition. No visual effect may imply engineering progress before the server records it.
 
-- Deep substrate: `#080B12`
-- Dark optical surface: `#0B1019`
-- Strong surface: `#111525`
-- Raised surface: `#161A2B`
-- Primary text: `#F4F2FF`
-- Secondary text: `#B8B6CC`
-- Muted metadata: `#85849B`
-- Cyan optical accent: `#7DE7FF`
-- Indigo transition accent: `#8B9CFF`
-- Violet identity/action accent: `#D18BFF`
-- Deep violet control accent: `#8F63D8`
-- Editorial cream: `#F0E4CF`
-- Editorial dusty peach: `#DFA78F`
-- Editorial muted sage: `#9FB9A5`
-- Danger: `#FF9AAB`
-- Warning: `#E7C98F`
-- Verified/success: `#72E3C4`
-- Dark glass: `rgba(13,16,29,0.70)`
-- Strong glass: `rgba(17,21,37,0.90)`
-- Conversation/governed material: neutral-grey/navy translucency in the approximate range `rgba(110–140, 108–144, 135–153, 0.10–0.16)`
-- Optical border when required: `rgba(167,151,255,0.18)`
+## Brand identity
 
-Color hierarchy is intentional:
+The primary Wave 4 Parallax mark is the **orbital planet identity** from the approved mockup family:
 
-- cyan = active optical energy and live focus;
-- indigo = precision structure and technical status;
-- violet = identity, selection, and product atmosphere;
-- cream = selected editorial reading warmth;
-- peach = restrained human/operator emphasis, not structural framing;
-- sage = approved/ready treatment when paired with explicit state text.
+- warm rust/orange central body;
+- intersecting teal and olive orbital rings;
+- transparent or locally integrated background rather than a decorative enclosing badge;
+- recognizable at both full brand and small assistant/avatar sizes;
+- paired with the `Parallax` wordmark in the editorial display voice where space permits;
+- tagline treatment may use `Build with perspective.` in quiet olive/cream secondary text.
 
-Color alone never carries semantic meaning.
+The prior violet interlocking knot is retired from primary Wave 4 product chrome. It may remain in historical screenshots/assets during transition but must not coexist as a competing primary identity in production surfaces.
 
-## Editorial hierarchy
+The orbital mark should read as identity, not a loading spinner. Default product use is static or nearly static. If later motion is introduced, it must be subtle, non-essential, reduced-motion aware and never imply run progress.
 
-Parallax uses two coordinated scales:
+## Semantic palette
 
-1. **Narrative scale** — assistant/user conversation is the highest-contrast, most readable layer.
-2. **Governed-state scale** — Work Specification and Code surfaces expose durable state with compact status, strong titles, and restrained controls.
+Implementation centralizes semantic tokens. Initial production targets are:
 
-Avoid stacking decorative frames. Prefer spacing, translucent material, subtle depth, compact status pills, and optical alignment over four-sided outlines.
+### Forest / navigation
 
-## Ambient Chroma Flow
+- `forest950`: `#1C2A18`
+- `forest900`: `#24341F`
+- `forest800`: `#31442A`
+- `forest700`: `#405536`
 
-The living surface is an editorial optical workplane, not a HUD, scanner, particle field, or literal lava-lamp simulation.
+### Olive / support
 
-The production field uses **Ambient Chroma Flow**: broad heavily feathered regions of violet, indigo, cobalt, blue, restrained magenta/lavender, and rare warm counterpoints drift through one another like diffused light behind liquid glass.
+- `olive700`: `#66753A`
+- `olive600`: `#768443`
+- `olive500`: `#87954D`
+- `olive200`: `#D8DCC0`
 
-Use:
+### Warm workplane
 
-- deep navy/near-black substrate;
-- broad overlapping chroma fields rather than bounded blobs;
-- dominant indigo, violet, midnight blue, and cobalt;
-- restrained magenta/lavender atmosphere;
-- sparse amber/peach counterpoints;
-- cyan only as an optical accent;
-- low-frequency warped haze that blends neighboring regions;
-- a materially darker central reading field beneath conversation content;
-- activity energy that raises chroma presence modestly without materially increasing speed;
-- subtle grain.
+- `ivory50`: `#FBF7EE`
+- `cream100`: `#F5EEDF`
+- `cream150`: `#F0E7D7`
+- `cream200`: `#E9DFCC`
+- `stone300`: `#D8CEBC`
 
-**Motion must be perceptible during an ordinary 5–15 second observation.** Major compositions may evolve over roughly one to two minutes, but nested multipliers must not make the production field appear static during normal use.
+### Rust / primary action
 
-Avoid:
+- `rust700`: `#A83B17`
+- `rust600`: `#C44A1B`
+- `rust500`: `#D75B24`
+- `rust100`: `#F4D7C8`
 
-- grids or scanner/calibration lines;
-- hard-edged lava blobs;
-- bouncing or synchronized looping motion;
-- particles, sparkles, high-frequency shimmer, or bright neon liquid;
-- motion that competes with reading.
+### Teal / live interaction
 
-Reduced motion freezes the time-dependent field. Reduced graphics preserves product hierarchy without requiring Skia.
+- `teal700`: `#006E70`
+- `teal600`: `#008487`
+- `teal500`: `#15999A`
+- `teal100`: `#D4EBE7`
 
-## Parallax knot identity
+### Text
 
-The representative Parallax identity is the **3D interlocking knot** approved in v0.13.
+- `charcoal950`: `#172024`
+- `charcoal800`: `#30383A`
+- `charcoal600`: `#626664`
+- `charcoal450`: `#7C7E79`
 
-Identity rules:
+### State
 
-- use one interwoven three-loop silhouette for both primary brand and assistant avatar/emoji identity;
-- retain dimensional glossy shading rather than flattening the knot into a line icon;
-- dominant surface colors are deep blue, indigo, violet, magenta highlights, and restrained cyan energy;
-- the area outside the knot is transparent: no circular badge, enclosing orb, ring, or background plate;
-- primary UI implementations use a slow continuous 360-degree rotation with a period long enough that it never reads as a loading spinner;
-- web may add a restrained cyan/violet traveling highlight clipped to the knot alpha so light appears to move over the material;
-- the traveling highlight supplements rather than replaces the baked 3D shading;
-- small assistant-avatar use must remain recognizably the same mark, not a separate emoji design;
-- reduced motion uses the same knot in a stable static orientation.
+- success / verified: olive-green treatment plus explicit text;
+- warning: warm amber distinct from rust brand action;
+- danger: warm red distinct from rust brand action;
+- information / active execution: teal plus explicit text;
+- inactive / pending: warm stone/charcoal treatment.
 
-The mark may carry a soft local shadow or bloom appropriate to its size, but it should not be placed inside decorative circles solely to create contrast.
+Color alone never carries state meaning.
 
-## Workspace chrome
+Exact values may be tuned by protected browser/screenshot validation while preserving these semantic hue roles. Do not reintroduce violet/cyan as the dominant product identity through local component styling.
 
-Desktop navigation and top chrome are quiet optical materials rather than flat utility bars.
+## Typography
 
-### Left navigation rail
+Wave 4 uses a coordinated editorial and application hierarchy.
 
-- use deep translucent material with subtle violet depth;
-- brand/knot identity is the strongest element at the top of the rail;
-- connection/workspace state may appear as compact secondary metadata;
-- active conversation uses rounded translucent depth rather than a solid rectangular highlight or bright outline;
-- inactive conversations stay low-contrast but readable;
-- new-conversation action is compact and clearly discoverable;
-- do not turn the rail into a dashboard of badges or controls.
+### Display
 
-### Top workspace banner
+Greeting, hero and major editorial headings use a reliable serif stack where available, for example system `ui-serif`, Georgia, Charter or equivalent platform serif fallbacks. No external font service is required.
 
-- remain compact and subordinate to conversation;
-- use translucent deep optical material with a restrained violet atmosphere;
-- title/status and Reason/Code remain explicit;
-- selected mode may use solid violet material, while the mode container avoids conventional heavy borders;
-- mobile identity/mode geometry must remain non-overlapping.
+Display typography should feel composed rather than decorative:
 
-## Optical typesetter
+- strong dark-charcoal contrast on the warm workplane;
+- moderate negative tracking only at large sizes;
+- compact line height;
+- no novelty scripts or ornamental display faces.
 
-The active assistant response is rendered as **stream-synchronized theme-colored optical engraving**.
+### Application text
+
+Navigation, controls, conversation body, metadata, tables, statuses and forms use system-native sans-serif typography for reliability and accessibility.
+
+### Technical text
+
+Code, diffs, command output, hashes, source-lineage IDs and similar technical evidence use a platform monospace stack. Technical text remains selectable and must not be rasterized into decorative canvases.
+
+## Material and depth
+
+Primary warm cards use:
+
+- ivory/cream surfaces;
+- approximately 14–20 px desktop corner radii;
+- low-contrast warm stone borders where a boundary is needed;
+- soft, short warm shadows rather than dark floating-card shadows;
+- restrained internal separators;
+- generous but not wasteful padding.
+
+Cards should feel like paper/light material on a warm workplane, not translucent glass floating over a dark background.
+
+Do not wrap every small piece of content in an independent card. Use surface grouping only when it clarifies information architecture.
+
+## Organic background treatment
+
+The mockup's organic character may be expressed through subtle contour lines, soft radial/elliptical warm gradients or restrained landscape silhouettes.
 
 Rules:
 
-- substantive text is displayed as soon as SSE delivers it;
-- there is no independent client-side character clock that retypes, delays, or races ahead of streamed content;
-- the optical head follows the end of the newest rendered wrapped line;
-- the head is compact and localized: a short indigo/violet trail, lavender precision core, and cyan hot point;
-- do not use a long scanner beam across the response;
-- only a short newest-glyph tail carries visible violet/lavender etched energy;
-- fresh-glyph energy cools quickly into normal pale selectable narrative text;
-- the head may ease between measured positions but must not invent content timing;
-- final response text remains selectable and accessibility-aware.
+- decorative background contrast stays materially below content contrast;
+- no particles, scanner grids, neon glow, high-frequency shimmer or lava-lamp motion;
+- the left rail may carry a very subdued forest/hill silhouette near its lower edge on desktop;
+- the main workplane may use broad soft warm forms or faint contour lines;
+- reduced graphics removes decorative layers without changing layout or capability.
 
-The typesetter does not run for `SPEC_AMENDMENT`, because that hand-off intentionally stops substantive continuation.
+## Application shell
 
-Reduced motion removes animated head motion and shows streamed substantive text normally.
+### Desktop composition
 
-## Conversation follow behavior
+At standard desktop widths the approved mockup establishes a three-region hierarchy:
 
-The conversation thread follows the live response while respecting operator intent.
+1. **Navigation rail** — dark forest, approximately 16–20% of the viewport and visually stable.
+2. **Primary workplane** — dominant warm ivory/cream region for conversation, run state and Live Build.
+3. **Utility rail** — narrower warm region for System Health, Active Run, Recent Alerts/activity and other secondary context.
 
-- sending a new message re-enables live-edge following;
-- when an assistant response begins, its start is automatically brought into the visible thread region;
-- while the operator remains near the live edge, streamed content stays visible as it grows;
-- the composer reserves actual layout space as an in-flow dock, and the conversation thread is the flexible shrinkable scroll region above it;
-- conversation content must never rely on estimated composer-height padding as the primary clearance mechanism;
-- if the operator intentionally scrolls materially upward during a response, Parallax stops forcing the thread to the bottom;
-- the next new operator message re-enables live-edge following;
-- this behavior is interaction logic, not animation spectacle.
+The exact responsive widths may tune during browser validation, but the major order and dominance cannot change merely for implementation convenience.
 
-## Work Specification surface
+### Navigation rail
 
-Work Specification is an implementation contract, not a ticket card or editorial poster.
+- dark forest substrate with subtle tonal depth;
+- orbital Parallax identity is the strongest element at the top;
+- navigation labels remain readable warm white/cream;
+- active navigation is a filled rust rounded rectangle, not a thin outline;
+- inactive rows remain calm and high-enough contrast without individual cards;
+- Observability is a first-class destination when the feature is available;
+- Project/user/plan information may occupy restrained cards near the bottom where desktop height permits;
+- mobile does not preserve a permanently wide desktop rail.
 
-Presentation rules:
+### Workspace header
 
-- `SPEC · DRAFT/APPROVED` remains explicit compact metadata;
-- revision identity remains visible;
-- title/objective form the primary reading hierarchy;
-- use rounded translucent neutral/violet optical material consistent with conversation surfaces;
-- do not use a heavy peach left rule or conventional four-sided outline as the primary structure;
-- draft may use restrained violet status treatment;
-- approved may use muted sage, always paired with explicit `APPROVED` text;
-- acceptance criteria remain readable as contract clauses, not dashboard metrics;
-- approval remains an obvious accessible operator action;
-- expansion/collapse preserves conversation-first page rhythm;
-- phone controls remain at least 44 pt and preserve v0.11.1 non-overlap rules.
+- major greeting/title is editorial serif and near-charcoal;
+- supporting line is olive/charcoal secondary text;
+- primary creation action uses rust;
+- alert/help controls use quiet warm surfaces;
+- header remains subordinate to the current task and does not become a toolbar wall.
 
-## Code execution surface
+## Home and conversation surface
 
-Code execution presents durable truth rather than simulated progress.
+Conversation remains the product's primary creation experience.
 
-- current run stage is the display anchor;
-- exact bound Work Specification revision and acceptance identity remain visible;
-- execution evidence is quiet secondary text;
-- controls remain available only where the protected state machine allows them;
-- presentation may use governed translucent optical material distinct from ordinary narrative content;
-- visual treatment must never imply a stage transition before server state changes;
-- historical unbound runs remain visibly/textually distinguishable.
+The approved warm home composition may include:
 
-## Conversation material
+- greeting and short prompt/subtitle;
+- large warm hero/conversation card;
+- concise Plan / Design / Build / Ship orientation where useful;
+- suggested starting prompts when no meaningful conversation is active;
+- the normal composer as the actionable focus;
+- current-session/tool/activity context in the utility rail when meaningful;
+- compact product summary cards only when they help orientation.
 
-Conversation is the visual center of Parallax and must not resemble a stack of generic dashboard cards.
+A returning user with an active conversation should not be forced through a decorative dashboard before continuing work.
 
 ### User message
 
 - right aligned;
-- soft neutral-grey/indigo translucent material;
-- approximately 18–22 px radius;
-- no visible continuous border or bright glow;
-- metadata is smaller/quieter than message text;
-- width is constrained so the turn reads as a conversational object rather than a page panel.
+- warm neutral or teal-tinted restrained surface;
+- rounded approximately 18–22 px;
+- no loud border/glow;
+- metadata quieter than content;
+- constrained width.
 
 ### Assistant message
 
-- left aligned and wider than the user message, but not full-width by default;
-- neutral-grey/navy translucent material with approximately 20–24 px radius;
-- no conventional top/bottom/left narrative rules;
-- faint local violet depth is allowed instead of a hard outline;
-- assistant knot identity row remains outside message material;
-- settled narrative remains high-contrast, selectable, and calm.
+- left aligned and generally wider than user messages;
+- warm cream/ivory governed material or minimally surfaced narrative depending on context;
+- no decorative four-sided border as the primary narrative structure;
+- settled narrative is high contrast, selectable and calm;
+- orbital assistant identity may appear outside the message material.
 
 ### Composer
 
-- same soft rounded translucent material language;
-- approximately 20–24 px radius;
-- no heavy field outline;
-- send action remains the strongest local control;
-- mobile targets remain at least 44 pt;
-- the composer is an in-flow dock below the shrinkable conversation thread, not an absolute overlay over narrative content;
-- newest response and amendment content must remain fully reachable above the composer at the thread's live edge;
-- reduced-graphics mode preserves the same structural composer-clearance behavior.
+- warm rounded in-flow dock;
+- approximately 18–22 px radius;
+- send action is the strongest local teal or rust control according to context;
+- attachments/context controls remain secondary;
+- mobile targets remain at least approximately 44 pt;
+- conversation content must remain fully reachable above the composer.
 
-### Mobile web viewport and keyboard
+## Streaming response treatment
 
-Mobile web must remain compositionally stable while the software keyboard is visible, including on iOS WebKit where the keyboard may overlay rather than resize the layout viewport.
+Wave 4 retires the prior violet laser/scanner aesthetic.
 
-- editable text on phone-sized web layouts uses at least 16 CSS px so focusing an input does not trigger Safari focus zoom or horizontal cropping;
-- do not disable user zoom globally to solve focus zoom; accessibility zoom remains available;
-- when a focused editable field coincides with a materially reduced `visualViewport`, the Parallax root fits the visible viewport rather than remaining behind the keyboard;
-- compensate a non-zero visual-viewport offset so WebKit panning does not displace the workspace away from the visible region;
-- the keyboard-aware adjustment is temporary and resets when the visual viewport recovers or editable focus ends;
-- the in-flow composer remains fully above the keyboard, while conversation and governed surfaces yield vertical space naturally;
-- do not hard-code device heights or keyboard sizes; respond to measured viewport geometry;
-- desktop and mobile browsers that already resize the layout viewport correctly should not receive unnecessary compensation.
+Substantive response text appears as SSE delivers it. An optional compact **live trace** may mark the newest streamed content using restrained teal/olive/rust energy, but:
 
-## Specification-amendment state
+- it may not retype or delay already-streamed text;
+- it may not race ahead of server content;
+- it may not become a long beam across the response;
+- settled text quickly becomes normal selectable charcoal narrative text;
+- reduced motion renders streamed text normally with no animated trace;
+- `SPEC_AMENDMENT` uses normal protected hand-off presentation rather than live-writing effects.
 
-`SPEC_AMENDMENT` is a first-class protected hand-off state, not a generic error.
+## Conversation follow behavior
 
-- preserve conversation and user request in place;
-- show the concise amendment-required message in normal flow;
-- use restrained indigo/neutral treatment rather than danger styling;
-- keep workplane energy near idle;
-- optical engraving remains off because no substantive continuation is rendered;
-- do not shake, flash, or aggressively pulse;
-- keep composer/navigation available so the state feels recoverable.
+- sending a message re-enables live-edge following;
+- new assistant output brings its start into view;
+- the thread follows while the operator remains near the live edge;
+- intentional upward scrolling suspends forced following;
+- a visible jump-to-latest affordance may restore following when useful;
+- the composer remains an in-flow dock below the flexible thread;
+- page navigation alone must not simulate a global processing state.
 
-The visual message is: **the objective boundary changed and Parallax stopped deliberately**.
+## Work Specification surface
 
-## Recoverable error state
+Work Specification remains an implementation contract, not a ticket dashboard.
 
-`ERROR` is reserved for actual inability to complete the requested response. Durable conversation remains preserved. Provider exceptions, secret-bearing diagnostics, candidate output, and hidden reasoning are never rendered as product copy.
+- `SPEC · DRAFT/APPROVED` remains explicit;
+- revision identity remains visible;
+- title/objective are primary;
+- draft uses restrained rust/teal/neutral treatment rather than danger;
+- approved uses olive/sage treatment plus explicit `APPROVED` text;
+- acceptance criteria read as contract clauses, not KPI tiles;
+- approval is an obvious accessible operator action;
+- expansion/collapse preserves conversation rhythm;
+- mobile controls remain non-overlapping and touch-safe.
 
-## Typography
+## Engineering Run surface
 
-Use system-native sans-serif typography for production reliability. Narrative text uses pale violet-white to reduce glare. Technical metadata remains small and restrained but readable. Motion is never the only carrier of content or state.
+Engineering execution presents durable server truth rather than simulated progress.
 
-## Reduced-graphics parity
+- current authoritative stage is the anchor;
+- exact Work Specification revision and acceptance identity remain available;
+- completed/current/pending stage states come from server facts;
+- retry, correction, recovery and human-required states are explicit;
+- visual treatment never implies a transition before server state changes;
+- historical unbound runs remain clearly distinguished;
+- ordinary operator controls appear only when the protected state machine permits them.
 
-The non-Skia fallback is not a separate visual product. It preserves:
+## Observability workspace
 
-- Deep Violet + editorial accent palette;
-- 3D knot identity as a normal image surface;
-- display hierarchy and workspace chrome;
-- soft conversation/governed material grouping;
-- Work Specification semantics;
-- bound Code run identity/controls;
-- conversation/composer behavior, including in-flow composer clearance;
-- all accessibility/state text.
+Observability is a governed view of actual Parallax execution, not a replacement runtime.
 
-It deliberately omits Skia Ambient Chroma Flow and animated engraving head. Reduced graphics removes decorative rendering cost, not product identity, state, or capability.
+### Run pipeline
 
-## Motion state mapping
+Display:
 
-| Response state | Surface energy | Knot | Typesetter | Meaning |
-| --- | ---: | --- | --- | --- |
-| IDLE | 0.18 | slow ambient spin | off | ready |
-| THINKING | 0.42 | slow ambient spin | off | resolving objective/context |
-| RESPONDING | 0.72 | slow ambient spin | synchronized engraving | substantive answer arriving |
-| VERIFYING | 0.48 | slow ambient spin | off | protected verification/finalization |
-| COMPLETE | 0.18 | slow ambient spin | off | response settled |
-| SPEC_AMENDMENT | 0.22 | slow ambient spin | off | deliberate protected hand-off |
-| ERROR | 0.12 | calm/static acceptable | off | recoverable inability to complete |
+`SPEC · PLAN · IMPLEMENT · BUILD · TEST · VERIFY · REVIEW`
 
-Reduced motion freezes knot rotation and time-dependent workplane motion.
+`SPEC` may visually represent server `SPECIFY`. Completed stages use explicit checks/status, current stage uses teal live treatment and pending stages use warm neutral treatment. Failure/recovery/human-required state is represented with text and iconography, never color alone.
+
+### KPI strip
+
+A compact row may show useful bounded operational context such as success rate, median latency, retries, provider failures, compute/tokens and active runs. KPIs are secondary to the active run and must come from real data or clearly identified unavailable/empty state.
+
+### Run Event Stream
+
+The central event list is the primary observability narrative.
+
+Rows show, where available:
+
+- timestamp / relative time;
+- event/state icon;
+- concise bounded summary;
+- duration;
+- responsible protected subsystem/tool;
+- safe action link such as Open Preview/Open PR where authorized;
+- attempt/replay/recovery indication where meaningful.
+
+The event stream never exposes hidden reasoning or raw provider payloads.
+
+### Component Health
+
+Health rows may include Reasoner, Spec Builder, worker runtime, source lineage, GitHub provider, Vercel Preview, validation/evaluation and similar real components. Status words such as `Healthy`, `Warning`, `Degraded`, `Unavailable` accompany color.
+
+### Evidence & Audit
+
+Show bounded authoritative identities such as:
+
+- Project ID;
+- Run ID;
+- Work Specification revision/digest;
+- accepted/candidate source lineage;
+- repository identity;
+- safe GitHub PR identity/link;
+- Vercel Preview identity/link/status;
+- protected evaluation result;
+- last human approval/review event.
+
+Secrets, auth material and raw provider payloads never appear.
+
+## Live Build workspace
+
+Live Build is the detailed run-inspection surface reached from Observability or the active run.
+
+### Desktop layout
+
+The dominant workspace may use:
+
+- bounded file tree / source selector at left;
+- large code/diff content area in the center;
+- compact live activity rail at right;
+- tab bar for `Code`, `Diff`, `Terminal`, `Tests`, `Events`, `Evidence`;
+- run pipeline/header above the work area.
+
+The layout may resemble an engineering workspace but remains product-curated and read-only except for already-governed Parallax controls.
+
+### Code
+
+- exact accepted/candidate lineage only;
+- selected path clearly visible;
+- syntax-readable monospace text;
+- line numbers may be shown;
+- source remains selectable;
+- no unrestricted filesystem browser or direct editor write authority.
+
+### Diff
+
+- exact immutable from/to lineage identities are visible;
+- additions/removals use accessible semantic treatment, not color alone;
+- diff remains bounded to protected source content.
+
+### Terminal
+
+- shows only bounded redacted output from registered protected commands/tests;
+- command identity is server registered;
+- no arbitrary prompt, shell input or environment inspection field is present;
+- exit state, duration, timeout/redaction indicators are explicit.
+
+### Tests
+
+- show real suite/test status and bounded failure summaries where retained;
+- queued/running/passed/failed/replayed states are explicit;
+- correction/retry is visibly associated with a new attempt/candidate where applicable.
+
+### Events and Evidence
+
+Reuse the canonical run-event/evidence models rather than inventing a client-only timeline.
+
+## Observer controls versus execution controls
+
+Observation controls:
+
+- `Follow Live` — auto-follow newest event/content;
+- `Pause View` — stops visual auto-follow only;
+- `Jump to Latest` — resumes live-edge observation;
+- tab/file selection — changes inspection context only.
+
+Protected execution controls remain visually and semantically separate:
+
+- Pause Run;
+- Resume/continue Run;
+- Cancel Run;
+- approval/review actions.
+
+A user browsing old code or scrolling events must never accidentally alter worker execution.
+
+## System and utility rail
+
+### System Health
+
+May summarize overall state, active alerts, queue/worker health and latest relevant incident using real server evidence. Missing telemetry is shown as unavailable, never `Healthy` by default.
+
+### Active Run
+
+May show Project, model/runtime identity, context count, repository/branch/ref, current stage, source lineage and bounded estimated/elapsed timing where evidence supports it.
+
+### Recent Alerts / Activity
+
+Use bounded event-derived warnings/info/success items with timestamp and subsystem. Do not persist or render secret-bearing diagnostics.
+
+## Mobile and narrow layouts
+
+Do not shrink the desktop dashboard.
+
+At phone width:
+
+- use focused sections such as `Run`, `Activity`, `Code`, `Tests`, `Evidence`, `Health`;
+- stage pipeline may scroll horizontally if needed;
+- file selection moves to a drawer/sheet or dedicated picker;
+- code/diff/terminal receive full practical width;
+- utility-rail cards stack or move into tabs;
+- primary navigation collapses to a mobile-appropriate control;
+- all normal creation/conversation capability remains available.
+
+## Mobile web viewport and keyboard
+
+Existing protected keyboard rules remain unchanged in intent:
+
+- editable text uses at least 16 CSS px at phone sizes to avoid Safari focus zoom;
+- user zoom is not disabled globally;
+- when `visualViewport` becomes materially smaller while an editable control is focused, the Parallax root fits the visible viewport;
+- non-zero visual-viewport offsets are compensated so WebKit panning does not move the active workspace behind the keyboard;
+- adjustment resets when the keyboard/focus condition ends;
+- the in-flow composer remains above the keyboard;
+- no hard-coded device or keyboard heights.
 
 ## Accessibility
 
-- Core narrative text targets WCAG AA contrast against rendered material.
-- State is communicated with explicit text/shape in addition to color.
-- Minimum 44 pt mobile interaction targets remain required.
-- Mobile editable text remains at least 16 CSS px while preserving user-controlled page zoom.
-- Keyboard and screen-reader semantics are preserved.
-- Reduced motion and reduced graphics remain first-class modes.
-- Grain/ambient optical effects may never materially reduce narrative contrast.
-- Ambient motion may never obscure narrative text or primary controls.
-- Final assistant text remains selectable regardless of whether animated engraving was used during generation.
-- Automatic conversation following must respect deliberate operator scroll-away.
+- normal product text remains selectable and semantically exposed;
+- touch targets are approximately 44×44 pt where practical;
+- state always includes readable text/icon meaning in addition to color;
+- focus treatment is visible against both forest and warm surfaces;
+- contrast is validated for text, controls and statuses;
+- no primary action depends on hover;
+- motion is never the only carrier of progress/state;
+- reduced motion and reduced graphics preserve equivalent capability;
+- code/diff/terminal views remain keyboard navigable on web.
+
+## Reduced motion and reduced graphics
+
+Reduced motion removes non-essential transitions, live-trace motion and decorative orbital/background movement while preserving state updates.
+
+Reduced graphics removes topographic/landscape/gradient decoration while preserving the same layout hierarchy, controls, text, run stages, evidence and Live Build functionality.
+
+## Protected state presentations
+
+### SPEC_AMENDMENT
+
+A deliberate boundary, not a generic error. Preserve conversation and requested change, explain that approved objective changed, use calm neutral/teal/olive treatment and keep navigation/composer available.
+
+### Recoverable failure
+
+Use warm warning treatment and explicit reason/next action from protected classification. Do not imply retry is available when server policy does not allow it.
+
+### HUMAN_REQUIRED / REVIEW
+
+Use clear operator-attention treatment, distinct from ordinary failure and ordinary live execution. The UI cannot convert these boundaries into automatic progress.
+
+### ERROR / unavailable telemetry
+
+Preserve durable content. Secret-bearing diagnostics and hidden reasoning are never product copy. Missing event/health data renders `Unavailable`/`Degraded` rather than fabricated success.
+
+## Visual acceptance and anti-drift rules
+
+Wave 4 implementation must convert the approved home and Observability mockups into repeatable browser/screenshot assertions.
+
+Protected visual relationships include:
+
+- forest left rail with rust active navigation;
+- warm ivory/cream main workplane;
+- editorial greeting hierarchy;
+- dominant central work area;
+- narrower right utility rail;
+- consistent warm card radius/material;
+- run pipeline prominence;
+- compact KPI row;
+- Live Build/event content as the largest operational surface;
+- teal live state, rust action state and restrained olive support state;
+- responsive mobile reflow rather than desktop miniaturization.
+
+Centralized theme tokens are the required source for product colors. One-off local colors should be exceptional and justified.
+
+Deterministic functional, accessibility, security and authoritative-state failures outrank visual similarity. If fidelity conflicts with a protected requirement, adjust the design implementation rather than weaken the protected requirement.
+
+## Development-state rule
+
+Mockups, fixtures and deterministic adapters are design/test evidence, not production runtime truth. UI screenshots may prove appearance but do not prove a run, provider action or deployment occurred.
+
+Generated, validated, Preview, deployed and deployment-verified states remain distinct throughout product copy and project records.
