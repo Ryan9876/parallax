@@ -15,9 +15,13 @@ for _path in (_SCRIPT_ROOT, _API_ROOT):
 from production_lineage_composition_preflight import _canary_identity, _targets
 from sqlalchemy.orm import sessionmaker
 
-from parallax_api.code.lineage_persistence import PostgresLineageMetadataStore
+from parallax_api.code.lineage_persistence import (
+    PostgresLineageMetadataStore,
+    VercelPrivateBlobObjectStore,
+)
 from parallax_api.code.production_delivery import production_source_delivery
-from parallax_api.code.runtime_composition import production_durable_lineage_allocator
+from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
+from parallax_api.code.workspace_lineage import SourceLineageStore
 from parallax_api.models import EngineeringRun
 from parallax_api.projects.model import Project
 from parallax_api.db import make_engine
@@ -32,6 +36,8 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
     identity = _canary_identity(target.repository_ref)
     engine = make_engine(environment="production")
     lineage_id: str | None = None
+    file_count = 0
+    total_bytes = 0
     try:
         with engine.connect() as connection:
             outer = connection.begin()
@@ -63,12 +69,11 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
                 session.flush()
 
                 with tempfile.TemporaryDirectory(prefix="parallax-projected-bootstrap-") as root:
-                    allocator = production_durable_lineage_allocator(
-                        connection,
-                        materialization_root=root,
+                    lineage_store = SourceLineageStore(
+                        VercelPrivateBlobObjectStore(),
+                        metadata,
                     )
-                    if allocator is None:
-                        raise RuntimeError("production durable lineage allocator is unavailable")
+                    allocator = ProjectWorkspaceAllocator(root, lineage_store=lineage_store)
                     composition = production_source_delivery(
                         session,
                         owner_subject=_OWNER_SUBJECT,
@@ -90,6 +95,8 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
                     )
                     lineage = first.lineage
                     lineage_id = lineage.lineage_id
+                    file_count = lineage.file_count
+                    total_bytes = lineage.total_bytes
                     if not first.initialized:
                         raise RuntimeError("first synthetic projected bootstrap did not initialize lineage")
                     if first.identity != identity:
@@ -98,7 +105,7 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
                         raise RuntimeError("projected bootstrap lineage identity mismatch")
                     if lineage.parent_lineage_id is not None or lineage.source_kind != "repository":
                         raise RuntimeError("projected bootstrap violated root-lineage semantics")
-                    if lineage.source_ref_digest is None or lineage.file_count < 1 or lineage.total_bytes < 1:
+                    if lineage.source_ref_digest is None or file_count < 1 or total_bytes < 1:
                         raise RuntimeError("projected bootstrap returned incomplete source evidence")
 
                     replay = composition.bootstrap.ensure(
@@ -128,7 +135,7 @@ def _run_exact_projected_bootstrap() -> tuple[int, int, str]:
             raise RuntimeError("projected bootstrap rollback left a synthetic durable manifest")
         if lineage_id is None:
             raise RuntimeError("projected bootstrap did not produce a lineage identity")
-        return lineage.file_count, lineage.total_bytes, lineage_id
+        return file_count, total_bytes, lineage_id
     finally:
         engine.dispose()
 
