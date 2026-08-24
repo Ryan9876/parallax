@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -7,17 +8,25 @@ import sys
 import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
 _ENV_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
 _ENV_OIDC = "VERCEL_OIDC_TOKEN"
+_BLOB_TOKEN_ENVS = ("BLOB_READ_WRITE_TOKEN", "VERCEL_BLOB_READ_WRITE_TOKEN")
 _MAX_TARGETS = 64
+_MAX_TREE_ENTRIES = 512
+_MAX_FILE_BYTES = 256_000
 _GITHUB_API_VERSION = "2026-03-10"
 _GITHUB_CONNECTOR = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 _VERCEL_TOKEN_ENV = re.compile(r"^PARALLAX_VERCEL_TOKEN_[A-Z0-9_]{1,96}$")
 _REPOSITORY = re.compile(r"^github:([^/\s]+)/([^/\s]+)$")
+_SOURCE_PATH = re.compile(r"^[A-Za-z0-9._-](?:[A-Za-z0-9._/ -]{0,238}[A-Za-z0-9._-])?$")
+_ALLOWED_BLOB_MODES = frozenset({"100644", "100755"})
+_ALLOWED_TREE_MODE = "040000"
+_BLOB_CANARY_CONTENT = b"parallax-production-runtime-preflight-v1\n"
+_BLOB_API = "https://vercel.com/api/blob"
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +72,7 @@ class Target:
     @property
     def repository(self) -> tuple[str, str]:
         match = _REPOSITORY.fullmatch(self.repository_ref)
-        if match is None:  # defensive; construction already validated this
+        if match is None:
             raise RuntimeError("provider target has invalid GitHub repository identity")
         return match.group(1), match.group(2)
 
@@ -161,7 +170,49 @@ def _connect_token(target: Target, *, oidc: str) -> str:
     return token.strip()
 
 
-def _preflight_target(target: Target, *, oidc: str) -> None:
+def _validate_source_path(path: object) -> str:
+    if not isinstance(path, str) or not _SOURCE_PATH.fullmatch(path):
+        raise RuntimeError("GitHub source tree contains an unsupported path")
+    parts = path.split("/")
+    if path.startswith("/") or ".." in parts:
+        raise RuntimeError("GitHub source tree contains an unsafe path")
+    return path
+
+
+def _validate_source_tree(payload: object, *, revision: str) -> int:
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub source-tree preflight returned invalid payload")
+    if payload.get("truncated") is True:
+        raise RuntimeError("GitHub source tree is truncated")
+    raw_entries = payload.get("tree")
+    if not isinstance(raw_entries, list) or len(raw_entries) > _MAX_TREE_ENTRIES:
+        raise RuntimeError("GitHub source tree exceeds the protected entry bound")
+    checked = 0
+    for raw in raw_entries:
+        if not isinstance(raw, dict):
+            raise RuntimeError("GitHub source tree contains an invalid entry")
+        _validate_source_path(raw.get("path"))
+        object_revision = raw.get("sha")
+        if not isinstance(object_revision, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", object_revision):
+            raise RuntimeError("GitHub source tree contains an invalid object revision")
+        entry_type = raw.get("type")
+        mode = raw.get("mode")
+        if entry_type == "tree" and mode == _ALLOWED_TREE_MODE:
+            checked += 1
+            continue
+        if entry_type == "blob" and mode in _ALLOWED_BLOB_MODES:
+            size = raw.get("size")
+            if not isinstance(size, int) or isinstance(size, bool) or not 0 <= size <= _MAX_FILE_BYTES:
+                raise RuntimeError("GitHub source tree contains a file outside the protected byte bound")
+            checked += 1
+            continue
+        raise RuntimeError("GitHub source tree contains an unsupported entry type or mode")
+    if checked == 0:
+        raise RuntimeError("GitHub source tree is empty")
+    return checked
+
+
+def _preflight_target(target: Target, *, oidc: str) -> int:
     vercel_token = os.getenv(target.vercel_token_env)
     if not isinstance(vercel_token, str) or not vercel_token.strip():
         raise RuntimeError("registered Vercel Preview credential is unavailable")
@@ -209,13 +260,95 @@ def _preflight_target(target: Target, *, oidc: str) -> None:
     if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
         raise RuntimeError("GitHub production branch did not resolve to a commit")
 
+    tree_payload = _json_request(
+        Request(
+            f"https://api.github.com/repos/{encoded_owner}/{encoded_repository}/git/trees/{quote(revision, safe='')}?recursive=1",
+            headers=github_headers,
+        ),
+        label="GitHub recursive source-tree preflight",
+    )
+    return _validate_source_tree(tree_payload, revision=revision)
+
+
+def _blob_token() -> str:
+    for name in _BLOB_TOKEN_ENVS:
+        value = os.getenv(name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    raise RuntimeError("private durable Blob credential is unavailable")
+
+
+def _blob_store_id(token: str) -> str:
+    parts = token.split("_")
+    if len(parts) <= 3 or not parts[3] or not re.fullmatch(r"[A-Za-z0-9-]{3,128}", parts[3]):
+        raise RuntimeError("private durable Blob credential has an unsupported store identity")
+    return parts[3]
+
+
+def _blob_get(url: str, *, token: str) -> bytes | None:
+    request = Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urlopen(request, timeout=20) as response:
+            return response.read()
+    except HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise RuntimeError(f"private durable Blob read failed: HTTP {exc.code}") from exc
+    except (TimeoutError, URLError) as exc:
+        raise RuntimeError("private durable Blob read failed: network unavailable") from exc
+
+
+def _blob_put(path: str, content: bytes, *, token: str, store_id: str) -> None:
+    query = urlencode({"pathname": path})
+    request_id = f"{store_id}:{int(time.time() * 1000)}:preflight"
+    request = Request(
+        f"{_BLOB_API}?{query}",
+        method="PUT",
+        data=content,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "x-api-blob-request-id": request_id,
+            "x-api-blob-request-attempt": "0",
+            "x-api-version": "11",
+            "x-add-random-suffix": "0",
+            "x-allow-overwrite": "0",
+            "x-content-type": "application/octet-stream",
+            "x-vercel-blob-access": "private",
+        },
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            if not 200 <= response.status < 300:
+                raise RuntimeError("private durable Blob write returned a non-success status")
+    except HTTPError as exc:
+        if exc.code in {409, 412}:
+            return
+        raise RuntimeError(f"private durable Blob write failed: HTTP {exc.code}") from exc
+    except (TimeoutError, URLError) as exc:
+        raise RuntimeError("private durable Blob write failed: network unavailable") from exc
+
+
+def _preflight_blob() -> None:
+    token = _blob_token()
+    store_id = _blob_store_id(token)
+    digest = hashlib.sha256(_BLOB_CANARY_CONTENT).hexdigest()
+    path = f"parallax/runtime-preflight/v1/sha256/{digest[:2]}/{digest}"
+    private_url = f"https://{store_id}.private.blob.vercel-storage.com/{path}"
+
+    current = _blob_get(private_url, token=token)
+    if current is None:
+        _blob_put(path, _BLOB_CANARY_CONTENT, token=token, store_id=store_id)
+        current = _blob_get(private_url, token=token)
+    if current != _BLOB_CANARY_CONTENT:
+        raise RuntimeError("private durable Blob canary failed immutable read/write verification")
+
 
 def main() -> None:
     environment = os.getenv("VERCEL_ENV") or "unknown"
     if environment != "production":
         print(
             "Production provider preflight: SKIP "
-            f"(VERCEL_ENV={environment}; GitHub Connect authority remains production-only)"
+            f"(VERCEL_ENV={environment}; production provider/storage authority remains production-only)"
         )
         return
 
@@ -224,9 +357,14 @@ def main() -> None:
         raise RuntimeError("production Vercel OIDC credential is unavailable")
 
     targets = _targets()
+    tree_entries = 0
     for target in targets:
-        _preflight_target(target, oidc=oidc.strip())
-    print(f"Production provider preflight: PASS ({len(targets)} registered target(s))")
+        tree_entries += _preflight_target(target, oidc=oidc.strip())
+    _preflight_blob()
+    print(
+        "Production provider preflight: PASS "
+        f"({len(targets)} registered target(s); {tree_entries} source-tree entries; private Blob rw verified)"
+    )
 
 
 if __name__ == "__main__":
