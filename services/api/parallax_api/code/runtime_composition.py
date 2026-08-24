@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from hashlib import sha256
 import os
 from pathlib import Path, PurePosixPath
@@ -20,6 +21,12 @@ from .implementation_runtime import (
     ProtectedImplementationRuntime,
     RunProjectBinding,
     WorkspaceLineageError,
+)
+from .run_events import (
+    RunEventAppend,
+    RunEventOutcome,
+    RunEventSubsystem,
+    RunEventType,
 )
 from .service import EngineeringRunService
 from .source_delivery_composition import (
@@ -266,12 +273,9 @@ def production_durable_lineage_allocator(
 ) -> DurableLineageAllocator | None:
     """Build #68's production-safe allocator when its adapters are serialized.
 
-    On the pre-#68 integration base the durable persistence module does not
-    exist, so this returns ``None`` and the route preserves the existing
-    fail-closed Wave 1 behavior. After #68 is serialized, immutable contents
-    live in private Vercel Blob and lineage/head metadata lives transactionally
-    in the existing database. The local root below is disposable materialization
-    only and never authoritative source-lineage state.
+    Immutable contents live in private Vercel Blob and lineage/head metadata
+    lives transactionally in the existing database. The local root below is
+    disposable materialization only and never authoritative source-lineage state.
     """
 
     try:
@@ -329,6 +333,71 @@ class EngineeringRuntimeComposition:
             lineage_executor=lineage_executor,
         )
 
+    @staticmethod
+    def _event_time(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _emit_delivery_success(self, result: VerifiedDeliveryResult, run: object) -> None:
+        project_id = getattr(run, "project_id", None)
+        run_id = getattr(run, "id", None)
+        updated_at = getattr(run, "updated_at", None)
+        if not isinstance(project_id, str) or not isinstance(run_id, str) or not isinstance(updated_at, datetime):
+            raise RuntimeCompositionError("verified delivery cannot be projected without canonical run identity")
+        self.service.emit_event(
+            RunEventAppend(
+                project_id=project_id,
+                run_id=run_id,
+                event_key=f"delivery:{result.lineage_id}",
+                event_type=RunEventType.SOURCE_DELIVERY,
+                stage="REVIEW",
+                outcome=RunEventOutcome.SUCCEEDED,
+                subsystem=RunEventSubsystem.VERCEL,
+                source_lineage_ref=result.lineage_id,
+                evidence_ref=f"delivery:{result.preview_deployment_id}",
+                summary="Verified accepted source lineage was published to GitHub and a bounded Vercel Preview.",
+                metadata={
+                    "content_digest": result.content_digest,
+                    "branch_name": result.branch_name,
+                    "commit_revision": result.commit_revision,
+                    "pull_request_number": result.pull_request_number,
+                    "preview_deployment_id": result.preview_deployment_id,
+                    "preview_status": result.preview_status,
+                    "delivery_action_count": len(result.actions),
+                },
+                occurred_at=self._event_time(updated_at),
+            )
+        )
+
+    def _emit_delivery_failure(self, run: object) -> None:
+        project_id = getattr(run, "project_id", None)
+        run_id = getattr(run, "id", None)
+        revision = getattr(run, "revision", None)
+        updated_at = getattr(run, "updated_at", None)
+        if (
+            not isinstance(project_id, str)
+            or not isinstance(run_id, str)
+            or not isinstance(revision, int)
+            or not isinstance(updated_at, datetime)
+        ):
+            return
+        self.service.emit_event(
+            RunEventAppend(
+                project_id=project_id,
+                run_id=run_id,
+                event_key=f"delivery-failure:{run_id}:{revision}",
+                event_type=RunEventType.SOURCE_DELIVERY,
+                stage="REVIEW",
+                outcome=RunEventOutcome.FAILED,
+                subsystem=RunEventSubsystem.VERCEL,
+                failure_code="SOURCE_DELIVERY_FAILED",
+                summary="Verified source delivery failed before operator review publication completed.",
+                metadata={"run_revision": revision, "current_state": "REVIEW"},
+                occurred_at=self._event_time(updated_at),
+            )
+        )
+
     def run(
         self,
         *,
@@ -358,7 +427,12 @@ class EngineeringRuntimeComposition:
                         result.run,
                         operation_key=operation_key,
                     )
+                    self._emit_delivery_success(self.last_delivery_result, result.run)
                 except Exception as exc:
+                    try:
+                        self._emit_delivery_failure(result.run)
+                    except Exception:
+                        pass
                     raise RuntimeCompositionError("verified source delivery failed before operator review") from exc
             return result
         except BaseException as exc:
