@@ -289,6 +289,23 @@ async function inspectViewport(browser, name, width, height, report) {
   const logoCount = await page.getByLabel('Parallax orbital planet mark').count();
   assert(logoCount > 0, `${name}: approved orbital identity was not rendered`);
 
+
+const navCount = await page.getByTestId('editorial-navigation-rail').count();
+const utilityCount = await page.getByTestId('editorial-utility-rail').count();
+if (name === 'mobile') {
+  assert(navCount === 0, 'mobile: desktop navigation rail must reflow away');
+  assert(utilityCount === 0, 'mobile: utility rail must reflow away');
+} else if (name === 'tablet') {
+  assert(navCount === 1, 'tablet: navigation rail should remain available at 768px');
+  assert(utilityCount === 0, 'tablet: desktop utility rail must not compress the workplane');
+} else if (name === 'desktop') {
+  assert(navCount === 1, 'desktop: warm editorial navigation rail missing');
+  assert(utilityCount === 1, 'desktop: warm editorial utility rail missing');
+  await page.getByText('What shall we build today?').waitFor();
+  const railStyle = await page.getByTestId('editorial-navigation-rail').evaluate((node) => getComputedStyle(node).backgroundColor);
+  assert(!railStyle.includes('139, 156, 255') && !railStyle.includes('209, 139, 255'), `desktop: legacy violet rail detected (${railStyle})`);
+}
+
   const first = await page.screenshot({ path: `${evidenceDir}/${name}-idle-a.png` });
   await page.waitForTimeout(1100);
   const second = await page.screenshot({ path: `${evidenceDir}/${name}-idle-b.png` });
@@ -314,7 +331,7 @@ async function inspectViewport(browser, name, width, height, report) {
     await page.getByLabel('Message Parallax').fill('Show the live response behavior on a wrapped response.');
     await page.getByLabel('Send message').click();
     await page.getByText('Live response').waitFor({ timeout: 5000 });
-    await page.waitForFunction(() => document.body.innerText.includes('The response is being'), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.body.innerText.includes('The response streams into the warm editorial workspace'), null, { timeout: 5000 });
 
     assert(mockStreamState.open, 'desktop: mock SSE stream was already closed when live response was observed');
     assert(mockStreamState.chunksSent >= 1 && mockStreamState.chunksSent < 3, `desktop: expected an intermediate streamed chunk, observed ${mockStreamState.chunksSent}`);
