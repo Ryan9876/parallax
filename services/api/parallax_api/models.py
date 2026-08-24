@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -160,3 +160,36 @@ class EngineeringAttempt(Base):
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     run: Mapped[EngineeringRun] = relationship(back_populates="attempts")
+
+
+class EngineeringRunEvent(Base):
+    """Append-only Wave 4 observation row; never an execution authority."""
+
+    __tablename__ = "engineering_run_events"
+    __table_args__ = (
+        UniqueConstraint("run_id", "sequence", name="uq_engineering_run_event_sequence"),
+        UniqueConstraint("run_id", "event_key", name="uq_engineering_run_event_key"),
+        CheckConstraint("sequence > 0", name="ck_engineering_run_event_sequence_positive"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    project_id: Mapped[str] = mapped_column(String(36), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("engineering_runs.id", ondelete="CASCADE"), index=True)
+    sequence: Mapped[int] = mapped_column(Integer)
+    event_key: Mapped[str] = mapped_column(String(160))
+    event_type: Mapped[str] = mapped_column(String(40), index=True)
+    stage: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    outcome: Mapped[str] = mapped_column(String(32), index=True)
+    subsystem: Mapped[str] = mapped_column(String(32), index=True)
+    attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    worker_execution_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    source_lineage_ref: Mapped[str | None] = mapped_column(String(68), nullable=True, index=True)
+    parent_source_lineage_ref: Mapped[str | None] = mapped_column(String(68), nullable=True)
+    operation_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    artifact_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    evidence_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    failure_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    summary: Mapped[str | None] = mapped_column(String(360), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
