@@ -188,7 +188,7 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE")
         try:
             response = self._http.post(
-                f"/v1/connect/token/{quote(self._connector, safe='/')}",
+                f"/v1/connect/token/{quote(self._connector, safe='')}",
                 headers={"Authorization": f"Bearer {oidc.strip()}", "Content-Type": "application/json"},
                 json={"subject": {"type": "app"}},
             )
