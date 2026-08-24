@@ -276,9 +276,10 @@ try {
   await desktop.getByText('TEST_FAILURE', { exact: true }).waitFor();
 
   await desktop.getByRole('tab', { name: 'Evidence' }).click();
-  await desktop.getByText('GITHUB', { exact: true }).waitFor();
-  await desktop.getByText('VERCEL', { exact: true }).waitFor();
-  await desktop.getByText('165', { exact: false }).first().waitFor();
+  await desktop.getByText('GitHub', { exact: true }).waitFor();
+  await desktop.getByText('Vercel', { exact: true }).waitFor();
+  await desktop.getByText('PR #165', { exact: true }).waitFor();
+  await desktop.getByText(/preview-wave4-165/).waitFor();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
