@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Use an `engineering_run_events` table with frozen event contracts, an append-only repository/service, and a narrow `RunEventSink`."
+  ],
+  "work_items": [
+    "Add a durable, append-only, Project/run-scoped event projection that records meaningful observable actions from the existing Wave 3 app-builder without creating another Engineering Run, worker, source-lineage, provider or evaluation state machine."
+  ],
+  "validations": [
+    "The event record is the future data source for Wave 4 Live Development/Observability. It must preserve exact authoritative identities and enough bounded context to explain what happened, when, at which protected stage, against which source lineage/attempt/subsystem and whether the observation was new, replayed, failed, recovered or human-blocked.",
+    "AC-01: validate protected requirement — An explicit migration creates `engineering_run_events` with canonical Project/run binding, stable event identity, per-run sequence, timestamps, bounded event fields and database constraints. Existing authoritative runtime tables remain unchanged in meaning.",
+    "AC-02: validate protected requirement — Run-event construction validates canonical identity, event/stage/outcome/subsystem vocabulary, bounded summaries/references and allowlisted metadata while rejecting raw source, unrestricted logs/provider payloads, credentials, prompts/scratchpads and hidden reasoning.",
+    "AC-03: validate protected requirement — Appending the same exact `(run_id,event_key)` observation returns the accepted existing event without allocating another sequence; reuse with conflicting protected content fails closed.",
+    "AC-04: validate protected requirement — Accepted events receive positive increasing per-run sequence values enforced by database constraints. Reconstructed repositories/sinks continue after the durable maximum and bounded `after_sequence` reads return stable ascending order.",
+    "AC-05: validate protected requirement — Engineering Run stage start/completion/failure/replay/control observations are emitted only around existing validated service transitions and carry exact attempt/replay/failure facts; events cannot advance or satisfy a stage themselves.",
+    "AC-06: validate protected requirement — When IMPLEMENT/correction/runtime composition exposes accepted lineage transitions, events carry exact prior/result lineage and bounded artifact/path/digest identity only. Raw source content is absent and stale/rejected mutation is never represented as accepted lineage.",
+    "AC-07: validate protected requirement — Execution events bind to exact run/stage/attempt/source lineage and registered command/evidence identity. Raw unrestricted stdout/stderr is not persisted in the event table, and failure/timeout/redaction remains truthful.",
+    "AC-08: validate protected requirement — Safe GitHub/Vercel Preview/evaluation/REVIEW identities/status may be projected from accepted runtime results, while provider failure/denial and human boundaries remain explicit. No raw provider body, credential or production-promotion authority is introduced.",
+    "AC-09: validate protected requirement — Meaningful checkpoint/stall/recovery/reassignment/human/integration transitions can be observed with exact worker execution/generation/checkpoint/lineage references; telemetry cannot acquire/renew/reassign a worker or validate stale ownership.",
+    "AC-10: validate protected requirement — Database/sink failure, conflicting replay, invalid metadata or identity mismatch fails explicitly. Existing runtime failure/denial remains failure/denial and event recording cannot convert it to success.",
+    "AC-11: validate protected requirement — Deterministic tests cover ordered append/read, duplicate identical replay, conflicting key, wrong Project, secret/raw-field rejection, process recreation continuing sequence and runtime integration without duplicate mutation/attempt/provider semantics.",
+    "AC-12: validate protected requirement — The final candidate has authentic committed DSPy plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact head with existing Wave 3 protected reference/recovery/evaluation suites unchanged or stronger. The worker stops review-ready before merge, migration application or deployment."
+  ],
+  "risks": [
+    "The project and run scope are maintained, and the event record is deterministic and idempotent. However, the event must be append-only, safe, and bounded to prevent replay and failure."
+  ],
+  "spec_id": "P2-V0.17.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Durable append-only model is Project/run scoped",
+      "protected_requirement": "An explicit migration creates `engineering_run_events` with canonical Project/run binding, stable event identity, per-run sequence, timestamps, bounded event fields and database constraints. Existing authoritative runtime tables remain unchanged in meaning."
+    },
+    {
+      "id": "AC-02",
+      "title": "Event contract is typed and privacy bounded",
+      "protected_requirement": "Run-event construction validates canonical identity, event/stage/outcome/subsystem vocabulary, bounded summaries/references and allowlisted metadata while rejecting raw source, unrestricted logs/provider payloads, credentials, prompts/scratchpads and hidden reasoning."
+    },
+    {
+      "id": "AC-03",
+      "title": "Idempotent replay uses deterministic event identity",
+      "protected_requirement": "Appending the same exact `(run_id,event_key)` observation returns the accepted existing event without allocating another sequence; reuse with conflicting protected content fails closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Per-run ordering is monotonic and durable across process recreation",
+      "protected_requirement": "Accepted events receive positive increasing per-run sequence values enforced by database constraints. Reconstructed repositories/sinks continue after the durable maximum and bounded `after_sequence` reads return stable ascending order."
+    },
+    {
+      "id": "AC-05",
+      "title": "Stage/attempt events reflect authoritative service results only",
+      "protected_requirement": "Engineering Run stage start/completion/failure/replay/control observations are emitted only around existing validated service transitions and carry exact attempt/replay/failure facts; events cannot advance or satisfy a stage themselves."
+    },
+    {
+      "id": "AC-06",
+      "title": "Source-lineage and implementation events preserve exact lineage identity without source bytes",
+      "protected_requirement": "When IMPLEMENT/correction/runtime composition exposes accepted lineage transitions, events carry exact prior/result lineage and bounded artifact/path/digest identity only. Raw source content is absent and stale/rejected mutation is never represented as accepted lineage."
+    },
+    {
+      "id": "AC-07",
+      "title": "BUILD/TEST/VERIFY observations reference protected execution evidence",
+      "protected_requirement": "Execution events bind to exact run/stage/attempt/source lineage and registered command/evidence identity. Raw unrestricted stdout/stderr is not persisted in the event table, and failure/timeout/redaction remains truthful."
+    },
+    {
+      "id": "AC-08",
+      "title": "Provider/evaluation/review observations remain non-authoritative and secret safe",
+      "protected_requirement": "Safe GitHub/Vercel Preview/evaluation/REVIEW identities/status may be projected from accepted runtime results, while provider failure/denial and human boundaries remain explicit. No raw provider body, credential or production-promotion authority is introduced."
+    },
+    {
+      "id": "AC-09",
+      "title": "Worker recovery events project the accepted worker protocol without creating another worker state machine",
+      "protected_requirement": "Meaningful checkpoint/stall/recovery/reassignment/human/integration transitions can be observed with exact worker execution/generation/checkpoint/lineage references; telemetry cannot acquire/renew/reassign a worker or validate stale ownership."
+    },
+    {
+      "id": "AC-10",
+      "title": "Event persistence and runtime failure cannot be misrepresented as success",
+      "protected_requirement": "Database/sink failure, conflicting replay, invalid metadata or identity mismatch fails explicitly. Existing runtime failure/denial remains failure/denial and event recording cannot convert it to success."
+    },
+    {
+      "id": "AC-11",
+      "title": "Permanent tests prove replay, concurrency boundaries, privacy and process recreation",
+      "protected_requirement": "Deterministic tests cover ordered append/read, duplicate identical replay, conflicting key, wrong Project, secret/raw-field rejection, process recreation continuing sequence and runtime integration without duplicate mutation/attempt/provider semantics."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact-head Wave 3 gates remain green",
+      "protected_requirement": "The final candidate has authentic committed DSPy plan evidence and passes Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy on the exact head with existing Wave 3 protected reference/recovery/evaluation suites unchanged or stronger. The worker stops review-ready before merge, migration application or deployment."
+    }
+  ],
+  "critique": [
+    "The proposed solution involves the following components:\n\n- **engineering_run_events**: A table to store the append-only, durable, project-run-scoped event projection that records observable actions from the existing Wave 3 app-builder without creating another Engineering Run, worker, source-lineage, provider, or evaluation state machine.\n- **append_only_replay**: A repository/service that stores the event record in append-only mode, ensuring that the event is deterministic, idempotent, and can be used for Wave 4 Live Development/Observability.\n- **RunEventSink**: A narrow `RunEventSink` that exposes bounded ascending reads by exact run and `after_sequence` for #146.\n- **database constraints**: Final authority for `(run_id, event_key)` and `(run_id, sequence)`.\n\nThe solution adheres to the following constraints:\n\n- **Projection only**: Existing Engineering Run, attempt, worker, source-lineage, provider, and evaluation records remain authoritative.\n- **Append-only replay safety**: `(run_id, event_key)` is deterministic and idempotent; accepted sequence is positive and monotonic per run.\n- **Canonical scope**: New telemetry requires exact canonical `project_id` + `run_id`; historical unbound runs cannot gain Wave 4 authority.\n- **Privacy bounded**: Events may carry safe identities/digests/codes and short allowlisted metadata, never raw source/log/provider bodies, prompts/scratchpads or hidden reasoning.\n- **Failure truthfulness**: Event persistence cannot turn runtime failure/denial into success, and conflicting replay fails closed.\n- **Server-owned sink**: Production Project-bound autonomy must persist configured Wave 4 events rather than silently discard them.\n- **Acceptance anchors**: AC-01: Durable append-only model is Project/run scoped: An explicit migration creates `engineering_run_events` with canonical Project/run binding, stable event identity"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
