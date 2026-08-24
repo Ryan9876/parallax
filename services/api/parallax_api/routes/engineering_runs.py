@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
+from ..code.bootstrap_observability import record_bootstrap_failure
 from ..code.domain import WorkflowStage
 from ..code.production_delivery import (
     ProductionDeliveryConfigurationError,
@@ -128,6 +129,7 @@ def invoke(call):
     except RevisionConflict as exc:
         raise HTTPException(409, str(exc)) from exc
     except ProductionDeliveryConfigurationError as exc:
+        record_bootstrap_failure(exc, default_stage="delivery-composition")
         raise HTTPException(503, str(exc)) from exc
     except RuntimeCompositionError as exc:
         raise HTTPException(503, str(exc)) from exc
