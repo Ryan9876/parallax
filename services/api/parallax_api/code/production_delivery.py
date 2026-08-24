@@ -64,6 +64,16 @@ class ProductionDeliveryConfigurationError(RuntimeError):
     """Bounded fail-closed production source-delivery configuration error."""
 
 
+def _repository_identity_key(repository_ref: str) -> str:
+    """Use provider semantics for matching without rewriting persisted identity."""
+
+    if not isinstance(repository_ref, str):
+        raise ProductionDeliveryConfigurationError("repository identity is invalid")
+    if repository_ref.startswith("github:"):
+        return f"github:{repository_ref.removeprefix('github:').casefold()}"
+    return repository_ref
+
+
 class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
     """Exchange Vercel deployment OIDC for a verified repository-scoped GitHub token.
 
@@ -162,7 +172,8 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         if total_count != 1 or not isinstance(repositories, list) or len(repositories) != 1:
             raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
         item = repositories[0]
-        if not isinstance(item, dict) or item.get("full_name") != repository:
+        full_name = item.get("full_name") if isinstance(item, dict) else None
+        if not isinstance(full_name, str) or full_name.casefold() != repository.casefold():
             raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
 
     def credential_for_repository(self, repository_ref: str) -> ScopedBearerCredential:
@@ -262,17 +273,18 @@ class RepositoryPreviewTargetResolver(PreviewTargetResolver):
             if not isinstance(registration, RegisteredProductionDeliveryTarget):
                 raise ProductionDeliveryConfigurationError("Vercel Preview target registry contains an invalid registration")
             target = registration.api_target
-            if target.repository_ref in by_repository:
+            repository_key = _repository_identity_key(target.repository_ref)
+            if repository_key in by_repository:
                 raise ProductionDeliveryConfigurationError("duplicate repository Preview target registration")
             if target.vercel_project_ref in by_ref:
                 raise ProductionDeliveryConfigurationError("duplicate Vercel Preview target registration")
-            by_repository[target.repository_ref] = registration
+            by_repository[repository_key] = registration
             by_ref[target.vercel_project_ref] = target
         self._by_repository = by_repository
         self.api_targets: Mapping[str, VercelApiTarget] = by_ref
 
     def registration(self, binding: ProviderProjectBinding) -> RegisteredProductionDeliveryTarget:
-        registration = self._by_repository.get(binding.repository_ref)
+        registration = self._by_repository.get(_repository_identity_key(binding.repository_ref))
         if registration is None:
             raise ProductionDeliveryConfigurationError("canonical Project repository has no registered Vercel Preview target")
         return registration
