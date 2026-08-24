@@ -340,6 +340,8 @@ class EngineeringRuntimeComposition:
         return value.astimezone(timezone.utc)
 
     def _emit_delivery_success(self, result: VerifiedDeliveryResult, run: object) -> None:
+        if getattr(self.service, "event_sink", None) is None:
+            return
         project_id = getattr(run, "project_id", None)
         run_id = getattr(run, "id", None)
         updated_at = getattr(run, "updated_at", None)
@@ -371,6 +373,8 @@ class EngineeringRuntimeComposition:
         )
 
     def _emit_delivery_failure(self, run: object) -> None:
+        if getattr(self.service, "event_sink", None) is None:
+            return
         project_id = getattr(run, "project_id", None)
         run_id = getattr(run, "id", None)
         revision = getattr(run, "revision", None)
@@ -423,17 +427,24 @@ class EngineeringRuntimeComposition:
             )
             if self.source_delivery is not None and result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED:
                 try:
-                    self.last_delivery_result = self.source_delivery.delivery.deliver(
+                    delivery_result = self.source_delivery.delivery.deliver(
                         result.run,
                         operation_key=operation_key,
                     )
-                    self._emit_delivery_success(self.last_delivery_result, result.run)
                 except Exception as exc:
+                    self.last_delivery_result = None
                     try:
                         self._emit_delivery_failure(result.run)
                     except Exception:
                         pass
                     raise RuntimeCompositionError("verified source delivery failed before operator review") from exc
+                self.last_delivery_result = delivery_result
+                try:
+                    self._emit_delivery_success(delivery_result, result.run)
+                except Exception as exc:
+                    raise RuntimeCompositionError(
+                        "durable run-event projection failed after verified source delivery"
+                    ) from exc
             return result
         except BaseException as exc:
             primary_error = exc
