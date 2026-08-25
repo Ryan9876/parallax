@@ -49,7 +49,7 @@ from importlib.metadata import version
 import inspect
 from vercel.sandbox import sync as sandbox
 
-filesystem_type = sandbox.SandboxFilesystem
+filesystem_type = sandbox.SyncSandboxFilesystem
 names = sorted(name for name in dir(filesystem_type) if "write" in name or "batch" in name)
 signatures = {}
 for name in names:
@@ -64,6 +64,28 @@ print(
     f"vercel={version('vercel')} vercel-sandbox={version('vercel-sandbox')} "
     f"filesystem_methods={names} signatures={signatures}"
 )
+for candidate_name in sorted(name for name in dir(sandbox) if "Batch" in name or "File" in name or "Write" in name):
+    candidate = getattr(sandbox, candidate_name, None)
+    if inspect.isclass(candidate):
+        methods = sorted(name for name in dir(candidate) if "write" in name or "batch" in name or "commit" in name or "execute" in name)
+        method_signatures = {}
+        for name in methods:
+            member = getattr(candidate, name, None)
+            if callable(member):
+                try:
+                    method_signatures[name] = str(inspect.signature(member))
+                except (TypeError, ValueError):
+                    method_signatures[name] = "<signature unavailable>"
+        if methods or "Write" in candidate_name or "Batch" in candidate_name:
+            try:
+                class_signature = str(inspect.signature(candidate))
+            except (TypeError, ValueError):
+                class_signature = "<signature unavailable>"
+            print(
+                "Sandbox SDK class inspection: "
+                f"name={candidate_name} signature={class_signature} "
+                f"methods={methods} method_signatures={method_signatures}"
+            )
 '''
     subprocess.run(
         [
