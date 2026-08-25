@@ -37,7 +37,6 @@ FastAPI intelligence service
   ├─ Reason / Work Specification / DSPy programs
   ├─ protected command registry
   ├─ protected evaluation + observable execution/provider evidence
-  ├─ protected evaluation + observable execution/provider evidence
   └─ Wave 4 non-authoritative run-event + protected observation read plane
           │
           ├────────────► Vercel Sandbox execution plane
