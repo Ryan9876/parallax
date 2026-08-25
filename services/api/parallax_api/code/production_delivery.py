@@ -58,6 +58,7 @@ _ENV_PREVIEW_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
 _ENV_OIDC = "VERCEL_OIDC_TOKEN"
 _MAX_TARGETS = 64
 _GITHUB_API_VERSION = "2026-03-10"
+_GITHUB_DELIVERY_PERMISSIONS = ("contents:write", "metadata:read", "pull_requests:write")
 
 
 class ProductionDeliveryConfigurationError(RuntimeError):
@@ -79,10 +80,11 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
 
     Vercel Connect owns the GitHub credential lifecycle. Parallax accepts an
     app-scoped token only after GitHub itself confirms that the installation
-    token can reach exactly the canonical repository. This keeps repository
-    least privilege provider-enforced instead of relying only on the typed
-    Parallax action boundary. Bearer material never leaves this provider/client
-    boundary and is cached only for the lifetime of the request composition.
+    token can reach exactly the canonical repository. The token request is
+    additionally restricted to the exact repository and the minimum GitHub
+    permissions required by the already-authorized source-delivery actions.
+    Bearer material never leaves this provider/client boundary and is cached
+    only for the lifetime of the request composition.
     """
 
     def __init__(
@@ -146,6 +148,16 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             raise ProviderClientError("CREDENTIAL_SCOPE_MISMATCH")
         return repository
 
+    @staticmethod
+    def _authorization_details(repository: str) -> list[dict[str, object]]:
+        return [
+            {
+                "type": "github_app_installation",
+                "repositories": [repository],
+                "permissions": list(_GITHUB_DELIVERY_PERMISSIONS),
+            }
+        ]
+
     def _verify_repository_scope(self, *, token: str, repository: str) -> None:
         try:
             response = self._github.get(
@@ -190,7 +202,10 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
             response = self._http.post(
                 f"/v1/connect/token/{quote(self._connector, safe='')}",
                 headers={"Authorization": f"Bearer {oidc.strip()}", "Content-Type": "application/json"},
-                json={"subject": {"type": "app"}},
+                json={
+                    "subject": {"type": "app"},
+                    "authorizationDetails": self._authorization_details(repository),
+                },
             )
         except httpx.TimeoutException as exc:
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from exc
