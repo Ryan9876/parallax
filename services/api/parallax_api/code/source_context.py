@@ -137,15 +137,18 @@ class BoundedSourceContextSelector:
         total = 0
         excluded_secret = 0
         omitted_bounded = 0
+        oversized_bounded = 0
         for _, normalized, candidate, size in candidates:
             if len(selected) >= self.max_selected_files:
                 omitted_bounded += 1
                 continue
             if size > self.max_file_bytes:
                 # Preserve the per-file ceiling without truncating a ranked file
-                # into misleading partial context. An oversized file is omitted
-                # whole and counted so smaller eligible context can still be used.
+                # into misleading partial context. Continue only when other
+                # bounded source can represent the workspace; an oversized-only
+                # context still fails closed below.
                 omitted_bounded += 1
+                oversized_bounded += 1
                 continue
             if total + size > self.max_total_bytes:
                 omitted_bounded += 1
@@ -168,6 +171,11 @@ class BoundedSourceContextSelector:
             digest = sha256(raw).hexdigest()
             selected.append(SourceContextFile(normalized, digest, size, content))
             total += size
+
+        if not selected and oversized_bounded:
+            raise SourceContextLimitError(
+                "selected source files exceed the per-file context limit and no bounded source remains"
+            )
 
         projection = [
             {"path": item.path, "sha256": item.sha256, "size": item.size}
