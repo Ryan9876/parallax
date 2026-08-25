@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.com/vercel.json",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
-  "buildCommand": "python scripts/vercel_build.py && python scripts/w4_production_proof_build.py",
+  "buildCommand": "python scripts/vercel_build.py && uv run --project . python scripts/w4_lineage_materialization_diagnostic.py",
   "build": {
     "env": {
       "PARALLAX_RUN_EVENTS_ENABLED": "1"
