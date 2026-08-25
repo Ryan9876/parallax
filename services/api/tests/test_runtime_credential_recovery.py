@@ -166,7 +166,16 @@ def test_runtime_credential_expired_exchange_is_rejected_before_github_scope_cal
 def test_runtime_credential_success_is_exact_repository_scoped_and_redacted():
     def connect_handler(request: httpx.Request) -> httpx.Response:
         assert request.url.raw_path == b"/v1/connect/token/github%2Fparallax-runtime"
-        assert json.loads(request.content) == {"subject": {"type": "app"}}
+        assert json.loads(request.content) == {
+    "subject": {"type": "app"},
+    "authorizationDetails": [
+        {
+            "type": "github_app_installation",
+            "repositories": ["Ryan9876/parallax"],
+            "permissions": ["contents:write", "metadata:read", "pull_requests:write"],
+        }
+    ],
+}
         return httpx.Response(
             200,
             json={"token": "github-installation-test-token", "expiresAt": _future_expiration()},
