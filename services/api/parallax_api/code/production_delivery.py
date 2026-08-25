@@ -375,6 +375,7 @@ def production_source_delivery(
     project_id: str,
     preview_targets_json: str | None = None,
     environment: Mapping[str, str] | None = None,
+    oidc_token: str | None = None,
     github_transport: httpx.BaseTransport | None = None,
     github_scope_transport: httpx.BaseTransport | None = None,
     vercel_transport: httpx.BaseTransport | None = None,
@@ -408,6 +409,7 @@ def production_source_delivery(
     )
     github_credentials = VercelConnectGitHubCredentialProvider(
         selected.github_connector,
+        oidc_token=oidc_token,
         transport=github_transport,
         github_transport=github_scope_transport,
     )
