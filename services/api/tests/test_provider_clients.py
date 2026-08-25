@@ -5,8 +5,9 @@ from datetime import datetime, timedelta, timezone
 import json
 
 import httpx
+import pytest
 
-from parallax_api.tools.providers.common import AcceptedSourceLineage
+from parallax_api.tools.providers.common import AcceptedSourceLineage, ProviderClientError
 from parallax_api.tools.providers.credentials import (
     ProviderCredentialKind,
     ScopedBearerCredential,
@@ -246,16 +247,22 @@ TARGET = VercelApiTarget(
 
 
 class VercelHappyTransport:
-    def __init__(self, *, existing: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        existing: bool = False,
+        response_target: object = None,
+        include_target: bool = True,
+    ) -> None:
         self.existing = existing
+        self.response_target = response_target
+        self.include_target = include_target
         self.create_posts = 0
 
-    @staticmethod
-    def _deployment(state: str = "READY") -> dict[str, object]:
-        return {
+    def _deployment(self, state: str = "READY") -> dict[str, object]:
+        payload: dict[str, object] = {
             "id": "dpl_preview_1",
             "name": "example-app",
-            "target": "preview",
             "readyState": state,
             "url": "example-app-run-1.vercel.app" if state == "READY" else None,
             "project": {"id": "prj_example", "name": "example-app"},
@@ -266,6 +273,9 @@ class VercelHappyTransport:
                 "sha": COMMIT,
             },
         }
+        if self.include_target:
+            payload["target"] = self.response_target
+        return payload
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"] == "Bearer test-only-vercel-scoped-token"
@@ -280,6 +290,10 @@ class VercelHappyTransport:
                 },
             )
         if request.method == "GET" and path == "/v6/deployments":
+            assert request.url.params["projectId"] == "prj_example"
+            assert request.url.params["branch"] == "parallax/run-1"
+            assert request.url.params["sha"] == COMMIT
+            assert "target" not in request.url.params
             return httpx.Response(
                 200,
                 json={"deployments": [{"uid": "dpl_preview_1"}] if self.existing else []},
@@ -290,7 +304,6 @@ class VercelHappyTransport:
             assert body == {
                 "name": "example-app",
                 "project": "prj_example",
-                "target": "preview",
                 "gitSource": {
                     "type": "github",
                     "repoId": 12345,
@@ -298,19 +311,24 @@ class VercelHappyTransport:
                     "sha": COMMIT,
                 },
             }
+            assert "target" not in body
             return httpx.Response(200, json=self._deployment("QUEUED"))
         if request.method == "GET" and path == "/v13/deployments/dpl_preview_1":
             return httpx.Response(200, json=self._deployment("READY"))
         raise AssertionError(f"unexpected Vercel request: {request.method} {request.url}")
 
 
-def test_vercel_concrete_client_is_preview_only_and_reuses_exact_preview() -> None:
-    handler = VercelHappyTransport(existing=False)
-    client: VercelProviderClient = VercelPreviewRestClient(
+def _vercel_client(handler: VercelHappyTransport) -> VercelPreviewRestClient:
+    return VercelPreviewRestClient(
         VercelCredentials(),
         {TARGET.vercel_project_ref: TARGET},
         transport=httpx.MockTransport(handler),
     )
+
+
+def test_vercel_concrete_client_is_preview_only_and_reuses_exact_preview() -> None:
+    handler = VercelHappyTransport(existing=False)
+    client: VercelProviderClient = _vercel_client(handler)
 
     created = client.create_preview(
         TARGET.vercel_project_ref,
@@ -327,11 +345,7 @@ def test_vercel_concrete_client_is_preview_only_and_reuses_exact_preview() -> No
     assert read_back.url == "https://example-app-run-1.vercel.app"
 
     replay_handler = VercelHappyTransport(existing=True)
-    replay_client = VercelPreviewRestClient(
-        VercelCredentials(),
-        {TARGET.vercel_project_ref: TARGET},
-        transport=httpx.MockTransport(replay_handler),
-    )
+    replay_client = _vercel_client(replay_handler)
     replay = replay_client.create_preview(
         TARGET.vercel_project_ref,
         REPOSITORY_REF,
@@ -341,3 +355,49 @@ def test_vercel_concrete_client_is_preview_only_and_reuses_exact_preview() -> No
     )
     assert replay.deployment_id == "dpl_preview_1"
     assert replay_handler.create_posts == 0
+
+
+@pytest.mark.parametrize("provider_target", ["production", "staging", "custom-preview-name"])
+def test_vercel_create_rejects_every_non_null_deployment_target(provider_target: str) -> None:
+    handler = VercelHappyTransport(response_target=provider_target)
+    client = _vercel_client(handler)
+
+    with pytest.raises(ProviderClientError, match="PRODUCTION_SCOPE_FORBIDDEN"):
+        client.create_preview(
+            TARGET.vercel_project_ref,
+            REPOSITORY_REF,
+            COMMIT,
+            "parallax/run-1",
+            LINEAGE,
+        )
+    assert handler.create_posts == 1
+
+
+def test_vercel_preview_response_requires_explicit_null_target() -> None:
+    handler = VercelHappyTransport(include_target=False)
+    client = _vercel_client(handler)
+
+    with pytest.raises(ProviderClientError, match="PROVIDER_INVALID_RESPONSE"):
+        client.create_preview(
+            TARGET.vercel_project_ref,
+            REPOSITORY_REF,
+            COMMIT,
+            "parallax/run-1",
+            LINEAGE,
+        )
+    assert handler.create_posts == 1
+
+
+def test_vercel_replay_rejects_existing_non_preview_deployment() -> None:
+    handler = VercelHappyTransport(existing=True, response_target="production")
+    client = _vercel_client(handler)
+
+    with pytest.raises(ProviderClientError, match="PRODUCTION_SCOPE_FORBIDDEN"):
+        client.create_preview(
+            TARGET.vercel_project_ref,
+            REPOSITORY_REF,
+            COMMIT,
+            "parallax/run-1",
+            LINEAGE,
+        )
+    assert handler.create_posts == 0
