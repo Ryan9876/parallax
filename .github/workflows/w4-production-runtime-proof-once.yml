@@ -1,0 +1,37 @@
+name: W4 Production Runtime Proof Once
+
+on:
+  push:
+    branches: [control/w4-production-runtime-proof]
+    paths: [.github/workflows/w4-production-runtime-proof-once.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    name: Production provider/runtime recovery proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: w4-release-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Exercise recovered production autonomous path
+        env:
+          PARALLAX_RELEASE_API_URL: https://parallax-api-tan.vercel.app
+          PARALLAX_RELEASE_RUN_ID: cfd265a8-0e51-4388-a9f7-5611aa1cf6c1
+          PARALLAX_RELEASE_BEARER_TOKEN: ${{ secrets.PARALLAX_RELEASE_BEARER_TOKEN }}
+        run: >-
+          python scripts/w4_release_proof.py
+          --operation-key w4-production-recovery-proof-20260825
+          --evidence release-evidence/w4-production-runtime-proof.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w4-production-runtime-proof
+          path: release-evidence/w4-production-runtime-proof.json
+          if-no-files-found: warn
+          retention-days: 14
