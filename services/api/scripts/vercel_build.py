@@ -50,42 +50,16 @@ import inspect
 from vercel.sandbox import sync as sandbox
 
 filesystem_type = sandbox.SyncSandboxFilesystem
-names = sorted(name for name in dir(filesystem_type) if "write" in name or "batch" in name)
-signatures = {}
-for name in names:
-    member = getattr(filesystem_type, name, None)
-    if callable(member):
-        try:
-            signatures[name] = str(inspect.signature(member))
-        except (TypeError, ValueError):
-            signatures[name] = "<signature unavailable>"
+batch_type = sandbox.SyncSandboxFilesystemBatch
 print(
-    "Sandbox SDK inspection: "
+    "Sandbox SDK lifecycle inspection: "
     f"vercel={version('vercel')} vercel-sandbox={version('vercel-sandbox')} "
-    f"filesystem_methods={names} signatures={signatures}"
+    f"batch_doc={inspect.getdoc(filesystem_type.batch)!r} "
+    f"batch_enter={hasattr(batch_type, '__enter__')} batch_exit={hasattr(batch_type, '__exit__')} "
+    f"batch_enter_sig={str(inspect.signature(batch_type.__enter__)) if hasattr(batch_type, '__enter__') else None} "
+    f"batch_exit_sig={str(inspect.signature(batch_type.__exit__)) if hasattr(batch_type, '__exit__') else None} "
+    f"batch_class_doc={inspect.getdoc(batch_type)!r}"
 )
-for candidate_name in sorted(name for name in dir(sandbox) if "Batch" in name or "File" in name or "Write" in name):
-    candidate = getattr(sandbox, candidate_name, None)
-    if inspect.isclass(candidate):
-        methods = sorted(name for name in dir(candidate) if "write" in name or "batch" in name or "commit" in name or "execute" in name)
-        method_signatures = {}
-        for name in methods:
-            member = getattr(candidate, name, None)
-            if callable(member):
-                try:
-                    method_signatures[name] = str(inspect.signature(member))
-                except (TypeError, ValueError):
-                    method_signatures[name] = "<signature unavailable>"
-        if methods or "Write" in candidate_name or "Batch" in candidate_name:
-            try:
-                class_signature = str(inspect.signature(candidate))
-            except (TypeError, ValueError):
-                class_signature = "<signature unavailable>"
-            print(
-                "Sandbox SDK class inspection: "
-                f"name={candidate_name} signature={class_signature} "
-                f"methods={methods} method_signatures={method_signatures}"
-            )
 '''
     subprocess.run(
         [
