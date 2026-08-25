@@ -43,9 +43,9 @@ def _run_preview_diagnostic() -> None:
         return
     uv = shutil.which("uv")
     if uv is None:
-        raise RuntimeError("preview sandbox diagnostic requires uv")
+        raise RuntimeError("preview snapshot provisioning requires uv")
     subprocess.run(
-        [uv, "run", "--project", ".", "python", "scripts/w4_sandbox_substrate_diagnostic.py"],
+        [uv, "run", "--project", ".", "python", "scripts/w4_provision_execution_snapshot.py"],
         check=True,
     )
 
