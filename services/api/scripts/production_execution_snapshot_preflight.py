@@ -38,7 +38,7 @@ def main() -> None:
             destroy=True,
             tags={"parallax": "execution-snapshot-preflight"},
         ) as instance:
-            if getattr(instance, "source_snapshot_id", None) != snapshot_id:
+            if getattr(instance, "current_snapshot_id", None) != snapshot_id:
                 raise RuntimeError("production execution snapshot identity verification failed")
             result = instance.run_process(
                 "python",
