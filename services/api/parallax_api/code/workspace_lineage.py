@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from hashlib import sha256
 import json
@@ -34,6 +35,7 @@ SECRET_FILENAMES = frozenset(
     }
 )
 SECRET_SUFFIXES = frozenset({".key", ".pem", ".p12", ".pfx"})
+_OBJECT_PERSIST_WORKERS = 8
 
 
 class WorkspaceLineageError(RuntimeError):
@@ -437,9 +439,17 @@ class SourceLineageStore:
         )
 
     def _persist_prepared(self, prepared: _PreparedTree) -> None:
+        def persist_one(item: LineageFile) -> None:
+            self.object_store.put_if_absent(item.sha256, prepared.contents[item.path])
+
         try:
-            for item in prepared.files:
-                self.object_store.put_if_absent(item.sha256, prepared.contents[item.path])
+            worker_count = min(_OBJECT_PERSIST_WORKERS, len(prepared.files))
+            if worker_count <= 1:
+                for item in prepared.files:
+                    persist_one(item)
+            else:
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    tuple(executor.map(persist_one, prepared.files))
         except DurableLineagePersistenceError as exc:
             # Immutable objects written before a later failure may remain as
             # harmless unreferenced content, but accepted metadata/head state is
