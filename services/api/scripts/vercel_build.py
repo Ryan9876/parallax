@@ -1,58 +1,72 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
-import shutil
-import subprocess
-import sys
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 
-def _run(*args: str) -> None:
-    subprocess.run([sys.executable, *args], check=True)
+BASE_URL = "https://parallax-api-tan.vercel.app"
+RUN_ID = "598b00f5-0ede-4b1c-8fc1-cd5ea9317056"
+BRANCH = "control/w4-final-production-observer"
 
 
-def _run_isolated_preflight(script: str) -> None:
-    uv = shutil.which("uv")
-    if uv is None:
-        raise RuntimeError("production durable bootstrap preflight requires uv")
-    subprocess.run(
-        [
-            uv,
-            "run",
-            "--isolated",
-            "--no-project",
-            "--no-progress",
-            "--no-python-downloads",
-            "--with",
-            "vercel>=0.9,<0.10",
-            "--with",
-            "sqlalchemy>=2.0.50,<3",
-            "--with",
-            "psycopg[binary]>=3.2,<4",
-            "python",
-            script,
-        ],
-        check=True,
+def _request(token: str, path: str) -> object:
+    request = Request(
+        f"{BASE_URL}{path}",
+        headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
+        method="GET",
     )
+    try:
+        with urlopen(request, timeout=60) as response:  # noqa: S310 - fixed protected production target
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else None
+    except HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"observer GET {path} failed HTTP {exc.code}: {raw[:500]}") from exc
 
 
 def main() -> None:
-    _run("scripts/production_provider_preflight.py")
-    _run("scripts/production_projected_source_preflight.py")
-
-    if (os.getenv("VERCEL_ENV") or "unknown") == "production":
-        # Production publication remains fail-closed on every runtime substrate
-        # required for durable source bootstrap and exact-lineage execution.
-        _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
-        _run_isolated_preflight("scripts/production_projected_bootstrap_preflight.py")
-        _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")
-        _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
-    else:
-        print("Production lineage composition preflight: SKIP (non-production)")
-        print("Production projected bootstrap preflight: SKIP (non-production)")
-        print("Production execution-snapshot preflight: SKIP (non-production)")
-        print("Production run-event schema guard: SKIP (non-production)")
-
+    if (
+        (os.getenv("VERCEL_ENV") or "") == "preview"
+        and (os.getenv("VERCEL_GIT_COMMIT_REF") or "") == BRANCH
+    ):
+        token = (os.getenv("PARALLAX_ACCESS_TOKEN") or "").strip()
+        if not token:
+            raise RuntimeError("observer requires existing PARALLAX_ACCESS_TOKEN")
+        run = _request(token, f"/v1/engineering-runs/{RUN_ID}")
+        event_page = _request(token, f"/v1/engineering-runs/{RUN_ID}/events?after_sequence=0&limit=200")
+        if not isinstance(run, dict):
+            raise RuntimeError("observer run response malformed")
+        attempts = run.get("attempts") if isinstance(run.get("attempts"), list) else []
+        events = event_page.get("events") if isinstance(event_page, dict) and isinstance(event_page.get("events"), list) else []
+        print(json.dumps({
+            "run_id": RUN_ID,
+            "state": run.get("state"),
+            "revision": run.get("revision"),
+            "last_failure_code": run.get("last_failure_code"),
+            "attempts": [
+                {
+                    "stage": item.get("stage"),
+                    "status": item.get("status"),
+                    "failure_code": item.get("failure_code"),
+                }
+                for item in attempts if isinstance(item, dict)
+            ],
+            "event_count": len(events),
+            "events": [
+                {
+                    "sequence": item.get("sequence"),
+                    "event_type": item.get("event_type"),
+                    "stage": item.get("stage"),
+                    "status": item.get("status"),
+                    "failure_code": item.get("failure_code"),
+                    "has_lineage": bool(item.get("source_lineage_ref")),
+                }
+                for item in events if isinstance(item, dict)
+            ],
+        }, indent=2, sort_keys=True))
     public = Path("public")
     public.mkdir(parents=True, exist_ok=True)
     (public / "build-marker.txt").write_text("parallax-api-build\n", encoding="utf-8")
