@@ -10,6 +10,10 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from parallax_api.code.lineage_persistence import (
+    InMemoryImmutableObjectStore,
+    InMemoryLineageMetadataStore,
+)
 from parallax_api.code.production_source_projection import (
     _PROJECTED_READ_WORKERS,
     ProjectedGitHubFileResult,
@@ -132,8 +136,8 @@ class _CredentialProvider:
         )
 
 
-def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads():
-    github = _GitHub()
+def _projected_provider(github: _GitHub | None = None) -> tuple[ProjectedRepositoryBoundSourceProvider, ProjectRunIdentity, _GitHub]:
+    github = github or _GitHub()
     identity = ProjectRunIdentity(PROJECT_ID, RUN_ID)
     provider = ProjectedRepositoryBoundSourceProvider(
         identity=identity,
@@ -142,6 +146,11 @@ def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads(
         invocations=_Invocations(),
         operation_key="op:projection",
     )
+    return provider, identity, github
+
+
+def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads():
+    provider, identity, github = _projected_provider()
 
     package = provider.load(identity)
 
@@ -150,7 +159,20 @@ def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads(
         "apps/client/src/components/ParallaxLogo.tsx",
     )
     assert sorted(github.file_reads) == list(sorted(package.files))
-    assert package.source_ref == f"{REPOSITORY}@{REVISION}:projection:lineage-safe-v2"
+    assert package.source_ref == f"{REPOSITORY}@{REVISION}"
+
+
+def test_lineage_safe_projection_records_canonical_provider_parent_digest():
+    provider, identity, _ = _projected_provider()
+    store = SourceLineageStore(
+        InMemoryImmutableObjectStore(),
+        InMemoryLineageMetadataStore(),
+    )
+
+    lineage = store.initialize(identity, provider)
+
+    assert lineage.source_ref_digest == sha256(f"{REPOSITORY}@{REVISION}".encode()).hexdigest()
+    assert lineage.file_count == 2
 
 
 def test_lineage_safe_projection_overlaps_reads_within_fixed_worker_bound():
