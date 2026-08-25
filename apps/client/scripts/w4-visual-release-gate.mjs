@@ -285,7 +285,8 @@ async function assertMaterialLayout(page, name, width) {
     }
     const railBox = await contextRail.boundingBox();
     const lastCard = cardBoxes.at(-1);
-    assert(railBox && lastCard && lastCard.y + lastCard.height <= railBox.y + railBox.height + 1, `${name}: contextual health card density clips the final card`);
+    const contained = railBox && lastCard && lastCard.y + lastCard.height <= railBox.y + railBox.height + 1;
+    assert(contained, `${name}: contextual health card density clips the final card; rail=${JSON.stringify(railBox)} cards=${JSON.stringify(cardBoxes)}`);
 
     await page.getByText('System Health', { exact: true }).waitFor();
     await page.getByText('Active Run', { exact: true }).waitFor();
@@ -309,30 +310,51 @@ async function inspectState(browser, fixtureName, viewport, report) {
   streamConnections.delete(fixtureName);
   const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
   const errors = [];
+  const screenshot = `${fixtureName}-${viewport.name}.png`;
+  let screenshotCaptured = false;
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
     if (message.type() === 'error' && !message.text().includes('503 (Service Unavailable)')) errors.push(`console: ${message.text()}`);
   });
-  await openObservability(page);
 
-  assert(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), `${fixtureName}/${viewport.name}: reduced-motion media contract was not active`);
-  for (const text of fixture().expect_text) await page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 });
-  await assertMaterialLayout(page, `${fixtureName}/${viewport.name}`, viewport.width);
+  try {
+    await openObservability(page);
+    assert(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), `${fixtureName}/${viewport.name}: reduced-motion media contract was not active`);
+    for (const text of fixture().expect_text) await page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 });
 
-  if (fixtureName === 'unavailable_telemetry') {
-    assert(await page.locator('[data-testid^="run-event-"]').count() === 0, 'unavailable telemetry: fabricated persisted events were rendered');
+    await page.screenshot({ path: `${evidenceDir}/${screenshot}`, fullPage: false });
+    screenshotCaptured = true;
+    await assertMaterialLayout(page, `${fixtureName}/${viewport.name}`, viewport.width);
+
+    if (fixtureName === 'unavailable_telemetry') {
+      assert(await page.locator('[data-testid^="run-event-"]').count() === 0, 'unavailable telemetry: fabricated persisted events were rendered');
+    }
+    if (fixtureName === 'human_required') {
+      const body = await page.locator('body').innerText();
+      assert(body.includes('HUMAN_REQUIRED'), 'human-required: REVIEW boundary is not explicit');
+      assert(!body.includes('COMPLETE · autonomous'), 'human-required: autonomous completion was fabricated');
+    }
+    assert(errors.length === 0, `${fixtureName}/${viewport.name}: browser errors: ${errors.join(' | ')}`);
+  } catch (error) {
+    if (!screenshotCaptured) {
+      try {
+        await page.screenshot({ path: `${evidenceDir}/${screenshot}`, fullPage: false });
+        screenshotCaptured = true;
+      } catch {
+        // Preserve the primary failure; screenshot capture status is recorded below.
+      }
+    }
+    report.failures.push({
+      fixture: fixtureName,
+      viewport: viewport.name,
+      message: error instanceof Error ? error.message : String(error),
+      browserErrors: errors,
+      screenshot: screenshotCaptured ? screenshot : null,
+    });
+  } finally {
+    report.captures.push({ fixture: fixtureName, viewport: viewport.name, width: viewport.width, height: viewport.height, screenshot: screenshotCaptured ? screenshot : null });
+    await page.close();
   }
-  if (fixtureName === 'human_required') {
-    const body = await page.locator('body').innerText();
-    assert(body.includes('HUMAN_REQUIRED'), 'human-required: REVIEW boundary is not explicit');
-    assert(!body.includes('COMPLETE · autonomous'), 'human-required: autonomous completion was fabricated');
-  }
-
-  const screenshot = `${fixtureName}-${viewport.name}.png`;
-  await page.screenshot({ path: `${evidenceDir}/${screenshot}`, fullPage: false });
-  assert(errors.length === 0, `${fixtureName}/${viewport.name}: browser errors: ${errors.join(' | ')}`);
-  report.captures.push({ fixture: fixtureName, viewport: viewport.name, width: viewport.width, height: viewport.height, screenshot });
-  await page.close();
 }
 
 assert(fixtures.test_only === true, 'Wave 4 visual fixture file must remain explicitly test-only');
@@ -347,6 +369,7 @@ const report = {
   fixtureSchemaVersion: fixtures.schema_version,
   materialAssertions: ['navigation-rail-proportion', 'overflow-clipping', 'typography-hierarchy', 'card-density', 'navigation-state', 'responsive-transition', 'keyboard-focus', 'reduced-motion', 'reduced-graphics-information-parity'],
   captures: [],
+  failures: [],
 };
 
 try {
@@ -365,6 +388,9 @@ try {
 
   writeFileSync(`${evidenceDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
+  if (report.failures.length > 0) {
+    throw new Error(`W4 material visual release gate found ${report.failures.length} failure(s):\n${report.failures.map((failure) => `- ${failure.fixture}/${failure.viewport}: ${failure.message}`).join('\n')}`);
+  }
 } finally {
   await browser?.close();
   await new Promise((resolve) => web.close(resolve));
