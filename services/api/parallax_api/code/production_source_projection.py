@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import PurePosixPath
@@ -36,6 +37,7 @@ from .workspace_lineage import (
 
 
 _PROJECTION_VERSION = "lineage-safe-v2"
+_PROJECTED_READ_WORKERS = 8
 _SECRET_FILENAMES = frozenset(
     {
         "credentials",
@@ -209,24 +211,43 @@ class ProjectedRepositoryBoundSourceProvider(RepositoryBoundSourceProvider):
             self._invocation(ACTION_SOURCE_TREE_READ),
             source_revision=revision,
         ).value
-        files: dict[str, bytes] = {}
-        read_index = 0
-        for entry in sorted(tree.entries, key=lambda item: item.path):
-            if entry.kind != "file" or is_lineage_secret_sensitive_path(entry.path):
-                continue
+
+        eligible = tuple(
+            entry
+            for entry in sorted(tree.entries, key=lambda item: item.path)
+            if entry.kind == "file" and not is_lineage_secret_sensitive_path(entry.path)
+        )
+        if not eligible:
+            raise SourceBootstrapError("repository bootstrap returned no lineage-safe source files")
+
+        # Assign each provider invocation before concurrency begins so request
+        # identity and audit ordering remain deterministic for an immutable tree.
+        reads = tuple(
+            (
+                entry,
+                self._invocation(ACTION_SOURCE_FILE_READ, f":{index}"),
+            )
+            for index, entry in enumerate(eligible)
+        )
+
+        def read_one(item):
+            entry, invocation = item
             source = self._source_reads.read_file(
                 self.binding,
-                self._invocation(ACTION_SOURCE_FILE_READ, f":{read_index}"),
+                invocation,
                 source_revision=revision,
                 path=entry.path,
             ).value
-            read_index += 1
             raw = source.content.encode("utf-8")
             if sha256(raw).hexdigest() != source.content_sha256:
                 raise SourceBootstrapError("repository file digest changed inside protected read boundary")
-            files[source.path] = raw
-        if not files:
-            raise SourceBootstrapError("repository bootstrap returned no lineage-safe source files")
+            return source.path, raw
+
+        worker_count = min(_PROJECTED_READ_WORKERS, len(reads))
+        with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="parallax-source-read") as executor:
+            ordered_files = tuple(executor.map(read_one, reads))
+
+        files = {path: raw for path, raw in ordered_files}
         return SourcePackage(
             source_kind="repository",
             source_ref=(
