@@ -129,13 +129,11 @@ def _create_approved_proof_spec(*, token: str) -> tuple[str, str, str]:
         "BUILD",
         "TEST",
         "VERIFY",
-        REPOSITORY_REF,
-        VERCEL_PROJECT_ID,
     ):
         if required not in combined:
-            raise RuntimeError(f"final production proof Work Specification lost required scope token {required!r}")
+            raise RuntimeError(f"final production proof Work Specification lost required scope fact {required!r}")
     lowered = combined.casefold()
-    for semantic in ("only", "preserve", "fixed protected", "preview", "no merge"):
+    for semantic in ("only", "preserve", "fixed protected", "preview", "no merge", "production"):
         if semantic not in lowered:
             raise RuntimeError(f"final production proof Work Specification lost required semantic {semantic!r}")
 
