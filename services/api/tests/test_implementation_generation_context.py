@@ -31,5 +31,14 @@ def test_server_provided_source_satisfies_file_provision_precondition_without_re
     source_payload = request.source_prompt_payload()
     assert source_payload["runtime_source_access"] == "SERVER_PROVIDED_PROTECTED_SOURCE"
     assert source_payload["runtime_source_authority_rule"] == SOURCE_CONTEXT_AUTHORITY_RULE
+    assert source_payload["files"] == [
+        {
+            "path": "apps/client/src/App.tsx",
+            "sha256": "a" * 64,
+            "size": 12,
+            "content": "export {};\n",
+        }
+    ]
+    assert "constraints" not in source_payload
     assert "must be provided" in request.contract_payload()["constraints"][0]
     assert "substantive Work Specification constraints" in SOURCE_CONTEXT_AUTHORITY_RULE
