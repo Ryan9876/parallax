@@ -1,0 +1,36 @@
+name: Record W4 mobile scroll hotfix state
+
+on:
+  push:
+    branches:
+      - record/w4-mobile-scroll-hotfix-state
+    paths:
+      - scripts/record_w4_mobile_scroll_state.py
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: record/w4-mobile-scroll-hotfix-state
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Reconcile authoritative current state
+        run: python scripts/record_w4_mobile_scroll_state.py
+      - name: Remove temporary record harness
+        run: rm scripts/record_w4_mobile_scroll_state.py .github/workflows/w4-mobile-scroll-state-record.yml
+      - name: Commit authoritative state record
+        run: |
+          set -euo pipefail
+          git config user.name 'parallax-state[bot]'
+          git config user.email 'parallax-state@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs(state): record mobile governed-scroll hotfix deployment'
+          git push origin HEAD:record/w4-mobile-scroll-hotfix-state
