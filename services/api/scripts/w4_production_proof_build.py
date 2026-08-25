@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
+import sys
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -9,6 +11,11 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://parallax-api-tan.vercel.app"
 RUN_ID = "c5b1d060-6a2f-4500-9f0b-a137a2931296"
+API_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(API_ROOT))
+
+from parallax_api.code.source_context import BoundedSourceContextSelector, SourceContextError  # noqa: E402
 
 
 def request_json(token: str, path: str, *, timeout: float = 60.0) -> Any:
@@ -43,6 +50,8 @@ def main() -> None:
         token,
         f"/v1/conversations/{run['conversation_id']}/work-specifications/approved",
     )
+    if not isinstance(specification, dict):
+        raise RuntimeError("diagnostic Work Specification response is invalid")
 
     attempts = []
     for item in run.get("attempts", []):
@@ -64,14 +73,24 @@ def main() -> None:
                     "failure_code": item.get("failure_code"),
                 })
 
-    spec_safe = None
-    if isinstance(specification, dict):
-        spec_safe = {
-            "title": specification.get("title"),
-            "objective": specification.get("objective"),
-            "constraints": specification.get("constraints"),
-            "acceptance_criteria": specification.get("acceptance_criteria"),
-            "risks": specification.get("risks"),
+    selector_result: dict[str, Any]
+    try:
+        snapshot = BoundedSourceContextSelector().select(
+            REPO_ROOT,
+            objective=str(specification.get("objective") or ""),
+            acceptance_texts=tuple(str(item) for item in specification.get("acceptance_criteria", [])),
+        )
+        selector_result = {
+            "status": "PASS",
+            "file_count": len(snapshot.files),
+            "total_bytes": snapshot.total_bytes,
+            "selected_paths": [item.path for item in snapshot.files],
+        }
+    except SourceContextError as exc:
+        selector_result = {
+            "status": "FAIL",
+            "error_class": type(exc).__name__,
+            "message": str(exc),
         }
 
     safe = {
@@ -81,7 +100,14 @@ def main() -> None:
         "last_failure_code": run.get("last_failure_code"),
         "attempts": attempts,
         "events": event_rows,
-        "work_specification": spec_safe,
+        "source_context_selector": selector_result,
+        "work_specification": {
+            "title": specification.get("title"),
+            "objective": specification.get("objective"),
+            "constraints": specification.get("constraints"),
+            "acceptance_criteria": specification.get("acceptance_criteria"),
+            "risks": specification.get("risks"),
+        },
     }
     print(json.dumps(safe, indent=2, sort_keys=True))
     raise RuntimeError("diagnostic-only preview intentionally stops after sanitized state capture")
