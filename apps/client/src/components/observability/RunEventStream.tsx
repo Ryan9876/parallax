@@ -166,7 +166,7 @@ export function RunEventStream({
             </View>
           </View>
           {viewPaused ? (
-            <View style={styles.pausedBanner} accessibilityRole="status">
+            <View style={styles.pausedBanner} accessible accessibilityLiveRegion="polite">
               <Text style={styles.pausedTitle}>View paused</Text>
               <Text style={styles.pausedText}>Observation is paused locally. Run execution and persisted event capture are unchanged.</Text>
             </View>
