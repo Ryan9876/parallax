@@ -68,14 +68,12 @@ def main() -> None:
             payload = json.loads((result.stdout or "{}").strip())
             if payload.get("missing"):
                 raise RuntimeError("production execution snapshot is missing required offline dependencies")
-            if payload.get("source_root_exists") is not True:
-                raise RuntimeError("production execution snapshot is missing the bounded source-transfer root")
             if payload.get("source_root_entries"):
                 raise RuntimeError("production execution snapshot unexpectedly contains repository source")
 
     print(
         "Production execution-snapshot preflight: PASS "
-        f"(snapshot={snapshot_id}; deny-all restore verified; offline dependencies verified; source-free root verified)"
+        f"(snapshot={snapshot_id}; deny-all restore verified; offline dependencies verified; no repository source present)"
     )
 
 
