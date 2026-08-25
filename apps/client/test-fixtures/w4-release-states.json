@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "spec_ids": ["P2-V0.17.4", "P2-V0.17.5"],
+  "test_only": true,
+  "states": {
+    "active": {
+      "run_state": "TEST",
+      "events": [
+        {"type": "RUN_CREATED", "outcome": "STARTED", "summary": "Engineering Run created."},
+        {"type": "STAGE_RESULT", "stage": "SPECIFY", "outcome": "SUCCEEDED", "summary": "Approved specification bound."},
+        {"type": "STAGE_RESULT", "stage": "PLAN", "outcome": "SUCCEEDED", "summary": "Implementation plan accepted."},
+        {"type": "SOURCE_LINEAGE_ACCEPTED", "stage": "IMPLEMENT", "outcome": "SUCCEEDED", "subsystem": "SOURCE_LINEAGE", "lineage": "candidate", "parent_lineage": "parent", "summary": "Candidate source lineage accepted."},
+        {"type": "STAGE_RESULT", "stage": "BUILD", "outcome": "SUCCEEDED", "subsystem": "EXECUTION", "attempt": "build", "summary": "Build passed."},
+        {"type": "STAGE_RESULT", "stage": "TEST", "outcome": "STARTED", "subsystem": "EXECUTION", "attempt": "test-active", "summary": "Protected tests are running."}
+      ],
+      "expect_text": ["Run observability", "TEST", "Protected tests are running."]
+    },
+    "success": {
+      "run_state": "COMPLETE",
+      "events": [
+        {"type": "RUN_CREATED", "outcome": "STARTED", "summary": "Engineering Run created."},
+        {"type": "STAGE_RESULT", "stage": "SPECIFY", "outcome": "SUCCEEDED", "summary": "Approved specification bound."},
+        {"type": "STAGE_RESULT", "stage": "PLAN", "outcome": "SUCCEEDED", "summary": "Implementation plan accepted."},
+        {"type": "SOURCE_LINEAGE_ACCEPTED", "stage": "IMPLEMENT", "outcome": "SUCCEEDED", "subsystem": "SOURCE_LINEAGE", "lineage": "candidate", "parent_lineage": "parent", "summary": "Accepted source lineage persisted."},
+        {"type": "STAGE_RESULT", "stage": "BUILD", "outcome": "SUCCEEDED", "subsystem": "EXECUTION", "attempt": "build", "summary": "Build passed."},
+        {"type": "STAGE_RESULT", "stage": "TEST", "outcome": "SUCCEEDED", "subsystem": "EXECUTION", "attempt": "test-success", "summary": "Tests passed."},
+        {"type": "EVALUATION_RESULT", "stage": "VERIFY", "outcome": "SUCCEEDED", "subsystem": "EVALUATION", "attempt": "verify", "summary": "Protected evaluation passed."},
+        {"type": "PROVIDER_RESULT", "outcome": "SUCCEEDED", "subsystem": "GITHUB", "summary": "GitHub pull request recorded.", "metadata": {"pull_request_number": 174, "branch_name": "ws/w4-visual-release-gates"}},
+        {"type": "PROVIDER_RESULT", "outcome": "SUCCEEDED", "subsystem": "VERCEL", "summary": "Vercel Preview ready.", "metadata": {"preview_deployment_id": "preview-w4-release", "preview_status": "READY"}},
+        {"type": "REVIEW_REQUIRED", "stage": "REVIEW", "outcome": "HUMAN_REQUIRED", "subsystem": "REVIEW", "summary": "Operator review required."},
+        {"type": "STAGE_RESULT", "stage": "REVIEW", "outcome": "SUCCEEDED", "subsystem": "REVIEW", "summary": "Operator review completed."}
+      ],
+      "expect_text": ["Run observability", "COMPLETE", "Operator review completed."]
+    },
+    "unavailable_telemetry": {
+      "run_state": "TEST",
+      "api_mode": "unavailable",
+      "events": [],
+      "expect_text": ["Run observability", "Live observation unavailable", "Retry observation"]
+    },
+    "provider_failure": {
+      "run_state": "FAILED",
+      "events": [
+        {"type": "RUN_CREATED", "outcome": "STARTED", "summary": "Engineering Run created."},
+        {"type": "STAGE_RESULT", "stage": "PLAN", "outcome": "SUCCEEDED", "summary": "Implementation plan accepted."},
+        {"type": "PROVIDER_RESULT", "stage": "IMPLEMENT", "outcome": "FAILED", "subsystem": "GITHUB", "failure_code": "PROVIDER_ACTION_FAILED", "summary": "Repository provider action failed."}
+      ],
+      "expect_text": ["Run observability", "FAILED", "Repository provider action failed."]
+    },
+    "reconnect_retry": {
+      "run_state": "TEST",
+      "stream_disconnect_once": true,
+      "events": [
+        {"type": "RUN_CREATED", "outcome": "STARTED", "summary": "Engineering Run created."},
+        {"type": "STAGE_RESULT", "stage": "PLAN", "outcome": "SUCCEEDED", "summary": "Implementation plan accepted."},
+        {"type": "STAGE_RESULT", "stage": "TEST", "outcome": "FAILED", "subsystem": "EXECUTION", "attempt": "test-failed", "failure_code": "AUTONOMOUS_TEST_FAILED", "summary": "Protected test failed."},
+        {"type": "WORKER_STATE", "outcome": "RECOVERING", "subsystem": "WORKER", "summary": "Bounded correction and reconnect started."},
+        {"type": "OPERATION_REPLAY", "outcome": "REPLAYED", "subsystem": "RUN", "summary": "Persisted operation replayed without duplicate mutation."},
+        {"type": "STAGE_RESULT", "stage": "TEST", "outcome": "SUCCEEDED", "subsystem": "EXECUTION", "attempt": "test-success", "summary": "Protected test passed after retry."}
+      ],
+      "expect_text": ["Run observability", "Bounded correction and reconnect started.", "Protected test passed after retry."]
+    },
+    "human_required": {
+      "run_state": "REVIEW",
+      "events": [
+        {"type": "RUN_CREATED", "outcome": "STARTED", "summary": "Engineering Run created."},
+        {"type": "STAGE_RESULT", "stage": "VERIFY", "outcome": "SUCCEEDED", "subsystem": "EVALUATION", "attempt": "verify", "summary": "Protected verification passed."},
+        {"type": "REVIEW_REQUIRED", "stage": "REVIEW", "outcome": "HUMAN_REQUIRED", "subsystem": "REVIEW", "summary": "HUMAN_REQUIRED: operator review is required before completion."}
+      ],
+      "expect_text": ["Run observability", "REVIEW", "HUMAN_REQUIRED"]
+    }
+  }
+}
