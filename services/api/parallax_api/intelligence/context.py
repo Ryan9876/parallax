@@ -65,6 +65,7 @@ def compose_reason_context(
     mode: str,
     current_user_turn: str,
     prior_messages: Iterable[MessageLike],
+    project_context: str | None = None,
     limits: ContextLimits | None = None,
 ) -> ReasonContext:
     """Build the bounded, deterministic Reason context from durable state.
@@ -86,8 +87,13 @@ def compose_reason_context(
         f"LIFECYCLE_STATUS: {status}",
         f"MODE: {mode}",
         AUTHORITY_RULE,
-        "PRIOR_MESSAGES:",
     ]
+    if project_context is not None:
+        protected_project = project_context.strip()
+        if not protected_project or len(protected_project) > 1_200:
+            raise ContextLimitError("server Project context exceeds protected limits")
+        header.extend(["PROJECT_CONTEXT:", f"[SERVER AUTHORITATIVE] {protected_project}"])
+    header.append("PRIOR_MESSAGES:")
     current_block = f"CURRENT_USER_TURN:\n[USER AUTHORITATIVE] {current}"
     fixed = "\n".join(header + [current_block])
     if len(fixed) > limits.max_total_chars:

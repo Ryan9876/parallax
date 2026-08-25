@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from parallax_api.code.autonomy import AutonomyCoordinator, AutonomyStopReason
 from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.execution import ExecutionPolicyError, ExecutionSpec
+from parallax_api.code.implementation_runtime import ImplementationRuntimeError
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.state_machine import RevisionConflict
@@ -268,3 +269,72 @@ def test_protected_registry_has_no_caller_supplied_command_surface():
 
     with pytest.raises(ExecutionPolicyError):
         registry.spec_for(WorkflowStage.IMPLEMENT, operation_key="not-allowed")
+
+
+class FailingImplementationRuntime:
+    def __init__(self, *, mutation_applied: bool = False):
+        self.mutation_applied = mutation_applied
+
+    def execute(self, **_kwargs):
+        raise ImplementationRuntimeError(
+            "sanitized protected implementation failure",
+            mutation_applied=self.mutation_applied,
+        )
+
+
+def test_pre_mutation_implementation_failure_is_durable_failed_run(tmp_path):
+    session, service, conversations, work_specs = service_for(tmp_path, "implementation-failure.db")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        plan = AutonomyCoordinator(service, FakeExecutor()).run(
+            run_id=run.id, operation_key="plan-before-implement-failure", expected_revision=run.revision
+        )
+        assert plan.run.state == "IMPLEMENT"
+
+        result = AutonomyCoordinator(
+            service,
+            FakeExecutor(),
+            implementation_runtime=FailingImplementationRuntime(),
+        ).run(
+            run_id=run.id,
+            operation_key="implement-failure",
+            expected_revision=plan.run.revision,
+        )
+
+        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
+        assert result.run.state == "FAILED"
+        assert result.run.resume_stage == "IMPLEMENT"
+        assert result.run.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+        attempts = [item for item in result.run.attempts if item.stage == "IMPLEMENT"]
+        assert len(attempts) == 1
+        assert attempts[0].status == "FAILED"
+        assert attempts[0].failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+        evidence = json.loads(attempts[0].evidence_json)
+        assert evidence == {"error_class": "ImplementationRuntimeError", "mutation_applied": False}
+        assert result.steps[-1].attempt_id == attempts[0].id
+    finally:
+        session.close()
+
+
+def test_post_mutation_implementation_failure_stays_fail_closed_without_fabricated_attempt(tmp_path):
+    session, service, conversations, work_specs = service_for(tmp_path, "implementation-post-mutation.db")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        plan = AutonomyCoordinator(service, FakeExecutor()).run(
+            run_id=run.id, operation_key="plan-before-post-mutation", expected_revision=run.revision
+        )
+        result = AutonomyCoordinator(
+            service,
+            FakeExecutor(),
+            implementation_runtime=FailingImplementationRuntime(mutation_applied=True),
+        ).run(
+            run_id=run.id,
+            operation_key="post-mutation-failure",
+            expected_revision=plan.run.revision,
+        )
+        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
+        assert result.run.state == "IMPLEMENT"
+        assert [item for item in result.run.attempts if item.stage == "IMPLEMENT"] == []
+        assert result.steps[-1].outcome == "FAILED_AFTER_MUTATION"
+    finally:
+        session.close()

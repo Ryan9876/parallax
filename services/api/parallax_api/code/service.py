@@ -128,10 +128,13 @@ class EngineeringRunService:
             value = evidence.get(key)
             if isinstance(value, str) and len(value) == 64:
                 metadata[key] = value
-        for key in ("lineage_bound_execution", "timed_out", "redacted"):
+        for key in ("lineage_bound_execution", "timed_out", "redacted", "mutation_applied"):
             value = evidence.get(key)
             if isinstance(value, bool):
                 metadata[key] = value
+        error_class = evidence.get("error_class")
+        if isinstance(error_class, str) and len(error_class) <= 80 and error_class.isidentifier():
+            metadata["error_class"] = error_class
         value = evidence.get("exit_code")
         if isinstance(value, int):
             metadata["exit_code"] = value

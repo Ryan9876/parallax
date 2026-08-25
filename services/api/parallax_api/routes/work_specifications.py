@@ -12,6 +12,8 @@ from ..intelligence.work_specification import (
     WorkSpecificationGenerationFailure,
 )
 from ..models import WorkSpecification
+from ..intelligence.project_context import compose_project_capability_context
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
 from ..schemas import ConversationRead, WorkSpecificationRead
@@ -27,6 +29,7 @@ def service(
     return WorkSpecificationService(
         WorkSpecificationRepository(session),
         ConversationRepository(session),
+        ProjectRepository(session),
         owner_subject=principal.subject,
     )
 
@@ -90,8 +93,19 @@ async def draft_work_specification(
     spec_coordinator: WorkSpecificationCoordinator = Depends(coordinator),
 ):
     conversation = svc.conversation(conversation_id)
+    project_context = None
+    if getattr(conversation, "mode", None) == "code" and getattr(conversation, "project_id", None):
+        project = svc.project_for_conversation(conversation)
+        if project is not None:
+            project_context = compose_project_capability_context(
+                project_id=project.id,
+                repository_ref=project.repository_ref,
+            )
     try:
-        generated = await spec_coordinator.draft(conversation.messages)
+        generated = await spec_coordinator.draft(
+            conversation.messages,
+            project_context=project_context,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except WorkSpecificationGenerationFailure as exc:

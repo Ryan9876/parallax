@@ -56,7 +56,7 @@ class WorkSpecificationProgram(Protocol):
 
 
 class DspyWorkSpecificationProgram:
-    version = "work-spec-v0.7.0"
+    version = "work-spec-v0.7.1"
 
     def __init__(self, model: str):
         try:
@@ -67,9 +67,12 @@ class DspyWorkSpecificationProgram:
         class DraftSpecification(dspy.Signature):
             """Turn the user's durable conversation into a concise implementation-ready specification draft.
 
-            Preserve the user's actual outcome and later corrections. Do not invent approval, deployment state,
-            secret values, hidden reasoning, or requirements unsupported by the conversation. Acceptance criteria
-            must be concrete and testable. Put unresolved material gaps in open_questions instead of guessing.
+            Preserve the user's actual outcome and later corrections. Server-authoritative Project capability
+            facts describe what the protected runtime can access and override conflicting assistant assumptions about
+            repository availability; they do not override user outcome or substantive constraints. Do not invent
+            approval, deployment state, secret values, hidden reasoning, or requirements unsupported by the
+            conversation. Acceptance criteria must be concrete and testable. Put unresolved material gaps in
+            open_questions instead of guessing.
             """
 
             objective: str = dspy.InputField()
@@ -126,7 +129,7 @@ class WorkSpecificationCoordinator:
         self.router = router or ModelRouter()
 
     @staticmethod
-    def conversation_context(messages) -> tuple[str, str]:
+    def conversation_context(messages, *, project_context: str | None = None) -> tuple[str, str]:
         user_messages = [item for item in messages if item.role == "user" and item.content.strip()]
         if not user_messages:
             raise ValueError("work specification drafting requires at least one user message")
@@ -143,10 +146,16 @@ class WorkSpecificationCoordinator:
             lines.append(line)
             total += len(line)
         lines.reverse()
-        return objective[:6_000], "\n\n".join(lines)
+        context = "\n\n".join(lines)
+        if project_context is not None:
+            protected = project_context.strip()
+            if not protected or len(protected) > 1_200:
+                raise ValueError("server Project context exceeds protected limits")
+            context = f"SERVER_PROJECT_CONTEXT:\n[SERVER AUTHORITATIVE] {protected}\n\n{context}"
+        return objective[:6_000], context
 
-    async def draft(self, messages) -> WorkSpecificationGeneration:
-        objective, context = self.conversation_context(messages)
+    async def draft(self, messages, *, project_context: str | None = None) -> WorkSpecificationGeneration:
+        objective, context = self.conversation_context(messages, project_context=project_context)
 
         async def attempt(model: str) -> WorkSpecificationDraft:
             program = DspyWorkSpecificationProgram(model)
