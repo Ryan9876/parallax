@@ -17,12 +17,22 @@ from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage
 
 
+DEFAULT_EXECUTION_SNAPSHOT_ID = "snap_vagbatADKKndxwFGSDNbt08Ueigm"
+_EXECUTION_SNAPSHOT_ENV = "PARALLAX_EXECUTION_SNAPSHOT_ID"
+_SANDBOX_SOURCE_ROOT = "/vercel/sandbox"
+
+
 class SameLineageExecutionError(RuntimeError):
     pass
 
 
 class SameLineageVercelSandboxExecutor:
-    """Execute protected stages only against one reconstructed accepted lineage."""
+    """Execute protected stages only against one reconstructed accepted lineage.
+
+    Runtime dependencies come from one server-pinned, source-free Vercel Sandbox
+    snapshot. The accepted lineage is transferred after the snapshot is restored,
+    and execution remains deny-all network with no application environment.
+    """
 
     def __init__(
         self,
@@ -31,25 +41,38 @@ class SameLineageVercelSandboxExecutor:
         registry: ProtectedCommandRegistry | None = None,
         policy: ProtectedCommandPolicy | None = None,
         project_id: str | None = None,
+        snapshot_id: str | None = None,
     ) -> None:
         self.allocator = allocator
         self.registry = registry or ProtectedCommandRegistry()
         self.policy = policy or ProtectedCommandPolicy()
         self.project_id = project_id or os.getenv("VERCEL_PROJECT_ID")
+        self.snapshot_id = snapshot_id or os.getenv(_EXECUTION_SNAPSHOT_ENV) or DEFAULT_EXECUTION_SNAPSHOT_ID
+        self._validate_snapshot_id(self.snapshot_id)
 
     @staticmethod
     def _sdk():
         try:
             from vercel.api import session
-            from vercel.sandbox import NetworkPolicy
+            from vercel.sandbox import NetworkPolicy, SnapshotSource
             from vercel.sandbox import sync as sandbox
         except ImportError as exc:
             raise VercelSandboxUnavailable("Vercel Sandbox SDK is not installed") from exc
-        return session, NetworkPolicy, sandbox
+        return session, NetworkPolicy, SnapshotSource, sandbox
 
     def _require_provider_identity(self) -> None:
         if not self.project_id:
             raise VercelSandboxUnavailable("Vercel project identity is unavailable")
+
+    @staticmethod
+    def _validate_snapshot_id(snapshot_id: str) -> None:
+        if (
+            not isinstance(snapshot_id, str)
+            or not snapshot_id.startswith("snap_")
+            or len(snapshot_id) > 160
+            or any(ord(ch) < 33 or ord(ch) > 126 for ch in snapshot_id)
+        ):
+            raise SameLineageExecutionError("server-owned execution snapshot identity is invalid")
 
     @staticmethod
     def _identity(project_ref: str, run_id: str) -> ProjectRunIdentity:
@@ -57,6 +80,20 @@ class SameLineageVercelSandboxExecutor:
             return ProjectRunIdentity(project_id=project_ref, run_id=run_id)
         except (TypeError, ValueError, RuntimeError) as exc:
             raise SameLineageExecutionError("canonical Project/run identity is invalid") from exc
+
+    @staticmethod
+    def _sandbox_cwd(working_directory: str) -> str:
+        pure = PurePosixPath(working_directory)
+        if pure.is_absolute() or any(part == ".." for part in pure.parts):
+            raise SameLineageExecutionError("protected working directory escaped the sandbox source root")
+        if working_directory in {"", "."}:
+            return _SANDBOX_SOURCE_ROOT
+        clean = pure.as_posix()
+        if clean.startswith("./"):
+            clean = clean[2:]
+        if not clean or clean == ".":
+            return _SANDBOX_SOURCE_ROOT
+        return f"{_SANDBOX_SOURCE_ROOT}/{clean}"
 
     @staticmethod
     def _validate_workspace(
@@ -126,9 +163,9 @@ class SameLineageVercelSandboxExecutor:
             key=lambda value: (value.count("/"), value),
         )
         for directory in directories:
-            filesystem.mkdir(directory, cwd="/vercel/sandbox", recursive=True)
+            filesystem.mkdir(directory, cwd=_SANDBOX_SOURCE_ROOT, recursive=True)
         for path, content in files:
-            filesystem.write_bytes(path, content, cwd="/vercel/sandbox")
+            filesystem.write_bytes(path, content, cwd=_SANDBOX_SOURCE_ROOT)
 
     def execute_on_lineage(
         self,
@@ -160,10 +197,12 @@ class SameLineageVercelSandboxExecutor:
             )
 
             self._require_provider_identity()
-            session, NetworkPolicy, sandbox = self._sdk()
+            session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
+            snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
             with session():
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
+                    source=snapshot_source,
                     execution_time_limit=spec.timeout_seconds + 30,
                     persistent=False,
                     network_policy=NetworkPolicy.deny_all(),
@@ -171,11 +210,14 @@ class SameLineageVercelSandboxExecutor:
                     destroy=True,
                     tags={"parallax": "same-lineage", "stage": spec.stage.value.lower()},
                 ) as instance:
+                    restored_snapshot_id = getattr(instance, "source_snapshot_id", None)
+                    if restored_snapshot_id != self.snapshot_id:
+                        raise SameLineageExecutionError("sandbox did not restore the server-pinned execution snapshot")
                     self._transfer_source(instance, files)
                     result = instance.run_process(
                         command,
                         list(args),
-                        cwd=spec.working_directory,
+                        cwd=self._sandbox_cwd(spec.working_directory),
                         env={},
                         kill_after=spec.timeout_seconds,
                         capture_output=True,
@@ -196,6 +238,9 @@ class SameLineageVercelSandboxExecutor:
                     "source_total_bytes": lineage.total_bytes,
                     "fresh_repository_checkout": False,
                     "git_source": False,
+                    "execution_snapshot_id": self.snapshot_id,
+                    "execution_snapshot_verified": True,
+                    "execution_working_directory": self._sandbox_cwd(spec.working_directory),
                 }
             )
         except Exception as exc:
@@ -212,6 +257,8 @@ class SameLineageVercelSandboxExecutor:
                     "lineage_source_transfer": False,
                     "fresh_repository_checkout": False,
                     "git_source": False,
+                    "execution_snapshot_id": self.snapshot_id,
+                    "execution_snapshot_verified": False,
                 }
             )
         finally:
@@ -235,4 +282,8 @@ class SameLineageVercelSandboxExecutor:
         return evidence
 
 
-__all__ = ["SameLineageExecutionError", "SameLineageVercelSandboxExecutor"]
+__all__ = [
+    "DEFAULT_EXECUTION_SNAPSHOT_ID",
+    "SameLineageExecutionError",
+    "SameLineageVercelSandboxExecutor",
+]
