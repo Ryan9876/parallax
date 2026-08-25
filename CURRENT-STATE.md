@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: Wave 4 Live Development stabilization is deployment-verified. The production API/runtime recovery is complete, the Warm Editorial client stabilization remains deployed, and a fresh real Project-bound autonomous production proof advanced through protected IMPLEMENT/BUILD/TEST/VERIFY to the explicit REVIEW/HUMAN_REQUIRED boundary with persisted exact-lineage GitHub/Vercel Preview delivery evidence. A deployment-verified mobile governed-context scroll hotfix now keeps approved Work Specification and active Engineering Run surfaces reachable on narrow viewports while preserving the fixed composer.
+Release: Wave 4 Live Development stabilization is deployment-verified. The production API/runtime recovery is complete, the Warm Editorial client stabilization remains deployed, and a fresh real Project-bound autonomous production proof advanced through protected IMPLEMENT/BUILD/TEST/VERIFY to the explicit REVIEW/HUMAN_REQUIRED boundary with persisted exact-lineage GitHub/Vercel Preview delivery evidence. A deployment-verified mobile governed-context scroll hotfix now keeps approved Work Specification and active Engineering Run surfaces reachable on narrow viewports while preserving the fixed composer. A second deployment-verified mobile hotfix now restores vertical reachability throughout Run Observability, including short-event-stream IMPLEMENT states.
 Date: 2026-08-25
-Status: **WAVE 4 PRODUCTION DEPLOYED / MOBILE GOVERNED-CONTEXT SCROLL HOTFIX DEPLOYED / LIVE OBSERVABILITY ACTIVE / STABILIZATION VERIFIED / END-TO-END AUTONOMOUS PRODUCTION READINESS RESTORED / HUMAN REVIEW BOUNDARY PRESERVED / PREVIOUS API AND CLIENT RELEASES RETAINED AS ROLLBACK CANDIDATES / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 4 PRODUCTION DEPLOYED / MOBILE GOVERNED-CONTEXT SCROLL HOTFIX DEPLOYED / MOBILE RUN OBSERVABILITY SCROLL HOTFIX DEPLOYED / LIVE OBSERVABILITY ACTIVE / STABILIZATION VERIFIED / END-TO-END AUTONOMOUS PRODUCTION READINESS RESTORED / HUMAN REVIEW BOUNDARY PRESERVED / PREVIOUS API AND CLIENT RELEASES RETAINED AS ROLLBACK CANDIDATES / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
@@ -15,13 +15,25 @@ The deployment-verified production API/runtime binary is Vercel deployment `dpl_
 
 The application head passed exact post-merge Parallax P2 CI #873. The pre-merge exact candidate also passed Parallax P2 CI #872 and Bounded Autonomy #524 before PR #212 was integrated.
 
-The deployment-verified production client is Vercel deployment `dpl_6xVHMhcdyrbb8SwSahGSuw5DLLiY` from `main@7e10b6d492361b2a8d046672b5bcd331d44172b3` (PR #225, mobile governed-context scroll recovery). It is `READY`, has no alias error, and currently owns `parallax-lew7.vercel.app`, `parallax-ashy-one-20.vercel.app`, and `parallax-git-main-lew7.vercel.app`. This hotfix is layered on the previously validated Wave 4 #170-#174 visual/runtime convergence package and changes only the compact conversation scroll composition plus its permanent browser regression gate.
+The deployment-verified production client is Vercel deployment `dpl_vDHBaGyi4q3pAGvNpULJwi8p95RR` from `main@908c7dacbefc5286d717861e70007a9deb0fd763` (PR #228, mobile Run Observability scroll recovery). It is `READY`, has no alias error, and currently owns `parallax-lew7.vercel.app`, `parallax-ashy-one-20.vercel.app`, and `parallax-git-main-lew7.vercel.app`. This release retains the prior mobile governed-context correction and adds one compact observability outer-scroll composition plus its permanent short-event-stream regression gate; API/runtime behavior is unchanged.
 
 The immediately preceding known-good API production deployment `dpl_LYTeixMa2rfWDatzeSRL6wBAuaXj` from `main@d9069d264d7ca47e831634c663890abf7ee02da8` remains identified by Vercel as a rollback candidate. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
 
-The immediately preceding known-good client production deployment `dpl_AHKAix8J11knSfSCRzCupM6ND7vn` from `main@f61ba4f65ea108994dbda8f507bf079fac534145` remains the client rollback point for this hotfix.
+The immediately preceding known-good client production deployment `dpl_6xVHMhcdyrbb8SwSahGSuw5DLLiY` from `main@7e10b6d492361b2a8d046672b5bcd331d44172b3` remains `READY` and is the Vercel rollback candidate for this observability hotfix. The earlier Wave 4 client deployment `dpl_AHKAix8J11knSfSCRzCupM6ND7vn` remains available as an older known-good reference.
 
 This `CURRENT-STATE.md` update is a record-only repository change. It does not change the deployment-verified application/runtime binary SHA above and must not be treated as a new production application release solely because the documentation commit advances `main`.
+
+## Wave 4 mobile Run Observability scroll hotfix
+
+User acceptance testing on an iPhone exposed a second narrow-layout defect in Run Observability. With an active `IMPLEMENT` run and only three durable events, the fixed observability header, governed pipeline and focused section navigation consumed the available viewport while Activity only scrolled its short inner event list. Lower dashboard/support content therefore remained clipped even though the observer itself was live.
+
+Issue #227 / PR #228 corrected this without changing run semantics: compact Run Observability now has an intentional outer vertical scroll surface spanning its header, pipeline, focused navigation and selected section. Desktop/tablet composition, persisted-event semantics, read-only evidence boundaries, provider authority, Engineering Run authority and the production API remain unchanged.
+
+Permanent regression coverage `mobile-observability-scroll-smoke.mjs` reproduces the production failure shape at 390x844 with run `e65305f8-63f8-47e1-ac6c-2db0cd4dab7e`, state `IMPLEMENT` and durable sequence 3. It verifies meaningful outer vertical overflow, scrolls to lower Evidence & Audit content, confirms that content is viewport-reachable, and fails on browser errors. The test is part of the standard `test:visual` browser/Skia suite.
+
+Exact candidate `aa756c94cf49912525241bce113e5b73b9423a88` passed Parallax P2 CI #884, Bounded Autonomy #532, protected promotion evaluation, release DSPy, both Vercel Preview checks and the browser/Skia suite including the new production-shaped regression. Production deployment `dpl_vDHBaGyi4q3pAGvNpULJwi8p95RR` then reached `READY` on exact merge SHA `908c7dacbefc5286d717861e70007a9deb0fd763`; `parallax-ashy-one-20.vercel.app` resolves to it with HTTP 200, no alias error, and no deployment-scoped error/fatal logs.
+
+The observed Engineering Run was independently rechecked after deployment and remained `IMPLEMENT`, revision 2, durable sequence 3, with no failure code. The UI hotfix did not mutate, resume or infer progress for that run.
 
 ## Wave 4 mobile governed-context scroll hotfix
 
@@ -108,6 +120,7 @@ Proof-only App Builder PRs #214, #213 and #209 were closed without merge after t
 - protected live-observability routes active: **YES**;
 - Warm Editorial stabilization client deployed: **YES**;
 - mobile governed-context scroll hotfix deployed and active-run regression gate present: **YES / DEPLOYMENT-VERIFIED**;
+- mobile Run Observability outer-scroll hotfix deployed and short-event-stream regression gate present: **YES / DEPLOYMENT-VERIFIED**;
 - runtime credential recovery deployed: **YES**;
 - projected source bootstrap recovery deployed: **YES**;
 - durable lineage bootstrap recovery deployed: **YES**;
