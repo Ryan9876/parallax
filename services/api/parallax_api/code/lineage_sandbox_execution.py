@@ -146,6 +146,10 @@ class SameLineageVercelSandboxExecutor:
         filesystem = getattr(instance, "fs", None)
         if filesystem is None:
             raise SameLineageExecutionError("sandbox filesystem API is unavailable")
+        # The dependency snapshot intentionally contains no repository source and
+        # may therefore omit the transfer root entirely. Establish exactly that
+        # bounded root before recreating the accepted lineage beneath it.
+        filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
         directories = sorted(
             {
                 PurePosixPath(path).parent.as_posix()
