@@ -285,7 +285,77 @@ try {
   await mobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await mobile.getByLabel('Open Live Build observability').click();
   await mobile.getByText('Run observability', { exact: true }).waitFor({ timeout: 8000 });
-  await mobile.getByRole('tab', { name: 'Events' }).waitFor();
+  await mobile.getByTestId('live-build-focused-navigation').waitFor();
+
+  for (const section of ['Run', 'Activity', 'Code', 'Tests', 'Evidence', 'Health']) {
+    assert(await mobile.getByRole('tab', { name: section, exact: true }).count() === 1, `Focused Live Build section ${section} is missing`);
+  }
+  const sectionTargets = await mobile.getByTestId('live-build-focused-navigation').getByRole('tab').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert(sectionTargets.every((target) => target.height >= 43.5 && target.width >= 44), 'Focused Live Build section targets must remain at least 44pt');
+
+  await mobile.getByRole('tab', { name: 'Run', exact: true }).click();
+  await mobile.getByText('CURRENT AUTHORITATIVE STAGE', { exact: true }).waitFor();
+  await mobile.getByText('RECOVERY / RETRY', { exact: true }).waitFor();
+
+  await mobile.getByRole('tab', { name: 'Activity', exact: true }).click();
+  await mobile.getByTestId('run-event-11').getByText('Operator review required before completion.').waitFor();
+  const activityControls = [
+    mobile.getByRole('button', { name: 'Follow Live' }),
+    mobile.getByRole('button', { name: 'Pause View' }),
+    mobile.getByRole('button', { name: 'Jump to Latest' }),
+  ];
+  for (const control of activityControls) {
+    const box = await control.boundingBox();
+    assert(box && box.height >= 43.5 && box.width >= 44, 'Observer controls must remain at least 44pt on phone');
+  }
+  await mobile.getByRole('button', { name: 'Pause View' }).click();
+  await mobile.getByRole('button', { name: 'Jump to Latest' }).click();
+
+  await mobile.getByRole('tab', { name: 'Code', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Inspect file src/index.ts' }).waitFor({ timeout: 8000 });
+  await mobile.getByRole('button', { name: 'Inspect file src/index.ts' }).click();
+  await mobile.getByText("export const correlationStatus = 'verified';", { exact: false }).waitFor();
+  const fileTarget = await mobile.getByRole('button', { name: 'Inspect file src/index.ts' }).boundingBox();
+  assert(fileTarget && fileTarget.height >= 43.5, 'Mobile file selector target must remain at least 44pt');
+  await mobile.getByRole('tab', { name: 'Show source diff' }).click();
+  await mobile.getByText('MODIFIED · src/index.ts', { exact: true }).waitFor();
+  await mobile.getByText('+export const operatorReview = true;', { exact: false }).waitFor();
+
+  await mobile.getByRole('tab', { name: 'Tests', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Inspect TEST attempt sequence 6' }).click();
+  await mobile.getByText('TEST_FAILURE', { exact: true }).waitFor();
+  await mobile.getByRole('tab', { name: 'Show bounded command output' }).click();
+  await mobile.getByRole('button', { name: 'Inspect BUILD attempt sequence 5' }).click();
+  await mobile.getByText('python-compile', { exact: true }).waitFor();
+
+  await mobile.getByRole('tab', { name: 'Evidence', exact: true }).click();
+  await mobile.getByText('GitHub', { exact: true }).waitFor();
+  await mobile.getByText('Vercel', { exact: true }).waitFor();
+
+  await mobile.getByRole('tab', { name: 'Health', exact: true }).click();
+  await mobile.getByText('System Health', { exact: true }).waitFor();
+  await mobile.getByText('Active Run', { exact: true }).waitFor();
+  const mobileOverflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(mobileOverflow <= 1, `Phone Live Build introduced page-level horizontal overflow: ${mobileOverflow}px`);
+
+  const tablet = await browser.newPage({ viewport: { width: 834, height: 1112 } });
+  await tablet.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
+  await tablet.getByText('Observability', { exact: true }).click();
+  await tablet.getByTestId('live-build-focused-navigation').waitFor({ timeout: 8000 });
+  await tablet.getByRole('tab', { name: 'Code', exact: true }).click();
+  const tabletFileSelector = tablet.getByRole('button', { name: 'Inspect file src/index.ts' });
+  await tabletFileSelector.waitFor({ timeout: 8000 });
+  await tabletFileSelector.click();
+  await tablet.getByText("export const correlationStatus = 'verified';", { exact: false }).waitFor();
+  const tabletSelector = await tabletFileSelector.boundingBox();
+  const tabletWorkspace = await tablet.getByTestId('live-build-workspace').boundingBox();
+  assert(tabletSelector && tabletWorkspace && tabletSelector.width >= tabletWorkspace.width * 0.9 && tabletSelector.height >= 43.5, 'Tablet source selector should fill the focused Live Build workspace and remain at least 44pt');
+  await tablet.getByRole('tab', { name: 'Tests', exact: true }).click();
+  await tablet.getByRole('button', { name: 'Inspect TEST attempt sequence 6' }).click();
+  await tablet.getByText('TEST_FAILURE', { exact: true }).waitFor();
+  const tabletOverflow = await tablet.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(tabletOverflow <= 1, `Tablet Live Build introduced page-level horizontal overflow: ${tabletOverflow}px`);
+
   await mobile.getByLabel('Back to conversation').click();
   await mobile.getByLabel('Message Parallax').waitFor();
 
@@ -296,6 +366,10 @@ try {
     pauseViewObservationOnly: true,
     protectedCodeDiffEvidence: true,
     providerEvidenceBacked: true,
+    focusedPhoneComposition: true,
+    focusedTabletComposition: true,
+    minimumObserverTargets: true,
+    mobileCodeDiffTestsEvidenceHealth: true,
     mobileLiveBuildEntryAndReturn: true,
   }, null, 2));
 } finally {

@@ -125,6 +125,7 @@ export function RunEventStream({
   onFollowLive,
   onPauseView,
   onJumpLatest,
+  compact = false,
 }: {
   events: RunEventDto[];
   transport: RunTransportState;
@@ -133,10 +134,11 @@ export function RunEventStream({
   onFollowLive: (value: boolean) => void;
   onPauseView: () => void;
   onJumpLatest: () => void;
+  compact?: boolean;
 }) {
   const ref = React.useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
-  const showSupportBesideStream = width >= 1120;
+  const showSupportBesideStream = !compact && width >= 1120;
 
   React.useEffect(() => {
     if (followLive && !viewPaused) requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: true }));
@@ -147,20 +149,20 @@ export function RunEventStream({
       <SummaryStrip events={events} />
       <View style={[styles.dashboardBody, showSupportBesideStream && styles.dashboardBodyWide]}>
         <View style={styles.streamPanel}>
-          <View style={styles.toolbar}>
-            <View style={styles.toolbarCopy}>
+          <View style={[styles.toolbar, compact && styles.toolbarCompact]}>
+            <View style={[styles.toolbarCopy, compact && styles.toolbarCopyCompact]}>
               <Text style={styles.eyebrow}>PRIMARY RUN NARRATIVE</Text>
               <Text style={styles.title}>Run Event Stream</Text>
               <Text style={styles.transport}>{transport.toLowerCase()} · {events.length ? `through durable sequence ${events.at(-1)?.sequence ?? '—'}` : 'no persisted events yet'}</Text>
             </View>
-            <View style={styles.controls}>
-              <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: followLive }} onPress={() => onFollowLive(!followLive)} style={[styles.control, followLive && styles.controlSelected]}>
+            <View style={[styles.controls, compact && styles.controlsCompact]}>
+              <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: followLive }} onPress={() => onFollowLive(!followLive)} style={[styles.control, compact && styles.controlCompact, followLive && styles.controlSelected]}>
                 <Text style={styles.controlText}>Follow Live</Text>
               </TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Pause View" onPress={onPauseView} style={[styles.control, viewPaused && styles.controlSelected]}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Pause View" onPress={onPauseView} style={[styles.control, compact && styles.controlCompact, viewPaused && styles.controlSelected]}>
                 <Text style={styles.controlText}>{viewPaused ? 'Resume View' : 'Pause View'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Jump to Latest" onPress={onJumpLatest} style={styles.control}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Jump to Latest" onPress={onJumpLatest} style={[styles.control, compact && styles.controlCompact]}>
                 <Text style={styles.controlText}>Latest</Text>
               </TouchableOpacity>
             </View>
@@ -203,12 +205,16 @@ const styles = StyleSheet.create({
   dashboardBodyWide: { flexDirection: 'row', alignItems: 'stretch' },
   streamPanel: { flex: 1, minWidth: 0, minHeight: 410, borderRadius: 18, backgroundColor: 'rgba(251,247,238,0.96)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, overflow: 'hidden' },
   toolbar: { minHeight: 82, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  toolbarCompact: { alignItems: 'stretch', flexDirection: 'column', flexWrap: 'nowrap', gap: 10 },
   toolbarCopy: { flexGrow: 1, minWidth: 180 },
+  toolbarCopyCompact: { minWidth: 0 },
   eyebrow: { color: palette.rust600, fontSize: 8, fontWeight: '800', letterSpacing: 1.2 },
   title: { color: palette.charcoal950, fontSize: 18, fontWeight: '800', marginTop: 2 },
   transport: { color: palette.charcoal450, fontSize: 9, marginTop: 3 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 },
-  control: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 11, borderRadius: 12, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  controlsCompact: { width: '100%', justifyContent: 'flex-start' },
+  control: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 11, borderRadius: 12, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  controlCompact: { flexGrow: 1, alignItems: 'center' },
   controlSelected: { backgroundColor: palette.teal100, borderColor: palette.teal600 },
   controlText: { color: palette.charcoal800, fontSize: 9, fontWeight: '700' },
   pausedBanner: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: palette.teal100, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
