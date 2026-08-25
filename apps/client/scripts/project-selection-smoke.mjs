@@ -28,6 +28,7 @@ function listen(server, port) {
   });
 }
 
+// Close active sockets as well as the listener so an assertion failure cannot mask itself behind keep-alive teardown.
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
