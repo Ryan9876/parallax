@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "{OrchestrationIdentity}"
+  ],
+  "work_items": [
+    "{ApplicationObjective}"
+  ],
+  "validations": [
+    "{RepositoryEvidence}",
+    "AC-01: validate protected requirement \u2014 A READY or HUMAN_REQUIRED orchestration decision is bound to one canonical Project, Engineering Run, approved Work Specification revision/digest/acceptance set and exact S1 compatibility profile/source revision. Cross-Project, cross-run, cross-spec, stale profile or malformed identity fails closed before a READY decision can exist.",
+    "AC-02: validate protected requirement \u2014 For materially different supported S1 repository shapes (including static/web, Python service and workspace/monorepo fixtures), S4 delegates to the accepted S2 selector and deterministically binds exactly one admitted compatible skill using only the server-owned capability snapshot. Registration/input ordering and process recreation do not change the selected identity or orchestration ID.",
+    "AC-03: validate protected requirement \u2014 Every logical service requirement is resolved through the accepted S3 Project registry/resolver and recorded with exact Project/run/binding/policy identity. All required services must resolve before READY; missing, incompatible, ambiguous or conflicting requirements produce HUMAN_REQUIRED and never trigger provider fallback or guessed configuration.",
+    "AC-04: validate protected requirement \u2014 READY records only the existing `IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW` route, exact acceptance IDs and bounded S1/S2/S3 evidence. Tests prove S4 exposes no shell/filesystem/network/provider/database/credential/deployment execution surface, performs no Engineering Run/source mutation and cannot turn repository commands, skill text or service adapter IDs into authority.",
+    "AC-05: validate protected requirement \u2014 Objective acceptance IDs must exactly match the approved Work Specification-derived set. Correction-policy identity is server-owned and immutable in the decision. Attempts to omit/add acceptance criteria, lower validation/evaluation requirements, skip protected stages or substitute a different correction-policy identity fail closed; S4 cannot convert failed protected validation into success.",
+    "AC-06: validate protected requirement \u2014 Same exact inputs and bounded downstream progress evidence reproduce the same orchestration ID/disposition. Valid completed stages must be an ordered prefix of the protected route; accepted-lineage/IMPLEMENT evidence prevents representing IMPLEMENT as fresh work, and existing REVIEW/source-delivery evidence prevents representing publication as fresh work. Mismatched, duplicate, out-of-order or foreign evidence fails closed rather than authorizing duplicate mutation/provider action.",
+    "AC-07: validate protected requirement \u2014 Supported-input ambiguity or unavailable authority from S1/S2/S3 produces explicit HUMAN_REQUIRED with bounded typed reason. Unsupported/ambiguous repository, no/ambiguous skill, missing capability, missing/incompatible/ambiguous service binding and conflicting service requirements never silently select a fallback. Operator REVIEW remains the autonomous ceiling.",
+    "AC-08: validate protected requirement \u2014 Safe orchestration metadata contains only bounded canonical identities, digests, semantic tokens, acceptance IDs, admitted skill identity, safe service-resolution identity and protected-route/correction references. It contains no raw objective/conversation/source, hidden reasoning, arbitrary logs, commands, filesystem paths, secret values/handles, environment data, arbitrary URLs, provider payloads or credentials; safe metadata explicitly grants no authority.",
+    "AC-09: validate protected requirement \u2014 Wave 4 canonical Project/Work Specification/Engineering Run, protected implementation, exact-lineage BUILD/TEST/VERIFY, correction, provider/source-delivery, evaluation/auth/observability/mobile suites plus accepted S1 repository-intelligence, S2 governed-skill and S3 service-binding tests remain unchanged or stronger. S4 does not modify those accepted semantics.",
+    "AC-10: validate protected requirement \u2014 The final worker candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded orchestration domain and focused tests only, with any temporary DSPy workflow harness restored to canonical bytes. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass; the PR targets `integration/wave5-generalized-delivery`; no worker merge/deploy/migration/provider/configuration mutation occurs."
+  ],
+  "risks": [
+    "{MaterialRisk}"
+  ],
+  "spec_id": "P2-V0.18.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact Project/run/spec/profile binding",
+      "protected_requirement": "A READY or HUMAN_REQUIRED orchestration decision is bound to one canonical Project, Engineering Run, approved Work Specification revision/digest/acceptance set and exact S1 compatibility profile/source revision. Cross-Project, cross-run, cross-spec, stale profile or malformed identity fails closed before a READY decision can exist."
+    },
+    {
+      "id": "AC-02",
+      "title": "Deterministic multi-shape repository and skill composition",
+      "protected_requirement": "For materially different supported S1 repository shapes (including static/web, Python service and workspace/monorepo fixtures), S4 delegates to the accepted S2 selector and deterministically binds exactly one admitted compatible skill using only the server-owned capability snapshot. Registration/input ordering and process recreation do not change the selected identity or orchestration ID."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact Project-scoped service composition",
+      "protected_requirement": "Every logical service requirement is resolved through the accepted S3 Project registry/resolver and recorded with exact Project/run/binding/policy identity. All required services must resolve before READY; missing, incompatible, ambiguous or conflicting requirements produce HUMAN_REQUIRED and never trigger provider fallback or guessed configuration."
+    },
+    {
+      "id": "AC-04",
+      "title": "One protected execution route and no new authority",
+      "protected_requirement": "READY records only the existing `IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW` route, exact acceptance IDs and bounded S1/S2/S3 evidence. Tests prove S4 exposes no shell/filesystem/network/provider/database/credential/deployment execution surface, performs no Engineering Run/source mutation and cannot turn repository commands, skill text or service adapter IDs into authority."
+    },
+    {
+      "id": "AC-05",
+      "title": "Acceptance and correction policy cannot weaken",
+      "protected_requirement": "Objective acceptance IDs must exactly match the approved Work Specification-derived set. Correction-policy identity is server-owned and immutable in the decision. Attempts to omit/add acceptance criteria, lower validation/evaluation requirements, skip protected stages or substitute a different correction-policy identity fail closed; S4 cannot convert failed protected validation into success."
+    },
+    {
+      "id": "AC-06",
+      "title": "Replay and process recreation are duplicate-safe",
+      "protected_requirement": "Same exact inputs and bounded downstream progress evidence reproduce the same orchestration ID/disposition. Valid completed stages must be an ordered prefix of the protected route; accepted-lineage/IMPLEMENT evidence prevents representing IMPLEMENT as fresh work, and existing REVIEW/source-delivery evidence prevents representing publication as fresh work. Mismatched, duplicate, out-of-order or foreign evidence fails closed rather than authorizing duplicate mutation/provider action."
+    },
+    {
+      "id": "AC-07",
+      "title": "Material ambiguity stops HUMAN_REQUIRED",
+      "protected_requirement": "Supported-input ambiguity or unavailable authority from S1/S2/S3 produces explicit HUMAN_REQUIRED with bounded typed reason. Unsupported/ambiguous repository, no/ambiguous skill, missing capability, missing/incompatible/ambiguous service binding and conflicting service requirements never silently select a fallback. Operator REVIEW remains the autonomous ceiling."
+    },
+    {
+      "id": "AC-08",
+      "title": "Privacy-safe deterministic evidence",
+      "protected_requirement": "Safe orchestration metadata contains only bounded canonical identities, digests, semantic tokens, acceptance IDs, admitted skill identity, safe service-resolution identity and protected-route/correction references. It contains no raw objective/conversation/source, hidden reasoning, arbitrary logs, commands, filesystem paths, secret values/handles, environment data, arbitrary URLs, provider payloads or credentials; safe metadata explicitly grants no authority."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing protected runtime and accepted S1-S3 regressions remain green",
+      "protected_requirement": "Wave 4 canonical Project/Work Specification/Engineering Run, protected implementation, exact-lineage BUILD/TEST/VERIFY, correction, provider/source-delivery, evaluation/auth/observability/mobile suites plus accepted S1 repository-intelligence, S2 governed-skill and S3 service-binding tests remain unchanged or stronger. S4 does not modify those accepted semantics."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact-head worker release boundary",
+      "protected_requirement": "The final worker candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded orchestration domain and focused tests only, with any temporary DSPy workflow harness restored to canonical bytes. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass; the PR targets `integration/wave5-generalized-delivery`; no worker merge/deploy/migration/provider/configuration mutation occurs."
+    }
+  ],
+  "critique": [
+    "{finding}: Material implementation risk - Lack of deterministic route through existing IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW path for the proposed objective."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
