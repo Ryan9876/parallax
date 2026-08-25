@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Deterministic application service-binding layer for Parallax"
+  ],
+  "work_items": [
+    "Project Service Binding"
+  ],
+  "validations": [
+    "Service Requirement: Logical Service Requirement",
+    "AC-01: validate protected requirement \u2014 A binding can be admitted only to a registry whose canonical Project ID matches the binding/policy and whose exact `(binding_id, version, digest)` approval exists. Cross-Project use fails closed.",
+    "AC-02: validate protected requirement \u2014 Same binding ID/version/digest admission is idempotent. Same ID/version with changed content fails `BINDING_VERSION_CONFLICT` before unrelated approval checks. Registry ordering/digest behavior is deterministic across insertion ordering/process recreation.",
+    "AC-03: validate protected requirement \u2014 Binding/requirement contracts expose no raw URL, HTTP method/body, environment assignment, secret value, credential, token, connection string, runtime secret-handle reference, shell command, source path or deployment target field. Safe metadata proves no secret/authority material is present.",
+    "AC-04: validate protected requirement \u2014 Unapproved logical service IDs, adapter IDs/versions or secret-slot IDs fail closed with typed bounded reasons. Repository/model/skill text cannot expand these allowlists.",
+    "AC-05: validate protected requirement \u2014 For a canonical Project requirement and accepted registry, the resolver deterministically chooses only the unique eligible highest-priority binding whose service/interface/features satisfy the requirement. Input/registration ordering does not affect the selected identity.",
+    "AC-06: validate protected requirement \u2014 No match, insufficient features/interface, or tied highest-priority eligible bindings return HUMAN_REQUIRED with bounded typed reasons; the resolver never guesses or falls back based on provider/framework/repository/model hints.",
+    "AC-07: validate protected requirement \u2014 Resolution records are deterministic for the same exact Project/run/requirement/binding/policy, contain only bounded identity/features/declared-slot metadata, and contain no raw application payload, source, secret values/handles, provider payloads, unrestricted logs or hidden reasoning.",
+    "AC-08: validate protected requirement \u2014 Tests prove repository compatibility and governed skill contracts/invocations cannot create, admit or grant a binding. Service-binding availability does not satisfy or broaden S2 skill capability prerequisites.",
+    "AC-09: validate protected requirement \u2014 Wave 4 protected autonomy, lineage, implementation, BUILD/TEST/VERIFY, source delivery, provider least privilege, authentication, mobile regressions, S1 repository intelligence and S2 governed-skill tests remain unchanged or stronger.",
+    "AC-10: validate protected requirement \u2014 The candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded binding domain and focused tests only. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass. Worker PR targets `integration/wave5-generalized-delivery`; no production merge/deploy/migration/configuration/provider mutation occurs."
+  ],
+  "risks": [
+    "No secret values or generic provider proxy, exact-digest admission, adapter identity is allowlisted"
+  ],
+  "spec_id": "P2-V0.18.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact Project-scoped admission",
+      "protected_requirement": "A binding can be admitted only to a registry whose canonical Project ID matches the binding/policy and whose exact `(binding_id, version, digest)` approval exists. Cross-Project use fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Immutable binding versions and replay",
+      "protected_requirement": "Same binding ID/version/digest admission is idempotent. Same ID/version with changed content fails `BINDING_VERSION_CONFLICT` before unrelated approval checks. Registry ordering/digest behavior is deterministic across insertion ordering/process recreation."
+    },
+    {
+      "id": "AC-03",
+      "title": "No secret/provider authority in contracts",
+      "protected_requirement": "Binding/requirement contracts expose no raw URL, HTTP method/body, environment assignment, secret value, credential, token, connection string, runtime secret-handle reference, shell command, source path or deployment target field. Safe metadata proves no secret/authority material is present."
+    },
+    {
+      "id": "AC-04",
+      "title": "Declarable service/adapter/secret-slot policy",
+      "protected_requirement": "Unapproved logical service IDs, adapter IDs/versions or secret-slot IDs fail closed with typed bounded reasons. Repository/model/skill text cannot expand these allowlists."
+    },
+    {
+      "id": "AC-05",
+      "title": "Deterministic logical-service resolution",
+      "protected_requirement": "For a canonical Project requirement and accepted registry, the resolver deterministically chooses only the unique eligible highest-priority binding whose service/interface/features satisfy the requirement. Input/registration ordering does not affect the selected identity."
+    },
+    {
+      "id": "AC-06",
+      "title": "Missing/incompatible/ambiguous bindings require human action",
+      "protected_requirement": "No match, insufficient features/interface, or tied highest-priority eligible bindings return HUMAN_REQUIRED with bounded typed reasons; the resolver never guesses or falls back based on provider/framework/repository/model hints."
+    },
+    {
+      "id": "AC-07",
+      "title": "Privacy-safe replayable resolution evidence",
+      "protected_requirement": "Resolution records are deterministic for the same exact Project/run/requirement/binding/policy, contain only bounded identity/features/declared-slot metadata, and contain no raw application payload, source, secret values/handles, provider payloads, unrestricted logs or hidden reasoning."
+    },
+    {
+      "id": "AC-08",
+      "title": "S1/S2 authority remains separate",
+      "protected_requirement": "Tests prove repository compatibility and governed skill contracts/invocations cannot create, admit or grant a binding. Service-binding availability does not satisfy or broaden S2 skill capability prerequisites."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing protected runtime regressions remain green",
+      "protected_requirement": "Wave 4 protected autonomy, lineage, implementation, BUILD/TEST/VERIFY, source delivery, provider least privilege, authentication, mobile regressions, S1 repository intelligence and S2 governed-skill tests remain unchanged or stronger."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact-head worker release boundary",
+      "protected_requirement": "The candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded binding domain and focused tests only. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass. Worker PR targets `integration/wave5-generalized-delivery`; no production merge/deploy/migration/configuration/provider mutation occurs."
+    }
+  ],
+  "critique": [
+    "* The implementation of a deterministic, typed application service-binding layer in the provided software specification poses a material risk. \n\n* The lack of a generic provider proxy in the specification, as mentioned in the architecture section, creates a potential security risk. This is because the specification does not provide a way to represent arbitrary provider configurations, which could be used to bypass security controls or inject malicious code.\n\n* The absence of exact-digest admission for binding IDs and versions, as mentioned in the architecture section, also creates a potential security risk. This is because the specification does not ensure that the binding ID and version exactly match the server-owned approval, which could allow for unauthorized access or modifications to the application.\n\n* The bounded evidence for the resolver's decision-making process, as mentioned in the acceptance anchors section, is also a material risk. This is because the specification does not provide sufficient information to determine the correct binding, which could lead to incorrect or incomplete decision-making.\n\n* The fact that the specification does not provide a clear policy for handling missing or incompatible bindings, as mentioned in the acceptance anchors section, also creates a potential security risk. This is because the specification does not ensure that the resolver will return a bounded reason for the missing or incompatible binding, which could lead to incorrect or incomplete decision-making.\n\n* The lack of tests for repository compatibility and governed skill contracts/invocations, as mentioned in the acceptance anchors section, also creates a potential security risk. This is because the specification does not ensure that the binding is compatible with the repository and that the governed skill contracts/invocations are executed correctly, which could lead to unauthorized access or modifications to the application.\n\n* The fact that the specification does not provide a clear plan for resolving existing protected runtime regressions, as mentioned in the acceptance anchors section, also creates a potential security risk. This is because the specification does not ensure that the binding is compatible with the"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
