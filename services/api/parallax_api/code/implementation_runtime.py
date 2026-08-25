@@ -233,10 +233,16 @@ class ProtectedImplementationRuntime:
             return True
 
         try:
-            generation = self.generator.generate_sync(
-                request,
-                proposal_validator=proposal_is_safe,
-            )
+            if isinstance(self.generator, ImplementationGenerationCoordinator):
+                generation = self.generator.generate_sync(
+                    request,
+                    proposal_validator=proposal_is_safe,
+                )
+            else:
+                # Injected coordinators remain supported for deterministic tests
+                # and integrations. They receive no routing authority; their
+                # selected proposal is still rejected by the safe engine below.
+                generation = self.generator.generate_sync(request)
         except ImplementationGenerationFailure as exc:
             raise ImplementationContractError("protected implementation generation failed") from exc
 
