@@ -269,8 +269,8 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
     return <ScrollView style={styles.detailScroll} contentContainerStyle={styles.healthStack}><ContextRail observer={observer} run={run} stacked /></ScrollView>;
   };
 
-  return (
-    <View style={styles.root} testID="live-build-workspace">
+  const workspaceContent = (
+    <>
       <View style={[styles.header, compact && styles.headerCompact]}>
         <View style={styles.headerCopy}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back to conversation" onPress={onBack} style={styles.back}><Text style={styles.backText}>← Conversation</Text></TouchableOpacity>
@@ -314,12 +314,30 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
         <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>
         {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}
       </View>
+    </>
+  );
+
+  return (
+    <View style={styles.root} testID="live-build-workspace">
+      {compact ? (
+        <ScrollView
+          style={styles.mobileRootScroll}
+          contentContainerStyle={styles.mobileRootContent}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          testID="live-build-mobile-scroll"
+        >
+          {workspaceContent}
+        </ScrollView>
+      ) : workspaceContent}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },
+  mobileRootScroll: { flex: 1, minHeight: 0 },
+  mobileRootContent: { flexGrow: 1, paddingBottom: 18 },
   header: { minHeight: 116, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18, paddingHorizontal: 26, paddingTop: 16, paddingBottom: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
   headerCompact: { minHeight: 148, paddingHorizontal: 14, flexDirection: 'column', gap: 8 },
   headerCopy: { flex: 1, minWidth: 0 },
