@@ -1,0 +1,33 @@
+name: Control source-delivery legacy test reset
+
+on:
+  push:
+    branches:
+      - control/w4-source-delivery-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  reset-tests:
+    if: github.repository == 'Ryan9876/parallax'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: control/w4-source-delivery-recovery
+          fetch-depth: 0
+      - name: Restore generic credential contract tests and self-clean
+        shell: bash
+        run: |
+          git checkout cd83849b7e6638f681d82d9cc3425abd36e0675d -- \
+            services/api/tests/test_production_release_composition.py \
+            services/api/tests/test_runtime_credential_recovery.py
+          rm .github/workflows/control-source-delivery-legacy-test-reset.yml
+          git config user.name "Parallax Control Tower"
+          git config user.email "parallax-control-tower@users.noreply.github.com"
+          git add services/api/tests/test_production_release_composition.py \
+            services/api/tests/test_runtime_credential_recovery.py \
+            .github/workflows/control-source-delivery-legacy-test-reset.yml
+          git commit -m "test(runtime): preserve generic credential contract"
+          git push origin HEAD:control/w4-source-delivery-recovery
