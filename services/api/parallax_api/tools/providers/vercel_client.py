@@ -397,9 +397,13 @@ class VercelPreviewRestClient(VercelProviderClient):
                 return replay
             self._raise_status(response, conflict="PREVIEW_CONFLICT")
         self._raise_status(response, conflict="PREVIEW_CONFLICT")
-        return self._parse_preview(
+        payload = _dict(self._json(response))
+        deployment_id = _string(payload.get("id", payload.get("uid")))
+        # The create response is not trusted to carry complete repository/source
+        # identity. Accept only after an authenticated full deployment read-back.
+        return self._read_preview(
             target,
-            _dict(self._json(response)),
+            deployment_id,
             expected_source_revision=source_revision,
             expected_branch=branch_name,
         )
