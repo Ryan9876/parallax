@@ -57,6 +57,7 @@ def test_vercel_connect_connector_is_one_percent_encoded_path_parameter_and_deli
     provider = VercelConnectGitHubCredentialProvider(
         CONNECTOR,
         oidc_token="oidc-test-value",
+        request_delivery_permissions=True,
         transport=httpx.MockTransport(connect_handler),
         github_transport=httpx.MockTransport(scope_handler),
     )
