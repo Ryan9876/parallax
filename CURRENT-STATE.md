@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Release: Wave 4 Live Development is deployed; stabilization has integrated the runtime-credential recovery and Observability-fidelity workstreams, but functional production readiness remains suspended pending promotion and real post-cutover proof
+Release: Wave 4 Live Development is deployed; stabilization has integrated runtime-credential recovery, Observability fidelity, and Live Build/mobile convergence, but functional production readiness remains suspended pending final visual convergence, release gates, promotion, and real post-cutover proof
 Date: 2026-08-24
-Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE; RUNTIME CREDENTIAL FIX INTEGRATED BUT NOT DEPLOYED; END-TO-END AUTONOMOUS PRODUCTION READINESS NOT YET RE-VERIFIED; OBSERVABILITY FIDELITY INTEGRATED; DESKTOP/MOBILE/VISUAL ACCEPTANCE STABILIZATION REMAINS ACTIVE; WAVE 3 API RELEASE RETAINED AS ROLLBACK CANDIDATE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE; RUNTIME CREDENTIAL FIX INTEGRATED BUT NOT DEPLOYED; END-TO-END AUTONOMOUS PRODUCTION READINESS NOT YET RE-VERIFIED; OBSERVABILITY + LIVE BUILD/MOBILE FIDELITY INTEGRATED; DESKTOP/VISUAL ACCEPTANCE STABILIZATION REMAINS ACTIVE; WAVE 3 API RELEASE RETAINED AS ROLLBACK CANDIDATE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
@@ -31,10 +31,10 @@ Control-tower issue #169 owns production recovery and visual convergence on `int
 Current bounded workstream state:
 
 - #170 / `ws/w4-runtime-credential-recovery`: **ACCEPTED + INTEGRATED** at `1f5b181da733c9cb440ad005dd579799e02ab421`; production promotion/post-cutover proof still required;
-- #171 / `ws/w4-desktop-shell-convergence`: **CHANGES REQUIRED** after Control Tower browser/Skia timeout exposed a Project-selection test/interaction regression;
+- #171 / `ws/w4-desktop-shell-convergence`: **CHANGES REQUIRED / ACTIVE** while exact-head Project-selection/browser correction is being validated;
 - #172 / `ws/w4-observability-fidelity`: **ACCEPTED + INTEGRATED** at `77fc19c013dedb0d552ab495e36bc8274fc9df90`;
-- #173 / `ws/w4-livebuild-mobile-convergence`: original mobile pointer-interception defect fixed, but **RECONCILIATION REQUIRED** onto the current integration head after #172 because of the shared `RunEventStream` seam;
-- #174 / `ws/w4-visual-release-gates`: active; deterministic visual/accessibility gates plus real provider/runtime end-to-end release proof remain required.
+- #173 / `ws/w4-livebuild-mobile-convergence`: **ACCEPTED + INTEGRATED** at `d27fad3aee0557567c6fb2a19dc7fc5f357f2d63` after reconciliation onto #172 and exact-tree P2/browser/Bounded Autonomy validation;
+- #174 / `ws/w4-visual-release-gates`: **ACTIVE / NOT READY**; runtime/spec/provider gate slice is green, but its material visual gate correctly found a contextual-health card clipping defect that must remain fail-closed until resolved.
 
 Production remains deployed during stabilization, but it must not be described as ready for autonomous functional testing until the integrated #170 correction is promoted and a real protected production run proves request-scoped Connect credential acquisition, canonical repository bootstrap and advancement beyond PLAN. Final stabilization release readiness additionally requires the desktop experience to be recognizably the same product as the approved mockup family and mobile to remain intentionally composed rather than a compressed desktop layout.
 
@@ -64,7 +64,8 @@ Production activation state is explicit:
 - #170 runtime credential correction deployed to production: **NO**;
 - end-to-end autonomous production readiness re-verified after the correction: **NO**;
 - Observability dashboard fidelity workstream #172 integrated: **YES**;
-- production visual acceptance against approved mockup quality: **REOPENED — #171/#173/#174 REMAIN ACTIVE**.
+- Live Build/mobile convergence workstream #173 integrated: **YES**;
+- production visual acceptance against approved mockup quality: **REOPENED — #171/#174 REMAIN ACTIVE**.
 
 The activation boundary continues to govern both emission and observation. `PersistentRunEventSink` and the live-observability router activate only when server-owned `PARALLAX_RUN_EVENTS_ENABLED` equals exact value `1`; any other value remains inactive. Production build/preflight fails closed if the required `engineering_run_events` schema is absent.
 
