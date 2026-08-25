@@ -25,60 +25,60 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           path = Path('apps/client/src/components/observability/LiveBuildWorkspace.tsx')
           text = path.read_text()
-
           start = '  return (\n    <View style={styles.root} testID="live-build-workspace">\n'
           replacement = '  const workspaceContent = (\n    <>\n'
           if start not in text:
               raise SystemExit('LiveBuildWorkspace return start not found')
           text = text.replace(start, replacement, 1)
-
-          tail = '''      <View style={[styles.body, focused && styles.bodyFocused]}>
-        <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>
-        {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },
-'''
-          tail_replacement = '''      <View style={[styles.body, focused && styles.bodyFocused]}>
-        <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>
-        {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}
-      </View>
-    </>
-  );
-
-  return (
-    <View style={styles.root} testID="live-build-workspace">
-      {compact ? (
-        <ScrollView
-          style={styles.mobileRootScroll}
-          contentContainerStyle={styles.mobileRootContent}
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={false}
-          testID="live-build-mobile-scroll"
-        >
-          {workspaceContent}
-        </ScrollView>
-      ) : workspaceContent}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },
-  mobileRootScroll: { flex: 1, minHeight: 0 },
-  mobileRootContent: { flexGrow: 1, paddingBottom: 18 },
-'''
+          tail_lines = [
+              '      <View style={[styles.body, focused && styles.bodyFocused]}>',
+              '        <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>',
+              '        {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}',
+              '      </View>',
+              '    </View>',
+              '  );',
+              '}',
+              '',
+              'const styles = StyleSheet.create({',
+              "  root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },",
+          ]
+          tail = '\n'.join(tail_lines) + '\n'
+          replacement_lines = [
+              '      <View style={[styles.body, focused && styles.bodyFocused]}>',
+              '        <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>',
+              '        {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}',
+              '      </View>',
+              '    </>',
+              '  );',
+              '',
+              '  return (',
+              '    <View style={styles.root} testID="live-build-workspace">',
+              '      {compact ? (',
+              '        <ScrollView',
+              '          style={styles.mobileRootScroll}',
+              '          contentContainerStyle={styles.mobileRootContent}',
+              '          nestedScrollEnabled',
+              '          showsVerticalScrollIndicator={false}',
+              '          testID="live-build-mobile-scroll"',
+              '        >',
+              '          {workspaceContent}',
+              '        </ScrollView>',
+              '      ) : workspaceContent}',
+              '    </View>',
+              '  );',
+              '}',
+              '',
+              'const styles = StyleSheet.create({',
+              "  root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },",
+              '  mobileRootScroll: { flex: 1, minHeight: 0 },',
+              '  mobileRootContent: { flexGrow: 1, paddingBottom: 18 },',
+          ]
+          tail_replacement = '\n'.join(replacement_lines) + '\n'
           if tail not in text:
               raise SystemExit('LiveBuildWorkspace return tail not found')
-          text = text.replace(tail, tail_replacement, 1)
-          path.write_text(text)
+          path.write_text(text.replace(tail, tail_replacement, 1))
           PY
       - name: Remove temporary mutation harness
         run: rm .github/workflows/w4-mobile-observability-scroll-apply.yml
