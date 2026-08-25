@@ -1,0 +1,57 @@
+name: Control source-delivery test contract fix
+
+on:
+  push:
+    branches:
+      - control/w4-source-delivery-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.repository == 'Ryan9876/parallax'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: control/w4-source-delivery-recovery
+          fetch-depth: 0
+      - name: Align legacy credential assertions and self-clean
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          expected = '''{"subject": {"type": "app"}}'''
+          replacement = '''{
+              "subject": {"type": "app"},
+              "authorizationDetails": [
+                  {
+                      "type": "github_app_installation",
+                      "repositories": ["Ryan9876/parallax"],
+                      "permissions": ["contents:write", "metadata:read", "pull_requests:write"],
+                  }
+              ],
+          }'''
+
+          targets = (
+              Path("services/api/tests/test_production_release_composition.py"),
+              Path("services/api/tests/test_runtime_credential_recovery.py"),
+          )
+          for path in targets:
+              text = path.read_text(encoding="utf-8")
+              needle = f"assert json.loads(request.content) == {expected}"
+              repl = f"assert json.loads(request.content) == {replacement}"
+              count = text.count(needle)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one legacy assertion, found {count}")
+              path.write_text(text.replace(needle, repl, 1), encoding="utf-8")
+
+          Path(".github/workflows/control-source-delivery-test-contract-fix.yml").unlink()
+          PY
+          git config user.name "Parallax Control Tower"
+          git config user.email "parallax-control-tower@users.noreply.github.com"
+          git add services/api/tests/test_production_release_composition.py services/api/tests/test_runtime_credential_recovery.py .github/workflows/control-source-delivery-test-contract-fix.yml
+          git commit -m "test(runtime): align scoped credential contract expectations"
+          git push origin HEAD:control/w4-source-delivery-recovery
