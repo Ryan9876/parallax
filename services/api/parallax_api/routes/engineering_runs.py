@@ -4,7 +4,7 @@ import json
 import os
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..auth import AccessPrincipal, access_principal
@@ -26,6 +26,7 @@ from ..code.runtime_composition import (
     RuntimeCompositionError,
     production_durable_lineage_allocator,
 )
+from ..code.runtime_credentials import runtime_vercel_oidc_token
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
@@ -96,6 +97,16 @@ def runtime_lineage_allocator(
     """
 
     return production_durable_lineage_allocator(session.get_bind())
+
+
+def runtime_oidc_token(request: Request) -> str | None:
+    """Resolve Vercel's request-scoped runtime identity without secret fallback."""
+
+    try:
+        return runtime_vercel_oidc_token(request.headers)
+    except ProductionDeliveryConfigurationError as exc:
+        record_bootstrap_failure(exc, default_stage="delivery-composition")
+        raise HTTPException(503, str(exc)) from exc
 
 
 def worker_recovery_service(svc: EngineeringRunService) -> WorkerRecoveryService:
@@ -239,6 +250,7 @@ def autonomous(
     payload: EngineeringOperation,
     svc: EngineeringRunService = Depends(service),
     allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
+    oidc_token: str | None = Depends(runtime_oidc_token),
 ):
     legacy_executor = VercelSandboxExecutor()
     if allocator is None:
@@ -247,12 +259,14 @@ def autonomous(
         run = invoke(lambda: svc.get(run_id))
         if not run.project_id:
             raise HTTPException(422, "Wave 2 autonomous execution requires a Project-bound run")
+        delivery_kwargs = {"oidc_token": oidc_token} if isinstance(oidc_token, str) else {}
         source_delivery = invoke(
             lambda: production_source_delivery(
                 svc.runs.session,
                 owner_subject=svc.owner_subject or "",
                 allocator=allocator,
                 project_id=run.project_id or "",
+                **delivery_kwargs,
             )
         )
         runtime = EngineeringRuntimeComposition(
