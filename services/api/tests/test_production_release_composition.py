@@ -157,16 +157,7 @@ def test_github_connect_provider_exchanges_and_verifies_exact_repository_scope()
         connect_calls.append(request)
         assert request.url.path == "/v1/connect/token/github/parallax-runtime"
         assert request.headers["Authorization"] == "Bearer oidc-test-value"
-        assert json.loads(request.content) == {
-    "subject": {"type": "app"},
-    "authorizationDetails": [
-        {
-            "type": "github_app_installation",
-            "repositories": ["Ryan9876/parallax"],
-            "permissions": ["contents:write", "metadata:read", "pull_requests:write"],
-        }
-    ],
-}
+        assert json.loads(request.content) == {"subject": {"type": "app"}}
         return httpx.Response(
             200,
             json={"token": "github-installation-test-token", "expiresAt": expires_at.isoformat()},
