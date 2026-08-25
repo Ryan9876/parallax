@@ -94,6 +94,7 @@ def main() -> None:
             result.update({
                 "source_context": "FAIL",
                 "source_context_error_class": type(exc).__name__,
+                "source_context_error": str(exc),
             })
     except Exception as exc:
         result.update({
