@@ -51,9 +51,9 @@ class FakeFilesystem:
 
 
 class FakeSandboxInstance:
-    def __init__(self, filesystem: FakeFilesystem, *, source_snapshot_id: str = SNAPSHOT_ID):
+    def __init__(self, filesystem: FakeFilesystem, *, current_snapshot_id: str = SNAPSHOT_ID):
         self.fs = filesystem
-        self.source_snapshot_id = source_snapshot_id
+        self.current_snapshot_id = current_snapshot_id
         self.process_calls = []
 
     def run_process(self, command, args, **kwargs):
@@ -127,12 +127,12 @@ def executor_fixture(
     *,
     fail_write=False,
     cleanup_error=False,
-    source_snapshot_id=SNAPSHOT_ID,
+    current_snapshot_id=SNAPSHOT_ID,
 ):
     workspace, files = workspace_fixture(tmp_path)
     allocator = FakeAllocator(workspace, cleanup_error=cleanup_error)
     filesystem = FakeFilesystem(fail_write=fail_write)
-    instance = FakeSandboxInstance(filesystem, source_snapshot_id=source_snapshot_id)
+    instance = FakeSandboxInstance(filesystem, current_snapshot_id=current_snapshot_id)
     sandbox = FakeSandboxModule(instance)
     executor = SameLineageVercelSandboxExecutor(
         allocator,
@@ -187,7 +187,7 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
 def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_match(tmp_path):
     executor, allocator, filesystem, instance, sandbox, _ = executor_fixture(
         tmp_path,
-        source_snapshot_id="snap_wrong-runtime",
+        current_snapshot_id="snap_wrong-runtime",
     )
     spec = ProtectedCommandRegistry().spec_for(WorkflowStage.TEST, operation_key="test:snapshot")
 
