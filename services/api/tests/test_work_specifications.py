@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from parallax_api.db import Base, make_engine
+from parallax_api.intelligence.project_context import compose_project_capability_context
 from parallax_api.intelligence.work_specification import (
     WorkSpecificationCoordinator,
     WorkSpecificationDraft,
@@ -217,7 +218,8 @@ def test_work_specification_routes_use_explicit_draft_then_approval():
             )
 
     class FakeCoordinator:
-        async def draft(self, messages):
+        async def draft(self, messages, *, project_context=None):
+            assert project_context is None
             assert messages[0].role == "user"
             return WorkSpecificationGeneration(
                 draft=WorkSpecificationDraft(
@@ -250,3 +252,20 @@ def test_work_specification_routes_use_explicit_draft_then_approval():
     resumed = client.post("/v1/conversations/conversation-test/work-specifications/resume-approved-scope")
     assert resumed.status_code == 200
     assert resumed.json()["status"] == "ACTIVE"
+
+
+def test_work_spec_context_includes_server_authoritative_project_capability():
+    coordinator = WorkSpecificationCoordinator()
+    messages = [
+        SimpleNamespace(role="user", content="Animate the Parallax logo."),
+        SimpleNamespace(role="assistant", content="I cannot access the repository; upload the files."),
+    ]
+    project_context = compose_project_capability_context(
+        project_id="project-1",
+        repository_ref="github:ryan9876/parallax",
+    )
+    objective, context = coordinator.conversation_context(messages, project_context=project_context)
+    assert objective == "Animate the Parallax logo."
+    assert context.startswith("SERVER_PROJECT_CONTEXT:\n[SERVER AUTHORITATIVE]")
+    assert "github:ryan9876/parallax" in context
+    assert "ASSISTANT: I cannot access the repository" in context

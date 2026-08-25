@@ -185,15 +185,44 @@ class AutonomyCoordinator:
                         expected_revision=run.revision,
                     )
                 except ImplementationRuntimeError as exc:
+                    if exc.mutation_applied:
+                        steps.append(
+                            AutonomyStep(
+                                stage=stage.value,
+                                outcome="FAILED_AFTER_MUTATION",
+                                tool_id="implementation-runtime",
+                            )
+                        )
+                        return AutonomyResult(
+                            run=self.service.get(run.id),
+                            stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
+                            steps=tuple(steps),
+                        )
+                    failed = self.service.complete_stage(
+                        run_id=run.id,
+                        stage=WorkflowStage.IMPLEMENT,
+                        operation_key=stage_key,
+                        expected_revision=run.revision,
+                        passed=False,
+                        evidence={
+                            "error_class": type(exc).__name__,
+                            "mutation_applied": False,
+                        },
+                        failure_code="AUTONOMOUS_IMPLEMENT_FAILED",
+                        program_id="protected-implementation-runtime-v0.15.4",
+                        tool_id="safe-source-implementation-v1",
+                    )
                     steps.append(
                         AutonomyStep(
                             stage=stage.value,
-                            outcome="FAILED_AFTER_MUTATION" if exc.mutation_applied else "FAILED",
+                            outcome="FAILED",
+                            attempt_id=failed.attempt_id,
+                            replayed=failed.replayed,
                             tool_id="implementation-runtime",
                         )
                     )
                     return AutonomyResult(
-                        run=self.service.get(run.id),
+                        run=failed.run,
                         stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
                         steps=tuple(steps),
                     )

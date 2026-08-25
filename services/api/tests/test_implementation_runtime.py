@@ -518,9 +518,15 @@ def test_autonomy_runtime_failure_stops_without_fabricated_implement_success(tmp
             implementation_runtime=runtime,
         ).run(run_id=run.id, operation_key="auto-implement-fail", expected_revision=run.revision)
         assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
-        assert result.run.state == "IMPLEMENT"
+        assert result.run.state == "FAILED"
+        assert result.run.resume_stage == "IMPLEMENT"
+        assert result.run.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
         assert result.steps[-1].stage == "IMPLEMENT"
         assert result.steps[-1].outcome == "FAILED"
+        failed = [item for item in result.run.attempts if item.stage == "IMPLEMENT"]
+        assert len(failed) == 1
+        assert failed[0].status == "FAILED"
+        assert failed[0].failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
         assert target.read_text(encoding="utf-8") == "value = 1\n"
     finally:
         session.close()

@@ -8,6 +8,7 @@ from parallax_api.intelligence.context import (
     ContextLimits,
     compose_reason_context,
 )
+from parallax_api.intelligence.project_context import compose_project_capability_context
 from parallax_api.intelligence.protected_metrics import evaluate_reason_result, evaluate_scope_output
 from parallax_api.intelligence.scope import (
     ProtectedScopePolicy,
@@ -166,3 +167,26 @@ def test_reason_metric_allows_safe_chain_of_thought_refusal_but_rejects_private_
     assert safe.passed is True
     assert exposed.passed is False
     assert "reason_hidden_reasoning_exposed" in exposed.failures
+
+
+def test_project_bound_code_context_overrides_false_assistant_repository_assumption():
+    project_context = compose_project_capability_context(
+        project_id="project-1",
+        repository_ref="github:ryan9876/parallax",
+    )
+    bundle = compose_reason_context(
+        conversation_id="conversation-code",
+        spec_id="P2-V0.17.5",
+        status="ACTIVE",
+        mode="code",
+        current_user_turn="Animate the Parallax logo.",
+        prior_messages=[
+            message("assistant", "I do not have access to the repository; upload its files."),
+        ],
+        project_context=project_context,
+    )
+    assert "[SERVER AUTHORITATIVE]" in bundle.text
+    assert "github:ryan9876/parallax" in bundle.text
+    assert "REGISTERED_FOR_BOUND_REPOSITORY" in bundle.text
+    assert "[ASSISTANT CONTEXT_ONLY] I do not have access" in bundle.text
+    assert "does not, by itself, require the user to upload repository files" in bundle.text

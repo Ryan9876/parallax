@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from ..intelligence.work_specification import WorkSpecificationDraft
+from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
 
@@ -12,11 +13,13 @@ class WorkSpecificationService:
         self,
         repository: WorkSpecificationRepository,
         conversations: ConversationRepository,
+        project_repository: ProjectRepository | None = None,
         *,
         owner_subject: str | None = None,
     ):
         self.repository = repository
         self.conversations = conversations
+        self.projects = project_repository
         self.owner_subject = owner_subject.strip() if owner_subject else None
 
     def conversation(self, conversation_id: str):
@@ -28,6 +31,13 @@ class WorkSpecificationService:
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
+
+    def project_for_conversation(self, conversation):
+        if conversation.project_id is None:
+            return None
+        if self.projects is None or not self.owner_subject:
+            return None
+        return self.projects.get_for_owner(conversation.project_id, self.owner_subject)
 
     def latest(self, conversation_id: str):
         self.conversation(conversation_id)

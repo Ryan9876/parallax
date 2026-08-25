@@ -10,6 +10,7 @@ from ..auth import AccessPrincipal, access_principal
 from ..config import settings
 from ..db import get_session
 from ..intelligence.context import ContextLimitError, compose_reason_context
+from ..intelligence.project_context import compose_project_capability_context
 from ..intelligence.coordinator import ResponseCoordinationFailure, ResponseCoordinator
 from ..intelligence.scope import ScopeDecision
 from ..projects.repository import ProjectRepository
@@ -79,6 +80,14 @@ async def stream_response(
         yield event("state", {"phase": "THINKING"})
 
         try:
+            project_context = None
+            if conversation.mode == "code" and conversation.project_id:
+                project = svc.project_for_conversation(conversation)
+                if project is not None:
+                    project_context = compose_project_capability_context(
+                        project_id=project.id,
+                        repository_ref=project.repository_ref,
+                    )
             context = compose_reason_context(
                 conversation_id=conversation.id,
                 spec_id=conversation.spec_id,
@@ -86,6 +95,7 @@ async def stream_response(
                 mode=conversation.mode,
                 current_user_turn=payload.content,
                 prior_messages=prior_messages,
+                project_context=project_context,
             )
             result = await ResponseCoordinator().respond(
                 conversation_id=conversation.id,
