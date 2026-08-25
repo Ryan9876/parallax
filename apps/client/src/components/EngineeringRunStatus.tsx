@@ -4,13 +4,14 @@ import type { EngineeringRunDto } from '../lib/api';
 import { palette } from '../theme';
 
 const STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
-const AUTONOMOUS_STAGES = ['PLAN', 'BUILD', 'TEST', 'VERIFY'];
+const AUTONOMOUS_STAGES = ['PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY'];
 type EngineeringRunView = EngineeringRunDto & { autonomy_stop_reason?: string | null };
 
 function autonomyBoundary(run: EngineeringRunDto, stopReason?: string | null): string | null {
   const reported = {
     EXECUTOR_UNAVAILABLE: 'Autonomy stopped · isolated executor unavailable; no plan state was changed',
-    IMPLEMENTATION_REQUIRED: 'Autonomy boundary · implementation evidence required',
+    IMPLEMENTATION_REQUIRED: 'Autonomy boundary · protected implementation can continue here',
+    IMPLEMENTATION_FAILED: 'Autonomy stopped · protected implementation failed before acceptance; review the recorded failure and resume explicitly',
     REVIEW_REQUIRED: 'Autonomy boundary · independent review required',
     EXECUTION_FAILED: 'Autonomy stopped · protected execution failed; review the recorded evidence before resuming',
     PAUSED: 'Autonomy stopped · run is paused',

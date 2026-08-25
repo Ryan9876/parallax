@@ -35,6 +35,11 @@ class ConversationService:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
 
+    def project_for_conversation(self, conversation):
+        if conversation.project_id is None:
+            return None
+        return self._resolve_project(conversation.project_id)
+
     def create(self, mode: str, project_id: str | None = None):
         if self.require_project_binding and mode == "code" and project_id is None:
             raise HTTPException(status_code=422, detail="Code conversations require a canonical Project")

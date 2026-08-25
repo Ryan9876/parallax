@@ -3,7 +3,7 @@ import { api, type EngineeringRunDto } from '../lib/api';
 import { runEngineeringAutonomy } from '../lib/autonomyApi';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
 
-const AUTONOMOUS_STAGES = new Set(['PLAN', 'BUILD', 'TEST', 'VERIFY']);
+const AUTONOMOUS_STAGES = new Set(['PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY']);
 type EngineeringRunView = EngineeringRunDto & { autonomy_stop_reason?: string | null };
 
 export function useEngineeringRun(conversationId: string | null, enabled: boolean) {

@@ -447,6 +447,7 @@ export default function App() {
 
             {workspaceView === 'conversation' ? (
               <>
+                {!compact ? (
                 <View style={styles.governedContext}>
                   <WorkSpecificationStatus
                     specification={workSpecification.specification}
@@ -473,6 +474,7 @@ export default function App() {
                     </TouchableOpacity>
                   ) : null}
                 </View>
+                ) : null}
 
                 <ScrollView
                   ref={threadRef}
@@ -483,6 +485,34 @@ export default function App() {
                   onContentSizeChange={handleThreadContentSizeChange}
                   scrollEventThrottle={32}
                 >
+                  {compact ? (
+                <View style={styles.governedContext}>
+                  <WorkSpecificationStatus
+                    specification={workSpecification.specification}
+                    busy={workSpecification.busy}
+                    error={workSpecification.error}
+                    canDraft={canDraftWorkSpecification}
+                    onDraft={() => void workSpecification.draft()}
+                    onApprove={() => void workSpecification.approve()}
+                  />
+
+                  {mode === 'code' && engineering.run ? (
+                    <EngineeringRunStatus
+                      run={engineering.run}
+                      busy={engineering.busy}
+                      onPause={() => void engineering.pause()}
+                      onResume={() => void engineering.resume()}
+                      onCancel={() => void engineering.cancel()}
+                    />
+                  ) : null}
+
+                  {compact && mode === 'code' && engineering.run ? (
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open Live Build observability" onPress={() => setWorkspaceView('observability')} style={styles.mobileLiveBuild}>
+                      <Text style={styles.mobileLiveBuildText}>Open Live Build · Observability</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                  ) : null}
                   {messages.length === 0 ? (
                     <View style={styles.emptyState}>
                       <View style={styles.emptyLogoWell}><ParallaxLogo size={62} /></View>

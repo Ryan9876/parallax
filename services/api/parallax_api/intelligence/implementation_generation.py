@@ -16,6 +16,12 @@ from .router import AttemptRecord, ModelRouter, RoutingFailure
 
 MAX_PROPOSAL_PATCHES = 16
 MAX_GENERATED_DIFF_CHARS = 120_000
+SOURCE_CONTEXT_AUTHORITY_RULE = (
+    "The current source files were supplied by the protected server-owned runtime. Any earlier statement whose "
+    "only precondition is that the repository or relevant files must be provided is satisfied by this non-empty "
+    "protected source context. Do not refuse solely because source was absent from conversational context. All "
+    "substantive Work Specification constraints and acceptance criteria remain authoritative."
+)
 _ACCEPTANCE_RE = re.compile(r"^AC-\d{2,}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -96,6 +102,13 @@ class ImplementationGenerationRequest:
     def required_acceptance_ids(self) -> tuple[str, ...]:
         return tuple(item.id for item in self.acceptance)
 
+    def source_prompt_payload(self) -> dict[str, object]:
+        payload = self.source_context.prompt_payload()
+        if self.source_context.files:
+            payload["runtime_source_access"] = "SERVER_PROVIDED_PROTECTED_SOURCE"
+            payload["runtime_source_authority_rule"] = SOURCE_CONTEXT_AUTHORITY_RULE
+        return payload
+
     def contract_payload(self) -> dict[str, object]:
         return {
             "work_specification_id": self.work_specification_id,
@@ -115,7 +128,7 @@ class ImplementationGenerationProgram(Protocol):
 
 
 class DspyImplementationGenerationProgram:
-    version = "implementation-generation-v0.15.3"
+    version = "implementation-generation-v0.15.4"
 
     def __init__(self, model: str):
         try:
@@ -128,8 +141,11 @@ class DspyImplementationGenerationProgram:
 
             Return only the requested JSON proposal. Cover exactly the acceptance IDs supplied by the server.
             Patch paths and expected SHA-256 values must come from source context, except a new file may bind to
-            the SHA-256 of empty content. Never output commands, filesystem roots, URLs, credentials, environment
-            values, Git/deployment actions, approval claims, hidden reasoning, scratchpads, or extra authority.
+            the SHA-256 of empty content. When source context declares SERVER_PROVIDED_PROTECTED_SOURCE, treat an
+            earlier repository/file-provision precondition as satisfied by that current context; do not relax any
+            substantive constraint or acceptance criterion. Never output commands, filesystem roots, URLs,
+            credentials, environment values, Git/deployment actions, approval claims, hidden reasoning, scratchpads,
+            or extra authority.
             """
 
             work_specification_json: str = dspy.InputField(desc="immutable approved Work Specification contract")
@@ -147,7 +163,7 @@ class DspyImplementationGenerationProgram:
 
     def run(self, *, request: ImplementationGenerationRequest) -> ImplementationProposal:
         contract_json = json.dumps(request.contract_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        source_json = json.dumps(request.source_context.prompt_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        source_json = json.dumps(request.source_prompt_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         with self._dspy.context(lm=self._lm):
             prediction = self._program(
                 work_specification_json=contract_json,

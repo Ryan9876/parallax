@@ -238,10 +238,26 @@ function apiServer() {
       const payload = await body(request);
       assert(payload.expected_revision === engineeringRun?.revision, 'autonomy request used a stale run revision');
       assert(typeof payload.operation_key === 'string' && payload.operation_key.startsWith('autonomous-'), 'autonomy request omitted operation identity');
+      engineeringRun = {
+        ...engineeringRun,
+        state: 'IMPLEMENT',
+        revision: engineeringRun.revision + 1,
+        updated_at: new Date().toISOString(),
+        attempts: [...engineeringRun.attempts, {
+          id: '66666666-6666-4666-8666-666666666666',
+          stage: 'PLAN',
+          attempt_number: 1,
+          status: 'PASSED',
+          failure_code: null,
+          evidence: { executor_preflight: 'passed' },
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+        }],
+      };
       json(response, 200, {
         run: engineeringRun,
-        stop_reason: 'EXECUTOR_UNAVAILABLE',
-        steps: [{ stage: 'EXECUTOR', outcome: 'FAILED', attempt_id: null, replayed: false, tool_id: 'python' }],
+        stop_reason: 'IMPLEMENTATION_REQUIRED',
+        steps: [{ stage: 'PLAN', outcome: 'PASSED', attempt_id: '66666666-6666-4666-8666-666666666666', replayed: false, tool_id: null }],
       }, origin);
       return;
     }
@@ -285,8 +301,9 @@ async function exerciseCodeBinding(page) {
   const autonomy = page.getByLabel('Run autonomously');
   await autonomy.waitFor({ timeout: 5000 });
   await autonomy.click();
-  await page.getByText(/isolated executor unavailable; no plan state was changed/).waitFor({ timeout: 5000 });
-  await page.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
+  await page.getByText('Code run · IMPLEMENT').waitFor({ timeout: 5000 });
+  await page.getByText(/protected implementation can continue here/).waitFor({ timeout: 5000 });
+  await page.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
 }
 
 const normal = staticServer();
@@ -306,7 +323,7 @@ try {
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
-  await reduced.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
+  await reduced.getByText('Code run · IMPLEMENT').waitFor({ timeout: 5000 });
   await reduced.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
   await reduced.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
@@ -315,7 +332,7 @@ try {
   console.log(JSON.stringify({
     canonicalProjectBinding: true,
     codeSpecBinding: true,
-    boundedAutonomyStopState: true,
+    boundedAutonomyImplementContinuation: true,
     reducedGraphicsParity: true,
   }, null, 2));
 } finally {
