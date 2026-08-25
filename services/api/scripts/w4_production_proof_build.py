@@ -36,16 +36,22 @@ def main() -> None:
         raise RuntimeError("Parallax preview access credential is unavailable")
 
     run = request_json(token, f"/v1/engineering-runs/{RUN_ID}")
+    if not isinstance(run, dict):
+        raise RuntimeError("diagnostic run response is invalid")
     events = request_json(token, f"/v1/engineering-runs/{RUN_ID}/events?after_sequence=0&limit=200")
+    specification = request_json(
+        token,
+        f"/v1/conversations/{run['conversation_id']}/work-specifications/approved",
+    )
+
     attempts = []
-    if isinstance(run, dict):
-        for item in run.get("attempts", []):
-            if isinstance(item, dict):
-                attempts.append({
-                    "stage": item.get("stage"),
-                    "status": item.get("status"),
-                    "failure_code": item.get("failure_code"),
-                })
+    for item in run.get("attempts", []):
+        if isinstance(item, dict):
+            attempts.append({
+                "stage": item.get("stage"),
+                "status": item.get("status"),
+                "failure_code": item.get("failure_code"),
+            })
     event_rows = []
     if isinstance(events, dict):
         for item in events.get("events", []):
@@ -58,13 +64,24 @@ def main() -> None:
                     "failure_code": item.get("failure_code"),
                 })
 
+    spec_safe = None
+    if isinstance(specification, dict):
+        spec_safe = {
+            "title": specification.get("title"),
+            "objective": specification.get("objective"),
+            "constraints": specification.get("constraints"),
+            "acceptance_criteria": specification.get("acceptance_criteria"),
+            "risks": specification.get("risks"),
+        }
+
     safe = {
         "run_id": RUN_ID,
-        "state": run.get("state") if isinstance(run, dict) else None,
-        "revision": run.get("revision") if isinstance(run, dict) else None,
-        "last_failure_code": run.get("last_failure_code") if isinstance(run, dict) else None,
+        "state": run.get("state"),
+        "revision": run.get("revision"),
+        "last_failure_code": run.get("last_failure_code"),
         "attempts": attempts,
         "events": event_rows,
+        "work_specification": spec_safe,
     }
     print(json.dumps(safe, indent=2, sort_keys=True))
     raise RuntimeError("diagnostic-only preview intentionally stops after sanitized state capture")
