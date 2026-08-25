@@ -148,20 +148,13 @@ class SameLineageVercelSandboxExecutor:
             raise SameLineageExecutionError("sandbox filesystem API is unavailable")
         # The dependency snapshot intentionally contains no repository source and
         # may therefore omit the transfer root entirely. Establish exactly that
-        # bounded root before recreating the accepted lineage beneath it.
+        # bounded root, then stage the already-validated accepted lineage through
+        # the SDK's public batch API so the complete file set crosses one remote
+        # filesystem request instead of one request per source file.
         filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
-        directories = sorted(
-            {
-                PurePosixPath(path).parent.as_posix()
-                for path, _ in files
-                if PurePosixPath(path).parent.as_posix() not in {"", "."}
-            },
-            key=lambda value: (value.count("/"), value),
-        )
-        for directory in directories:
-            filesystem.mkdir(directory, cwd=_SANDBOX_SOURCE_ROOT, recursive=True)
-        for path, content in files:
-            filesystem.write_bytes(path, content, cwd=_SANDBOX_SOURCE_ROOT)
+        with filesystem.batch(cwd=_SANDBOX_SOURCE_ROOT) as batch:
+            for path, content in files:
+                batch.write_bytes(path, content)
 
     def execute_on_lineage(
         self,
