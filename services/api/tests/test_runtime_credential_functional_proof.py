@@ -244,12 +244,17 @@ def test_runtime_oidc_bootstraps_canonical_repository_then_advances_beyond_plan(
 
         # The real production composition installs the protected implementation
         # runtime. This proof intentionally supplies no implementation proposal,
-        # so the bounded run must cross PLAN into IMPLEMENT and then fail closed
-        # before mutation rather than stopping at the legacy implementation seam.
+        # so the bounded run must cross PLAN into IMPLEMENT and then record an
+        # explicit pre-mutation failure rather than stopping at a silent active seam.
         assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
-        assert result.run.state == "IMPLEMENT"
+        assert result.run.state == "FAILED"
+        assert result.run.resume_stage == "IMPLEMENT"
+        assert result.run.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
         assert [step.stage for step in result.steps] == ["EXECUTOR", "PLAN", "IMPLEMENT"]
         assert result.steps[-1].outcome == "FAILED"
+        failed = [item for item in result.run.attempts if item.stage == "IMPLEMENT"]
+        assert len(failed) == 1
+        assert failed[0].status == "FAILED"
         assert executor.probes == ["runtime-credential-functional-proof:executor-probe:1"]
         lineage = allocator.current_lineage(ProjectRunIdentity(project.id, run.id))
         assert lineage.project_id == project.id
