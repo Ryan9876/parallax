@@ -142,9 +142,11 @@ class BoundedSourceContextSelector:
                 omitted_bounded += 1
                 continue
             if size > self.max_file_bytes:
-                # A ranked material file is never silently truncated into a
-                # misleading partial context.
-                raise SourceContextLimitError(f"selected source file exceeds the per-file context limit: {normalized}")
+                # Preserve the per-file ceiling without truncating a ranked file
+                # into misleading partial context. An oversized file is omitted
+                # whole and counted so smaller eligible context can still be used.
+                omitted_bounded += 1
+                continue
             if total + size > self.max_total_bytes:
                 omitted_bounded += 1
                 continue
