@@ -312,7 +312,9 @@ class VercelHappyTransport:
                 },
             }
             assert "target" not in body
-            return httpx.Response(200, json=self._deployment("QUEUED"))
+            # Current create responses are not required to echo repository/source
+            # identity. The client must validate those fields via full read-back.
+            return httpx.Response(200, json={"id": "dpl_preview_1", "readyState": "QUEUED"})
         if request.method == "GET" and path == "/v13/deployments/dpl_preview_1":
             return httpx.Response(200, json=self._deployment("READY"))
         raise AssertionError(f"unexpected Vercel request: {request.method} {request.url}")
@@ -337,7 +339,7 @@ def test_vercel_concrete_client_is_preview_only_and_reuses_exact_preview() -> No
         "parallax/run-1",
         LINEAGE,
     )
-    assert created.status is VercelPreviewStatus.QUEUED
+    assert created.status is VercelPreviewStatus.READY
     assert created.source_revision == COMMIT
     assert handler.create_posts == 1
     read_back = client.read_preview(TARGET.vercel_project_ref, "dpl_preview_1")
