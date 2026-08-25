@@ -6,80 +6,48 @@ Status: **WAVE 3 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.16.5; W
 
 ## Current production truth
 
-The authoritative repository `main` application head for the current verified API release is:
+Current deployment-verified production remains the Wave 3 app-builder API release `dpl_963A6hsjRH8uma7uRSE8QAJap3vb` on application merge `e9a0d82c8ed9ea2e0ee18e8b24da5d6e70adb38a`, with `/health` and `/ready` passing, protected unauthenticated access returning 401, and prior post-cutover logs clean.
 
-- `e9a0d82c8ed9ea2e0ee18e8b24da5d6e70adb38a` — merge of PR #160, `[Hotfix] Verify bootstrap through EngineeringRuntimeComposition`.
-
-The current verified production API deployment is:
-
-- `dpl_963A6hsjRH8uma7uRSE8QAJap3vb` — **READY** on exact application merge `e9a0d82c8ed9ea2e0ee18e8b24da5d6e70adb38a`;
-- production alias `parallax-api-tan.vercel.app` points to this release;
-- `/health` returns 200 with `status=ok`;
-- `/ready` returns 200 with `status=ready` and `database=ok`;
-- unauthenticated `/v1/projects` returns 401 with the Bearer challenge;
-- deployment-scoped error/fatal runtime logs are empty after cutover;
-- deployment-scoped `source_bootstrap_failed` logs are empty after cutover.
-
-The Wave 3 protected app-builder runtime remains the deployment-verified production execution architecture through `P2-V0.16.5`. Wave 4 source through `P2-V0.17.4` is integrated on repository `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`, including the Warm Editorial shell and governed Live Build/Observability client, but those facts do not by themselves establish production activation or deployment. `P2-V0.17.5` is the final integrated release-proof boundary.
+Wave 4 source through `P2-V0.17.4` is integrated on repository `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`, including the Warm Editorial shell and governed Live Build/Observability client. These source facts do not establish production migration, activation or deployment. `P2-V0.17.5` is the final integrated release-proof boundary.
 
 ## Wave 4 source integration and activation state
 
-Wave 4 experience/design, durable run-event telemetry, resumable transport/protected reads, Warm Editorial shell and Live Build/Observability workspace (`P2-V0.17.0` through `P2-V0.17.4`, issues #144–#148) are **source integrated but not yet production migration/activation/deployment verified**. `P2-V0.17.5` / #149 is the active integrated reference-proof and release boundary.
+- #144 / `P2-V0.17.0`: experience/design contract integrated;
+- #145 / `P2-V0.17.1`: durable append-only run-event projection integrated;
+- #146 / `P2-V0.17.2`: resumable SSE and protected exact-lineage source/diff/evidence reads integrated;
+- #147 / `P2-V0.17.3`: Warm Editorial application shell integrated;
+- #148 / `P2-V0.17.4`: governed Live Build/Observability workspace integrated on `main` after exact-head protected gates;
+- #149 / `P2-V0.17.5`: active final integrated reference proof and release boundary with authentic DSPy plan committed.
 
-Current state distinction:
+Production state remains explicit:
 
-- Wave 4 run-event source integrated: **YES**;
-- Wave 4 live transport/protected read source integrated: **YES**;
-- Warm Editorial shell source integrated: **YES**;
-- Live Build/Observability workspace source integrated: **YES**, `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`;
 - `20260824_0010_run_events.sql` migration file integrated: **YES**;
 - production `engineering_run_events` migration applied: **NO**;
-- `PARALLAX_RUN_EVENTS_ENABLED=1` production activation: **NO**;
-- Wave 4 run-event projection active in production: **NO**;
-- Wave 4 live-observability routes active in production: **NO**;
+- production `PARALLAX_RUN_EVENTS_ENABLED=1`: **NO**;
+- run-event projection active in production: **NO**;
+- live-observability routes active in production: **NO**;
 - Wave 4 production deployment verified: **NO**.
 
-The activation boundary governs both event emission and observation. `PersistentRunEventSink` and the live-observability router activate only when the server-owned value `PARALLAX_RUN_EVENTS_ENABLED` equals exactly `1`; values such as `true`, `yes` or an absent flag remain inactive. If the flag is `1`, production build/preflight requires the `engineering_run_events` table to exist before cutover.
+The activation boundary governs both emission and observation. `PersistentRunEventSink` and the live-observability router activate only when server-owned `PARALLAX_RUN_EVENTS_ENABLED` equals exact value `1`; other values remain inactive. With activation enabled, production build/preflight must fail closed if `engineering_run_events` is absent.
 
-The source-integrated Live Build experience is a read-only projection over authoritative Project/run/attempt/worker/source-lineage/provider/evaluation facts. It includes durable event replay, resumable SSE, exact immutable source tree/file/diff reads, bounded allowlisted BUILD/TEST/VERIFY evidence, Code/Diff/Terminal/Tests/Events/Evidence views, and explicit REVIEW/HUMAN_REQUIRED presentation. It does not gain unrestricted filesystem, shell, provider, merge or production authority.
+The Live Build experience is a read-only projection over authoritative Project/run/attempt/worker/source-lineage/provider/evaluation facts. It includes durable replay, resumable SSE, exact immutable source reads/diffs, bounded BUILD/TEST/VERIFY evidence, and Code/Diff/Terminal/Tests/Events/Evidence views. It does not gain unrestricted filesystem, shell, provider, merge or production authority. REVIEW/HUMAN_REQUIRED remains explicit.
 
-## Deployed Wave 3 capability
+## P2-V0.17.5 release proof
 
-Production retains the complete protected app-builder route:
+The permanent #149 reference proof composes real database-backed run events, immutable source lineage, failed TEST evidence, bounded autonomous correction to a fresh child lineage, exact-lineage source/diff observation, resumed successful TEST/VERIFY, REVIEW/HUMAN_REQUIRED and explicit operator completion. Existing protected provider publication, process-recreation/replay, browser/visual and evaluation suites remain cumulative release gates.
 
-`authenticated Project selection/binding -> approved Work Specification -> PLAN -> repository bootstrap/current durable lineage -> typed IMPLEMENT proposal -> confined safe mutation -> durable accepted source lineage -> exact-lineage BUILD/TEST/VERIFY -> deterministic browser/accessibility/console/network/layout validation -> screenshot regression -> bounded multimodal review -> bounded correction/retry with last-known-good + convergence limits -> bounded GitHub publication -> project-scoped Vercel Preview -> persisted provider/runtime evidence -> protected AppBuilder evaluation -> explicit operator REVIEW`
-
-Durable worker recovery, stale-worker rejection, process-recreation safety, replay-safe mutation/publication, immutable content addressing, transactional current-lineage CAS, last-known-good preservation, deterministic browser precedence, bounded correction/convergence, protected evaluation and project-scoped tool/provider authority remain in force.
-
-Preview remains the ordinary autonomous provider ceiling. Production deployment of Parallax itself remains governed by the release process and standing single-user authorization; Parallax-developed Projects do not inherit unrestricted production deployment authority.
+The proof identified a real privacy defect in protected attempt-evidence observation: a secret-like `authorization=...` stdout excerpt could survive the prior generic scanner. The observer boundary was hardened to redact credential-like excerpts, bearer/private-key patterns and private-reasoning/scratchpad markers before transport; the failing case remains a permanent regression assertion.
 
 ## Release and production authority
 
-`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. It authorizes promotion of an already validated Parallax release/hotfix without a separate per-release approval while Parallax remains effectively single-user. It does not waive exact-head CI, protected evaluation, provider/security boundaries, rollback requirements, deployment evidence or post-deploy verification, and it does not pre-authorize destructive database changes, data loss or materially broader provider/credential authority.
+`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. It allows promotion of an already validated release without separate per-release approval while Parallax remains effectively single-user, but does not waive exact-head CI, protected evaluation, migration order, rollback, least privilege, deployment evidence or post-deploy verification, and does not authorize destructive schema/data changes.
 
 ## Production infrastructure and persistence
 
-Production uses Vercel for API deployment and Sandbox execution, Vercel Connect/OIDC for short-lived project-scoped GitHub credentials, private Vercel Blob for immutable content-addressed source objects, and hosted PostgreSQL/Supabase for authoritative relational state. Production startup performs no implicit DDL; schema changes remain migration-driven. Wave 4's `engineering_run_events` table is not yet recorded here as active production schema.
-
-## Active Wave 4 release work
-
-Wave 4 implementation workstreams #144–#148 are integrated. Current release facts:
-
-- #144 / `P2-V0.17.0`: experience/design contract integrated;
-- #145 / `P2-V0.17.1`: durable run-event projection integrated, production activation still off;
-- #146 / `P2-V0.17.2`: resumable SSE and protected source/diff/evidence reads integrated;
-- #147 / `P2-V0.17.3`: Warm Editorial application shell integrated;
-- #148 / `P2-V0.17.4`: governed Live Build/Observability workspace integrated on `main` after exact-head protected gates;
-- #149 / `P2-V0.17.5`: active final integrated reference proof and release boundary; authentic DSPy plan is committed and the permanent reference proof exercises durable failed TEST evidence, bounded autonomous correction to a fresh immutable lineage, exact-lineage observation/diff, REVIEW/HUMAN_REQUIRED and explicit operator completion;
-- the #149 reference proof identified and fixed an observability privacy gap so secret/private-reasoning-like command excerpts are redacted at the protected read boundary;
-- production `engineering_run_events` migration applied: **NO**;
-- production `PARALLAX_RUN_EVENTS_ENABLED=1`: **NO**;
-- Wave 4 production deployment verified: **NO**.
-
-The release candidate must pass the full exact-head release-mode P2 CI, browser/Skia, protected promotion evaluation, DSPy, Bounded Autonomy and migration-readiness gates before any production migration or activation occurs.
+Production uses Vercel for API deployment and Sandbox execution, Vercel Connect/OIDC for short-lived project-scoped GitHub credentials, private Vercel Blob for immutable source objects, and hosted PostgreSQL/Supabase for authoritative relational state. Startup performs no implicit DDL; schema changes remain migration-driven.
 
 ## Authoritative record status
 
-This file records validated production and source-integration state as of 2026-08-24. Durable architecture is defined in `ARCHITECTURE.md`; design rules remain in `DESIGN-SYSTEM.md`; governance/authority remains in `PROJECT-CONSTITUTION.md`.
+This file records validated production and source-integration state as of 2026-08-24. Durable architecture is in `ARCHITECTURE.md`; design rules are in `DESIGN-SYSTEM.md`; governance/authority is in `PROJECT-CONSTITUTION.md`.
 
 Do not infer that source integration, a green Preview or an unapplied migration is deployed production capability. Only production evidence explicitly recorded as deployment-verified is authoritative.
