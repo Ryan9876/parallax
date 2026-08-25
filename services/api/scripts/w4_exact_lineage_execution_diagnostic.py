@@ -7,11 +7,16 @@ import tempfile
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from vercel.api import session
+from vercel.sandbox import NetworkPolicy, SnapshotSource
+from vercel.sandbox import sync as sandbox
+
 from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.lineage_sandbox_execution import SameLineageVercelSandboxExecutor
 from parallax_api.code.runtime_composition import production_durable_lineage_allocator
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.db import make_engine
+from parallax_api.execution_environment import execution_snapshot_id
 
 
 BASE_URL = "https://parallax-api-tan.vercel.app"
@@ -33,10 +38,59 @@ def _get_json(token: str, path: str) -> object:
         raise RuntimeError(f"production diagnostic GET {path} failed with HTTP {exc.code}") from exc
 
 
+def _probe_snapshot_identity() -> None:
+    project_id = (os.getenv("VERCEL_PROJECT_ID") or "").strip()
+    if not project_id:
+        raise RuntimeError("snapshot identity diagnostic requires Vercel project identity")
+    snapshot_id = execution_snapshot_id()
+    with session():
+        with sandbox.create_sandbox(
+            project_id=project_id,
+            source=SnapshotSource(snapshot_id=snapshot_id),
+            execution_time_limit=90,
+            persistent=False,
+            network_policy=NetworkPolicy.deny_all(),
+            env={},
+            destroy=True,
+            tags={"parallax": "snapshot-identity-diagnostic"},
+        ) as instance:
+            members = sorted(name for name in dir(instance) if "snapshot" in name.casefold())
+            listed = []
+            try:
+                for item in instance.list_snapshots(page_size=10):
+                    listed.append(
+                        {
+                            "snapshot_id": getattr(item, "snapshot_id", None),
+                            "source_sandbox_id": getattr(item, "source_sandbox_id", None),
+                            "parent_id": getattr(item, "parent_id", None),
+                        }
+                    )
+            except Exception as exc:
+                listed = [{"list_error": type(exc).__name__}]
+            print(
+                json.dumps(
+                    {
+                        "snapshot_identity_probe": {
+                            "expected_snapshot_id": snapshot_id,
+                            "current_snapshot_id": getattr(instance, "current_snapshot_id", None),
+                            "source_snapshot_id": getattr(instance, "source_snapshot_id", None),
+                            "sandbox_id_present": bool(getattr(instance, "sandbox_id", None)),
+                            "snapshot_members": members,
+                            "listed_snapshots": listed,
+                        }
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+
+
 def main() -> None:
     token = (os.getenv("PARALLAX_ACCESS_TOKEN") or "").strip()
     if not token:
         raise RuntimeError("exact-lineage execution diagnostic requires existing Parallax access credential")
+
+    _probe_snapshot_identity()
 
     run = _get_json(token, f"/v1/engineering-runs/{RUN_ID}")
     if not isinstance(run, dict):
