@@ -27,7 +27,41 @@ export type ProviderIdentity = {
   identifier: string | null;
 };
 
+export type SummaryMetric = {
+  key: 'events' | 'sequence' | 'attention' | 'recovery';
+  label: string;
+  value: string;
+  note: string;
+  available: boolean;
+  tone: 'neutral' | 'teal' | 'olive' | 'rust';
+};
+
+export type ComponentHealthItem = {
+  key: 'event-plane' | 'worker' | 'source-lineage' | 'github' | 'vercel' | 'evaluation';
+  label: string;
+  status: string;
+  detail: string;
+  sequence: number | null;
+  tone: 'neutral' | 'teal' | 'olive' | 'rust';
+};
+
+export type AuditFact = {
+  key: string;
+  label: string;
+  value: string;
+  available: boolean;
+};
+
+export type ActiveRunObservation = {
+  projectId: string;
+  runId: string;
+  latestStage: string;
+  latestOutcome: string;
+  latestSequence: string;
+};
+
 const TERMINAL_OUTCOMES = new Set(['SUCCEEDED', 'FAILED', 'HUMAN_REQUIRED']);
+const ATTENTION_OUTCOMES = new Set(['FAILED', 'DENIED', 'RECOVERING', 'HUMAN_REQUIRED']);
 const SAFE_METADATA_KEYS = new Set([
   'attempt_number',
   'branch_name',
@@ -70,6 +104,31 @@ function statusForEvent(event: RunEventDto): PipelineStatus {
   if (event.outcome === 'FAILED' || event.outcome === 'DENIED') return 'FAILED';
   if (event.outcome === 'SUCCEEDED') return 'COMPLETE';
   return 'ACTIVE';
+}
+
+function componentStatus(event: RunEventDto | null): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {
+  if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };
+  if (event.outcome === 'FAILED' || event.outcome === 'DENIED') {
+    return { status: 'Attention', tone: 'rust', detail: event.summary || event.failure_code || 'Persisted failure evidence.', sequence: event.sequence };
+  }
+  if (event.outcome === 'RECOVERING' || event.outcome === 'REPLAYED') {
+    return { status: 'Recovering', tone: 'teal', detail: event.summary || 'Persisted recovery evidence.', sequence: event.sequence };
+  }
+  if (event.outcome === 'HUMAN_REQUIRED') {
+    return { status: 'Review required', tone: 'olive', detail: event.summary || 'A protected human boundary was reached.', sequence: event.sequence };
+  }
+  if (event.outcome === 'SUCCEEDED') {
+    return { status: 'Observed', tone: 'olive', detail: event.summary || 'Persisted success evidence observed.', sequence: event.sequence };
+  }
+  return { status: 'Observed', tone: 'teal', detail: event.summary || `${event.event_type} · ${event.outcome}`, sequence: event.sequence };
+}
+
+function latestMatching(events: RunEventDto[], predicate: (event: RunEventDto) => boolean): RunEventDto | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event && predicate(event)) return event;
+  }
+  return null;
 }
 
 export function projectPipeline(run: EngineeringRunDto, events: RunEventDto[]): PipelineItem[] {
@@ -138,9 +197,81 @@ export function safeEventMetadata(event: RunEventDto): Array<{ key: string; valu
     }));
 }
 
+export function observabilitySummary(events: RunEventDto[]): SummaryMetric[] {
+  const latest = events.at(-1) ?? null;
+  const attention = events.filter((event) => ATTENTION_OUTCOMES.has(event.outcome)).length;
+  const recovery = events.filter((event) => event.outcome === 'RECOVERING' || event.outcome === 'REPLAYED').length;
+  const hasEvents = events.length > 0;
+  return [
+    { key: 'events', label: 'Persisted events', value: String(events.length), note: 'Run-scoped event records', available: true, tone: 'neutral' },
+    { key: 'sequence', label: 'Latest sequence', value: latest ? `#${latest.sequence}` : 'Unavailable', note: latest ? 'Highest observed durable sequence' : 'No persisted event observed', available: hasEvents, tone: latest ? 'teal' : 'neutral' },
+    { key: 'attention', label: 'Attention states', value: hasEvents ? String(attention) : 'Not measured', note: 'Failure, recovery or human boundary', available: hasEvents, tone: attention > 0 ? 'rust' : hasEvents ? 'olive' : 'neutral' },
+    { key: 'recovery', label: 'Recovery / replay', value: hasEvents ? String(recovery) : 'Not measured', note: 'Persisted recovery outcomes only', available: hasEvents, tone: recovery > 0 ? 'teal' : 'neutral' },
+  ];
+}
+
+export function componentHealth(events: RunEventDto[], transport: RunTransportState): ComponentHealthItem[] {
+  const transportItem: ComponentHealthItem = transport === 'LIVE'
+    ? { key: 'event-plane', label: 'Run event plane', status: 'Live', detail: 'Replay completed and resumable event observation is live.', sequence: events.at(-1)?.sequence ?? null, tone: 'olive' }
+    : transport === 'CONNECTING'
+      ? { key: 'event-plane', label: 'Run event plane', status: 'Connecting', detail: 'Observer transport is establishing or re-establishing the stream.', sequence: events.at(-1)?.sequence ?? null, tone: 'teal' }
+      : transport === 'ERROR'
+        ? { key: 'event-plane', label: 'Run event plane', status: 'Attention', detail: 'Observer transport reported an error; persisted replay remains authoritative.', sequence: events.at(-1)?.sequence ?? null, tone: 'rust' }
+        : { key: 'event-plane', label: 'Run event plane', status: 'Unavailable', detail: 'Live observer transport is not currently connected.', sequence: events.at(-1)?.sequence ?? null, tone: 'neutral' };
+
+  const worker = latestMatching(events, (event) => event.subsystem === 'WORKER' || Boolean(event.worker_execution_id));
+  const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || Boolean(event.source_lineage_ref));
+  const github = latestMatching(events, (event) => event.subsystem === 'GITHUB');
+  const vercel = latestMatching(events, (event) => event.subsystem === 'VERCEL');
+  const evaluation = latestMatching(events, (event) => event.subsystem === 'EVALUATION' || event.event_type === 'EVALUATION_RESULT');
+
+  return [
+    transportItem,
+    { key: 'worker', label: 'Worker runtime', ...componentStatus(worker) },
+    { key: 'source-lineage', label: 'Source lineage', ...componentStatus(lineage) },
+    { key: 'github', label: 'GitHub provider', ...componentStatus(github) },
+    { key: 'vercel', label: 'Vercel Preview', ...componentStatus(vercel) },
+    { key: 'evaluation', label: 'Evaluation', ...componentStatus(evaluation) },
+  ];
+}
+
+export function evidenceAuditFacts(events: RunEventDto[]): AuditFact[] {
+  const latest = events.at(-1) ?? null;
+  const lineage = latestCandidateLineage(events);
+  const latestAttempt = latestMatching(events, (event) => Boolean(event.attempt_id));
+  const latestEvidence = latestMatching(events, (event) => Boolean(event.evidence_ref));
+  const latestArtifact = latestMatching(events, (event) => Boolean(event.artifact_ref));
+  const latestOperation = latestMatching(events, (event) => Boolean(event.operation_ref));
+  const facts: Array<[string, string, string | null | undefined]> = [
+    ['project', 'Project ID', latest?.project_id],
+    ['run', 'Run ID', latest?.run_id],
+    ['candidate', 'Candidate lineage', lineage.candidate],
+    ['parent', 'Parent lineage', lineage.parent],
+    ['attempt', 'Latest attempt', latestAttempt?.attempt_id],
+    ['evidence', 'Evidence reference', latestEvidence?.evidence_ref],
+    ['artifact', 'Artifact reference', latestArtifact?.artifact_ref],
+    ['operation', 'Operation reference', latestOperation?.operation_ref],
+  ];
+  return facts.map(([key, label, value]) => ({ key, label, value: value || 'Unavailable', available: Boolean(value) }));
+}
+
+export function activeRunObservation(events: RunEventDto[]): ActiveRunObservation {
+  const latest = events.at(-1) ?? null;
+  if (!latest) {
+    return { projectId: 'Unavailable', runId: 'Unavailable', latestStage: 'Unavailable', latestOutcome: 'Unavailable', latestSequence: 'Unavailable' };
+  }
+  return {
+    projectId: latest.project_id,
+    runId: latest.run_id,
+    latestStage: visibleStage(latest) ?? latest.stage ?? latest.subsystem,
+    latestOutcome: latest.outcome,
+    latestSequence: `#${latest.sequence}`,
+  };
+}
+
 export function recentAlerts(events: RunEventDto[], limit = 5): ObservabilityAlert[] {
   return events
-    .filter((event) => ['FAILED', 'DENIED', 'RECOVERING', 'HUMAN_REQUIRED'].includes(event.outcome))
+    .filter((event) => ATTENTION_OUTCOMES.has(event.outcome))
     .slice(-limit)
     .reverse()
     .map((event) => ({
@@ -172,7 +303,7 @@ export function observerHealth(transport: RunTransportState, run: EngineeringRun
   run: string;
   tone: 'neutral' | 'teal' | 'olive' | 'rust';
 } {
-  const latestAttention = [...events].reverse().find((event) => ['FAILED', 'RECOVERING', 'HUMAN_REQUIRED'].includes(event.outcome));
+  const latestAttention = [...events].reverse().find((event) => ATTENTION_OUTCOMES.has(event.outcome));
   if (run.state === 'FAILED' || latestAttention?.outcome === 'FAILED') return { transport, run: 'Attention', tone: 'rust' };
   if (latestAttention?.outcome === 'HUMAN_REQUIRED' || run.state === 'REVIEW') return { transport, run: 'Review required', tone: 'olive' };
   if (latestAttention?.outcome === 'RECOVERING') return { transport, run: 'Recovering', tone: 'teal' };

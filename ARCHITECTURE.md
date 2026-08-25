@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.9
+Version: 3.0
 Status: Authoritative
 
 ## System shape
@@ -85,7 +85,7 @@ Routes call services/coordinators; services call repositories, execution adapter
 Operational probes remain deliberately public:
 
 - `/health` proves the FastAPI process can answer;
-- `/ready` proves the persistence boundary can answer a database query.
+- `/ready` always proves the persistence boundary can answer a database query and, in production, additionally proves the request-scoped Vercel runtime OIDC identity can exchange through the registered Connect connector to an exact repository-scoped GitHub credential.
 
 Project, conversation, Work Specification, Engineering Run, worker state, Reason, Code, access-management, session and bounded-autonomy surfaces remain behind the private authentication boundary.
 
@@ -252,11 +252,13 @@ The current Parallax self-target uses `github/parallax-runtime` and `vercel:prev
 
 GitHub credentials are short-lived Vercel Connect credentials obtained from Vercel-provided OIDC. A slash-bearing connector identity is serialized as one percent-encoded URL path parameter at the Connect wire boundary. Before use, GitHub must prove the minted credential can access the exact canonical repository; mismatched repository reach fails closed.
 
+Vercel's build OIDC and Functions runtime OIDC are distinct trust surfaces. Production autonomous requests take their Vercel identity only from the per-request `x-vercel-oidc-token` header and explicitly inject it into the registered Connect credential provider. The build-time `VERCEL_OIDC_TOKEN` is not a production runtime fallback. Missing or malformed request OIDC therefore fails closed instead of silently selecting a broader or static credential path.
+
 Vercel Preview credentials are scoped per registered target project. Request-scoped provider composition receives only the selected target/credential, preventing one Project from inheriting another Project's provider authority.
 
 Publication is replay-aware and durable: request/process recreation resolves the accepted delivery record and does not duplicate branch/commit/PR/Preview mutation when the same exact action was already accepted.
 
-The Parallax self-development API release path performs production-only read-only provider and source/durability preflights before a new production deployment may become READY. These preflights use fixed server-owned identities, bounded source, rollback-only metadata and no accepted user source mutation. Preview deployments intentionally skip production-only provider/storage authority.
+The Parallax self-development API release path performs production-only read-only provider and source/durability preflights before a new production deployment may become READY. Build-time preflights verify the build identity and registered provider/source/storage boundaries. Production `/ready` separately exercises the Functions runtime identity through the real Vercel Connect exchange and exact registered GitHub repository scope, preventing a successful build-time exchange from masking an unavailable runtime credential path. Preview deployments intentionally skip production-only provider/storage authority.
 
 Preview remains the autonomous deployment ceiling for Parallax-developed Projects. Parallax's own production promotion/merge remains a governed release boundary. Standing single-user release authorization does not give Project runtime autonomous production-deployment authority.
 
@@ -335,7 +337,7 @@ Two authoritative Vercel projects deploy from the same repository:
 
 The Vercel Sandbox execution plane, private Blob store and Vercel Connect connectors are runtime infrastructure, not additional long-lived Parallax application deployments.
 
-Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover.
+Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover; production readiness then independently verifies the request-scoped runtime Connect exchange.
 
 A green Preview is not production deployment evidence. Production-only preflights do not replace post-deploy smoke/observability checks.
 
@@ -368,6 +370,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - unknown change impact or incomplete reuse/cache provenance: discard optimization and run the conservative/full path;
 - capability unknown/disabled/mismatched/unapproved: deny before provider action;
 - provider target/credential/repository mismatch: fail before mutation;
+- missing/invalid production request OIDC or failed runtime Connect exchange/scope verification: fail production readiness and autonomous repository bootstrap without static-credential fallback;
 - malformed connector wire identity or production provider/source/durability/bootstrap preflight failure: fail the candidate production build before cutover;
 - provider failure: return `FAILED`, never `SUCCEEDED`;
 - replay of an already accepted exact provider action: resolve durable delivery rather than duplicate mutation;
@@ -396,11 +399,11 @@ Major trust boundaries are:
 9. bounded visual review and correction/LKG/convergence policy;
 10. server-owned optimization policy with non-authoritative speculation/reuse;
 11. server-owned tool capability registry;
-12. server-owned provider target/credential registry and encoded connector wire contract;
+12. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
 13. persisted provider action/audit and replay identity;
 14. protected evaluation/promotion policy;
 15. optional non-authoritative run-event projection behind migration + exact activation flag;
-16. governed production release authority plus fail-closed production provider/source/durability/bootstrap preflights.
+16. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
 
 ## Inherited development-policy architecture
 
