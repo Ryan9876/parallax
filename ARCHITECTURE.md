@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 2.8
+Version: 2.9
 Status: Authoritative
 
 ## System shape
@@ -16,7 +16,8 @@ Expo / React Native client
   ├─ bounded-autonomy controls
   ├─ Google PKCE sign-in + owner access panel
   ├─ same-origin /p2-api web gateway
-  └─ bounded API / future live-observation client
+  ├─ bounded API client
+  └─ governed Live Build / Observability client
           │
           ▼
 FastAPI intelligence service
@@ -36,7 +37,7 @@ FastAPI intelligence service
   ├─ Reason / Work Specification / DSPy programs
   ├─ protected command registry
   ├─ protected evaluation + observable execution/provider evidence
-  └─ optional Wave 4 non-authoritative run-event projection
+  └─ Wave 4 non-authoritative run-event + protected observation read plane
           │
           ├────────────► Vercel Sandbox execution plane
           │               ├─ exact accepted source lineage
@@ -65,7 +66,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 is the deployed app-builder execution architecture. Wave 4 run-event observation is source-integrated but remains inactive until its production migration and explicit server-side activation are separately completed. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -290,6 +291,14 @@ The production build guard mirrors the same boundary:
 - Wave 4 enabled → require `engineering_run_events` to exist, otherwise block production cutover.
 
 This gate prevents an environment toggle from silently activating telemetry against a missing schema and prevents source integration from being misreported as deployment/activation.
+
+### Protected observation read plane and Live Build
+
+Authenticated observation routes expose persisted event replay, resumable SSE using durable sequence/`Last-Event-ID`, exact-lineage source tree/file/diff reads and bounded BUILD/TEST/VERIFY attempt evidence. The client is an observer over those server-owned facts: pipeline state, health, retries, failures, provider identities and alerts are projections only and cannot advance Engineering Run state.
+
+`Follow Live`, `Pause View`, `Jump to Latest`, tab selection and source/evidence selection are observation controls only. Browser disconnect/reconnect does not own or stop the worker, and switching Project/conversation/run clears observer-local selections before new protected reads begin. No generic shell, filesystem mutation, arbitrary command execution or provider mutation surface is introduced by Live Build.
+
+Privacy filtering occurs before transport. Credential-like excerpts, bearer/private-key patterns, secret-bearing material, raw provider payloads, environment values, hidden reasoning/private scratchpad markers and unbounded logs are redacted or unavailable rather than delegated to client rendering.
 
 ## Persistence
 

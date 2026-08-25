@@ -1,13 +1,13 @@
 # Parallax 2.0 Design System
 
 Version: 3.0
-Status: Authoritative candidate under `P2-V0.17.0` until integrated
+Status: Authoritative
 
 ## Design direction
 
 Parallax is a premium reasoning and engineering workspace that should feel calm, capable, legible and authored. Conversation remains the primary creation surface. Governed engineering state becomes visibly inspectable when it matters, but the product must not feel like a generic IDE, log console or dense operations dashboard.
 
-Wave 4 replaces the prior Deep Violet Optical visual identity with **Warm Editorial Observatory**, based on the user-approved Parallax home and Observability mockups.
+Wave 4 replaces the prior Deep Violet Optical visual identity with **Warm Editorial Observatory**, based on the approved Parallax home and Observability mockups.
 
 The dominant visual language is:
 
