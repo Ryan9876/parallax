@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 import tempfile
 from typing import Protocol
 
+from ..tools.providers import ProviderActionDenied, ProviderActionFailed
 from .autonomy import (
     AutonomyCoordinator,
     AutonomyResult,
@@ -72,6 +73,51 @@ class DurableLineageAllocator(Protocol):
 
 class RuntimeCompositionError(RuntimeError):
     pass
+
+
+def _source_delivery_failure_evidence(error: object) -> dict[str, str]:
+    """Extract only normalized provider failure facts from a bounded cause chain."""
+
+    if not isinstance(error, BaseException):
+        return {"error_class": "UnknownDeliveryFailure"}
+
+    current: BaseException | None = error
+    seen: set[int] = set()
+    for _ in range(8):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current))
+
+        if isinstance(current, ProviderActionFailed):
+            result = {
+                "error_class": "ProviderActionFailed",
+                "provider": current.evidence.provider,
+                "action": current.evidence.action,
+            }
+            result_code = current.audit.result_code or current.evidence.result_status
+            if isinstance(result_code, str) and result_code:
+                result["result_code"] = result_code
+            return result
+
+        if isinstance(current, ProviderActionDenied):
+            result = {
+                "error_class": "ProviderActionDenied",
+                "provider": current.evidence.provider,
+                "action": current.evidence.action,
+            }
+            deny_reason = current.audit.deny_reason
+            result_code = deny_reason.value if deny_reason is not None else current.evidence.result_status
+            if isinstance(result_code, str) and result_code:
+                result["result_code"] = result_code
+            return result
+
+        next_error = current.__cause__ or current.__context__
+        current = next_error if isinstance(next_error, BaseException) else None
+
+    error_class = type(error).__name__
+    if len(error_class) > 80 or not error_class.isidentifier():
+        error_class = "DeliveryFailure"
+    return {"error_class": error_class}
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,7 +418,7 @@ class EngineeringRuntimeComposition:
             )
         )
 
-    def _emit_delivery_failure(self, run: object) -> None:
+    def _emit_delivery_failure(self, run: object, error: object) -> None:
         if getattr(self.service, "event_sink", None) is None:
             return
         project_id = getattr(run, "project_id", None)
@@ -386,6 +432,9 @@ class EngineeringRuntimeComposition:
             or not isinstance(updated_at, datetime)
         ):
             return
+        failure_evidence = _source_delivery_failure_evidence(error)
+        metadata: dict[str, object] = {"run_revision": revision, "current_state": "REVIEW"}
+        metadata.update(failure_evidence)
         self.service.emit_event(
             RunEventAppend(
                 project_id=project_id,
@@ -397,7 +446,7 @@ class EngineeringRuntimeComposition:
                 subsystem=RunEventSubsystem.VERCEL,
                 failure_code="SOURCE_DELIVERY_FAILED",
                 summary="Verified source delivery failed before operator review publication completed.",
-                metadata={"run_revision": revision, "current_state": "REVIEW"},
+                metadata=metadata,
                 occurred_at=self._event_time(updated_at),
             )
         )
@@ -434,7 +483,7 @@ class EngineeringRuntimeComposition:
                 except Exception as exc:
                     self.last_delivery_result = None
                     try:
-                        self._emit_delivery_failure(result.run)
+                        self._emit_delivery_failure(result.run, exc)
                     except Exception:
                         pass
                     raise RuntimeCompositionError("verified source delivery failed before operator review") from exc

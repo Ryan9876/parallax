@@ -36,6 +36,7 @@ _PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 _METADATA_KEYS = frozenset(
     {
         "acceptance_count",
+        "action",
         "artifact_count",
         "attempt_number",
         "bounded_stop",
@@ -48,6 +49,7 @@ _METADATA_KEYS = frozenset(
         "current_state",
         "current_step",
         "delivery_action_count",
+        "error_class",
         "evaluation_id",
         "exit_code",
         "file_count",
@@ -60,8 +62,10 @@ _METADATA_KEYS = frozenset(
         "preview_deployment_id",
         "preview_status",
         "program_id",
+        "provider",
         "pull_request_number",
         "redacted",
+        "result_code",
         "retry_count",
         "run_revision",
         "score_class",
