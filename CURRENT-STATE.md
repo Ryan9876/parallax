@@ -6,7 +6,7 @@ Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE; ALL W4 STABILI
 
 ## Current production truth
 
-Wave 4 production API remains deployment `dpl_7gHytxPynJ3yoo2A51oZsyuDj8gM` from verified repository merge `main@8b5acd5c4042689d01317e7951695929e5ce44f9`. The production build completed its provider, projected-source, private Blob, lineage-composition, process-recreation/replay, rollback and run-event schema guards before publication. Live Observability remains active and the production `engineering_run_events` migration/table/RLS boundary remains verified.
+Wave 4 production API remains deployment `dpl_7gHytxPynJ3yoo2A51oZsyuDj8gM` from verified repository merge `main@8b5acd5c4042682d297269af0f0a5555683dac2e`. The production build completed its provider, projected-source, private Blob, lineage-composition, process-recreation/replay, rollback and run-event schema guards before publication. Live Observability remains active and the production `engineering_run_events` migration/table/RLS boundary remains verified.
 
 A later real authenticated production user test exposed a production-blocking runtime defect: autonomous-run requests reached the production API and returned HTTP `503` with `source_bootstrap_failed stage=provider-repository error_class=ProviderActionFailed result_code=CREDENTIAL_UNAVAILABLE`. The defect occurs in the Vercel Functions runtime OIDC -> Vercel Connect -> repository-scoped GitHub credential path before substantive autonomous execution advances.
 
