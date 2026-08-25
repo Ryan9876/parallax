@@ -1,4 +1,4 @@
-name: WS149 Restore Authoritative Record Detail
+name: WS149 Finalize Authoritative Record Preservation
 
 on:
   push:
@@ -9,51 +9,32 @@ permissions:
   contents: write
 
 jobs:
-  restore:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: integration/wave4-live-development
-          fetch-depth: 0
-      - name: Restore accepted record detail and apply Wave 4 deltas
+      - name: Remove duplicate architecture node and verify preserved detail
         run: |
-          git fetch origin main
-          git show origin/main:ARCHITECTURE.md > ARCHITECTURE.md
-          git show origin/main:DESIGN-SYSTEM.md > DESIGN-SYSTEM.md
           python - <<'PY'
           from pathlib import Path
-
-          architecture = Path('ARCHITECTURE.md')
-          text = architecture.read_text(encoding='utf-8')
-          text = text.replace('Version: 2.8', 'Version: 2.9', 1)
-          text = text.replace('  └─ bounded API / future live-observation client', '  ├─ bounded API client\n  └─ governed Live Build / Observability client', 1)
-          text = text.replace('  └─ optional Wave 4 non-authoritative run-event projection', '  ├─ protected evaluation + observable execution/provider evidence\n  └─ Wave 4 non-authoritative run-event + protected observation read plane', 1) if '  └─ optional Wave 4 non-authoritative run-event projection' in text and 'Wave 4 non-authoritative run-event + protected observation read plane' not in text else text
-          text = text.replace('Wave 3 is the deployed app-builder execution architecture. Wave 4 run-event observation is source-integrated but remains inactive until its production migration and explicit server-side activation are separately completed.', 'Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise.', 1)
-          anchor = 'This gate prevents an environment toggle from silently activating telemetry against a missing schema and prevents source integration from being misreported as deployment/activation.\n'
-          addition = '''\n### Protected observation read plane and Live Build\n\nAuthenticated observation routes expose persisted event replay, resumable SSE using durable sequence/`Last-Event-ID`, exact-lineage source tree/file/diff reads and bounded BUILD/TEST/VERIFY attempt evidence. The client is an observer over those server-owned facts: pipeline state, health, retries, failures, provider identities and alerts are projections only and cannot advance Engineering Run state.\n\n`Follow Live`, `Pause View`, `Jump to Latest`, tab selection and source/evidence selection are observation controls only. Browser disconnect/reconnect does not own or stop the worker, and switching Project/conversation/run clears observer-local selections before new protected reads begin. No generic shell, filesystem mutation, arbitrary command execution or provider mutation surface is introduced by Live Build.\n\nPrivacy filtering occurs before transport. Credential-like excerpts, bearer/private-key patterns, secret-bearing material, raw provider payloads, environment values, hidden reasoning/private scratchpad markers and unbounded logs are redacted or unavailable rather than delegated to client rendering.\n'''
-          if anchor not in text:
-              raise SystemExit('Wave 4 architecture anchor missing')
-          if '### Protected observation read plane and Live Build' not in text:
-              text = text.replace(anchor, anchor + addition, 1)
-          architecture.write_text(text, encoding='utf-8')
-
-          design = Path('DESIGN-SYSTEM.md')
-          text = design.read_text(encoding='utf-8')
-          text = text.replace('Status: Authoritative candidate under `P2-V0.17.0` until integrated', 'Status: Authoritative', 1)
-          text = text.replace('user-approved Parallax home and Observability mockups', 'approved Parallax home and Observability mockups', 1)
-          design.write_text(text, encoding='utf-8')
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          duplicate = '  ├─ protected evaluation + observable execution/provider evidence\n  ├─ protected evaluation + observable execution/provider evidence\n'
+          if duplicate in text:
+              text = text.replace(duplicate, '  ├─ protected evaluation + observable execution/provider evidence\n', 1)
+          path.write_text(text, encoding='utf-8')
           PY
-      - name: Verify record preservation
-        run: |
           test $(wc -l < ARCHITECTURE.md) -ge 360
           test $(wc -l < DESIGN-SYSTEM.md) -ge 300
+          test $(grep -c 'protected evaluation + observable execution/provider evidence' ARCHITECTURE.md) -eq 1
           grep -q '### Protected observation read plane and Live Build' ARCHITECTURE.md
-          grep -q '^Status: Authoritative$' DESIGN-SYSTEM.md
-      - name: Commit corrected authoritative records
+      - name: Commit finalized records
         run: |
           git config user.name 'Parallax Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add ARCHITECTURE.md DESIGN-SYSTEM.md
-          git commit -m 'Preserve authoritative architecture and design detail for Wave 4'
+          git add ARCHITECTURE.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'Finalize preserved Wave 4 architecture record'
           git push origin HEAD:integration/wave4-live-development
