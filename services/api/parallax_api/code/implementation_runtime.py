@@ -11,6 +11,7 @@ from ..intelligence.implementation_generation import (
     ImplementationGenerationCoordinator,
     ImplementationGenerationFailure,
     ImplementationGenerationRequest,
+    ImplementationProposal,
     validate_implementation_proposal,
 )
 from .domain import AttemptStatus, WorkflowStage
@@ -143,6 +144,19 @@ class ProtectedImplementationRuntime:
         self.source_selector = source_selector or BoundedSourceContextSelector()
         self.implementation_engine = implementation_engine or SafeImplementationEngine()
 
+    @staticmethod
+    def _implementation_request(proposal: ImplementationProposal) -> ImplementationRequest:
+        return ImplementationRequest(
+            patches=tuple(
+                SourcePatch(
+                    path=item.path,
+                    expected_base_sha256=item.expected_base_sha256,
+                    unified_diff=item.unified_diff,
+                )
+                for item in proposal.patches
+            )
+        )
+
     def execute(
         self,
         *,
@@ -207,8 +221,22 @@ class ProtectedImplementationRuntime:
             ),
             source_context=source_context,
         )
+
+        def proposal_is_safe(proposal: ImplementationProposal) -> bool:
+            try:
+                self.implementation_engine.validate(
+                    handle.workspace_root,
+                    self._implementation_request(proposal),
+                )
+            except (ImplementationError, PatchError, OSError):
+                return False
+            return True
+
         try:
-            generation = self.generator.generate_sync(request)
+            generation = self.generator.generate_sync(
+                request,
+                proposal_validator=proposal_is_safe,
+            )
         except ImplementationGenerationFailure as exc:
             raise ImplementationContractError("protected implementation generation failed") from exc
 
@@ -217,17 +245,10 @@ class ProtectedImplementationRuntime:
         if not validate_implementation_proposal(generation.proposal, request.required_acceptance_ids):
             raise ImplementationContractError("generated proposal does not exactly cover protected acceptance IDs")
 
-        implementation_request = ImplementationRequest(
-            patches=tuple(
-                SourcePatch(
-                    path=item.path,
-                    expected_base_sha256=item.expected_base_sha256,
-                    unified_diff=item.unified_diff,
-                )
-                for item in generation.proposal.patches
-            )
-        )
+        implementation_request = self._implementation_request(generation.proposal)
         try:
+            # Re-prepare immediately before commit. The routing preflight is not
+            # mutation authority and cannot substitute for commit-time validation.
             mutation = self.implementation_engine.apply(handle.workspace_root, implementation_request)
         except (ImplementationError, PatchError, OSError) as exc:
             raise ImplementationMutationError("safe source implementation rejected the proposal") from exc
