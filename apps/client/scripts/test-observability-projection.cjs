@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
 const {
   activeRunObservation,
   componentHealth,
@@ -95,6 +96,22 @@ assert.equal(active.latestStage, 'REVIEW');
 assert.equal(active.latestOutcome, 'HUMAN_REQUIRED');
 assert.equal(active.latestSequence, '#7');
 
+const dashboardSource = readFileSync('src/components/observability/RunEventStream.tsx', 'utf8');
+for (const required of [
+  'observability-summary-strip',
+  'Run Event Stream',
+  'Component Health',
+  'Evidence &amp; Audit',
+  'Missing evidence stays unavailable',
+  'Provider actions remain unavailable unless an accepted URL is explicitly present in evidence',
+  'Observation is paused locally. Run execution and persisted event capture are unchanged.',
+]) {
+  assert.equal(dashboardSource.includes(required), true, `Missing Observability contract marker: ${required}`);
+}
+for (const forbidden of ['Average latency', 'Token usage', 'Queue depth', 'Provider SLA']) {
+  assert.equal(dashboardSource.includes(forbidden), false, `Fabricated telemetry surface is forbidden: ${forbidden}`);
+}
+
 console.log(JSON.stringify({
   truthfulEmptyStates: true,
   runScopedSummary: true,
@@ -102,4 +119,6 @@ console.log(JSON.stringify({
   durableAuditFacts: true,
   providerIdentityEvidenceOnly: true,
   recoveryAndHumanRequiredDistinct: true,
+  dashboardCompositionContract: true,
+  fabricatedTelemetryAbsent: true,
 }, null, 2));
