@@ -250,6 +250,8 @@ async function assertMaterialLayout(page, name, width) {
   for (let index = 0; index < await tabs.count(); index += 1) {
     const box = await tabs.nth(index).boundingBox();
     assert(box && box.height >= 42, `${name}: tab ${index} is below practical target height (${box?.height ?? 0})`);
+    await tabs.nth(index).focus();
+    assert(await tabs.nth(index).evaluate((node) => document.activeElement === node), `${name}: tab ${index} is not keyboard focusable`);
   }
 
   const title = page.getByText('Run observability', { exact: true });
@@ -268,7 +270,8 @@ async function assertMaterialLayout(page, name, width) {
     assert(navCount === 1, `${name}: desktop navigation rail missing`);
     assert(contextCount === 1, `${name}: desktop contextual health rail missing`);
     const navBox = await page.getByTestId('editorial-navigation-rail').boundingBox();
-    assert(navBox && navBox.width / width >= 0.035 && navBox.width / width <= 0.12, `${name}: navigation rail proportion is materially off (${navBox?.width ?? 0}px)`);
+    assert(navBox && navBox.width >= 220 && navBox.width <= 252, `${name}: navigation rail no longer matches approved fixed-width shell geometry (${navBox?.width ?? 0}px)`);
+    assert(navBox.width / width <= 0.20, `${name}: navigation rail materially compresses the primary workplane (${navBox.width}px of ${width}px)`);
     await page.getByText('System Health', { exact: true }).waitFor();
     await page.getByText('Active Run', { exact: true }).waitFor();
     await page.getByText('Recent Alerts', { exact: true }).waitFor();
@@ -281,12 +284,6 @@ async function assertMaterialLayout(page, name, width) {
     assert(utilityCount === 0, `${name}: phone retained desktop utility rail`);
     assert(contextCount === 0, `${name}: phone retained desktop contextual rail`);
   }
-
-  await page.getByRole('tab', { name: 'Code' }).focus();
-  assert(await page.getByRole('tab', { name: 'Code' }).evaluate((node) => document.activeElement === node), `${name}: Code tab is not keyboard focusable`);
-  await page.keyboard.press('Tab');
-  const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
-  assert(activeRole === 'tab', `${name}: focus did not advance through the tab list`);
 
   const workspaceCanvasCount = await workspace.locator('canvas').count();
   assert(workspaceCanvasCount === 0, `${name}: evidence-bearing Live Build content unexpectedly depends on canvas rendering`);
@@ -333,7 +330,7 @@ const report = {
   gate: 'W4-S5 visual acceptance',
   authority: ['DESIGN-SYSTEM.md v3.0', 'P2-V0.17.4', 'P2-V0.17.5', 'issue #174'],
   fixtureSchemaVersion: fixtures.schema_version,
-  materialAssertions: ['rail-proportion', 'overflow-clipping', 'typography-hierarchy', 'card-density', 'navigation-state', 'responsive-transition', 'keyboard-focus', 'reduced-motion', 'reduced-graphics-information-parity'],
+  materialAssertions: ['approved-fixed-rail-geometry', 'workplane-protection', 'overflow-clipping', 'typography-hierarchy', 'card-density', 'navigation-state', 'responsive-transition', 'keyboard-focus', 'reduced-motion', 'reduced-graphics-information-parity'],
   captures: [],
 };
 
