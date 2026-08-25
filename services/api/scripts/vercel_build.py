@@ -38,6 +38,7 @@ def _run_isolated_preflight(script: str) -> None:
 
 def main() -> None:
     _run("scripts/production_provider_preflight.py")
+    _run("scripts/production_delivery_permission_preflight.py")
     _run("scripts/production_projected_source_preflight.py")
 
     if (os.getenv("VERCEL_ENV") or "unknown") == "production":
