@@ -14,6 +14,7 @@ from .production_delivery import (
 
 
 _RUNTIME_OIDC_HEADER = "x-vercel-oidc-token"
+_RUNTIME_READINESS_PROJECT_REF = "00000000-0000-0000-0000-000000000170"
 _MAX_BEARER_LENGTH = 8_192
 
 
@@ -75,7 +76,7 @@ def verify_registered_runtime_github_credentials(
     for target in targets.api_targets.values():
         registration = targets.registration(
             ProviderProjectBinding(
-                project_ref="runtime-readiness",
+                project_ref=_RUNTIME_READINESS_PROJECT_REF,
                 repository_ref=target.repository_ref,
             )
         )
