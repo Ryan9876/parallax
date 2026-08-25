@@ -1,0 +1,39 @@
+name: W4 One-Time Production Runtime Proof
+
+on:
+  push:
+    branches: [control/w4-source-context-hotfix]
+    paths:
+      - '.github/workflows/w4-production-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  protected-production-proof:
+    name: Retry exact production incident through governed runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: w4-release-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Exercise exact failed PLAN run through persisted Observability
+        env:
+          PARALLAX_RELEASE_API_URL: https://parallax-api-tan.vercel.app
+          PARALLAX_RELEASE_RUN_ID: cfd265a8-0e51-4388-a9f7-5611aa1cf6c1
+          PARALLAX_RELEASE_BEARER_TOKEN: ${{ secrets.PARALLAX_RELEASE_BEARER_TOKEN }}
+        run: >-
+          python scripts/w4_release_proof.py
+          --operation-key w4-prod-proof-bb37aef-20260825
+          --timeout 240
+          --evidence release-evidence/w4-runtime-proof.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w4-production-runtime-proof-bb37aef
+          path: release-evidence/w4-runtime-proof.json
+          if-no-files-found: error
+          retention-days: 14
