@@ -1,0 +1,46 @@
+name: Align W4 IMPLEMENT recovery tests
+
+on:
+  push:
+    branches:
+      - ws/w4-autonomous-implement-recovery
+    paths:
+      - .github/scripts/w4_implement_recovery_test_alignment.py
+      - .github/workflows/w4-implement-recovery-test-alignment.yml
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/w4-autonomous-implement-recovery
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Align legacy assertions
+        run: python .github/scripts/w4_implement_recovery_test_alignment.py
+      - name: Install API test dependencies
+        run: python -m pip install -e 'services/api[dev]'
+      - name: Validate affected runtime tests
+        run: >-
+          pytest -q
+          services/api/tests/test_implementation_runtime.py::test_autonomy_runtime_failure_stops_without_fabricated_implement_success
+          services/api/tests/test_runtime_credential_functional_proof.py::test_runtime_oidc_bootstraps_canonical_repository_then_advances_beyond_plan
+          services/api/tests/test_code_autonomy.py::test_pre_mutation_implementation_failure_is_durable_failed_run
+          services/api/tests/test_code_autonomy.py::test_post_mutation_implementation_failure_stays_fail_closed_without_fabricated_attempt
+      - name: Remove generated/test harness files
+        run: |
+          rm -rf services/api/parallax_api.egg-info
+          rm .github/scripts/w4_implement_recovery_test_alignment.py .github/workflows/w4-implement-recovery-test-alignment.yml
+      - name: Commit aligned tests
+        run: |
+          git config user.name 'parallax-recovery[bot]'
+          git config user.email 'parallax-recovery@users.noreply.github.com'
+          git add -A
+          git commit -m 'test(runtime): assert durable IMPLEMENT failure state'
+          git push origin HEAD:ws/w4-autonomous-implement-recovery
