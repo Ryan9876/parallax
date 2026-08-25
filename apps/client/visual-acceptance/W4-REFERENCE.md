@@ -18,16 +18,15 @@ The approved Warm Editorial Observatory direction is the visual target. This fil
 
 ## Viewports
 
-The gate records deterministic screenshots at these reference viewports:
+The gate uses the repository's established deterministic browser acceptance matrix rather than creating a second viewport policy:
 
 | Reference | CSS viewport | Intent |
 | --- | --- | --- |
 | Desktop reference | 1440 × 900 | Full Warm Editorial shell + Live Build contextual rail |
-| Desktop compact | 1280 × 800 | Desktop shell under tighter vertical density |
-| Tablet portrait | 834 × 1112 | Primary workspace without desktop contextual compression |
+| Tablet | 768 × 1024 | Primary workspace without desktop contextual compression |
 | Phone | 390 × 844 | Mobile Live Build composition and return path |
 
-Screenshots are evidence, not the sole oracle. Release failure is driven by semantic/layout assertions (rail proportions, overflow/clipping, hierarchy, target size, navigation state, focus and responsive transitions) so harmless raster differences do not create brittle failures.
+The design system remains authoritative for responsive behavior between those deterministic reference points. Screenshots are evidence, not the sole oracle. Release failure is driven by semantic/layout assertions (rail proportions, overflow/clipping, hierarchy, card density, target size, navigation state, focus and responsive transitions) so harmless raster differences do not create brittle failures.
 
 ## Test-only fixture policy
 
