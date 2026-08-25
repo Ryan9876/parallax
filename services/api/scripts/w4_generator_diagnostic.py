@@ -8,6 +8,8 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from parallax_api.code.implementation import ImplementationRequest, SafeImplementationEngine
+from parallax_api.code.patching import SourcePatch
 from parallax_api.code.runtime_composition import production_durable_lineage_allocator
 from parallax_api.code.source_context import BoundedSourceContextSelector
 from parallax_api.code.workspace_lineage import ProjectRunIdentity
@@ -57,10 +59,7 @@ def main() -> None:
     run = _get_json(token, f"/v1/engineering-runs/{RUN_ID}")
     if not isinstance(run, dict):
         raise RuntimeError("production run is unavailable")
-    specification = _get_json(
-        token,
-        f"/v1/conversations/{run['conversation_id']}/work-specifications/approved",
-    )
+    specification = _get_json(token, f"/v1/conversations/{run['conversation_id']}/work-specifications/approved")
     if not isinstance(specification, dict):
         raise RuntimeError("approved Work Specification is unavailable")
 
@@ -83,12 +82,12 @@ def main() -> None:
     if allocator is None:
         raise RuntimeError("durable lineage allocator is unavailable")
 
-    workspace = None
+    identity = ProjectRunIdentity(project_id=str(run["project_id"]), run_id=RUN_ID)
+    context_workspace = None
     try:
-        identity = ProjectRunIdentity(project_id=str(run["project_id"]), run_id=RUN_ID)
-        workspace = allocator.resolve(identity)
+        context_workspace = allocator.resolve(identity)
         context = BoundedSourceContextSelector().select(
-            workspace.path,
+            context_workspace.path,
             objective=str(specification.get("objective") or ""),
             acceptance_texts=tuple(item.text for item in acceptance),
         )
@@ -105,26 +104,46 @@ def main() -> None:
 
         results: list[dict[str, object]] = []
         for model in MODEL_ORDER:
+            apply_workspace = None
             try:
                 program = DspyImplementationGenerationProgram(model)
                 proposal = program.run(request=request)
-                results.append(
-                    {
-                        "model": model,
-                        "status": "ok",
-                        "patch_count": len(proposal.patches),
-                        "acceptance_count": len(proposal.acceptance_ids_covered),
-                        "exact_acceptance_coverage": tuple(proposal.acceptance_ids_covered) == request.required_acceptance_ids,
-                    }
-                )
+                result: dict[str, object] = {
+                    "model": model,
+                    "generation": "ok",
+                    "patch_count": len(proposal.patches),
+                    "acceptance_count": len(proposal.acceptance_ids_covered),
+                    "exact_acceptance_coverage": tuple(proposal.acceptance_ids_covered) == request.required_acceptance_ids,
+                }
+                try:
+                    apply_workspace = allocator.resolve(identity)
+                    mutation_request = ImplementationRequest(
+                        patches=tuple(
+                            SourcePatch(
+                                path=item.path,
+                                expected_base_sha256=item.expected_base_sha256,
+                                unified_diff=item.unified_diff,
+                            )
+                            for item in proposal.patches
+                        )
+                    )
+                    mutation = SafeImplementationEngine().apply(apply_workspace.path, mutation_request)
+                    artifacts = mutation.get("artifacts") if isinstance(mutation.get("artifacts"), list) else []
+                    result.update(
+                        {
+                            "safe_patch": "ok" if mutation.get("applied") is True else "rejected",
+                            "artifact_count": len(artifacts),
+                            "protected_stage_authority": mutation.get("protected_stage_authority"),
+                        }
+                    )
+                except Exception as exc:
+                    result.update({"safe_patch": "failed", "safe_patch_error_chain": _cause_chain(exc)})
+                results.append(result)
             except Exception as exc:
-                results.append(
-                    {
-                        "model": model,
-                        "status": "failed",
-                        "error_chain": _cause_chain(exc),
-                    }
-                )
+                results.append({"model": model, "generation": "failed", "error_chain": _cause_chain(exc)})
+            finally:
+                if apply_workspace is not None:
+                    allocator.cleanup(apply_workspace)
 
         output = {
             "run_id": RUN_ID,
@@ -140,11 +159,11 @@ def main() -> None:
         }
         print(json.dumps(output, indent=2, sort_keys=True))
     finally:
-        if workspace is not None:
-            allocator.cleanup(workspace)
+        if context_workspace is not None:
+            allocator.cleanup(context_workspace)
         engine.dispose()
 
-    raise RuntimeError("exact production generator diagnostic stops intentionally")
+    raise RuntimeError("exact production generation/patch diagnostic stops intentionally")
 
 
 if __name__ == "__main__":
