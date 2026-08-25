@@ -4,12 +4,14 @@ import base64
 from hashlib import sha256
 from pathlib import Path
 import subprocess
+from threading import Barrier, Lock
 from types import SimpleNamespace
 
 import httpx
 import pytest
 
 from parallax_api.code.production_source_projection import (
+    _PROJECTED_READ_WORKERS,
     ProjectedGitHubFileResult,
     ProjectedGitHubReadClient,
     ProjectedRepositoryBoundSourceProvider,
@@ -91,6 +93,33 @@ class _GitHub:
         )
 
 
+class _ConcurrentGitHub(_GitHub):
+    def __init__(self) -> None:
+        super().__init__()
+        self._barrier = Barrier(2)
+        self._lock = Lock()
+        self.active_reads = 0
+        self.max_active_reads = 0
+
+    def read_file(self, binding, invocation, *, source_revision: str, path: str):
+        with self._lock:
+            self.active_reads += 1
+            self.max_active_reads = max(self.max_active_reads, self.active_reads)
+        try:
+            # This intentionally requires two provider reads to overlap. The
+            # former sequential implementation cannot cross this barrier.
+            self._barrier.wait(timeout=2)
+            return super().read_file(
+                binding,
+                invocation,
+                source_revision=source_revision,
+                path=path,
+            )
+        finally:
+            with self._lock:
+                self.active_reads -= 1
+
+
 class _CredentialProvider:
     def credential_for_repository(self, repository_ref: str) -> ScopedBearerCredential:
         assert repository_ref == REPOSITORY
@@ -120,8 +149,26 @@ def test_lineage_safe_projection_omits_secret_sensitive_paths_before_file_reads(
         "apps/client/assets/parallax-lens-mark.svg",
         "apps/client/src/components/ParallaxLogo.tsx",
     )
-    assert github.file_reads == list(sorted(package.files))
+    assert sorted(github.file_reads) == list(sorted(package.files))
     assert package.source_ref == f"{REPOSITORY}@{REVISION}:projection:lineage-safe-v2"
+
+
+def test_lineage_safe_projection_overlaps_reads_within_fixed_worker_bound():
+    github = _ConcurrentGitHub()
+    identity = ProjectRunIdentity(PROJECT_ID, RUN_ID)
+    provider = ProjectedRepositoryBoundSourceProvider(
+        identity=identity,
+        binding=ProviderProjectBinding(PROJECT_ID, REPOSITORY),
+        github=github,
+        invocations=_Invocations(),
+        operation_key="op:projection-concurrent",
+    )
+
+    package = provider.load(identity)
+
+    assert github.max_active_reads == 2
+    assert github.max_active_reads <= _PROJECTED_READ_WORKERS
+    assert sorted(github.file_reads) == list(sorted(package.files))
 
 
 def test_projection_matches_durable_lineage_secret_path_boundary():
