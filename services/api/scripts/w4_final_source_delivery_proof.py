@@ -126,15 +126,18 @@ def _create_approved_proof_spec(*, token: str) -> tuple[str, str, str]:
         PROOF_TEXT,
         "REVIEW",
         "HUMAN_REQUIRED",
-        BUILD_COMMAND,
-        TEST_COMMAND,
+        "BUILD",
+        "TEST",
+        "VERIFY",
         REPOSITORY_REF,
         VERCEL_PROJECT_ID,
     ):
         if required not in combined:
             raise RuntimeError(f"final production proof Work Specification lost required scope token {required!r}")
-    if "only" not in combined.casefold() or "preserve" not in combined.casefold():
-        raise RuntimeError("final production proof Work Specification did not preserve the one-file bounded scope")
+    lowered = combined.casefold()
+    for semantic in ("only", "preserve", "fixed protected", "preview", "no merge"):
+        if semantic not in lowered:
+            raise RuntimeError(f"final production proof Work Specification lost required semantic {semantic!r}")
 
     approved = _request_json(
         token=token,
