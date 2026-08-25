@@ -15,7 +15,7 @@ PROOF_BRANCH = "control/w4-final-source-delivery-proof-7"
 PROJECT_ID = "b1f6984d-dc64-4220-bd51-51f6f215d175"
 REPOSITORY_REF = "github:Ryan9876/parallax"
 VERCEL_PROJECT_ID = "prj_4lhve1AXZntfauaGHvkuaGWC6KJX"
-PROOF_PATH = "services/api/release-proof/w4-final-source-delivery-proof.txt"
+PROOF_PATH = "services/api/w4-final-source-delivery-proof.txt"
 PROOF_TEXT = "Parallax Wave 4 final source delivery proof."
 
 BUILD_COMMAND = "python -m compileall -q services/api/parallax_api scripts"
