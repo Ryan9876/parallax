@@ -178,6 +178,7 @@ def validate_implementation_proposal(
 
 
 ProgramFactory = Callable[[str], ImplementationGenerationProgram]
+ProposalValidator = Callable[[ImplementationProposal], bool]
 
 
 class ImplementationGenerationCoordinator:
@@ -190,7 +191,12 @@ class ImplementationGenerationCoordinator:
         self.router = router or ModelRouter()
         self.program_factory = program_factory or DspyImplementationGenerationProgram
 
-    async def generate(self, request: ImplementationGenerationRequest) -> ImplementationGeneration:
+    async def generate(
+        self,
+        request: ImplementationGenerationRequest,
+        *,
+        proposal_validator: ProposalValidator | None = None,
+    ) -> ImplementationGeneration:
         required = request.required_acceptance_ids
         versions: dict[str, str] = {}
 
@@ -199,11 +205,13 @@ class ImplementationGenerationCoordinator:
             versions[model] = program.version
             return await asyncio.to_thread(program.run, request=request)
 
+        def validate(proposal: ImplementationProposal) -> bool:
+            if not validate_implementation_proposal(proposal, required):
+                return False
+            return proposal_validator(proposal) if proposal_validator is not None else True
+
         try:
-            result = await self.router.route(
-                attempt,
-                lambda proposal: validate_implementation_proposal(proposal, required),
-            )
+            result = await self.router.route(attempt, validate)
         except RoutingFailure as exc:
             raise ImplementationGenerationFailure("Parallax could not produce a protected implementation proposal") from exc
         return ImplementationGeneration(
@@ -213,11 +221,16 @@ class ImplementationGenerationCoordinator:
             program_version=versions.get(result.model, "implementation-generation"),
         )
 
-    def generate_sync(self, request: ImplementationGenerationRequest) -> ImplementationGeneration:
+    def generate_sync(
+        self,
+        request: ImplementationGenerationRequest,
+        *,
+        proposal_validator: ProposalValidator | None = None,
+    ) -> ImplementationGeneration:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self.generate(request))
+            return asyncio.run(self.generate(request, proposal_validator=proposal_validator))
         raise ImplementationGenerationFailure(
             "synchronous implementation generation cannot run inside an active event loop"
         )
