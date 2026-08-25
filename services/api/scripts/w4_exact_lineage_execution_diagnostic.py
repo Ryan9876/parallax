@@ -12,7 +12,7 @@ from parallax_api.code.lineage_sandbox_execution import SameLineageVercelSandbox
 from parallax_api.code.runtime_composition import production_durable_lineage_allocator
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.db import make_engine
-from scripts.production_execution_snapshot_preflight import main as execution_snapshot_preflight
+from production_execution_snapshot_preflight import main as execution_snapshot_preflight
 
 
 BASE_URL = "https://parallax-api-tan.vercel.app"
