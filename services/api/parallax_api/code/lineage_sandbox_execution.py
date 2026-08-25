@@ -202,7 +202,7 @@ class SameLineageVercelSandboxExecutor:
                     destroy=True,
                     tags={"parallax": "same-lineage", "stage": spec.stage.value.lower()},
                 ) as instance:
-                    restored_snapshot_id = getattr(instance, "source_snapshot_id", None)
+                    restored_snapshot_id = getattr(instance, "current_snapshot_id", None)
                     if restored_snapshot_id != self.snapshot_id:
                         raise SameLineageExecutionError("sandbox did not restore the server-pinned execution snapshot")
                     self._transfer_source(instance, files)
