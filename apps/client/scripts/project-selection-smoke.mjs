@@ -29,7 +29,10 @@ function listen(server, port) {
 }
 
 function close(server) {
-  return new Promise((resolve) => server.close(() => resolve()));
+  return new Promise((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+    server.closeAllConnections?.();
+  });
 }
 
 function staticServer() {
@@ -190,6 +193,21 @@ async function withApi(config, fn) {
   }
 }
 
+async function withPage(viewport, fn) {
+  const page = await browser.newPage({ viewport });
+  try {
+    await fn(page);
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
+async function scenario(name, fn) {
+  console.log(`[project-selection] START ${name}`);
+  await fn();
+  console.log(`[project-selection] PASS ${name}`);
+}
+
 async function assertComposerVisible(page) {
   const box = await page.getByLabel('Message Parallax').boundingBox();
   assert(box, 'mobile Project flow lost the composer');
@@ -205,70 +223,76 @@ try {
   await listen(staticApp, 8774);
   browser = await chromium.launch({ headless: true });
 
-  await withApi({
-    projects: [project(ALPHA_ID, 'Alpha'), project(BETA_ID, 'Beta', 'github:owner/beta')],
-  }, async (state) => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
+  await scenario('desktop existing Project selection', async () => {
+    await withApi({ projects: [project(ALPHA_ID, 'Alpha'), project(BETA_ID, 'Beta', 'github:owner/beta')] }, async (state) => {
+      await withPage({ width: 1440, height: 900 }, async (page) => {
+        await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
 
-    assert(state.conversationPosts.length === 1, 'workspace startup should create one Reason conversation when history is empty');
-    assert(JSON.stringify(state.conversationPosts[0]) === JSON.stringify({ mode: 'reason' }), 'Reason startup payload changed or acquired Project binding');
-    assert(state.projectGets === 0, 'Project API should remain lazy during ordinary Reason startup');
+        assert(state.conversationPosts.length === 1, 'workspace startup should create one Reason conversation when history is empty');
+        assert(JSON.stringify(state.conversationPosts[0]) === JSON.stringify({ mode: 'reason' }), 'Reason startup payload changed or acquired Project binding');
+        assert(state.projectGets === 0, 'Project API should remain lazy during ordinary Reason startup');
 
-    await page.getByText('code', { exact: true }).click();
-    await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
-    await page.getByLabel('Select Project Beta').click();
-    await page.getByText('PROJECT · Beta').waitFor({ timeout: 5000 });
+        await page.getByText('code', { exact: true }).click();
+        await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
+        await page.getByLabel('Select Project Beta').click();
+        await page.getByText('PROJECT · Beta').waitFor({ timeout: 5000 });
 
-    const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
-    assert(codePosts.length === 1, 'Project selection should create exactly one Code conversation');
-    assert(codePosts[0].project_id === BETA_ID, 'Code creation did not use the explicitly selected canonical Project ID');
-    assert(!Object.hasOwn(codePosts[0], 'workspace_ref'), 'workspace_ref leaked into Code conversation creation');
-    await page.close();
+        const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
+        assert(codePosts.length === 1, 'Project selection should create exactly one Code conversation');
+        assert(codePosts[0].project_id === BETA_ID, 'Code creation did not use the explicitly selected canonical Project ID');
+        assert(!Object.hasOwn(codePosts[0], 'workspace_ref'), 'workspace_ref leaked into Code conversation creation');
+      });
+    });
   });
 
-  await withApi({ projects: [] }, async (state) => {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-    await page.getByText('code', { exact: true }).click();
-    await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
-    await page.getByLabel('Project name').fill('Mobile Builder');
-    await page.getByLabel('Repository identity').fill('owner/mobile-builder');
-    await page.getByLabel('Create Project').click();
-    await page.getByText('PROJECT · Mobile Builder').waitFor({ timeout: 5000 });
+  await scenario('mobile Project creation', async () => {
+    await withApi({ projects: [] }, async (state) => {
+      await withPage({ width: 390, height: 844 }, async (page) => {
+        await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
+        await page.getByText('code', { exact: true }).click();
+        await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
+        await page.getByLabel('Project name').fill('Mobile Builder');
+        await page.getByLabel('Repository identity').fill('owner/mobile-builder');
+        await page.getByLabel('Create Project').click();
+        await page.getByText('PROJECT · Mobile Builder').waitFor({ timeout: 5000 });
 
-    assert(state.projectPosts.length === 1, 'mobile create flow did not call Project creation exactly once');
-    assert(state.projectPosts[0].name === 'Mobile Builder', 'Project create changed the requested name');
-    assert(state.projectPosts[0].repository_ref === 'github:owner/mobile-builder', 'Project create did not normalize GitHub owner/repository shorthand to canonical repository identity');
-    const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
-    assert(codePosts.length === 1 && codePosts[0].project_id === CREATED_ID, 'mobile Code creation did not bind the server-returned canonical Project ID');
-    await assertComposerVisible(page);
-    await page.close();
+        assert(state.projectPosts.length === 1, 'mobile create flow did not call Project creation exactly once');
+        assert(state.projectPosts[0].name === 'Mobile Builder', 'Project create changed the requested name');
+        assert(state.projectPosts[0].repository_ref === 'github:owner/mobile-builder', 'Project create did not normalize GitHub owner/repository shorthand to canonical repository identity');
+        const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
+        assert(codePosts.length === 1 && codePosts[0].project_id === CREATED_ID, 'mobile Code creation did not bind the server-returned canonical Project ID');
+        await assertComposerVisible(page);
+      });
+    });
   });
 
-  await withApi({ projects: [project(ALPHA_ID, 'Stale Alpha')], rejectCode: true }, async (state) => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-    await page.getByText('code', { exact: true }).click();
-    await page.getByText('Project not found').waitFor({ timeout: 5000 });
+  await scenario('stale Project fails closed', async () => {
+    await withApi({ projects: [project(ALPHA_ID, 'Stale Alpha')], rejectCode: true }, async (state) => {
+      await withPage({ width: 1440, height: 900 }, async (page) => {
+        await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
+        await page.getByText('code', { exact: true }).click();
+        await page.getByText('Project not found').waitFor({ timeout: 5000 });
 
-    const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
-    assert(codePosts.length === 1, 'stale Project failure retried Code creation instead of failing closed');
-    assert(codePosts[0].project_id === ALPHA_ID, 'stale failure test did not first use the canonical owner-scoped Project');
-    assert(state.conversationPosts.every((payload) => payload.mode !== 'code' || typeof payload.project_id === 'string'), 'failure path attempted unbound Code creation');
-    await page.close();
+        const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
+        assert(codePosts.length === 1, 'stale Project failure retried Code creation instead of failing closed');
+        assert(codePosts[0].project_id === ALPHA_ID, 'stale failure test did not first use the canonical owner-scoped Project');
+        assert(state.conversationPosts.every((payload) => payload.mode !== 'code' || typeof payload.project_id === 'string'), 'failure path attempted unbound Code creation');
+      });
+    });
   });
 
-  await withApi({
-    projects: [project(ALPHA_ID, 'Unrelated Future Project')],
-    initialConversation: conversation('66666666-6666-4666-8666-666666666666', 'code', null, 'HISTORICAL_UNBOUND'),
-  }, async (state) => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-    await page.getByText('HISTORICAL CODE · UNBOUND').waitFor({ timeout: 5000 });
-    assert(state.projectGets === 0, 'historical-unbound conversation silently looked up or inferred a Project on open');
-    assert(state.conversationPosts.length === 0, 'historical-unbound conversation was silently rebound through conversation creation');
-    await page.close();
+  await scenario('historical unbound remains explicit', async () => {
+    await withApi({
+      projects: [project(ALPHA_ID, 'Unrelated Future Project')],
+      initialConversation: conversation('66666666-6666-4666-8666-666666666666', 'code', null, 'HISTORICAL_UNBOUND'),
+    }, async (state) => {
+      await withPage({ width: 1440, height: 900 }, async (page) => {
+        await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
+        await page.getByText('HISTORICAL CODE · UNBOUND').waitFor({ timeout: 5000 });
+        assert(state.projectGets === 0, 'historical-unbound conversation silently looked up or inferred a Project on open');
+        assert(state.conversationPosts.length === 0, 'historical-unbound conversation was silently rebound through conversation creation');
+      });
+    });
   });
 
   console.log(JSON.stringify({
@@ -283,5 +307,5 @@ try {
   }, null, 2));
 } finally {
   await browser?.close();
-  staticApp.close();
+  await close(staticApp).catch(() => undefined);
 }
