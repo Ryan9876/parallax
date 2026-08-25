@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
+import sys
 
 from vercel.api import session
 from vercel.sandbox import NetworkPolicy, SnapshotSource
 from vercel.sandbox import sync as sandbox
+
+
+_API_ROOT = Path(__file__).resolve().parent.parent
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
 
 from parallax_api.execution_environment import execution_snapshot_id
 
@@ -61,6 +68,8 @@ def main() -> None:
             payload = json.loads((result.stdout or "{}").strip())
             if payload.get("missing"):
                 raise RuntimeError("production execution snapshot is missing required offline dependencies")
+            if payload.get("source_root_exists") is not True:
+                raise RuntimeError("production execution snapshot is missing the bounded source-transfer root")
             if payload.get("source_root_entries"):
                 raise RuntimeError("production execution snapshot unexpectedly contains repository source")
 
