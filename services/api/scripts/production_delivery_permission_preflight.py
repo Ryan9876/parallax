@@ -97,6 +97,14 @@ def _authorization_details(repository: str) -> list[dict[str, object]]:
     ]
 
 
+def _require_repository_write_permission(repository_payload: object) -> None:
+    if not isinstance(repository_payload, dict):
+        raise RuntimeError("GitHub scoped repository identity preflight returned invalid payload")
+    permissions = repository_payload.get("permissions")
+    if not isinstance(permissions, dict) or permissions.get("push") is not True:
+        raise RuntimeError("GitHub scoped delivery credential does not expose repository write capability")
+
+
 def _preflight_target(target: dict[str, object], *, oidc: str) -> None:
     repository_ref = target["repository_ref"]
     connector = target["github_connector"]
@@ -161,9 +169,7 @@ def _preflight_target(target: dict[str, object], *, oidc: str) -> None:
     )
     if not isinstance(repository_payload, dict) or repository_payload.get("id") != repo_id:
         raise RuntimeError("GitHub scoped repository numeric identity mismatch")
-    permissions = repository_payload.get("permissions")
-    if isinstance(permissions, dict) and permissions.get("push") is not True:
-        raise RuntimeError("GitHub scoped delivery credential does not expose repository write capability")
+    _require_repository_write_permission(repository_payload)
 
 
 def main() -> None:
@@ -182,7 +188,7 @@ def main() -> None:
         _preflight_target(target, oidc=oidc.strip())
     print(
         "Production delivery permission preflight: PASS "
-        f"({len(targets)} exact repository target(s); scoped contents/pull-request write credential verified)"
+        f"({len(targets)} exact repository target(s); scoped delivery token issued and repository write verified)"
     )
 
 
