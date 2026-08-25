@@ -78,13 +78,11 @@ def _repository_identity_key(repository_ref: str) -> str:
 class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
     """Exchange Vercel deployment OIDC for a verified repository-scoped GitHub token.
 
-    Vercel Connect owns the GitHub credential lifecycle. Parallax accepts an
-    app-scoped token only after GitHub itself confirms that the installation
-    token can reach exactly the canonical repository. The token request is
-    additionally restricted to the exact repository and the minimum GitHub
-    permissions required by the already-authorized source-delivery actions.
-    Bearer material never leaves this provider/client boundary and is cached
-    only for the lifetime of the request composition.
+    Generic credential resolution preserves the existing app-token contract.
+    Production source delivery opts into an additional token-request restriction
+    for exactly one repository and the minimum GitHub permissions already allowed
+    by Parallax's typed delivery capability. Bearer material never leaves this
+    provider/client boundary and is cached only for the request composition.
     """
 
     def __init__(
@@ -92,17 +90,21 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         connector: str,
         *,
         oidc_token: str | None = None,
+        request_delivery_permissions: bool = False,
         transport: httpx.BaseTransport | None = None,
         github_transport: httpx.BaseTransport | None = None,
         timeout_seconds: float = 10.0,
     ) -> None:
         if not isinstance(connector, str) or not _GITHUB_CONNECTOR.fullmatch(connector):
             raise ProductionDeliveryConfigurationError("GitHub Connect connector configuration is invalid")
+        if not isinstance(request_delivery_permissions, bool):
+            raise TypeError("request_delivery_permissions must be bool")
         if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 30:
             raise ValueError("GitHub Connect timeout must be between 0 and 30 seconds")
         timeout = httpx.Timeout(float(timeout_seconds))
         self._connector = connector
         self._oidc_token = oidc_token
+        self._request_delivery_permissions = request_delivery_permissions
         self._http = httpx.Client(
             base_url="https://api.vercel.com",
             transport=transport,
@@ -149,7 +151,7 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         return repository
 
     @staticmethod
-    def _authorization_details(repository: str) -> list[dict[str, object]]:
+    def delivery_authorization_details(repository: str) -> list[dict[str, object]]:
         return [
             {
                 "type": "github_app_installation",
@@ -198,14 +200,14 @@ class VercelConnectGitHubCredentialProvider(GitHubCredentialProvider):
         oidc = self._oidc_token or os.getenv(_ENV_OIDC)
         if not isinstance(oidc, str) or not oidc.strip():
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE")
+        request_payload: dict[str, object] = {"subject": {"type": "app"}}
+        if self._request_delivery_permissions:
+            request_payload["authorizationDetails"] = self.delivery_authorization_details(repository)
         try:
             response = self._http.post(
                 f"/v1/connect/token/{quote(self._connector, safe='')}",
                 headers={"Authorization": f"Bearer {oidc.strip()}", "Content-Type": "application/json"},
-                json={
-                    "subject": {"type": "app"},
-                    "authorizationDetails": self._authorization_details(repository),
-                },
+                json=request_payload,
             )
         except httpx.TimeoutException as exc:
             raise ProviderClientError("CREDENTIAL_UNAVAILABLE") from exc
@@ -425,6 +427,7 @@ def production_source_delivery(
     github_credentials = VercelConnectGitHubCredentialProvider(
         selected.github_connector,
         oidc_token=oidc_token,
+        request_delivery_permissions=True,
         transport=github_transport,
         github_transport=github_scope_transport,
     )
