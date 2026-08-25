@@ -38,7 +38,7 @@ class ImplementationRequest:
 
 
 class SafeImplementationEngine:
-    """Apply a bounded set of prepared text patches as one logical operation."""
+    """Validate and apply a bounded set of text patches as one logical operation."""
 
     def __init__(
         self,
@@ -57,21 +57,28 @@ class SafeImplementationEngine:
         self.max_total_patch_bytes = max_total_patch_bytes
         self.max_total_result_bytes = max_total_result_bytes
 
-    def apply(self, workspace_root: str | Path, request: ImplementationRequest) -> dict[str, object]:
+    def validate(self, workspace_root: str | Path, request: ImplementationRequest) -> None:
+        """Prove a proposal is admissible without mutating the workspace."""
+
+        self._prepare(workspace_root, request)
+
+    def _prepare(
+        self,
+        workspace_root: str | Path,
+        request: ImplementationRequest,
+    ) -> tuple[list[PreparedPatch], int, int, int]:
         patches = request.patches
         if not patches:
             raise ImplementationLimitError("implementation request must contain at least one patch")
         if len(patches) > self.max_patches:
             raise ImplementationLimitError("implementation request exceeds the configured patch-count limit")
 
-        normalized_paths: list[str] = []
-        for patch in patches:
-            normalized_paths.append(self.patch_engine.normalize_path(patch.path))
+        normalized_paths = [self.patch_engine.normalize_path(patch.path) for patch in patches]
         if len(set(normalized_paths)) != len(normalized_paths):
             raise DuplicateTargetError("implementation request contains duplicate target paths")
 
         # Preparation is intentionally side-effect free: every target, digest,
-        # diff, and limit is validated before the first filesystem mutation.
+        # diff, secret check and aggregate limit is validated before mutation.
         prepared: list[PreparedPatch] = []
         total_source_bytes = 0
         total_patch_bytes = 0
@@ -88,6 +95,13 @@ class SafeImplementationEngine:
             if total_result_bytes > self.max_total_result_bytes:
                 raise ImplementationLimitError("implementation result exceeds the aggregate byte limit")
             prepared.append(candidate)
+        return prepared, total_source_bytes, total_patch_bytes, total_result_bytes
+
+    def apply(self, workspace_root: str | Path, request: ImplementationRequest) -> dict[str, object]:
+        prepared, total_source_bytes, total_patch_bytes, total_result_bytes = self._prepare(
+            workspace_root,
+            request,
+        )
 
         committed: list[PreparedPatch] = []
         try:
