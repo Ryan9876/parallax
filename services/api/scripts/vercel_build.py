@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+import inspect
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
-from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 
 def _run(*args: str) -> None:
@@ -40,22 +38,11 @@ def _run_isolated_preflight(script: str) -> None:
     )
 
 
-def _get_json(*, base_url: str, token: str, path: str, query: dict[str, object] | None = None):
-    url = f"{base_url.rstrip('/')}{path}"
-    if query:
-        url = f"{url}?{urlencode(query)}"
-    request = Request(
-        url,
-        headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
-        method="GET",
-    )
+def _signature(value: object) -> str | None:
     try:
-        with urlopen(request, timeout=60) as response:  # noqa: S310 - fixed protected production target
-            raw = response.read().decode("utf-8")
-            return json.loads(raw) if raw else None
-    except HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"diagnostic GET {path} failed with HTTP {exc.code}: {raw[:500]}") from exc
+        return str(inspect.signature(value))
+    except (TypeError, ValueError):
+        return None
 
 
 def _run_preview_diagnostic() -> None:
@@ -63,94 +50,65 @@ def _run_preview_diagnostic() -> None:
         return
     if (os.getenv("VERCEL_GIT_COMMIT_REF") or "") != "control/w4-final-run-diagnostic":
         return
-    token = (os.getenv("PARALLAX_ACCESS_TOKEN") or "").strip()
-    if not token:
-        raise RuntimeError("preview run diagnostic requires existing PARALLAX_ACCESS_TOKEN")
 
-    base_url = "https://parallax-api-tan.vercel.app"
-    run_id = "b4b64e2d-f9a8-4601-9070-0ebe0c2165ae"
-    run = _get_json(base_url=base_url, token=token, path=f"/v1/engineering-runs/{run_id}")
-    events_page = _get_json(
-        base_url=base_url,
-        token=token,
-        path=f"/v1/engineering-runs/{run_id}/events",
-        query={"after_sequence": 0, "limit": 200},
-    )
-    if not isinstance(run, dict):
-        raise RuntimeError("run diagnostic returned non-object run")
+    from vercel.api import session
+    from vercel.sandbox import NetworkPolicy
+    from vercel.sandbox import sync as sandbox
 
-    safe_attempts = []
-    for attempt in run.get("attempts") or []:
-        if not isinstance(attempt, dict):
-            continue
-        evidence = attempt.get("evidence") if isinstance(attempt.get("evidence"), dict) else {}
-        safe_attempts.append(
-            {
-                "stage": attempt.get("stage"),
-                "status": attempt.get("status"),
-                "failure_code": attempt.get("failure_code"),
-                "model_id": attempt.get("model_id"),
-                "tool_id": attempt.get("tool_id"),
-                "evidence": {
-                    key: evidence.get(key)
-                    for key in (
-                        "tool_id",
-                        "exit_code",
-                        "duration_ms",
-                        "stdout_excerpt",
-                        "stderr_excerpt",
-                        "timed_out",
-                        "redacted",
-                        "protected_success",
-                        "executor",
-                        "network_policy",
-                        "source_context_file_count",
-                        "source_context_total_bytes",
-                        "patch_count",
-                        "source_lineage_ref",
-                        "base_source_lineage_ref",
-                        "lineage_bound_execution",
-                    )
-                    if key in evidence
-                },
+    project_id = (os.getenv("VERCEL_PROJECT_ID") or "").strip()
+    if not project_id:
+        raise RuntimeError("preview sandbox diagnostic requires Vercel project identity")
+
+    module_snapshot_members = sorted(name for name in dir(sandbox) if "snapshot" in name.casefold())
+    output: dict[str, object] = {
+        "create_sandbox_signature": _signature(sandbox.create_sandbox),
+        "module_snapshot_members": module_snapshot_members,
+    }
+
+    with session():
+        with sandbox.create_sandbox(
+            project_id=project_id,
+            execution_time_limit=90,
+            persistent=False,
+            network_policy=NetworkPolicy.deny_all(),
+            env={},
+            destroy=True,
+            tags={"parallax": "offline-substrate-diagnostic"},
+        ) as instance:
+            instance_snapshot_members = sorted(name for name in dir(instance) if "snapshot" in name.casefold())
+            output["instance_snapshot_members"] = instance_snapshot_members
+            output["instance_snapshot_signatures"] = {
+                name: _signature(getattr(instance, name)) for name in instance_snapshot_members
             }
-        )
-
-    safe_events = []
-    raw_events = events_page.get("events") if isinstance(events_page, dict) else []
-    for event in raw_events or []:
-        if not isinstance(event, dict):
-            continue
-        safe_events.append(
-            {
-                "sequence": event.get("sequence"),
-                "event_type": event.get("event_type"),
-                "stage": event.get("stage"),
-                "outcome": event.get("outcome"),
-                "subsystem": event.get("subsystem"),
-                "failure_code": event.get("failure_code"),
-                "source_lineage_ref": event.get("source_lineage_ref"),
-                "evidence_ref": event.get("evidence_ref"),
-                "summary": event.get("summary"),
+            result = instance.run_process(
+                "python",
+                [
+                    "-c",
+                    (
+                        "import importlib.util,json,os,shutil,sys;"
+                        "print(json.dumps({"
+                        "'cwd':os.getcwd(),"
+                        "'python':sys.version.split()[0],"
+                        "'pytest':importlib.util.find_spec('pytest') is not None,"
+                        "'pip_module':importlib.util.find_spec('pip') is not None,"
+                        "'pip_bin':shutil.which('pip'),"
+                        "'uv_bin':shutil.which('uv'),"
+                        "'python_bin':shutil.which('python')"
+                        "},sort_keys=True))"
+                    ),
+                ],
+                env={},
+                kill_after=60,
+                capture_output=True,
+            )
+            output["sandbox_probe"] = {
+                "exit_code": result.returncode,
+                "stdout": (result.stdout or "")[:1000],
+                "stderr": (result.stderr or "")[:1000],
             }
-        )
 
-    print(
-        json.dumps(
-            {
-                "run_id": run_id,
-                "state": run.get("state"),
-                "revision": run.get("revision"),
-                "resume_stage": run.get("resume_stage"),
-                "last_failure_code": run.get("last_failure_code"),
-                "attempts": safe_attempts,
-                "events": safe_events,
-            },
-            indent=2,
-            sort_keys=True,
-        )
-    )
-    raise RuntimeError("diagnostic-only preview stops intentionally")
+    print(json.dumps(output, indent=2, sort_keys=True))
+    raise RuntimeError("offline sandbox substrate diagnostic stops intentionally")
 
 
 def main() -> None:
