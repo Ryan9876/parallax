@@ -21,10 +21,10 @@ def main() -> None:
     if not project_id:
         raise RuntimeError("sandbox diagnostic requires Vercel project identity")
 
-    module_snapshot_members = sorted(name for name in dir(sandbox) if "snapshot" in name.casefold())
     output: dict[str, object] = {
         "create_sandbox_signature": _signature(sandbox.create_sandbox),
-        "module_snapshot_members": module_snapshot_members,
+        "snapshot_source_signature": _signature(sandbox.SnapshotSource),
+        "snapshot_expiration_signature": _signature(sandbox.SnapshotExpiration),
     }
 
     with session():
@@ -37,11 +37,7 @@ def main() -> None:
             destroy=True,
             tags={"parallax": "offline-substrate-diagnostic"},
         ) as instance:
-            instance_snapshot_members = sorted(name for name in dir(instance) if "snapshot" in name.casefold())
-            output["instance_snapshot_members"] = instance_snapshot_members
-            output["instance_snapshot_signatures"] = {
-                name: _signature(getattr(instance, name)) for name in instance_snapshot_members
-            }
+            output["snapshot_signature"] = _signature(instance.snapshot)
             result = instance.run_process(
                 "python",
                 [
@@ -70,7 +66,7 @@ def main() -> None:
             }
 
     print(json.dumps(output, indent=2, sort_keys=True))
-    raise RuntimeError("offline sandbox substrate diagnostic stops intentionally")
+    raise RuntimeError("offline sandbox snapshot-contract diagnostic stops intentionally")
 
 
 if __name__ == "__main__":
