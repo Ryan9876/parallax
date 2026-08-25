@@ -795,11 +795,33 @@ class VerifiedLineageDelivery:
             lineage = self._reconstruct_lineage(identity, parent)
         raise VerifiedDeliveryError("source lineage ancestry exceeds protected traversal bound")
 
+    @staticmethod
+    def _delta_entries(repository_root: SourceLineage, accepted: SourceLineage):
+        if repository_root.project_id != accepted.project_id or repository_root.run_id != accepted.run_id:
+            raise VerifiedDeliveryError("repository root and accepted lineage Project/run identity mismatch")
+        root_files = {entry.path: entry for entry in repository_root.files}
+        accepted_files = {entry.path: entry for entry in accepted.files}
+        deleted = tuple(sorted(path for path in root_files if path not in accepted_files))
+        if deleted:
+            raise VerifiedDeliveryError("accepted lineage contains deletions outside bounded GitHub commit surface")
+        changed = tuple(
+            entry
+            for entry in accepted.files
+            if (
+                entry.path not in root_files
+                or root_files[entry.path].sha256 != entry.sha256
+                or root_files[entry.path].size != entry.size
+            )
+        )
+        if not changed:
+            raise VerifiedDeliveryError("accepted lineage has no publishable delta")
+        return changed
+
     def _accepted_commit_files(
         self,
         identity: ProjectRunIdentity,
         accepted_lineage_id: str,
-    ) -> tuple[SourceLineage, tuple[GitHubCommitFile, ...]]:
+    ) -> tuple[SourceLineage, SourceLineage, tuple[GitHubCommitFile, ...]]:
         workspace: MaterializedWorkspace | None = None
         try:
             workspace = self.allocator.reconstruct(identity, accepted_lineage_id)
@@ -811,9 +833,11 @@ class VerifiedLineageDelivery:
                 or lineage.parent_lineage_id is None
             ):
                 raise VerifiedDeliveryError("only an accepted non-root implementation lineage may be delivered")
+            repository_root = self._root_lineage(identity, lineage)
+            delta_entries = self._delta_entries(repository_root, lineage)
             root = workspace.path.resolve(strict=True)
             commit_files: list[GitHubCommitFile] = []
-            for entry in lineage.files:
+            for entry in delta_entries:
                 pure = PurePosixPath(entry.path)
                 if pure.is_absolute() or any(part in {"", ".", ".."} for part in pure.parts):
                     raise VerifiedDeliveryError("accepted lineage contains an unsafe file path")
@@ -831,9 +855,7 @@ class VerifiedLineageDelivery:
                 except UnicodeDecodeError as exc:
                     raise VerifiedDeliveryError("accepted lineage contains non-text content outside provider boundary") from exc
                 commit_files.append(GitHubCommitFile(entry.path, text, entry.sha256))
-            if not commit_files:
-                raise VerifiedDeliveryError("accepted lineage has no publishable files")
-            return lineage, tuple(commit_files)
+            return lineage, repository_root, tuple(commit_files)
         except VerifiedDeliveryError:
             raise
         except Exception as exc:
@@ -863,10 +885,9 @@ class VerifiedLineageDelivery:
                 raise VerifiedDeliveryError("durable delivery record content no longer matches accepted lineage")
             return replay
 
-        accepted, files = self._accepted_commit_files(identity, accepted_lineage_id)
+        accepted, root, files = self._accepted_commit_files(identity, accepted_lineage_id)
         if accepted.content_digest != current.content_digest:
             raise VerifiedDeliveryError("accepted lineage content digest changed")
-        root = self._root_lineage(identity, accepted)
         binding = self.projects.resolve(identity.project_id)
         delivery_key = self._delivery_operation_key(identity, accepted.lineage_id)
 

@@ -408,6 +408,18 @@ def _accept_implementation(allocator, identity: ProjectRunIdentity):
         allocator.cleanup(workspace)
 
 
+def _delete_implementation_file(allocator, identity: ProjectRunIdentity, path: str):
+    workspace = allocator.resolve(identity)
+    try:
+        (workspace.path / path).unlink()
+        return allocator.accept_implementation(
+            workspace,
+            expected_parent_lineage_id=workspace.lineage.lineage_id,
+        )
+    finally:
+        allocator.cleanup(workspace)
+
+
 def _review_run(project_id: str, run_id: str, accepted):
     return _run(
         project_id,
@@ -507,7 +519,7 @@ def test_competing_initial_source_cannot_replace_durable_root(tmp_path):
     assert allocator.current_lineage(ProjectRunIdentity(project_id, run_id)) == first
 
 
-def test_verified_delivery_publishes_only_exact_current_lineage_and_preview(tmp_path):
+def test_verified_delivery_publishes_only_exact_current_lineage_delta_and_preview(tmp_path):
     project_id, run_id = str(uuid4()), str(uuid4())
     bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(tmp_path, project_id, run_id)
     root = bootstrap.ensure(run, operation_key="bootstrap").lineage
@@ -527,7 +539,7 @@ def test_verified_delivery_publishes_only_exact_current_lineage_and_preview(tmp_
     assert github.mutations == ["branch.create", "commit.write", "pull_request.create", "pull_request.read"]
     assert vercel.calls == ["preview.create", "preview.read"]
     committed = {item.path: item.content for item in github.committed_files}
-    assert committed == {"README.md": "Parallax\n", "app.py": "value = 2\n"}
+    assert committed == {"app.py": "value = 2\n"}
     assert len(result.actions) == 7
     assert result.evidence == tuple(item.evidence for item in result.actions)
     assert result.audits == tuple(item.audit for item in result.actions)
@@ -535,6 +547,57 @@ def test_verified_delivery_publishes_only_exact_current_lineage_and_preview(tmp_
     assert all(item.outcome is ToolOutcome.SUCCEEDED for item in result.audits)
     assert all(item.authority_allowed is True for item in result.audits)
     assert not any((tmp_path / "live").rglob("*"))
+
+
+def test_large_accepted_lineage_submits_only_changed_file_delta(tmp_path):
+    project_id, run_id = str(uuid4()), str(uuid4())
+    binding = ProviderProjectBinding(project_id, REPOSITORY_REF)
+    github = FakeGitHubActions(binding)
+    github.files = {"app.py": "value = 1\n"}
+    github.files.update({f"src/file-{index:02d}.txt": f"unchanged-{index}\n" for index in range(40)})
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(
+        tmp_path,
+        project_id,
+        run_id,
+        github=github,
+    )
+    root = bootstrap.ensure(run, operation_key="bootstrap:large").lineage
+    assert root.file_count == 41
+    accepted = _accept_implementation(allocator, ProjectRunIdentity(project_id, run_id))
+    github.run_id = run_id
+    vercel = FakeVercelActions()
+
+    result = _delivery(allocator, binding, github, vercel, project_id).deliver(
+        _review_run(project_id, run_id, accepted),
+        operation_key="deliver:large",
+    )
+
+    assert result.preview_status == "READY"
+    assert len(github.committed_files) == 1
+    assert github.committed_files[0].path == "app.py"
+    assert github.committed_files[0].content == "value = 2\n"
+
+
+def test_accepted_deletion_fails_before_provider_mutation(tmp_path):
+    project_id, run_id = str(uuid4()), str(uuid4())
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(tmp_path, project_id, run_id)
+    bootstrap.ensure(run, operation_key="bootstrap:delete")
+    accepted = _delete_implementation_file(
+        allocator,
+        ProjectRunIdentity(project_id, run_id),
+        "README.md",
+    )
+    github.run_id = run_id
+    vercel = FakeVercelActions()
+
+    with pytest.raises(VerifiedDeliveryError, match="deletions outside bounded GitHub commit surface"):
+        _delivery(allocator, binding, github, vercel, project_id).deliver(
+            _review_run(project_id, run_id, accepted),
+            operation_key="deliver:delete",
+        )
+
+    assert github.mutations == []
+    assert vercel.calls == []
 
 
 def test_durable_delivery_record_survives_session_recreation_and_retry_has_no_provider_calls(tmp_path):

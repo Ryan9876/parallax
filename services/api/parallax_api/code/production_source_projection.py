@@ -36,7 +36,6 @@ from .workspace_lineage import (
 )
 
 
-_PROJECTION_VERSION = "lineage-safe-v2"
 _PROJECTED_READ_WORKERS = 8
 _SECRET_FILENAMES = frozenset(
     {
@@ -250,9 +249,10 @@ class ProjectedRepositoryBoundSourceProvider(RepositoryBoundSourceProvider):
         files = {path: raw for path, raw in ordered_files}
         return SourcePackage(
             source_kind="repository",
-            source_ref=(
-                f"{self.binding.repository_ref}@{revision}:projection:{_PROJECTION_VERSION}"
-            ),
+            # P2-V0.15.9 AC-04 defines provider-parent identity as exactly
+            # repository_ref@provider_revision. Projection policy changes the
+            # protected file/content digest, not the provider revision identity.
+            source_ref=f"{self.binding.repository_ref}@{revision}",
             files=files,
         )
 
