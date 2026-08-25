@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 
 import httpx
 
@@ -11,7 +12,7 @@ REPOSITORY_REF = "github:Ryan9876/parallax"
 CONNECTOR = "github/parallax-runtime"
 
 
-def test_vercel_connect_connector_is_one_percent_encoded_path_parameter() -> None:
+def test_vercel_connect_connector_is_one_percent_encoded_path_parameter_and_delivery_scope_is_exact() -> None:
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
     connect_requests: list[httpx.Request] = []
 
@@ -20,6 +21,21 @@ def test_vercel_connect_connector_is_one_percent_encoded_path_parameter() -> Non
         # `URL.path` is decoded and would hide the production regression. The
         # raw wire path must encode the slash inside the connector identifier.
         assert request.url.raw_path == b"/v1/connect/token/github%2Fparallax-runtime"
+        payload = json.loads(request.content)
+        assert payload == {
+            "subject": {"type": "app"},
+            "authorizationDetails": [
+                {
+                    "type": "github_app_installation",
+                    "repositories": ["Ryan9876/parallax"],
+                    "permissions": [
+                        "contents:write",
+                        "metadata:read",
+                        "pull_requests:write",
+                    ],
+                }
+            ],
+        }
         return httpx.Response(
             200,
             json={
