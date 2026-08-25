@@ -1,24 +1,40 @@
 # Parallax 2.0 Current State
 
-Release: Wave 4 Live Development is production-deployed and deployment-verified through `P2-V0.17.5`
+Release: Wave 4 Live Development is deployed; functional production readiness is suspended while Wave 4 stabilization resolves a production credential failure and visual-acceptance gap
 Date: 2026-08-24
-Status: **WAVE 4 PRODUCTION DEPLOYED / DEPLOYMENT-VERIFIED THROUGH P2-V0.17.5; PRODUCTION RUN-EVENT MIGRATION APPLIED; EXACT ACTIVATION ON; PROTECTED LIVE OBSERVABILITY ACTIVE; WAVE 3 API RELEASE RETAINED AS ROLLBACK CANDIDATE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE; END-TO-END AUTONOMOUS PRODUCTION READINESS BLOCKED BY GITHUB CREDENTIAL EXCHANGE FAILURE; VISUAL ACCEPTANCE REOPENED; WAVE 4 STABILIZATION #169 ACTIVE; WAVE 3 API RELEASE RETAINED AS ROLLBACK CANDIDATE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
 Wave 4 production API is deployment `dpl_7gHytxPynJ3yoo2A51oZsyuDj8gM` from verified repository merge `main@8b5acd5c4042682d297269af0f0a5555683dac2e`. The production build completed its provider, projected-source, private Blob, lineage-composition, process-recreation/replay, rollback and run-event schema guards before publication. The decisive schema guard passed with `Wave 4 enabled; engineering_run_events present`.
 
-Post-cutover production verification passed:
+Post-cutover deployment/read-boundary verification passed:
 
 - `/health`: **200 / OK**;
 - `/ready`: **200 / database ok**;
 - protected run-event access without authentication: **401 / Authentication required**;
 - live OpenAPI exposes protected event replay, resumable SSE, exact-lineage source tree/file/diff and attempt-evidence reads;
-- production error/fatal runtime-log check after cutover: **clean**.
+- the immediate post-cutover production error/fatal runtime-log check was clean.
 
-The governed Live Build client remains the already-verified Wave 4 production client from `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`, deployment `dpl_8RTZs2BJcbQUuKxurLZpGEs8zb7i`. Later Wave 4 release/activation commits did not change `apps/client`, so the Vercel client project correctly skipped those no-op redeployments.
+A later real authenticated production user test exposed a production-blocking runtime defect that the earlier release gates did not exercise. Two autonomous-run requests reached the production API and returned HTTP **503** with `source_bootstrap_failed stage=provider-repository error_class=ProviderActionFailed result_code=CREDENTIAL_UNAVAILABLE`. The failure occurs while obtaining the repository-scoped GitHub credential through the Vercel Connect/OIDC provider path, before substantive autonomous execution can advance. Deployment health and protected read availability remain verified, but **end-to-end autonomous production readiness is not currently verified and functional testing is blocked until the credential path is repaired**.
+
+The governed Live Build client remains the already-deployed Wave 4 production client from `main@22fa4f34b617bceafe5b6a0ad7cf520af2c7c403`, deployment `dpl_8RTZs2BJcbQUuKxurLZpGEs8zb7i`. Later Wave 4 release/activation commits did not change `apps/client`, so the Vercel client project correctly skipped those no-op redeployments. User testing also established that the deployed client is materially below the approved Warm Editorial Observatory mockup in application-shell composition and visual fidelity. This is a release-quality defect, not a change to the authoritative design direction.
 
 The immediately preceding API deployment `dpl_2uiLj1VjJzvzZ26cAkkLzSTNxFez` from `main@e8d277de30a14b3ff1f288bcb22f651268031158` remains the rollback candidate. Its run-event activation is off by release configuration, preserving the ordered rollback boundary.
+
+## Active Wave 4 stabilization
+
+Control-tower issue #169 owns production recovery and visual convergence on `integration/w4-stabilization` from baseline `main@27ef2d169dc2e8d064669cdc40e2e03fc9b815aa`.
+
+Parallel bounded workstreams are:
+
+- #170 / `ws/w4-runtime-credential-recovery`: restore the Vercel Connect -> repository-scoped GitHub credential path and strengthen functional preflight;
+- #171 / `ws/w4-desktop-shell-convergence`: desktop Warm Editorial shell fidelity;
+- #172 / `ws/w4-observability-fidelity`: evidence-backed Observability dashboard fidelity;
+- #173 / `ws/w4-livebuild-mobile-convergence`: Live Build refinement and intentional mobile/tablet composition;
+- #174 / `ws/w4-visual-release-gates`: deterministic visual/accessibility gates plus a real provider/runtime end-to-end release proof.
+
+Production remains deployed during stabilization, but it must not be described as ready for autonomous functional testing until #170 is reconciled and a real protected run advances beyond repository bootstrap. Final stabilization release readiness additionally requires the desktop experience to be recognizably the same product as the approved mockup family and mobile to remain intentionally composed rather than a compressed desktop layout.
 
 ## Wave 4 release state
 
@@ -26,8 +42,8 @@ The immediately preceding API deployment `dpl_2uiLj1VjJzvzZ26cAkkLzSTNxFez` from
 - #145 / `P2-V0.17.1`: durable append-only run-event projection integrated;
 - #146 / `P2-V0.17.2`: resumable SSE and protected exact-lineage source/diff/evidence reads integrated;
 - #147 / `P2-V0.17.3`: Warm Editorial application shell integrated;
-- #148 / `P2-V0.17.4`: governed Live Build/Observability workspace integrated and client-deployment verified;
-- #149 / `P2-V0.17.5`: integrated reference proof, release gates and production activation completed;
+- #148 / `P2-V0.17.4`: governed Live Build/Observability workspace integrated and client deployment completed, with visual acceptance reopened by production user review;
+- #149 / `P2-V0.17.5`: integrated reference proof, release gates and production activation completed, with end-to-end production readiness subsequently reopened by the credential defect;
 - #166: final Wave 4 source/reference release integrated to `main`;
 - #167: exact production activation configuration validated and merged.
 
@@ -41,7 +57,9 @@ Production activation state is explicit:
 - production `PARALLAX_RUN_EVENTS_ENABLED=1`: **YES**;
 - run-event projection active in production: **YES**;
 - protected live-observability routes active in production: **YES**;
-- Wave 4 production deployment verified: **YES**.
+- Wave 4 production deployment/health/read-boundary verified: **YES**;
+- end-to-end autonomous production readiness: **NO — BLOCKED BY #170**;
+- production visual acceptance against approved mockup quality: **REOPENED — #171/#172/#173/#174 ACTIVE**.
 
 The activation boundary continues to govern both emission and observation. `PersistentRunEventSink` and the live-observability router activate only when server-owned `PARALLAX_RUN_EVENTS_ENABLED` equals exact value `1`; any other value remains inactive. Production build/preflight fails closed if the required `engineering_run_events` schema is absent.
 
@@ -53,6 +71,8 @@ The permanent #149 reference proof composes real database-backed run events, imm
 
 The proof identified and permanently regressed a privacy defect in protected attempt-evidence observation: credential-like and private-reasoning/scratchpad excerpts are redacted at the observer boundary before transport.
 
+The subsequent production credential failure demonstrates that the prior release proof did not exercise the live production Vercel Connect credential exchange strongly enough. Stabilization #170/#174 must close that release-test gap rather than weakening the provider boundary.
+
 ## Release and production authority
 
 `PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. It permits promotion of an already validated release without separate per-release approval while Parallax remains effectively single-user, but does not waive exact-head CI, protected evaluation, migration order, rollback, least privilege, deployment evidence or post-deploy verification, and does not authorize destructive schema/data changes.
@@ -61,8 +81,10 @@ The proof identified and permanently regressed a privacy defect in protected att
 
 Production uses Vercel for API/client deployment and Sandbox execution, Vercel Connect/OIDC for short-lived project-scoped GitHub credentials, private Vercel Blob for immutable source objects, and hosted PostgreSQL/Supabase for authoritative relational state. Startup performs no implicit DDL; schema changes remain migration-driven.
 
+The currently observed production defect is in the Vercel Connect/OIDC -> GitHub credential acquisition path. The architecture remains fail-closed: no broad PAT/static-token fallback is authorized merely to restore execution.
+
 ## Authoritative record status
 
-This file records validated production state as of 2026-08-24. Durable architecture is in `ARCHITECTURE.md`; design rules are in `DESIGN-SYSTEM.md`; governance/authority is in `PROJECT-CONSTITUTION.md`.
+This file records validated production state and the active stabilization decision as of 2026-08-24. Durable architecture is in `ARCHITECTURE.md`; design rules are in `DESIGN-SYSTEM.md`; governance/authority is in `PROJECT-CONSTITUTION.md`.
 
-Production capability claims require deployment evidence. Source integration or a green Preview alone is not sufficient.
+Production capability claims require deployment evidence plus a real functional proof for the claimed path. Source integration, a green Preview, health endpoints or route availability alone are not sufficient to claim end-to-end autonomous readiness.
