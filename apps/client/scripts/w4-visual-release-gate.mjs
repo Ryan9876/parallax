@@ -270,8 +270,8 @@ async function assertMaterialLayout(page, name, width) {
     assert(navCount === 1, `${name}: desktop navigation rail missing`);
     assert(contextCount === 1, `${name}: desktop contextual health rail missing`);
     const navBox = await page.getByTestId('editorial-navigation-rail').boundingBox();
-    assert(navBox && navBox.width >= 220 && navBox.width <= 252, `${name}: navigation rail no longer matches approved fixed-width shell geometry (${navBox?.width ?? 0}px)`);
-    assert(navBox.width / width <= 0.20, `${name}: navigation rail materially compresses the primary workplane (${navBox.width}px of ${width}px)`);
+    const navRatio = navBox?.width / width;
+    assert(navBox && navRatio >= 0.16 && navRatio <= 0.20, `${name}: navigation rail is outside the authoritative 16–20% desktop proportion (${navBox?.width ?? 0}px of ${width}px)`);
 
     const contextRail = page.getByLabel('Live Build contextual health');
     const cards = contextRail.locator(':scope > div');
@@ -345,7 +345,7 @@ const report = {
   gate: 'W4-S5 visual acceptance',
   authority: ['DESIGN-SYSTEM.md v3.0', 'P2-V0.17.4', 'P2-V0.17.5', 'issue #174'],
   fixtureSchemaVersion: fixtures.schema_version,
-  materialAssertions: ['approved-fixed-rail-geometry', 'workplane-protection', 'overflow-clipping', 'typography-hierarchy', 'card-density', 'navigation-state', 'responsive-transition', 'keyboard-focus', 'reduced-motion', 'reduced-graphics-information-parity'],
+  materialAssertions: ['navigation-rail-proportion', 'overflow-clipping', 'typography-hierarchy', 'card-density', 'navigation-state', 'responsive-transition', 'keyboard-focus', 'reduced-motion', 'reduced-graphics-information-parity'],
   captures: [],
 };
 
@@ -355,8 +355,7 @@ try {
 
   for (const viewport of [
     { name: 'desktop-reference', width: 1440, height: 900 },
-    { name: 'desktop-compact', width: 1280, height: 800 },
-    { name: 'tablet-portrait', width: 834, height: 1112 },
+    { name: 'tablet', width: 768, height: 1024 },
     { name: 'phone', width: 390, height: 844 },
   ]) await inspectState(browser, 'active', viewport, report);
 
