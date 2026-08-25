@@ -35,19 +35,39 @@ class FakeAllocator:
             raise RuntimeError("cleanup failed")
 
 
+class FakeFilesystemBatch:
+    def __init__(self, filesystem: "FakeFilesystem", *, cwd: str | None):
+        self.filesystem = filesystem
+        self.cwd = cwd
+        self.staged: list[tuple[str, bytes]] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None:
+            self.filesystem.batch_uploads.append((self.cwd, tuple(self.staged)))
+            if self.filesystem.fail_write:
+                raise RuntimeError("transfer failed")
+        return False
+
+    def write_bytes(self, path, data):
+        self.staged.append((path, data))
+
+
 class FakeFilesystem:
     def __init__(self, *, fail_write: bool = False):
         self.fail_write = fail_write
         self.mkdirs = []
-        self.writes = []
+        self.batch_calls: list[str | None] = []
+        self.batch_uploads: list[tuple[str | None, tuple[tuple[str, bytes], ...]]] = []
 
     def mkdir(self, path, *, cwd=None, recursive=True):
         self.mkdirs.append((path, cwd, recursive))
 
-    def write_bytes(self, path, data, *, cwd=None):
-        if self.fail_write:
-            raise RuntimeError("transfer failed")
-        self.writes.append((path, data, cwd))
+    def batch(self, *, cwd=None):
+        self.batch_calls.append(cwd)
+        return FakeFilesystemBatch(self, cwd=cwd)
 
 
 class FakeSandboxInstance:
@@ -173,9 +193,12 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert create["persistent"] is False
     assert create["env"] == {}
     assert create["destroy"] is True
-    assert filesystem.mkdirs[0] == ("sandbox", "/vercel", True)
-    assert {path: data for path, data, cwd in filesystem.writes} == files
-    assert all(cwd == "/vercel/sandbox" for _, _, cwd in filesystem.writes)
+    assert filesystem.mkdirs == [("sandbox", "/vercel", True)]
+    assert filesystem.batch_calls == ["/vercel/sandbox"]
+    assert len(filesystem.batch_uploads) == 1
+    batch_cwd, staged_files = filesystem.batch_uploads[0]
+    assert batch_cwd == "/vercel/sandbox"
+    assert dict(staged_files) == files
 
     command, args, kwargs = instance.process_calls[0]
     registered_command, registered_args = ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)
@@ -204,7 +227,8 @@ def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_matc
     assert evidence["execution_snapshot_verified"] is False
     assert evidence["lineage_source_transfer"] is False
     assert filesystem.mkdirs == []
-    assert filesystem.writes == []
+    assert filesystem.batch_calls == []
+    assert filesystem.batch_uploads == []
     assert instance.process_calls == []
     assert sandbox.create_calls[0]["network_policy"] == "DENY_ALL"
     assert len(allocator.cleanup_calls) == 1
@@ -258,7 +282,7 @@ def test_same_lineage_executor_fails_closed_on_corrupt_reconstructed_source(tmp_
 
 
 def test_source_transfer_failure_is_non_success_and_cleans_lease(tmp_path):
-    executor, allocator, _, instance, sandbox, _ = executor_fixture(tmp_path, fail_write=True)
+    executor, allocator, filesystem, instance, sandbox, _ = executor_fixture(tmp_path, fail_write=True)
     spec = ProtectedCommandRegistry().spec_for(WorkflowStage.VERIFY, operation_key="verify:1")
     evidence = executor.execute_on_lineage(
         spec,
@@ -268,6 +292,8 @@ def test_source_transfer_failure_is_non_success_and_cleans_lease(tmp_path):
     )
     assert evidence["protected_success"] is False
     assert evidence["lineage_source_transfer"] is False
+    assert filesystem.batch_calls == ["/vercel/sandbox"]
+    assert len(filesystem.batch_uploads) == 1
     assert len(allocator.cleanup_calls) == 1
     assert instance.process_calls == []
     assert sandbox.create_calls[0]["network_policy"] == "DENY_ALL"
