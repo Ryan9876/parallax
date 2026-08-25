@@ -330,5 +330,6 @@ __all__ = [
     "ProjectedGitHubFileResult",
     "ProjectedGitHubReadClient",
     "ProjectedRepositoryBoundSourceProvider",
+    "ProjectedRepositoryLineageBootstrap",
     "is_lineage_secret_sensitive_path",
 ]
