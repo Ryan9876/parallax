@@ -34,6 +34,14 @@ def test_oversized_ranked_file_is_omitted_whole_and_selection_continues(tmp_path
     assert "autonomous correction runtime" not in str(snapshot.prompt_payload())
 
 
+def test_oversized_only_workspace_remains_fail_closed(tmp_path):
+    (tmp_path / "app.py").write_text("x" * 101, encoding="utf-8")
+    selector = BoundedSourceContextSelector(max_file_bytes=100)
+
+    with pytest.raises(SourceContextLimitError, match="no bounded source remains"):
+        selector.select(tmp_path, objective="change app", acceptance_texts=("app",))
+
+
 def test_total_context_budget_still_omits_whole_files(tmp_path):
     (tmp_path / "alpha.py").write_text("a" * 20, encoding="utf-8")
     (tmp_path / "beta.py").write_text("b" * 20, encoding="utf-8")
