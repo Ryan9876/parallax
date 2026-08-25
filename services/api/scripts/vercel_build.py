@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from importlib.metadata import version
+import inspect
 import os
 from pathlib import Path
 import shutil
@@ -36,7 +38,32 @@ def _run_isolated_preflight(script: str) -> None:
     )
 
 
+def _inspect_sandbox_sdk() -> None:
+    if (os.getenv("VERCEL_ENV") or "") != "preview":
+        return
+    if (os.getenv("VERCEL_GIT_COMMIT_REF") or "") != "control/w4-sandbox-sdk-inspect":
+        return
+    from vercel.sandbox import sync as sandbox
+
+    filesystem_type = sandbox.SandboxFilesystem
+    names = sorted(name for name in dir(filesystem_type) if "write" in name or "batch" in name)
+    signatures: dict[str, str] = {}
+    for name in names:
+        member = getattr(filesystem_type, name, None)
+        if callable(member):
+            try:
+                signatures[name] = str(inspect.signature(member))
+            except (TypeError, ValueError):
+                signatures[name] = "<signature unavailable>"
+    print(
+        "Sandbox SDK inspection: "
+        f"vercel={version('vercel')} vercel-sandbox={version('vercel-sandbox')} "
+        f"filesystem_methods={names} signatures={signatures}"
+    )
+
+
 def main() -> None:
+    _inspect_sandbox_sdk()
     _run("scripts/production_provider_preflight.py")
     _run("scripts/production_delivery_permission_preflight.py")
     _run("scripts/production_projected_source_preflight.py")
