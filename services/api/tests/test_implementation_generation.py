@@ -9,7 +9,6 @@ from pydantic import ValidationError
 
 from parallax_api.code.source_context import (
     BoundedSourceContextSelector,
-    SourceContextLimitError,
     SourceContextSnapshot,
 )
 from parallax_api.intelligence.implementation_generation import (
@@ -158,8 +157,19 @@ def test_source_context_skips_secret_content(tmp_path: Path):
     assert snapshot.excluded_secret_files == 1
 
 
-def test_ranked_material_file_is_not_silently_truncated(tmp_path: Path):
-    (tmp_path / "app.py").write_text("x" * 101, encoding="utf-8")
+def test_ranked_material_file_is_omitted_whole_without_truncation(tmp_path: Path):
+    oversized = "x" * 101
+    (tmp_path / "app.py").write_text(oversized, encoding="utf-8")
+    (tmp_path / "helper.py").write_text("value = 1\n", encoding="utf-8")
     selector = BoundedSourceContextSelector(max_file_bytes=100)
-    with pytest.raises(SourceContextLimitError):
-        selector.select(tmp_path, objective="change app", acceptance_texts=("app",))
+
+    snapshot = selector.select(
+        tmp_path,
+        objective="change app helper",
+        acceptance_texts=("app helper",),
+    )
+
+    assert [item.path for item in snapshot.files] == ["helper.py"]
+    assert snapshot.omitted_bounded_files == 1
+    assert all(item.size <= selector.max_file_bytes for item in snapshot.files)
+    assert oversized not in json.dumps(snapshot.prompt_payload())
