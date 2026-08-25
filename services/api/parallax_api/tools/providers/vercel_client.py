@@ -235,8 +235,12 @@ class VercelPreviewRestClient(VercelProviderClient):
         expected_source_revision: str | None = None,
         expected_branch: str | None = None,
     ) -> VercelPreviewResult:
-        deployment_target = payload.get("target")
-        if not isinstance(deployment_target, str) or deployment_target.casefold() != "preview":
+        # Vercel's deployment API represents the built-in Preview environment
+        # with an explicit null target. Any named target is outside this client's
+        # Preview-only authority; a missing field cannot be safely inferred.
+        if "target" not in payload:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+        if payload["target"] is not None:
             raise ProviderClientError("PRODUCTION_SCOPE_FORBIDDEN")
 
         project = payload.get("project")
@@ -316,7 +320,6 @@ class VercelPreviewRestClient(VercelProviderClient):
             params=self._params(
                 target,
                 projectId=target.project_id,
-                target="preview",
                 branch=branch_name,
                 sha=source_revision,
                 limit=10,
@@ -374,7 +377,8 @@ class VercelPreviewRestClient(VercelProviderClient):
             json={
                 "name": target.project_name,
                 "project": target.project_id,
-                "target": "preview",
+                # Built-in Preview is selected by omitting target. Supplying any
+                # named target would broaden this client's authority.
                 "gitSource": {
                     "type": "github",
                     "repoId": target.github_repo_id,
