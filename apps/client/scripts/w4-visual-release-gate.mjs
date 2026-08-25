@@ -272,6 +272,21 @@ async function assertMaterialLayout(page, name, width) {
     const navBox = await page.getByTestId('editorial-navigation-rail').boundingBox();
     assert(navBox && navBox.width >= 220 && navBox.width <= 252, `${name}: navigation rail no longer matches approved fixed-width shell geometry (${navBox?.width ?? 0}px)`);
     assert(navBox.width / width <= 0.20, `${name}: navigation rail materially compresses the primary workplane (${navBox.width}px of ${width}px)`);
+
+    const contextRail = page.getByLabel('Live Build contextual health');
+    const cards = contextRail.locator(':scope > div');
+    const cardCount = await cards.count();
+    assert(cardCount === 3, `${name}: expected three bounded contextual health cards, found ${cardCount}`);
+    const cardBoxes = [];
+    for (let index = 0; index < cardCount; index += 1) cardBoxes.push(await cards.nth(index).boundingBox());
+    assert(cardBoxes.every((box) => box && box.width >= 220 && box.height >= 72), `${name}: contextual card density collapsed below usable bounds`);
+    for (let index = 1; index < cardBoxes.length; index += 1) {
+      assert(cardBoxes[index].y >= cardBoxes[index - 1].y + cardBoxes[index - 1].height + 7, `${name}: contextual health cards overlap or lost intentional spacing`);
+    }
+    const railBox = await contextRail.boundingBox();
+    const lastCard = cardBoxes.at(-1);
+    assert(railBox && lastCard && lastCard.y + lastCard.height <= railBox.y + railBox.height + 1, `${name}: contextual health card density clips the final card`);
+
     await page.getByText('System Health', { exact: true }).waitFor();
     await page.getByText('Active Run', { exact: true }).waitFor();
     await page.getByText('Recent Alerts', { exact: true }).waitFor();
