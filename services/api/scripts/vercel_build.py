@@ -27,6 +27,42 @@ def _request(token: str, path: str) -> object:
         raise RuntimeError(f"observer GET {path} failed HTTP {exc.code}: {raw[:500]}") from exc
 
 
+def _bounded_attempt(item: dict[str, object]) -> dict[str, object]:
+    evidence = item.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+    return {
+        "stage": item.get("stage"),
+        "status": item.get("status"),
+        "failure_code": item.get("failure_code"),
+        "operation_key": item.get("operation_key"),
+        "project_ref": evidence.get("project_ref"),
+        "run_id": evidence.get("run_id"),
+        "source_lineage_ref": evidence.get("source_lineage_ref"),
+        "base_source_lineage_ref": evidence.get("base_source_lineage_ref"),
+        "lineage_bound_execution": evidence.get("lineage_bound_execution"),
+        "protected_success": evidence.get("protected_success"),
+        "workspace_digest": evidence.get("workspace_digest"),
+    }
+
+
+def _bounded_event(item: dict[str, object]) -> dict[str, object]:
+    metadata = item.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return {
+        "sequence": item.get("sequence"),
+        "event_type": item.get("event_type"),
+        "stage": item.get("stage"),
+        "status": item.get("status"),
+        "failure_code": item.get("failure_code"),
+        "source_lineage_ref": item.get("source_lineage_ref"),
+        "evidence_ref": item.get("evidence_ref"),
+        "summary": item.get("summary"),
+        "metadata": metadata,
+    }
+
+
 def main() -> None:
     if (
         (os.getenv("VERCEL_ENV") or "") == "preview"
@@ -43,27 +79,17 @@ def main() -> None:
         events = event_page.get("events") if isinstance(event_page, dict) and isinstance(event_page.get("events"), list) else []
         print(json.dumps({
             "run_id": RUN_ID,
+            "project_id": run.get("project_id"),
             "state": run.get("state"),
             "revision": run.get("revision"),
             "last_failure_code": run.get("last_failure_code"),
             "attempts": [
-                {
-                    "stage": item.get("stage"),
-                    "status": item.get("status"),
-                    "failure_code": item.get("failure_code"),
-                }
+                _bounded_attempt(item)
                 for item in attempts if isinstance(item, dict)
             ],
             "event_count": len(events),
             "events": [
-                {
-                    "sequence": item.get("sequence"),
-                    "event_type": item.get("event_type"),
-                    "stage": item.get("stage"),
-                    "status": item.get("status"),
-                    "failure_code": item.get("failure_code"),
-                    "has_lineage": bool(item.get("source_lineage_ref")),
-                }
+                _bounded_event(item)
                 for item in events if isinstance(item, dict)
             ],
         }, indent=2, sort_keys=True))
