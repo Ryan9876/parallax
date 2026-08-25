@@ -1,68 +1,92 @@
 # Parallax 2.0 Current State
 
-Release: Wave 4 Live Development is deployed; Wave 4 stabilization has now integrated all five recovery/convergence workstreams and passed the fully composed deterministic visual/runtime gate, but end-to-end autonomous production readiness remains suspended pending promotion and real post-cutover provider/runtime proof.
-Date: 2026-08-24
-Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE; ALL W4 STABILIZATION WORKERS ACCEPTED + INTEGRATED; FULLY COMPOSED VISUAL/RUNTIME GATE GREEN; RUNTIME CREDENTIAL FIX NOT YET DEPLOYED; END-TO-END AUTONOMOUS PRODUCTION READINESS NOT YET RE-VERIFIED; WAVE 3 API RELEASE RETAINED AS ROLLBACK CANDIDATE; SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Release: Wave 4 Live Development stabilization is deployment-verified. The production API/runtime recovery is complete, the Warm Editorial client stabilization remains deployed, and a fresh real Project-bound autonomous production proof advanced through protected IMPLEMENT/BUILD/TEST/VERIFY to the explicit REVIEW/HUMAN_REQUIRED boundary with persisted exact-lineage GitHub/Vercel Preview delivery evidence.
+Date: 2026-08-25
+Status: **WAVE 4 PRODUCTION DEPLOYED / LIVE OBSERVABILITY ACTIVE / STABILIZATION VERIFIED / END-TO-END AUTONOMOUS PRODUCTION READINESS RESTORED / HUMAN REVIEW BOUNDARY PRESERVED / PREVIOUS API RELEASE RETAINED AS ROLLBACK CANDIDATE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
 
 ## Current production truth
 
-Wave 4 production API remains deployment `dpl_7gHytxPynJ3yoo2A51oZsyuDj8gM` from verified repository merge `main@8b5acd5c4042682d297269af0f0a5555683dac2e`. The production build completed its provider, projected-source, private Blob, lineage-composition, process-recreation/replay, rollback and run-event schema guards before publication. Live Observability remains active and the production `engineering_run_events` migration/table/RLS boundary remains verified.
+The deployment-verified production API/runtime binary is Vercel deployment `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` from repository application head `main@62012c9017953945aa55d35550800347ed9f8007` (PR #212, Vercel Preview REST contract recovery). It is `READY`, mapped to `parallax-api-tan.vercel.app`, and post-cutover checks on 2026-08-25 confirmed:
 
-A later real authenticated production user test exposed a production-blocking runtime defect: autonomous-run requests reached the production API and returned HTTP `503` with `source_bootstrap_failed stage=provider-repository error_class=ProviderActionFailed result_code=CREDENTIAL_UNAVAILABLE`. The defect occurs in the Vercel Functions runtime OIDC -> Vercel Connect -> repository-scoped GitHub credential path before substantive autonomous execution advances.
+- `/health` = HTTP 200 / `status=ok`;
+- `/ready` = HTTP 200 / `status=ready`, `database=ok`, `providers=ok`, one registered provider target;
+- unauthenticated access to a protected API route = HTTP 401 / `Authentication required`;
+- deployment-scoped `error`/`fatal` runtime-log query covering the final proof window returned no entries.
 
-Workstream #170 corrected that runtime boundary and is integrated, but the correction is not yet deployed. Therefore deployment health and protected read availability are verified while **end-to-end autonomous production readiness is still not verified**.
+The application head passed exact post-merge Parallax P2 CI #873. The pre-merge exact candidate also passed Parallax P2 CI #872 and Bounded Autonomy #524 before PR #212 was integrated.
 
-The production client also remains on the earlier Wave 4 deployment and therefore does not yet contain the stabilization UI convergence now validated on `integration/w4-stabilization`.
+The production client remains Vercel deployment `dpl_AHKAix8J11knSfSCRzCupM6ND7vn` from `main@f61ba4f65ea108994dbda8f507bf079fac534145`, the Wave 4 stabilization promotion containing the validated #170-#174 visual/runtime convergence package. It is `READY` and owns the production aliases `parallax-lew7.vercel.app`, `parallax-ashy-one-20.vercel.app`, and `parallax-git-main-lew7.vercel.app`. Later recovery commits were API-only and were correctly ignored by the client project rather than replacing the deployed visual stabilization.
 
-The immediately preceding API deployment `dpl_2uiLj1VjJzvzZ26cAkkLzSTNxFez` from `main@e8d277de30a14b3ff1f288bcb22f651268031158` remains the ordered rollback candidate.
+The immediately preceding known-good API production deployment `dpl_LYTeixMa2rfWDatzeSRL6wBAuaXj` from `main@d9069d264d7ca47e831634c663890abf7ee02da8` remains identified by Vercel as a rollback candidate. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
 
-## Wave 4 stabilization integration
+This `CURRENT-STATE.md` update is a record-only repository change. It does not change the deployment-verified application/runtime binary SHA above and must not be treated as a new production application release solely because the documentation commit advances `main`.
 
-Control-tower issue #169 owns recovery and visual convergence on `integration/w4-stabilization`.
+## Wave 4 stabilization and recovery outcome
 
-All bounded worker workstreams are now accepted and integrated:
+Control-tower issue #169 serialized the production recovery and visual convergence effort. The original bounded workers #170-#174 were integrated, followed by a sequence of narrow production-recovery workstreams that removed successive real bottlenecks without broadening authority: runtime credentials, projected repository bootstrap latency, durable lineage object persistence latency, bounded failure classification, canonical repository provenance/delta delivery, exact-lineage Sandbox transfer, and the current Vercel Preview REST contract.
 
-- #170 / runtime credential recovery: **ACCEPTED + INTEGRATED** at `1f5b181da733c9cb440ad005dd579799e02ab421`;
-- #171 / desktop shell convergence: **ACCEPTED + INTEGRATED** at `0ce8139347e9974f325fd29f80a915fa539713d3` after deterministic Project-selection/browser correction;
-- #172 / Observability fidelity: **ACCEPTED + INTEGRATED** at `77fc19c013dedb0d552ab495e36bc8274fc9df90`;
-- #173 / Live Build + mobile convergence: **ACCEPTED + INTEGRATED** at `d27fad3aee0557567c6fb2a19dc7fc5f357f2d63` after reconciliation onto #172;
-- #174 / visual acceptance and release-proof gate: **ACCEPTED + INTEGRATED** at `534885e37aea6e42de1e1f480ce21d2e8f9738b5`.
+The recovery preserved these invariants throughout:
 
-The #174 package adds deterministic desktop/tablet/phone reference evidence, semantic clipping/overflow/layout assertions, accessibility/reduced-motion/reduced-graphics coverage, evidence-backed runtime-state fixtures, and a protected provider/runtime release proof that fails closed on `CREDENTIAL_UNAVAILABLE` and missing post-PLAN persisted evidence.
+- no PAT fallback or materially broader provider credential scope;
+- no arbitrary shell, filesystem, Git, HTTP or provider proxy surface;
+- no production Vercel target selection from the runtime delivery path;
+- exact canonical Project/run/source-lineage identity;
+- protected BUILD/TEST/VERIFY execution on the accepted lineage only;
+- bounded/redacted evidence rather than unrestricted logs or hidden reasoning;
+- idempotent provider publication and replay-safe source delivery;
+- explicit REVIEW/HUMAN_REQUIRED as the autonomous ceiling;
+- no merge or production promotion authority granted to App Builder delivery.
 
-## Fully composed stabilization validation
+## Fresh production autonomous proof
 
-After #174 integration, Control Tower created validation-only PR #186 with zero changed files and an exact-tree checkpoint matching `integration/w4-stabilization@534885e37aea6e42de1e1f480ce21d2e8f9738b5`.
+The final target-affecting proof used a fresh approved Work Specification and fresh Project-bound Engineering Run against the deployed production API. The proof intentionally created one harmless client-root artifact so the *registered delivery target itself* had to build rather than allowing Vercel's ignored-build rule to cancel the required Preview.
 
-`W4 Visual and Runtime Release Gate` run `32803015514` passed on the fully composed #170–#174 tree:
+Canonical proof identities:
 
-- Wave 4 spec/DSPy validation: **PASS**;
-- release-proof self-test, including rejection of credential/observability failures: **PASS**;
-- runtime/Observability/provider regression slice: **PASS**;
-- client typecheck/state contracts: **PASS**;
-- exact-head web export: **PASS**;
-- inherited shell + Live Build browser acceptance: **PASS**;
-- strict W4 material visual release gate: **PASS**;
-- desktop/tablet/phone evidence artifact upload: **PASS**.
+- Engineering Run: `ec24bdb2-543a-44f0-9f85-713f8fc36ddc`;
+- Work Specification: `7b93c74f-8fa3-41e2-8e65-be15478e87c9`;
+- final run state: `REVIEW`;
+- final run revision: `6`;
+- final failure code: none;
+- accepted lineage: `src:180aab7555a15b71c320d859b888abffe263ffd11b424255d3e92da9ba360e63`;
+- accepted content digest: `8bd10931f3ecd89da34831a8c7d5d1f25f13ba954e3cbde36ddc6c35ea72f7b3`.
 
-The earlier contextual-health rail clipping discovered by #174 no longer reproduces after #171 integration. The strict material gate was not weakened.
+Persisted protected attempts all passed exactly once for `SPECIFY`, `PLAN`, `IMPLEMENT`, `BUILD`, `TEST`, and `VERIFY`. BUILD/TEST/VERIFY evidence remained Vercel-Sandbox-backed, deny-all, exact-lineage bound, non-persistent, and did not fall back to a fresh repository checkout.
 
-Evidence artifact: `w4-visual-release-evidence`, artifact `9547213147`, digest `sha256:46fe2564aec8aac0da13bd5a220784a96dcc15ea6d69bd1ff219995bea02fd16`.
+Persisted run-event sequence 1-10 is ordered and contains:
 
-The dispatch-only protected live provider/runtime proof was intentionally skipped in this deterministic validation because no authorized production-like API/run inputs were supplied. That proof remains mandatory after promotion/cutover before autonomous production readiness may be claimed.
+1. `RUN_CREATED`;
+2. successful `SPECIFY`;
+3. successful `PLAN`;
+4. successful `IMPLEMENT`;
+5. successful `SOURCE_LINEAGE_ACCEPTED`;
+6. successful `BUILD`;
+7. successful `TEST`;
+8. successful `VERIFY`;
+9. `REVIEW_REQUIRED` with outcome `HUMAN_REQUIRED`;
+10. one successful `SOURCE_DELIVERY`.
 
-## Release readiness boundary
+The final proof did not transition the run to COMPLETE and did not perform operator review.
 
-Worker-level Wave 4 stabilization is complete. The remaining release work is integration/release authority, not another feature worker:
+## Exact source-delivery proof
 
-1. run the repository-wide exact-head release gates on the stabilization release candidate;
-2. promote the validated stabilization release through the governed main/production path;
-3. verify the new production `/ready` runtime Connect/OIDC check;
-4. execute a fresh authenticated Project-bound autonomous run and prove repository bootstrap plus advancement beyond PLAN using persisted Observability/Live Build evidence;
-5. inspect production runtime logs and client visual behavior;
-6. update this record only after deployment evidence and the real functional proof establish the claimed production state.
+The successful source-delivery record for the final run created exactly the bounded provider publication expected by the existing App Builder contract:
 
-Until those steps pass, Parallax production must not be described as restored for autonomous development, even though the stabilization source and deterministic visual/runtime release gates are green.
+- GitHub branch: `parallax/b1f6984d-ec24bdb2`;
+- exact accepted-lineage commit: `7190079f5fab333f2d899edf644260bd3c95ed99`;
+- proof-only pull request: #214;
+- registered Vercel Preview project: `prj_wLXC5JjjetJf0H97kncRlqczD3OC` (`parallax` client project);
+- delivery-recorded Preview deployment: `dpl_6qRbvuJchvNs1fRPHCpkEdEY5wvZ`;
+- Preview URL: `parallax-kjk5uto0v-lew7.vercel.app`;
+- Preview target: null / Preview-only;
+- Preview source branch: `parallax/b1f6984d-ec24bdb2`;
+- Preview source SHA: `7190079f5fab333f2d899edf644260bd3c95ed99`;
+- status at immediate durable delivery read-back: `QUEUED`;
+- independently verified terminal Preview state: `READY`, with no alias error.
+
+The runtime's immediate source-delivery contract remains unchanged: it creates the bounded Preview, performs one authenticated read-back, rejects terminal ERROR/CANCELED states, and persists bounded delivery evidence. Control Tower then independently verifies that same recorded deployment ID reaches READY before release readiness is restored. No polling state machine or authority expansion was introduced merely to make the release proof pass.
+
+Proof-only App Builder PRs #214, #213 and #209 were closed without merge after their evidence was captured. Their source branches/commits and provider evidence remain available for audit, but none was promoted to `main` or production.
 
 ## Production activation state
 
@@ -70,21 +94,27 @@ Until those steps pass, Parallax production must not be described as restored fo
 - production run-event RLS/direct-client protections: **VERIFIED**;
 - production `PARALLAX_RUN_EVENTS_ENABLED=1`: **YES**;
 - protected live-observability routes active: **YES**;
-- #170 runtime credential correction integrated: **YES**;
-- #170 runtime credential correction deployed: **NO**;
-- desktop shell convergence integrated: **YES**;
-- Observability fidelity integrated: **YES**;
-- Live Build/mobile convergence integrated: **YES**;
-- strict visual/release-proof gate integrated: **YES**;
-- fully composed deterministic W4 visual/runtime gate: **PASS**;
-- end-to-end autonomous production readiness re-verified after correction: **NO**.
+- Warm Editorial stabilization client deployed: **YES**;
+- runtime credential recovery deployed: **YES**;
+- projected source bootstrap recovery deployed: **YES**;
+- durable lineage bootstrap recovery deployed: **YES**;
+- canonical provenance/delta source delivery deployed: **YES**;
+- exact-lineage Sandbox transfer recovery deployed: **YES**;
+- current Vercel Preview REST contract recovery deployed: **YES**;
+- exact production API health/readiness/auth checks: **PASS**;
+- final fresh autonomous run through IMPLEMENT/BUILD/TEST/VERIFY: **PASS**;
+- persisted REVIEW/HUMAN_REQUIRED boundary: **PASS**;
+- persisted successful SOURCE_DELIVERY: **PASS**;
+- delivery-recorded exact Vercel Preview independently READY: **PASS**;
+- deployment-scoped error/fatal log check for final proof window: **PASS / NONE FOUND**;
+- end-to-end autonomous production readiness: **RESTORED / DEPLOYMENT-VERIFIED**.
 
-## Durable architecture and authority
+## Durable architecture, design and authority
 
-`ARCHITECTURE.md` v3.0 remains authoritative for the Vercel Functions runtime-OIDC/Connect boundary, Project/run/source-lineage/provider authority, durable execution and protected observation model.
+`ARCHITECTURE.md` remains authoritative for the Vercel Functions runtime OIDC/Connect boundary, canonical Project/run/source-lineage/provider authority, durable execution, exact-lineage protected Sandbox model and observation semantics. No durable architecture change was required during this final proof closeout.
 
-`DESIGN-SYSTEM.md` remains authoritative for the Warm Editorial Observatory design direction. The stabilization implementation is now deterministically accepted against that family; production has not yet been updated to it.
+`DESIGN-SYSTEM.md` remains authoritative for the Warm Editorial Observatory design direction. No design-system change was required during the final runtime-recovery proof closeout; the deployed client already corresponds to the validated Wave 4 stabilization promotion.
 
-`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. It permits promotion of an already validated release without separate per-release approval while Parallax remains effectively single-user, but it does not waive exact-head CI, protected evaluation, migration order, rollback, least privilege, deployment evidence or post-deploy verification.
+`PROJECT-CONSTITUTION.md` v1.4 standing single-user production promotion authority remains active. No governance-policy change was required. Standing authority did not waive exact-head CI, protected evaluation, least privilege, rollback, deployment evidence or post-deploy verification.
 
-Production capability claims require deployment evidence plus a real functional proof for the claimed path. Source integration, a green Preview, health endpoints or route availability alone are not sufficient to claim end-to-end autonomous readiness.
+Production capability claims continue to require deployment evidence plus a real functional proof for the claimed path. This Wave 4 stabilization state now satisfies that boundary for the protected autonomous development loop through operator REVIEW.
