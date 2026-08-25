@@ -21,7 +21,6 @@ from parallax_api.intelligence.implementation_generation import (
 )
 from parallax_api.intelligence.router import MODEL_ORDER
 
-
 BASE_URL = "https://parallax-api-tan.vercel.app"
 RUN_ID = "3720afc8-3109-456e-895d-f4e81fd16a44"
 
@@ -49,6 +48,11 @@ def _cause_chain(exc: BaseException) -> list[str]:
         result.append(type(current).__name__)
         current = current.__cause__ or current.__context__
     return result
+
+
+def _safe_error_message(exc: BaseException) -> str:
+    text = str(exc).strip()
+    return text[:240] if text else type(exc).__name__
 
 
 def main() -> None:
@@ -102,18 +106,28 @@ def main() -> None:
             source_context=context,
         )
 
+        selected_paths = {item.path for item in context.files}
         results: list[dict[str, object]] = []
         for model in MODEL_ORDER:
             apply_workspace = None
             try:
                 program = DspyImplementationGenerationProgram(model)
                 proposal = program.run(request=request)
+                targets = [item.path for item in proposal.patches]
                 result: dict[str, object] = {
                     "model": model,
                     "generation": "ok",
                     "patch_count": len(proposal.patches),
                     "acceptance_count": len(proposal.acceptance_ids_covered),
                     "exact_acceptance_coverage": tuple(proposal.acceptance_ids_covered) == request.required_acceptance_ids,
+                    "targets": [
+                        {
+                            "path": path,
+                            "suffix": Path(path).suffix.casefold() or None,
+                            "selected_context": path in selected_paths,
+                        }
+                        for path in targets
+                    ],
                 }
                 try:
                     apply_workspace = allocator.resolve(identity)
@@ -128,16 +142,21 @@ def main() -> None:
                         )
                     )
                     mutation = SafeImplementationEngine().apply(apply_workspace.path, mutation_request)
-                    artifacts = mutation.get("artifacts") if isinstance(mutation.get("artifacts"), list) else []
                     result.update(
                         {
                             "safe_patch": "ok" if mutation.get("applied") is True else "rejected",
-                            "artifact_count": len(artifacts),
+                            "artifact_count": len(mutation.get("artifacts") or []),
                             "protected_stage_authority": mutation.get("protected_stage_authority"),
                         }
                     )
                 except Exception as exc:
-                    result.update({"safe_patch": "failed", "safe_patch_error_chain": _cause_chain(exc)})
+                    result.update(
+                        {
+                            "safe_patch": "failed",
+                            "safe_patch_error_chain": _cause_chain(exc),
+                            "safe_patch_error": _safe_error_message(exc),
+                        }
+                    )
                 results.append(result)
             except Exception as exc:
                 results.append({"model": model, "generation": "failed", "error_chain": _cause_chain(exc)})
@@ -145,25 +164,30 @@ def main() -> None:
                 if apply_workspace is not None:
                     allocator.cleanup(apply_workspace)
 
-        output = {
-            "run_id": RUN_ID,
-            "run_state": run.get("state"),
-            "source_context": {
-                "file_count": len(context.files),
-                "total_bytes": context.total_bytes,
-                "omitted_bounded_files": context.omitted_bounded_files,
-                "excluded_secret_files": context.excluded_secret_files,
-            },
-            "acceptance_count": len(acceptance),
-            "models": results,
-        }
-        print(json.dumps(output, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "run_id": RUN_ID,
+                    "run_state": run.get("state"),
+                    "source_context": {
+                        "file_count": len(context.files),
+                        "total_bytes": context.total_bytes,
+                        "omitted_bounded_files": context.omitted_bounded_files,
+                        "excluded_secret_files": context.excluded_secret_files,
+                    },
+                    "acceptance_count": len(acceptance),
+                    "models": results,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     finally:
         if context_workspace is not None:
             allocator.cleanup(context_workspace)
         engine.dispose()
 
-    raise RuntimeError("exact production generation/patch diagnostic stops intentionally")
+    raise RuntimeError("safe patch rejection diagnostic stops intentionally")
 
 
 if __name__ == "__main__":
