@@ -1,0 +1,119 @@
+name: W4 Visual and Runtime Release Gate
+
+on:
+  push:
+    branches: [ws/w4-visual-release-gates]
+  pull_request:
+    branches: [integration/w4-stabilization]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Authorized production-like Parallax API base URL for the live provider/runtime proof
+        required: false
+        type: string
+      run_id:
+        description: Fresh Project-bound Engineering Run ID currently at PLAN
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: w4-visual-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-runtime:
+    name: Exact-head runtime and release-proof contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate approved Wave 4 contracts and committed DSPy plans
+        run: |
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.17.4.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.17.5.md
+      - name: Compile release proof
+        run: python -m compileall -q scripts/w4_release_proof.py
+      - name: Prove release gate rejects credential and observability failures
+        run: python scripts/w4_release_proof.py --self-test
+      - name: Run Wave 4 runtime/observability/provider regression slice
+        run: |
+          python -m pytest -q \
+            services/api/tests/test_wave4_reference_release.py \
+            services/api/tests/test_live_observability.py \
+            services/api/tests/test_bootstrap_observability.py \
+            services/api/tests/test_provider_client_security.py
+
+  browser-acceptance:
+    name: Exact-head browser, accessibility and responsive acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install client dependencies
+        working-directory: apps/client
+        run: npm install
+      - name: Typecheck and state contracts
+        working-directory: apps/client
+        run: |
+          npm run typecheck
+          npm run test:state
+      - name: Export exact-head web client
+        working-directory: apps/client
+        run: npm run export:web
+      - name: Install Chromium
+        working-directory: apps/client
+        run: npx playwright install --with-deps chromium
+      - name: Run inherited shell and Live Build acceptance
+        working-directory: apps/client
+        run: |
+          node scripts/visual-smoke.mjs
+          node scripts/live-build-smoke.mjs
+      - name: Run W4 material visual release gate
+        working-directory: apps/client
+        run: node scripts/w4-visual-release-gate.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w4-visual-release-evidence
+          path: apps/client/visual-evidence
+          if-no-files-found: error
+          retention-days: 14
+
+  live-provider-runtime-proof:
+    name: Protected live provider/runtime proof
+    if: github.event_name == 'workflow_dispatch' && inputs.api_url != '' && inputs.run_id != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: w4-release-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Exercise repository bootstrap through persisted Observability
+        env:
+          PARALLAX_RELEASE_API_URL: ${{ inputs.api_url }}
+          PARALLAX_RELEASE_RUN_ID: ${{ inputs.run_id }}
+          PARALLAX_RELEASE_BEARER_TOKEN: ${{ secrets.PARALLAX_RELEASE_BEARER_TOKEN }}
+        run: python scripts/w4_release_proof.py --evidence release-evidence/w4-runtime-proof.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w4-protected-runtime-proof
+          path: release-evidence/w4-runtime-proof.json
+          if-no-files-found: error
+          retention-days: 14
