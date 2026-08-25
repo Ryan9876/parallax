@@ -258,6 +258,8 @@ def test_vercel_production_readback_can_never_be_preview_success() -> None:
         if request.url.path == "/v6/deployments":
             return httpx.Response(200, json={"deployments": []})
         if request.url.path == "/v13/deployments" and request.method == "POST":
+            return httpx.Response(200, json={"id": "dpl_bad", "readyState": "QUEUED"})
+        if request.url.path == "/v13/deployments/dpl_bad" and request.method == "GET":
             return httpx.Response(
                 200,
                 json={
