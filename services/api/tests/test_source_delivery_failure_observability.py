@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
+from parallax_api.code.run_events import RunEventValidationError, normalize_metadata
 from parallax_api.code.runtime_composition import _source_delivery_failure_evidence
 from parallax_api.code.source_delivery_composition import VerifiedDeliveryError
 from parallax_api.tools.contracts import ToolAuditRecord, ToolConsequence, ToolOutcome
@@ -31,7 +34,7 @@ def _provider_failure() -> ProviderActionFailed:
         deny_reason=None,
         approval_id=None,
         request_digest="2" * 64,
-        result_digest=None,
+        result_digest="3" * 64,
         result_code="PROVIDER_AUTH_DENIED",
         result_identity=None,
     )
@@ -50,6 +53,7 @@ def test_source_delivery_failure_evidence_preserves_only_bounded_provider_classi
         "action": "branch.create",
         "result_code": "PROVIDER_AUTH_DENIED",
     }
+    assert dict(normalize_metadata(result)) == result
 
 
 def test_source_delivery_failure_evidence_never_exposes_exception_text_or_secret_attributes():
@@ -64,6 +68,18 @@ def test_source_delivery_failure_evidence_never_exposes_exception_text_or_secret
     assert "super-secret" not in encoded
     assert "Bearer" not in encoded
     assert "must-not-leak" not in encoded
+
+
+def test_failure_metadata_allowlist_still_rejects_secret_bearing_values():
+    with pytest.raises(RunEventValidationError):
+        normalize_metadata(
+            {
+                "error_class": "ProviderActionFailed",
+                "provider": "github",
+                "action": "branch.create",
+                "result_code": "Authorization: Bearer abcdefghijklmnop",
+            }
+        )
 
 
 def test_source_delivery_failure_evidence_handles_non_exception_defensively():
