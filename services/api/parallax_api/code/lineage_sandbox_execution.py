@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from hashlib import sha256
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 import time
+
+from parallax_api.execution_environment import execution_snapshot_id
 
 from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy
 from .runtime_composition import DurableLineageAllocator
@@ -17,8 +19,6 @@ from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage
 
 
-DEFAULT_EXECUTION_SNAPSHOT_ID = "snap_vagbatADKKndxwFGSDNbt08Ueigm"
-_EXECUTION_SNAPSHOT_ENV = "PARALLAX_EXECUTION_SNAPSHOT_ID"
 _SANDBOX_SOURCE_ROOT = "/vercel/sandbox"
 
 
@@ -47,8 +47,10 @@ class SameLineageVercelSandboxExecutor:
         self.registry = registry or ProtectedCommandRegistry()
         self.policy = policy or ProtectedCommandPolicy()
         self.project_id = project_id or os.getenv("VERCEL_PROJECT_ID")
-        self.snapshot_id = snapshot_id or os.getenv(_EXECUTION_SNAPSHOT_ENV) or DEFAULT_EXECUTION_SNAPSHOT_ID
-        self._validate_snapshot_id(self.snapshot_id)
+        try:
+            self.snapshot_id = execution_snapshot_id(snapshot_id)
+        except ValueError as exc:
+            raise SameLineageExecutionError("server-owned execution snapshot identity is invalid") from exc
 
     @staticmethod
     def _sdk():
@@ -63,16 +65,6 @@ class SameLineageVercelSandboxExecutor:
     def _require_provider_identity(self) -> None:
         if not self.project_id:
             raise VercelSandboxUnavailable("Vercel project identity is unavailable")
-
-    @staticmethod
-    def _validate_snapshot_id(snapshot_id: str) -> None:
-        if (
-            not isinstance(snapshot_id, str)
-            or not snapshot_id.startswith("snap_")
-            or len(snapshot_id) > 160
-            or any(ord(ch) < 33 or ord(ch) > 126 for ch in snapshot_id)
-        ):
-            raise SameLineageExecutionError("server-owned execution snapshot identity is invalid")
 
     @staticmethod
     def _identity(project_ref: str, run_id: str) -> ProjectRunIdentity:
@@ -282,8 +274,4 @@ class SameLineageVercelSandboxExecutor:
         return evidence
 
 
-__all__ = [
-    "DEFAULT_EXECUTION_SNAPSHOT_ID",
-    "SameLineageExecutionError",
-    "SameLineageVercelSandboxExecutor",
-]
+__all__ = ["SameLineageExecutionError", "SameLineageVercelSandboxExecutor"]
