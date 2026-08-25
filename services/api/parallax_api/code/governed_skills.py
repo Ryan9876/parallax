@@ -292,18 +292,18 @@ class SkillRegistry:
         if not isinstance(contract, PortableSkill):
             raise GovernedSkillError(SkillFailureCode.INVALID_SKILL_CONTRACT)
         digest = contract.digest
-        approved = self.policy.approved_digest(contract.skill_id, contract.version)
-        if approved is None or approved != digest:
-            raise GovernedSkillError(SkillFailureCode.SKILL_NOT_APPROVED)
-        if not set(contract.required_capabilities).issubset(self.policy.declarable_capabilities):
-            raise GovernedSkillError(SkillFailureCode.CAPABILITY_NOT_DECLARABLE)
-
         key = contract.skill_id, contract.version
         existing = self._skills.get(key)
         if existing is not None:
             if existing.content_digest == digest:
                 return existing
             raise GovernedSkillError(SkillFailureCode.SKILL_VERSION_CONFLICT)
+
+        approved = self.policy.approved_digest(contract.skill_id, contract.version)
+        if approved is None or approved != digest:
+            raise GovernedSkillError(SkillFailureCode.SKILL_NOT_APPROVED)
+        if not set(contract.required_capabilities).issubset(self.policy.declarable_capabilities):
+            raise GovernedSkillError(SkillFailureCode.CAPABILITY_NOT_DECLARABLE)
 
         registered = RegisteredSkill(
             contract=contract,
