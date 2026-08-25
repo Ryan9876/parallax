@@ -173,6 +173,7 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert create["persistent"] is False
     assert create["env"] == {}
     assert create["destroy"] is True
+    assert filesystem.mkdirs[0] == ("sandbox", "/vercel", True)
     assert {path: data for path, data, cwd in filesystem.writes} == files
     assert all(cwd == "/vercel/sandbox" for _, _, cwd in filesystem.writes)
 
@@ -202,6 +203,7 @@ def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_matc
     assert evidence["execution_snapshot_id"] == SNAPSHOT_ID
     assert evidence["execution_snapshot_verified"] is False
     assert evidence["lineage_source_transfer"] is False
+    assert filesystem.mkdirs == []
     assert filesystem.writes == []
     assert instance.process_calls == []
     assert sandbox.create_calls[0]["network_policy"] == "DENY_ALL"
