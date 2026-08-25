@@ -76,7 +76,7 @@ class _PlanBoundaryExecutor:
         }
 
     def execute(self, spec: object) -> dict[str, object]:
-        raise AssertionError("functional proof must stop at the IMPLEMENT boundary")
+        raise AssertionError("functional proof must not execute BUILD/TEST/VERIFY")
 
 
 def test_runtime_oidc_bootstraps_canonical_repository_then_advances_beyond_plan(tmp_path, monkeypatch):
@@ -182,7 +182,7 @@ def test_runtime_oidc_bootstraps_canonical_repository_then_advances_beyond_plan(
         draft = WorkSpecificationDraft(
             title="Runtime credential functional proof",
             objective="Bootstrap the canonical repository and advance protected autonomy beyond PLAN.",
-            constraints=["Stop at the protected IMPLEMENT boundary."],
+            constraints=["Advance into IMPLEMENT without provider publication or BUILD/TEST/VERIFY execution."],
             acceptance_criteria=[
                 "Canonical repository source is bootstrapped through the scoped runtime credential path.",
                 "Autonomous execution advances beyond PLAN without provider writes.",
@@ -242,10 +242,15 @@ def test_runtime_oidc_bootstraps_canonical_repository_then_advances_beyond_plan(
             expected_revision=run.revision,
         )
 
-        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_REQUIRED
+        # The real production composition installs the protected implementation
+        # runtime. This proof intentionally supplies no implementation proposal,
+        # so the bounded run must cross PLAN into IMPLEMENT and then fail closed
+        # before mutation rather than stopping at the legacy implementation seam.
+        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
         assert result.run.state == "IMPLEMENT"
-        assert [step.stage for step in result.steps] == ["EXECUTOR", "PLAN"]
-        assert executor.probes == ["runtime-credential-functional-proof:executor-preflight"]
+        assert [step.stage for step in result.steps] == ["EXECUTOR", "PLAN", "IMPLEMENT"]
+        assert result.steps[-1].outcome == "FAILED"
+        assert executor.probes == ["runtime-credential-functional-proof:executor-probe:1"]
         lineage = allocator.current_lineage(ProjectRunIdentity(project.id, run.id))
         assert lineage.project_id == project.id
         assert lineage.run_id == run.id
