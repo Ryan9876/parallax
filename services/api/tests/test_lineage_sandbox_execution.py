@@ -35,19 +35,45 @@ class FakeAllocator:
             raise RuntimeError("cleanup failed")
 
 
+class FakeFilesystemBatch:
+    def __init__(self, filesystem, *, cwd):
+        self.filesystem = filesystem
+        self.cwd = cwd
+        self.staged = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            return False
+        if self.filesystem.fail_write:
+            raise RuntimeError("transfer failed")
+        self.filesystem.batch_flushes.append(tuple(self.staged))
+        return False
+
+    def write_bytes(self, path, data, *, mode=None):
+        self.staged.append((path, data, mode))
+
+
 class FakeFilesystem:
     def __init__(self, *, fail_write: bool = False):
         self.fail_write = fail_write
         self.mkdirs = []
-        self.writes = []
+        self.batch_cwds = []
+        self.batch_flushes = []
+        self.direct_writes = []
 
     def mkdir(self, path, *, cwd=None, recursive=True):
         self.mkdirs.append((path, cwd, recursive))
 
+    def batch(self, *, cwd=None):
+        self.batch_cwds.append(cwd)
+        return FakeFilesystemBatch(self, cwd=cwd)
+
     def write_bytes(self, path, data, *, cwd=None):
-        if self.fail_write:
-            raise RuntimeError("transfer failed")
-        self.writes.append((path, data, cwd))
+        self.direct_writes.append((path, data, cwd))
+        raise AssertionError("same-lineage transfer must use the public batch API")
 
 
 class FakeSandboxInstance:
@@ -93,10 +119,10 @@ class FakeSandboxModule:
         return Context(self.instance)
 
 
-def workspace_fixture(tmp_path):
+def workspace_fixture(tmp_path, *, files=None):
     root = tmp_path / "lease"
-    (root / "src").mkdir(parents=True)
-    files = {
+    root.mkdir(parents=True)
+    files = files or {
         "README.md": b"hello\n",
         "src/app.py": b"value = 2\n",
     }
@@ -128,8 +154,9 @@ def executor_fixture(
     fail_write=False,
     cleanup_error=False,
     current_snapshot_id=SNAPSHOT_ID,
+    files=None,
 ):
-    workspace, files = workspace_fixture(tmp_path)
+    workspace, files = workspace_fixture(tmp_path, files=files)
     allocator = FakeAllocator(workspace, cleanup_error=cleanup_error)
     filesystem = FakeFilesystem(fail_write=fail_write)
     instance = FakeSandboxInstance(filesystem, current_snapshot_id=current_snapshot_id)
@@ -173,9 +200,12 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert create["persistent"] is False
     assert create["env"] == {}
     assert create["destroy"] is True
-    assert filesystem.mkdirs[0] == ("sandbox", "/vercel", True)
-    assert {path: data for path, data, cwd in filesystem.writes} == files
-    assert all(cwd == "/vercel/sandbox" for _, _, cwd in filesystem.writes)
+    assert filesystem.mkdirs == [("sandbox", "/vercel", True)]
+    assert filesystem.batch_cwds == ["/vercel/sandbox"]
+    assert len(filesystem.batch_flushes) == 1
+    assert {path: data for path, data, mode in filesystem.batch_flushes[0]} == files
+    assert all(mode is None for _, _, mode in filesystem.batch_flushes[0])
+    assert filesystem.direct_writes == []
 
     command, args, kwargs = instance.process_calls[0]
     registered_command, registered_args = ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)
@@ -183,6 +213,32 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert tuple(args) == registered_args
     assert kwargs["env"] == {}
     assert kwargs["cwd"] == "/vercel/sandbox"
+
+
+def test_large_lineage_uses_one_bounded_batch_upload(tmp_path):
+    files = {
+        f"src/package/file_{index:03d}.py": f"VALUE = {index}\n".encode("utf-8")
+        for index in range(96)
+    }
+    executor, _, filesystem, instance, _, expected = executor_fixture(tmp_path, files=files)
+    spec = ProtectedCommandRegistry().spec_for(WorkflowStage.BUILD, operation_key="build:large-lineage")
+
+    evidence = executor.execute_on_lineage(
+        spec,
+        project_ref=PROJECT_ID,
+        run_id=RUN_ID,
+        source_lineage_ref=LINEAGE_ID,
+    )
+
+    assert evidence["protected_success"] is True
+    assert evidence["source_file_count"] == 96
+    assert filesystem.mkdirs == [("sandbox", "/vercel", True)]
+    assert filesystem.batch_cwds == ["/vercel/sandbox"]
+    assert len(filesystem.batch_flushes) == 1
+    assert len(filesystem.batch_flushes[0]) == 96
+    assert {path: data for path, data, _ in filesystem.batch_flushes[0]} == expected
+    assert filesystem.direct_writes == []
+    assert len(instance.process_calls) == 1
 
 
 def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_match(tmp_path):
@@ -204,7 +260,9 @@ def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_matc
     assert evidence["execution_snapshot_verified"] is False
     assert evidence["lineage_source_transfer"] is False
     assert filesystem.mkdirs == []
-    assert filesystem.writes == []
+    assert filesystem.batch_cwds == []
+    assert filesystem.batch_flushes == []
+    assert filesystem.direct_writes == []
     assert instance.process_calls == []
     assert sandbox.create_calls[0]["network_policy"] == "DENY_ALL"
     assert len(allocator.cleanup_calls) == 1
@@ -258,7 +316,7 @@ def test_same_lineage_executor_fails_closed_on_corrupt_reconstructed_source(tmp_
 
 
 def test_source_transfer_failure_is_non_success_and_cleans_lease(tmp_path):
-    executor, allocator, _, instance, sandbox, _ = executor_fixture(tmp_path, fail_write=True)
+    executor, allocator, filesystem, instance, sandbox, _ = executor_fixture(tmp_path, fail_write=True)
     spec = ProtectedCommandRegistry().spec_for(WorkflowStage.VERIFY, operation_key="verify:1")
     evidence = executor.execute_on_lineage(
         spec,
@@ -268,6 +326,9 @@ def test_source_transfer_failure_is_non_success_and_cleans_lease(tmp_path):
     )
     assert evidence["protected_success"] is False
     assert evidence["lineage_source_transfer"] is False
+    assert filesystem.batch_cwds == ["/vercel/sandbox"]
+    assert filesystem.batch_flushes == []
+    assert filesystem.direct_writes == []
     assert len(allocator.cleanup_calls) == 1
     assert instance.process_calls == []
     assert sandbox.create_calls[0]["network_policy"] == "DENY_ALL"
