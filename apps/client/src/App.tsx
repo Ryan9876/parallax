@@ -83,6 +83,7 @@ export default function App() {
   const [accessBusy, setAccessBusy] = React.useState(false);
   const pendingRefreshRef = React.useRef<string | null>(null);
   const threadRef = React.useRef<ScrollView>(null);
+  const composerRef = React.useRef<TextInput>(null);
   const liveEdgeRef = React.useRef(true);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
@@ -322,6 +323,7 @@ export default function App() {
         if (scopeAmendment) return;
         scopeAmendment = true;
         liveEdgeRef.current = false;
+        composerRef.current?.blur();
         setStreamFinished(true);
         setActivePrintId(null);
         dispatch({ type: 'REQUIRE_AMENDMENT' });
@@ -574,6 +576,7 @@ export default function App() {
                   <View style={[styles.composerWrap, styles.composerWrapCompact]}>
                     <View style={[styles.composer, styles.composerCompact]}>
                       <TextInput
+                        ref={composerRef}
                         accessibilityLabel="Message Parallax"
                         value={draft}
                         onChangeText={setDraft}
@@ -760,6 +763,7 @@ export default function App() {
                 <View style={styles.composerWrap}>
                   <View style={styles.composer}>
                     <TextInput
+                      ref={composerRef}
                       accessibilityLabel="Message Parallax"
                       value={draft}
                       onChangeText={setDraft}
