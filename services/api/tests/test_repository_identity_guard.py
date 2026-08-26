@@ -102,8 +102,16 @@ def test_target_reference_conflicts_but_source_paths_and_dependency_context_do_n
     ) is None
     assert find_repository_identity_conflict(
         canonical_repository_ref="github:Ryan9876/parallax",
-        target_texts=("Create an About page for Ryan9876/parallax.",),
+        target_texts=("Use https://github.com/Ryan9876/shared-lib as a dependency while editing apps/client.",),
     ) is None
+    assert find_repository_identity_conflict(
+        canonical_repository_ref="github:Ryan9876/parallax",
+        target_texts=("Create an About page for github:Ryan9876/parallax.",),
+    ) is None
+    assert find_repository_identity_conflict(
+        canonical_repository_ref="github:Ryan9876/parallax",
+        target_texts=("Target repository is https://github.com/Ryan9876/ot-time.",),
+    ) is not None
 
 
 def test_work_specification_approval_fails_closed_on_repository_target_mismatch(tmp_path):
