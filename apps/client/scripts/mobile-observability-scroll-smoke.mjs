@@ -24,6 +24,10 @@ function staticServer() {
     createReadStream(target).pipe(response);
   });
 }
+const project = {
+  id: PROJECT_ID, slug: 'parallax-logo-project', name: 'Parallax Logo Project', description: null,
+  repository_ref: 'github:owner/parallax-logo-project', workspace_ref: `project:${PROJECT_ID}`, status: 'active', created_at: now, updated_at: now,
+};
 const conversation = {
   id: CONVERSATION_ID, title: 'Parallax logo motion', mode: 'code', status: 'ACTIVE', spec_id: 'P2-V0.18.7', project_id: PROJECT_ID,
   project_binding_status: 'PROJECT_BOUND', created_at: now, updated_at: now,
@@ -58,6 +62,7 @@ function apiServer() {
     if (request.method === 'OPTIONS') { cors(response, origin); response.writeHead(204); response.end(); return; }
     const url = new URL(request.url ?? '/', 'http://localhost'); const pathname = url.pathname;
     if (pathname === '/v1/session' && request.method === 'GET') return json(response, 200, { authenticated: true }, origin);
+    if (pathname === '/v1/projects' && request.method === 'GET') return json(response, 200, [project], origin);
     if (pathname === '/v1/conversations' && request.method === 'GET') return json(response, 200, [conversation], origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}` && request.method === 'GET') return json(response, 200, conversation, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
