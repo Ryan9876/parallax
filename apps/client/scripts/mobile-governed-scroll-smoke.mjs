@@ -94,6 +94,16 @@ try {
   const composerBefore = await page.getByLabel('Message Parallax').boundingBox();
   assert(navBefore && composerBefore, 'mobile guided scroll: navigation/composer not measurable');
 
+  await page.getByRole('tab', { name: 'Project' }).click();
+  await page.getByTestId('mobile-project-workspace').waitFor({ timeout: 5000 });
+  await page.getByText('Project 10101010', { exact: true }).waitFor();
+  await page.getByText('Mobile governed build flow', { exact: true }).waitFor();
+  assert(await page.getByLabel('Message Parallax').count() === 0, 'mobile guided scroll: composer must not compete with Project workspace');
+
+  await page.getByRole('tab', { name: 'Chat' }).click();
+  const composerAfterProject = await page.getByLabel('Message Parallax').boundingBox();
+  assert(composerAfterProject && Math.abs(composerAfterProject.y - composerBefore.y) <= 2, 'mobile guided scroll: composer did not return after Project navigation');
+
   await page.getByRole('tab', { name: 'Build' }).click();
   const build = page.getByTestId('mobile-build-workspace');
   await build.waitFor({ timeout: 5000 });
@@ -115,7 +125,7 @@ try {
   assert(composerAfter && Math.abs(composerAfter.y - composerBefore.y) <= 2, 'mobile guided scroll: composer did not return to its stable Chat position');
   assert(errors.length === 0, `mobile guided scroll: browser errors: ${errors.join(' | ')}`);
   await page.screenshot({ path: `${evidenceDir}/mobile-guided-build-scroll.png`, fullPage: true });
-  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, before, after, navStable: true, composerStable: true, currentStage: 'Implementation' }, null, 2));
+  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, before, after, navStable: true, projectDestination: true, composerStable: true, currentStage: 'Implementation' }, null, 2));
   await page.close();
 } finally {
   await browser?.close(); web.close(); api.close();
