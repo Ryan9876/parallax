@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Permanent Wave 5 generalization benchmark and integrated reference proof"
+  ],
+  "work_items": [
+    "Create the permanent Wave 5 generalization benchmark and integrated reference proof"
+  ],
+  "validations": [
+    "Create the permanent Wave 5 generalization benchmark and integrated reference proof",
+    "AC-01: validate protected requirement \u2014 S6 is developed from accepted cumulative integration SHA `a1280eeb078a8c40dadd8aa46e1910e199d4f2a3`. The permanent manifest has a deterministic version/digest, unique bounded case IDs, and required diversity/negative/correction/replay coverage. S6 does not reimplement or mutate accepted S1-S5 authority contracts.",
+    "AC-02: validate protected requirement \u2014 Permanent tests prove at least static/client web, Python API/service, and workspace/monorepo or mixed/full-stack fixtures are deterministically classified through accepted S1 evidence and can reach governed S4 READY only when an exact accepted S2 skill, required capability snapshot and required S3 Project binding are present.",
+    "AC-03: validate protected requirement \u2014 An unfamiliar/ambiguous or unsupported repository fixture produces the accepted S1/S4 fail-closed outcome and never proceeds as a supported runtime case. HUMAN_REQUIRED is recorded as the correct benchmark result without guessed root, command, skill, service or provider authority.",
+    "AC-04: validate protected requirement \u2014 Deliberate repository content requesting arbitrary shell/network commands, secrets, policy override or production deployment cannot create capabilities, skills, service bindings, provider scope, correction authority or approval. Safe S1-S6 evidence/report serialization contains no secret/provider payload or executable command authority derived from the malicious text.",
+    "AC-05: validate protected requirement \u2014 Supported cases select only exact-digest approved S2 skills whose declared capabilities are present and resolve logical service needs only through exact Project-scoped S3 bindings. Missing capability, no binding, incompatible binding or ambiguous binding remains HUMAN_REQUIRED/fail-closed and cannot be bypassed by benchmark configuration.",
+    "AC-06: validate protected requirement \u2014 The benchmark demonstrates same-Project private memory HIT and MISS behavior through accepted S5. Every result retains `fresh_validation_required=true`; current Work Specification and evaluator-policy digests are unchanged. Foreign Project-private memory is non-observable, stale compatibility/evaluator evidence is rejected, and any shared cross-Project candidate requires exact sanitized-sharing approval.",
+    "AC-07: validate protected requirement \u2014 At least one supported runtime-backed case delegates to the existing protected reference/runtime seams and proves approved Work Specification identity, exactly one accepted IMPLEMENT lineage advance, exact-lineage BUILD/TEST/VERIFY, protected evaluator/browser/visual evidence as applicable, governed GitHub/Vercel Preview delivery on that lineage, and autonomous stop at REVIEW. S6 itself performs no source/provider mutation.",
+    "AC-08: validate protected requirement \u2014 A permanent case starts with a reproducible protected validation failure and uses accepted correction interfaces to apply a bounded non-protected repair. The repair produces a different immutable lineage, receives fresh validation, preserves Work Specification/acceptance/evaluator policy and protected path restrictions, and reaches PASSED only after the new lineage satisfies protected quality.",
+    "AC-09: validate protected requirement \u2014 Permanent proof recreates runtime/process context and retries exact implementation/delivery identities. IMPLEMENT replay returns the accepted lineage without a second mutation. Delivery replay returns the same published revision, PR and Preview identity and proves only one branch/commit/PR/Preview mutation set occurred for the exact operation.",
+    "AC-10: validate protected requirement \u2014 Successful autonomous execution stops at REVIEW and requires explicit operator REVIEW to complete. Genuine ambiguity/missing authority stops HUMAN_REQUIRED. Memory hits, benchmark expectations, provider/evaluator success, correction success or Preview readiness cannot independently complete or approve the Engineering Run.",
+    "AC-11: validate protected requirement \u2014 For the same manifest and accepted evidence, case ordering, case/result identities and aggregate proof digest are stable across input ordering/retry. The public report exposes only bounded safe identities/digests/status/counters and explicitly grants no tool, execution, source-mutation, service-binding, provider, deployment or approval authority; it contains no cross-Project private metadata, raw source, prompts, secrets/handles, provider payloads or hidden reasoning.",
+    "AC-12: validate protected requirement \u2014 Wave 4 protected autonomy/lineage/implementation/BUILD/TEST/VERIFY/correction/source-delivery/provider/authentication behavior plus accepted S1-S5 tests remain green. Final candidate is limited to the declared S6 owned paths plus authentic compiled plan; temporary DSPy workflow changes are restored. Exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass. Worker PR targets `integration/wave5-generalized-delivery`; no worker `main` merge, production deploy, migration or production/provider configuration mutation occurs."
+  ],
+  "risks": [
+    "Material diversity is required. The permanent manifest must contain at least a client/static-web case, a Python API/service case, and a workspace/monorepo or mixed/full-stack case, plus negative ambiguous/malicious cases."
+  ],
+  "spec_id": "P2-V0.18.6",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact cumulative S1-S5 lineage and manifest integrity",
+      "protected_requirement": "S6 is developed from accepted cumulative integration SHA `a1280eeb078a8c40dadd8aa46e1910e199d4f2a3`. The permanent manifest has a deterministic version/digest, unique bounded case IDs, and required diversity/negative/correction/replay coverage. S6 does not reimplement or mutate accepted S1-S5 authority contracts."
+    },
+    {
+      "id": "AC-02",
+      "title": "Materially different supported repository/application shapes",
+      "protected_requirement": "Permanent tests prove at least static/client web, Python API/service, and workspace/monorepo or mixed/full-stack fixtures are deterministically classified through accepted S1 evidence and can reach governed S4 READY only when an exact accepted S2 skill, required capability snapshot and required S3 Project binding are present."
+    },
+    {
+      "id": "AC-03",
+      "title": "Ambiguous/unsupported repositories require human action",
+      "protected_requirement": "An unfamiliar/ambiguous or unsupported repository fixture produces the accepted S1/S4 fail-closed outcome and never proceeds as a supported runtime case. HUMAN_REQUIRED is recorded as the correct benchmark result without guessed root, command, skill, service or provider authority."
+    },
+    {
+      "id": "AC-04",
+      "title": "Malicious repository instructions cannot escalate authority",
+      "protected_requirement": "Deliberate repository content requesting arbitrary shell/network commands, secrets, policy override or production deployment cannot create capabilities, skills, service bindings, provider scope, correction authority or approval. Safe S1-S6 evidence/report serialization contains no secret/provider payload or executable command authority derived from the malicious text."
+    },
+    {
+      "id": "AC-05",
+      "title": "Governed skill/service capability admission remains exact",
+      "protected_requirement": "Supported cases select only exact-digest approved S2 skills whose declared capabilities are present and resolve logical service needs only through exact Project-scoped S3 bindings. Missing capability, no binding, incompatible binding or ambiguous binding remains HUMAN_REQUIRED/fail-closed and cannot be bypassed by benchmark configuration."
+    },
+    {
+      "id": "AC-06",
+      "title": "Validated memory reuse does not weaken current proof",
+      "protected_requirement": "The benchmark demonstrates same-Project private memory HIT and MISS behavior through accepted S5. Every result retains `fresh_validation_required=true`; current Work Specification and evaluator-policy digests are unchanged. Foreign Project-private memory is non-observable, stale compatibility/evaluator evidence is rejected, and any shared cross-Project candidate requires exact sanitized-sharing approval."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing protected runtime proves exact-lineage objective-to-Preview flow",
+      "protected_requirement": "At least one supported runtime-backed case delegates to the existing protected reference/runtime seams and proves approved Work Specification identity, exactly one accepted IMPLEMENT lineage advance, exact-lineage BUILD/TEST/VERIFY, protected evaluator/browser/visual evidence as applicable, governed GitHub/Vercel Preview delivery on that lineage, and autonomous stop at REVIEW. S6 itself performs no source/provider mutation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Deliberate validation failure is corrected on fresh immutable lineage",
+      "protected_requirement": "A permanent case starts with a reproducible protected validation failure and uses accepted correction interfaces to apply a bounded non-protected repair. The repair produces a different immutable lineage, receives fresh validation, preserves Work Specification/acceptance/evaluator policy and protected path restrictions, and reaches PASSED only after the new lineage satisfies protected quality."
+    },
+    {
+      "id": "AC-09",
+      "title": "Process recreation and delivery replay are duplicate-safe",
+      "protected_requirement": "Permanent proof recreates runtime/process context and retries exact implementation/delivery identities. IMPLEMENT replay returns the accepted lineage without a second mutation. Delivery replay returns the same published revision, PR and Preview identity and proves only one branch/commit/PR/Preview mutation set occurred for the exact operation."
+    },
+    {
+      "id": "AC-10",
+      "title": "REVIEW/HUMAN_REQUIRED ceiling cannot be bypassed",
+      "protected_requirement": "Successful autonomous execution stops at REVIEW and requires explicit operator REVIEW to complete. Genuine ambiguity/missing authority stops HUMAN_REQUIRED. Memory hits, benchmark expectations, provider/evaluator success, correction success or Preview readiness cannot independently complete or approve the Engineering Run."
+    },
+    {
+      "id": "AC-11",
+      "title": "Deterministic privacy-safe integrated proof report",
+      "protected_requirement": "For the same manifest and accepted evidence, case ordering, case/result identities and aggregate proof digest are stable across input ordering/retry. The public report exposes only bounded safe identities/digests/status/counters and explicitly grants no tool, execution, source-mutation, service-binding, provider, deployment or approval authority; it contains no cross-Project private metadata, raw source, prompts, secrets/handles, provider payloads or hidden reasoning."
+    },
+    {
+      "id": "AC-12",
+      "title": "Existing protected regressions and exact-head worker boundary",
+      "protected_requirement": "Wave 4 protected autonomy/lineage/implementation/BUILD/TEST/VERIFY/correction/source-delivery/provider/authentication behavior plus accepted S1-S5 tests remain green. Final candidate is limited to the declared S6 owned paths plus authentic compiled plan; temporary DSPy workflow changes are restored. Exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass. Worker PR targets `integration/wave5-generalized-delivery`; no worker `main` merge, production deploy, migration or production/provider configuration mutation occurs."
+    }
+  ],
+  "critique": [
+    "Material implementation risk: Lack of material diversity in the permanent benchmark manifest, specifically the absence of mixed/full-stack cases and negative ambiguous/malicious cases."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

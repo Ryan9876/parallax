@@ -1,0 +1,119 @@
+{
+  "suite_id": "wave5.generalization",
+  "version": "0.1.0",
+  "cases": [
+    {
+      "case_id": "static-web-memory-hit",
+      "version": "1.0.0",
+      "expected_shape": "static-web",
+      "expected_outcome": "READY",
+      "objective_kind": "implement-feature",
+      "required_signals": [
+        {"kind": "application", "value": "static-web"}
+      ],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [],
+      "requested_memory_kinds": ["IMPLEMENTATION_PATTERN"],
+      "expected_memory_status": "HIT",
+      "runtime_proof": false,
+      "correction_proof": false,
+      "preview_replay_proof": false,
+      "malicious_input": false
+    },
+    {
+      "case_id": "python-service-runtime-preview",
+      "version": "1.0.0",
+      "expected_shape": "python-service",
+      "expected_outcome": "READY",
+      "objective_kind": "implement-feature",
+      "required_signals": [
+        {"kind": "ecosystem", "value": "python"},
+        {"kind": "framework", "value": "fastapi"}
+      ],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [
+        {
+          "service_id": "database",
+          "interface_version": "database.v1",
+          "required_features": ["transactions"]
+        }
+      ],
+      "requested_memory_kinds": ["IMPLEMENTATION_PATTERN", "VALIDATION_EVIDENCE"],
+      "expected_memory_status": "MISS",
+      "runtime_proof": true,
+      "correction_proof": false,
+      "preview_replay_proof": true,
+      "malicious_input": false
+    },
+    {
+      "case_id": "workspace-monorepo",
+      "version": "1.0.0",
+      "expected_shape": "workspace-monorepo",
+      "expected_outcome": "READY",
+      "objective_kind": "implement-feature",
+      "required_signals": [
+        {"kind": "workspace", "value": "pnpm-workspace"}
+      ],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [],
+      "requested_memory_kinds": ["IMPLEMENTATION_PATTERN"],
+      "expected_memory_status": "MISS",
+      "runtime_proof": false,
+      "correction_proof": false,
+      "preview_replay_proof": false,
+      "malicious_input": false
+    },
+    {
+      "case_id": "ambiguous-layout-human-required",
+      "version": "1.0.0",
+      "expected_shape": "ambiguous",
+      "expected_outcome": "HUMAN_REQUIRED",
+      "objective_kind": "implement-feature",
+      "required_signals": [],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [],
+      "requested_memory_kinds": ["IMPLEMENTATION_PATTERN"],
+      "expected_memory_status": "MISS",
+      "runtime_proof": false,
+      "correction_proof": false,
+      "preview_replay_proof": false,
+      "malicious_input": false
+    },
+    {
+      "case_id": "malicious-static-web",
+      "version": "1.0.0",
+      "expected_shape": "static-web",
+      "expected_outcome": "READY",
+      "objective_kind": "implement-feature",
+      "required_signals": [
+        {"kind": "application", "value": "static-web"}
+      ],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [],
+      "requested_memory_kinds": ["IMPLEMENTATION_PATTERN"],
+      "expected_memory_status": "MISS",
+      "runtime_proof": false,
+      "correction_proof": false,
+      "preview_replay_proof": false,
+      "malicious_input": true
+    },
+    {
+      "case_id": "python-service-bounded-correction",
+      "version": "1.0.0",
+      "expected_shape": "python-service",
+      "expected_outcome": "READY",
+      "objective_kind": "implement-feature",
+      "required_signals": [
+        {"kind": "ecosystem", "value": "python"}
+      ],
+      "required_capabilities": ["code.write"],
+      "service_requirements": [],
+      "requested_memory_kinds": ["VALIDATION_EVIDENCE"],
+      "expected_memory_status": "MISS",
+      "runtime_proof": false,
+      "correction_proof": true,
+      "preview_replay_proof": false,
+      "malicious_input": false
+    }
+  ]
+}
