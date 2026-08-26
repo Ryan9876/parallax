@@ -1,22 +1,80 @@
 {
   "spec_id": "P2-V0.18.7",
-  "title": "Mobile Interaction Model & Guided Build Flow",
-  "status": "approved",
-  "objective": "Replace compact desktop composition with a mobile-specific Chat/Build/Project interaction model while preserving all server-owned authority and desktop behavior.",
-  "acceptance_ids": ["AC-01","AC-02","AC-03","AC-04","AC-05","AC-06","AC-07","AC-08","AC-09","AC-10","AC-11","AC-12"],
-  "implementation": [
-    {"id":"M1","name":"mobile shell navigation","paths":["apps/client/src/App.tsx","apps/client/src/components/mobile/**"]},
-    {"id":"M2","name":"mobile specification review","paths":["apps/client/src/components/WorkSpecificationStatus.tsx","apps/client/src/components/mobile/**"]},
-    {"id":"M3","name":"guided build lifecycle","paths":["apps/client/src/components/EngineeringRunStatus.tsx","apps/client/src/components/observability/**","apps/client/src/components/mobile/**"]},
-    {"id":"M4","name":"project and amendment UX","paths":["apps/client/src/App.tsx","apps/client/src/components/EditorialProjectWorkspace.tsx","apps/client/src/components/mobile/**"]},
-    {"id":"M5","name":"mobile deterministic acceptance","paths":["apps/client/scripts/**"]}
+  "architecture_decisions": [
+    {
+      "id": "AD-01",
+      "decision": "Compact widths use a dedicated Chat/Build/Project shell while non-compact widths retain the existing desktop shell.",
+      "acceptance": ["AC-01", "AC-02", "AC-07", "AC-10"]
+    },
+    {
+      "id": "AD-02",
+      "decision": "Work Specification and engineering details use progressive disclosure on mobile; authoritative state remains unchanged and server-owned.",
+      "acceptance": ["AC-03", "AC-05", "AC-06", "AC-08", "AC-10"]
+    },
+    {
+      "id": "AD-03",
+      "decision": "Mobile screens use a single primary vertical scrolling context with keyboard-safe composer and practical touch targets.",
+      "acceptance": ["AC-04", "AC-09", "AC-12"]
+    }
   ],
-  "invariants": [
-    "conversation remains primary",
-    "canonical project/work-spec/run/source authority remains server-owned",
-    "deterministic/protected validation outranks visual judgment",
-    "REVIEW/HUMAN_REQUIRED remains autonomous ceiling",
-    "desktop behavior remains unchanged",
-    "no nested compact work-spec scroll"
+  "work_items": [
+    {
+      "id": "M1",
+      "summary": "Implement mobile shell navigation, compact project/mode header, Chat composition, and Project destination.",
+      "paths": ["apps/client/src/App.tsx", "apps/client/src/components/mobile/**"],
+      "acceptance": ["AC-01", "AC-02", "AC-07", "AC-08", "AC-09", "AC-12"]
+    },
+    {
+      "id": "M2",
+      "summary": "Implement dedicated mobile Work Specification review and plain-language amendment recovery without nested scrolling.",
+      "paths": ["apps/client/src/components/WorkSpecificationStatus.tsx", "apps/client/src/components/mobile/**"],
+      "acceptance": ["AC-03", "AC-04", "AC-08", "AC-09", "AC-10"]
+    },
+    {
+      "id": "M3",
+      "summary": "Implement guided authoritative Build lifecycle plus progressive detail access while preserving desktop Observability.",
+      "paths": ["apps/client/src/components/EngineeringRunStatus.tsx", "apps/client/src/components/observability/**", "apps/client/src/components/mobile/**"],
+      "acceptance": ["AC-05", "AC-06", "AC-08", "AC-10"]
+    },
+    {
+      "id": "M4",
+      "summary": "Add deterministic phone-width acceptance and regression coverage.",
+      "paths": ["apps/client/scripts/**"],
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10", "AC-11", "AC-12"]
+    }
+  ],
+  "validations": [
+    {
+      "name": "protected-spec",
+      "command": "python scripts/validate_spec.py specs/P2-V0.18.7.md",
+      "acceptance": ["AC-10", "AC-11"]
+    },
+    {
+      "name": "client-release-gates",
+      "summary": "Run client typecheck, state/unit checks, web export, existing browser/Skia acceptance and exact-head repository CI.",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10", "AC-11", "AC-12"]
+    },
+    {
+      "name": "mobile-behavior",
+      "summary": "Verify Chat/Build/Project navigation, specification review, amendment recovery, guided stage truth, project switching, single-scroll behavior, composer reachability and touch/accessibility behavior at representative phone widths.",
+      "acceptance": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-11", "AC-12"]
+    }
+  ],
+  "risks": [
+    {
+      "risk": "Compact composition could accidentally duplicate or infer protected state.",
+      "mitigation": "Render only existing Work Specification/Engineering Run/API facts and preserve current protected mutations.",
+      "acceptance": ["AC-04", "AC-05", "AC-08", "AC-10"]
+    },
+    {
+      "risk": "Responsive changes could regress desktop or create hidden/overlapping controls on narrow phones.",
+      "mitigation": "Keep compact branching isolated and add desktop regression plus representative phone-width acceptance.",
+      "acceptance": ["AC-01", "AC-09", "AC-10", "AC-11", "AC-12"]
+    },
+    {
+      "risk": "Progressive disclosure could hide necessary engineering evidence.",
+      "mitigation": "Keep evidence reachable from Build details without making it a primary destination.",
+      "acceptance": ["AC-03", "AC-06", "AC-07"]
+    }
   ]
 }
