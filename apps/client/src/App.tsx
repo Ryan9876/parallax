@@ -454,7 +454,7 @@ export default function App() {
             <MobileSpecificationDetail
               specification={workSpecification.specification}
               busy={workSpecification.busy || mobileActionBusy}
-              error={workSpecification.error ?? mobileActionError || null}
+              error={workSpecification.error || mobileActionError || null}
               amendment={amendmentActive}
               onBack={() => setMobileDetail(null)}
               onApprove={() => void workSpecification.approve()}
