@@ -290,7 +290,7 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
               <View style={styles.selectorHeader}>
                 <View style={styles.selectorHeaderCopy}>
                   <Text style={[styles.kicker, compact && styles.kickerCompact]}>{compact ? 'PROJECT' : 'CODE · PROJECT'}</Text>
-                  <Text style={[styles.selectorTitle, compact && styles.selectorTitleCompact]}>{pendingRef.current ? 'Choose a Project for Code' : compact ? 'Choose project' : 'Project for future Code work'}</Text>
+                  <Text style={[styles.selectorTitle, compact && styles.selectorTitleCompact]}>{pendingRef.current ? (compact ? 'Choose a project for Build' : 'Choose a Project for Code') : compact ? 'Choose project' : 'Project for future Code work'}</Text>
                   <Text style={[styles.selectorCopy, compact && styles.selectorCopyCompact]}>{compact ? 'Choose where future Build work belongs. Parallax keeps the canonical Project binding protected.' : 'Only the canonical Project ID is used. Workspace and repository metadata do not grant execution authority.'}</Text>
                 </View>
                 {!pendingRef.current ? (
