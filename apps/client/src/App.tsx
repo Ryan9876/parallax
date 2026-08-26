@@ -155,7 +155,7 @@ export default function App() {
     setActivePrintId(null);
     setStreamFinished(true);
     pendingRefreshRef.current = null;
-    liveEdgeRef.current = true;
+    liveEdgeRef.current = conversation.status !== 'SPEC_AMENDMENT';
     updateConversationSummary(conversation);
   }, [updateConversationSummary]);
 
@@ -296,7 +296,9 @@ export default function App() {
       setStreamFinished(false);
       pendingRefreshRef.current = id;
       dispatch({ type: 'START_THINKING' });
-      setTimeout(() => scrollToLiveEdge(true), 20);
+      setTimeout(() => {
+        if (liveEdgeRef.current) scrollToLiveEdge(true);
+      }, 20);
 
       const startAssistant = () => {
         if (assistantStarted) return;
@@ -319,6 +321,7 @@ export default function App() {
       const requireAmendment = () => {
         if (scopeAmendment) return;
         scopeAmendment = true;
+        liveEdgeRef.current = false;
         setStreamFinished(true);
         setActivePrintId(null);
         dispatch({ type: 'REQUIRE_AMENDMENT' });
