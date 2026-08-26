@@ -252,8 +252,8 @@ export default function App() {
     if (['THINKING', 'RESPONDING', 'VERIFYING'].includes(state.phase)) return;
     try {
       const created = await api.createConversation(nextMode);
-      if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
       applyConversation(created);
+      if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
       setMode(nextMode);
       setApiOnline(true);
     } catch (error) {
