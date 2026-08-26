@@ -10,13 +10,13 @@ Parallax is running the deployment-verified Wave 5 generalized application-deliv
 
 The production state is intentionally component-specific:
 
-- repository `main` currently points at merge `8065d124145686e6a93cfdc6c4b2cec4dfc3f5a5`;
+- repository `main` currently points at record-only merge `4eee489f78e1e12efa8bd14ae87f8f30884a24b8`; that documentation merge does not redefine an application/runtime deployment identity;
 - production client deployment `dpl_642fFKXWzZfA7pkezAYrJbuANXZn` is `READY`, target `production`, exact Git SHA `8065d124145686e6a93cfdc6c4b2cec4dfc3f5a5`, with `aliasError=null`;
 - production client aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`;
 - production API remains deployment `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q`, `READY`, target `production`, application/API Git SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`, with `aliasError=null`;
 - production API aliases include `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, and `parallax-api-git-main-lew7.vercel.app`.
 
-The API Git SHA is intentionally older than repository/client `main`: hotfixes #243 and #127 are client-only. Their corresponding API production builds were canceled as non-app-affecting rather than replacing the deployment-verified API runtime.
+The API Git SHA is intentionally older than the production client application identity: hotfixes #243 and #127 are client-only. Their corresponding API production builds were canceled as non-app-affecting rather than replacing the deployment-verified API runtime.
 
 Post-cutover verification after #127 established:
 
@@ -147,4 +147,4 @@ Earlier known-good Wave 5 and stabilization deployments remain available. Rollba
 - `DESIGN-SYSTEM.md` — unchanged; no durable visual-language change was introduced.
 - `CURRENT-STATE.md` — updated by this reconciliation because production deployment state materially changed.
 
-This `CURRENT-STATE.md` update is a **record-only repository change**. When merged, its documentation merge SHA must not be treated as a new application/runtime deployment identity. Production client remains `dpl_642fFKXWzZfA7pkezAYrJbuANXZn` at application merge `8065d124145686e6a93cfdc6c4b2cec4dfc3f5a5`; production API remains `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` at application/API merge `5ec7eabc046b9995c8d11d5081df15b986a558fe`.
+PR #259 merged as record-only repository merge `4eee489f78e1e12efa8bd14ae87f8f30884a24b8`; that documentation merge SHA is not a new application/runtime deployment identity. Production client remains `dpl_642fFKXWzZfA7pkezAYrJbuANXZn` at application merge `8065d124145686e6a93cfdc6c4b2cec4dfc3f5a5`; production API remains `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` at application/API merge `5ec7eabc046b9995c8d11d5081df15b986a558fe`.
