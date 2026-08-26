@@ -19,6 +19,7 @@ const mime = {
 const PROJECT_ID = '12121212-1212-4212-8212-121212121212';
 const CONVERSATION_ID = '33333333-3333-4333-8333-333333333333';
 const SPEC_ID = '44444444-4444-4444-8444-444444444444';
+const RUN_ID = '55555555-5555-4555-8555-555555555555';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -99,6 +100,33 @@ let workSpecification = {
   approved_at: null,
 };
 
+let engineeringRun = null;
+
+function activatedRun() {
+  const now = new Date().toISOString();
+  return {
+    id: RUN_ID,
+    conversation_id: CONVERSATION_ID,
+    spec_id: conversation.spec_id,
+    project_id: PROJECT_ID,
+    project_binding_status: 'PROJECT_BOUND',
+    work_specification_id: SPEC_ID,
+    work_specification_revision: workSpecification.revision,
+    work_specification_digest: 'mobile-spec-smoke-digest',
+    binding_status: 'APPROVED_SPEC_BOUND',
+    acceptance_criteria: workSpecification.acceptance_criteria.map((text, index) => ({ id: `AC-${String(index + 1).padStart(2, '0')}`, text })),
+    state: 'PLAN',
+    resume_stage: null,
+    revision: 1,
+    workspace_ref: 'test://mobile-spec',
+    last_failure_code: null,
+    completed_at: null,
+    created_at: now,
+    updated_at: now,
+    attempts: [],
+  };
+}
+
 function apiServer() {
   function cors(response, origin) {
     response.setHeader('access-control-allow-origin', origin ?? '*');
@@ -130,7 +158,11 @@ function apiServer() {
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') {
       return json(response, 200, workSpecification.status === 'APPROVED' ? workSpecification : null, origin);
     }
-    if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, null, origin);
+    if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, engineeringRun, origin);
+    if (pathname === '/v1/engineering-runs/activate' && request.method === 'POST') {
+      engineeringRun = engineeringRun ?? activatedRun();
+      return json(response, 200, engineeringRun, origin);
+    }
     if (pathname === `/v1/work-specifications/${SPEC_ID}/approve` && request.method === 'POST') {
       const now = new Date().toISOString();
       workSpecification = { ...workSpecification, status: 'APPROVED', approved_at: now, updated_at: now };
