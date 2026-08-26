@@ -201,6 +201,12 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
     return installProjectCompatibilityResolver(resolver);
   }, [invalidateProject, observeConversation, requestSelection]);
 
+  React.useEffect(() => {
+    if (!compact || loadedRef.current) return;
+    if (activeBinding.mode !== 'code' || activeBinding.status !== 'PROJECT_BOUND' || !activeBinding.projectId) return;
+    void loadProjects(activeBinding.projectId, true).catch(() => undefined);
+  }, [activeBinding.mode, activeBinding.projectId, activeBinding.status, compact, loadProjects]);
+
   const openSelector = React.useCallback(async () => {
     setOpen(true);
     setCreating(false);
