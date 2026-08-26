@@ -89,11 +89,22 @@ export default function App() {
   const engineering = useEngineeringRun(conversationId, mode === 'code');
   const workSpecification = useWorkSpecification(conversationId);
   const canDraftWorkSpecification = messages.some((message) => message.role === 'user' && !message.id.startsWith('fallback-'));
+  const freshMobileObjective = state.phase === 'IDLE'
+    && activeConversation?.status === 'ACTIVE'
+    && activeConversation.messages.length === 0;
+  const mobileCanDraftWorkSpecification = canDraftWorkSpecification && !freshMobileObjective;
+  const mobileSpecification = workSpecification.specification?.conversation_id === conversationId
+    ? workSpecification.specification
+    : null;
+  const mobileApprovedSpecification = workSpecification.approvedSpecification?.conversation_id === conversationId
+    ? workSpecification.approvedSpecification
+    : null;
+  const mobileRun = engineering.run?.conversation_id === conversationId ? engineering.run : null;
   const activeProjectId = activeConversation?.project_id ?? engineering.run?.project_id ?? null;
   const activeProjectBinding = activeConversation?.project_binding_status ?? engineering.run?.project_binding_status ?? null;
   const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
   const amendmentActive = state.phase === 'SPEC_AMENDMENT' || activeConversation?.status === 'SPEC_AMENDMENT';
-  const mobileBuildActive = Boolean(engineering.run && !['COMPLETE', 'CANCELLED'].includes(engineering.run.state));
+  const mobileBuildActive = Boolean(mobileRun && !['COMPLETE', 'CANCELLED'].includes(mobileRun.state));
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -445,13 +456,13 @@ export default function App() {
   }
 
   if (compact) {
-    if (mobileDetail === 'specification' && workSpecification.specification) {
+    if (mobileDetail === 'specification' && mobileSpecification) {
       return (
         <View style={styles.root}>
           <LivingSurface energy={motion.surfaceEnergy} />
           <SafeAreaView style={styles.safe}>
             <MobileSpecificationDetail
-              specification={workSpecification.specification}
+              specification={mobileSpecification}
               busy={workSpecification.busy || mobileActionBusy}
               error={workSpecification.error || mobileActionError || null}
               amendment={amendmentActive}
@@ -465,12 +476,12 @@ export default function App() {
       );
     }
 
-    if (mobileDetail === 'live-build' && engineering.run) {
+    if (mobileDetail === 'live-build' && mobileRun) {
       return (
         <View style={styles.root}>
           <LivingSurface energy={motion.surfaceEnergy} />
           <SafeAreaView style={styles.safe}>
-            <LiveBuildWorkspace run={engineering.run} onBack={() => setMobileDetail(null)} />
+            <LiveBuildWorkspace run={mobileRun} onBack={() => setMobileDetail(null)} />
           </SafeAreaView>
         </View>
       );
@@ -505,19 +516,19 @@ export default function App() {
                     {amendmentActive ? (
                       <MobileAmendmentNotice
                         busy={mobileActionBusy}
-                        canResumeApprovedScope={Boolean(workSpecification.approvedSpecification)}
+                        canResumeApprovedScope={Boolean(mobileApprovedSpecification)}
                         onStartNewObjective={() => void startConversation(mode)}
                         onResumeApprovedScope={() => void resumeApprovedScope()}
                       />
                     ) : (
                       <MobileContextCard
-                        specification={workSpecification.specification}
-                        run={mode === 'code' ? engineering.run : null}
-                        canDraft={canDraftWorkSpecification && mode === 'code'}
+                        specification={mobileSpecification}
+                        run={mode === 'code' ? mobileRun : null}
+                        canDraft={mobileCanDraftWorkSpecification && mode === 'code'}
                         busy={workSpecification.busy}
                         error={workSpecification.error}
                         onCapture={() => void workSpecification.draft()}
-                        onReviewSpecification={() => workSpecification.specification && setMobileDetail('specification')}
+                        onReviewSpecification={() => mobileSpecification && setMobileDetail('specification')}
                         onOpenBuild={() => setMobileDestination('build')}
                       />
                     )}
@@ -567,7 +578,7 @@ export default function App() {
                         accessibilityLabel="Message Parallax"
                         value={draft}
                         onChangeText={setDraft}
-                        placeholder={canDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
+                        placeholder={mobileCanDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
                         placeholderTextColor={palette.muted}
                         style={styles.input}
                         onSubmitEditing={() => void respond()}
@@ -581,14 +592,14 @@ export default function App() {
 
               {mobileDestination === 'build' ? (
                 <MobileBuildWorkspace
-                  specification={workSpecification.specification}
-                  run={mode === 'code' ? engineering.run : null}
-                  canDraft={canDraftWorkSpecification && mode === 'code'}
+                  specification={mobileSpecification}
+                  run={mode === 'code' ? mobileRun : null}
+                  canDraft={mobileCanDraftWorkSpecification && mode === 'code'}
                   busy={workSpecification.busy}
                   error={workSpecification.error}
                   onCaptureSpecification={() => void workSpecification.draft()}
-                  onReviewSpecification={() => workSpecification.specification && setMobileDetail('specification')}
-                  onOpenDetails={() => engineering.run && setMobileDetail('live-build')}
+                  onReviewSpecification={() => mobileSpecification && setMobileDetail('specification')}
+                  onOpenDetails={() => mobileRun && setMobileDetail('live-build')}
                 />
               ) : null}
 
