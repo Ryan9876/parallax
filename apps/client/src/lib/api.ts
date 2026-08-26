@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import { Platform } from 'react-native';
+import { emitAuthenticationRequired } from './authSessionSignal';
 
 export type MessageDto = {
   id: string;
@@ -159,7 +160,13 @@ const sessionHeaders = { 'X-Parallax-Session': '1' } as const;
 let transientAccessToken = '';
 let projectCompatibilityResolver: ProjectCompatibilityResolver | null = null;
 
-export class AuthenticationRequiredError extends Error {}
+export class AuthenticationRequiredError extends Error {
+  constructor(message = 'Private access required') {
+    super(message);
+    this.name = 'AuthenticationRequiredError';
+    emitAuthenticationRequired();
+  }
+}
 export class AuthorizationDeniedError extends Error {}
 export class ApiRequestError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -207,7 +214,7 @@ export async function authenticatedRequest(path: string, init?: RequestInit): Pr
     credentials: requestCredentials(),
     headers: { ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
-  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 401) throw new AuthenticationRequiredError();
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
   return response;
 }
@@ -218,7 +225,7 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: requestCredentials(),
     headers: { 'Content-Type': 'application/json', ...authenticatedHeaders(), ...(init?.headers ?? {}) },
   });
-  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 401) throw new AuthenticationRequiredError();
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
   if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as T;
@@ -226,7 +233,7 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function establishSession(token: string): Promise<SessionDto> {
   const candidate = token.trim();
-  if (!candidate) throw new AuthenticationRequiredError('Private access required');
+  if (!candidate) throw new AuthenticationRequiredError();
 
   const response = await fetch(`${apiBase}/v1/session`, {
     method: 'POST',
@@ -237,7 +244,7 @@ async function establishSession(token: string): Promise<SessionDto> {
     },
   });
   transientAccessToken = '';
-  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 401) throw new AuthenticationRequiredError();
   if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   return (await response.json()) as SessionDto;
 }
@@ -310,7 +317,7 @@ async function streamResponse(
     body: JSON.stringify({ content, material_scope_change: materialScopeChange }),
   });
 
-  if (response.status === 401) throw new AuthenticationRequiredError('Private access required');
+  if (response.status === 401) throw new AuthenticationRequiredError();
   if (response.status === 403) throw new AuthorizationDeniedError(await responseDetail(response));
   if (!response.ok) throw new ApiRequestError(response.status, await responseDetail(response));
   if (!response.body) throw new Error('Parallax response stream unavailable');

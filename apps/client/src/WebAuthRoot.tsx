@@ -16,6 +16,7 @@ import {
   AuthorizationDeniedError,
   type AccessUserDto,
 } from './lib/api';
+import { installAuthenticationRequiredListener } from './lib/authSessionSignal';
 import {
   beginGoogleSignIn,
   clearOAuthCallbackUrl,
@@ -247,6 +248,16 @@ export default function WebAuthRoot({ AppComponent }: { AppComponent: React.Comp
   const [profile, setProfile] = React.useState<AccessUserDto | null>(null);
   const [message, setMessage] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!hosted || state !== 'ready') return;
+    return installAuthenticationRequiredListener(() => {
+      setProfile(null);
+      setMessage('');
+      setBusy(false);
+      setState('login');
+    });
+  }, [hosted, state]);
 
   React.useEffect(() => {
     if (!hosted) return;
