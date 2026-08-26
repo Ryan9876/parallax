@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import AccessPrincipal, access_principal
 from ..db import get_session
+from ..intelligence.router import RoutingFailureKind
 from ..intelligence.work_specification import (
     WorkSpecificationCoordinator,
     WorkSpecificationGenerationFailure,
@@ -109,9 +110,19 @@ async def draft_work_specification(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except WorkSpecificationGenerationFailure as exc:
+        if exc.kind is RoutingFailureKind.RATE_LIMITED:
+            raise HTTPException(
+                status_code=429,
+                detail="Model capacity is temporarily unavailable. Retry Capture Spec later; your objective is preserved.",
+            ) from exc
+        if exc.kind is RoutingFailureKind.VALIDATION_EXHAUSTED:
+            raise HTTPException(
+                status_code=503,
+                detail="Parallax could not validate a Work Specification draft. The conversation is preserved; retry Capture Spec.",
+            ) from exc
         raise HTTPException(
             status_code=503,
-            detail="Parallax could not produce a valid work specification draft. The conversation is preserved.",
+            detail="The Work Specification model provider is temporarily unavailable. The conversation is preserved; retry Capture Spec later.",
         ) from exc
     specification = svc.create_draft(
         conversation_id=conversation_id,
