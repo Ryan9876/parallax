@@ -29,6 +29,11 @@ const conversation = {
     { id: 'clearance-assistant', role: 'assistant', content: 'The build objective is captured and ready for specification review.', status: 'complete', created_at: '2026-08-26T14:00:05Z' },
   ],
 };
+const project = {
+  id: conversation.project_id, slug: 'simple-about-page', name: 'Simple About Project', description: null,
+  repository_ref: 'github:owner/simple-about-page', workspace_ref: `project:${conversation.project_id}`, status: 'active',
+  created_at: '2026-08-26T14:00:00Z', updated_at: '2026-08-26T14:00:00Z',
+};
 const workSpecification = {
   id: '88888888-8888-4888-8888-888888888888', conversation_id: conversation.id, revision: 4, status: 'DRAFT', title: 'Simple About Page',
   objective: 'Add a simple, accessible About page to the application.', constraints: ['Preserve current application behavior outside the About page change.'],
@@ -44,6 +49,7 @@ function apiServer() {
     if (request.method === 'OPTIONS') { cors(response, origin); response.writeHead(204); response.end(); return; }
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
     if (pathname === '/v1/session' && request.method === 'GET') return json(response, 200, { authenticated: true }, origin);
+    if (pathname === '/v1/projects' && request.method === 'GET') return json(response, 200, [project], origin);
     if (pathname === '/v1/conversations' && request.method === 'GET') return json(response, 200, [conversation], origin);
     if (pathname === `/v1/conversations/${conversation.id}` && request.method === 'GET') return json(response, 200, conversation, origin);
     if (pathname === `/v1/conversations/${conversation.id}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
