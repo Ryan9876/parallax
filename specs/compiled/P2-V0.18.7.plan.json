@@ -1,0 +1,22 @@
+{
+  "spec_id": "P2-V0.18.7",
+  "title": "Mobile Interaction Model & Guided Build Flow",
+  "status": "approved",
+  "objective": "Replace compact desktop composition with a mobile-specific Chat/Build/Project interaction model while preserving all server-owned authority and desktop behavior.",
+  "acceptance_ids": ["AC-01","AC-02","AC-03","AC-04","AC-05","AC-06","AC-07","AC-08","AC-09","AC-10","AC-11","AC-12"],
+  "implementation": [
+    {"id":"M1","name":"mobile shell navigation","paths":["apps/client/src/App.tsx","apps/client/src/components/mobile/**"]},
+    {"id":"M2","name":"mobile specification review","paths":["apps/client/src/components/WorkSpecificationStatus.tsx","apps/client/src/components/mobile/**"]},
+    {"id":"M3","name":"guided build lifecycle","paths":["apps/client/src/components/EngineeringRunStatus.tsx","apps/client/src/components/observability/**","apps/client/src/components/mobile/**"]},
+    {"id":"M4","name":"project and amendment UX","paths":["apps/client/src/App.tsx","apps/client/src/components/EditorialProjectWorkspace.tsx","apps/client/src/components/mobile/**"]},
+    {"id":"M5","name":"mobile deterministic acceptance","paths":["apps/client/scripts/**"]}
+  ],
+  "invariants": [
+    "conversation remains primary",
+    "canonical project/work-spec/run/source authority remains server-owned",
+    "deterministic/protected validation outranks visual judgment",
+    "REVIEW/HUMAN_REQUIRED remains autonomous ceiling",
+    "desktop behavior remains unchanged",
+    "no nested compact work-spec scroll"
+  ]
+}
