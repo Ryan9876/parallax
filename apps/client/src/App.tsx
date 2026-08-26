@@ -567,7 +567,7 @@ export default function App() {
                         accessibilityLabel="Message Parallax"
                         value={draft}
                         onChangeText={setDraft}
-                        placeholder={mode === 'code' ? 'Describe what you want to build or change…' : 'Ask Parallax…'}
+                        placeholder={canDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
                         placeholderTextColor={palette.muted}
                         style={styles.input}
                         onSubmitEditing={() => void respond()}
