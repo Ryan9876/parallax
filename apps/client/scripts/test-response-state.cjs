@@ -23,4 +23,15 @@ assert.equal(state.motionForPhase(amendment.phase).surfaceEnergy, 0.22);
 amendment = state.responseReducer(amendment, { type: 'START_THINKING' });
 assert.equal(amendment.phase, 'THINKING');
 
+const capacityMessage = 'Model capacity is temporarily unavailable. Your message is saved; when capacity returns, continue from here instead of sending it again.';
+let capacity = state.initialResponseState;
+capacity = state.responseReducer(capacity, { type: 'START_THINKING' });
+capacity = state.responseReducer(capacity, { type: 'FAIL', error: capacityMessage });
+assert.equal(capacity.phase, 'ERROR');
+assert.equal(capacity.error, capacityMessage);
+assert.match(capacity.error, /message is saved/);
+assert.doesNotMatch(capacity.error, /protected scope/i);
+assert.doesNotMatch(capacity.error, /retry or refine/i);
+assert.equal(state.motionForPhase(capacity.phase).laserActive, false);
+
 console.log('response state tests passed');
