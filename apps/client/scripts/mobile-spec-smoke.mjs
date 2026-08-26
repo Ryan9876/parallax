@@ -172,6 +172,10 @@ try {
   assert(inputBox.y + inputBox.height <= navBox.y + 1, 'mobile spec: composer overlaps the bottom navigation');
   assert(await page.getByLabel('Work specification').count() === 0, 'mobile spec: legacy inline Work Specification should not render in Chat');
   assert(await page.getByRole('tab').count() === 3, 'mobile spec: primary navigation must expose exactly Chat, Build, and Project');
+  for (const label of ['Chat', 'Build', 'Project']) {
+    const tabBox = await page.getByRole('tab', { name: label }).boundingBox();
+    assert(tabBox && tabBox.height >= 44, `mobile spec: ${label} navigation target is smaller than 44px`);
+  }
 
   await page.getByLabel('Review specification').click();
   await page.getByTestId('mobile-specification-detail').waitFor({ timeout: 5000 });
@@ -195,7 +199,20 @@ try {
   await page.getByLabel('Approve and continue').click();
   await page.waitForTimeout(250);
   await page.getByText('Approved build', { exact: true }).waitFor({ timeout: 5000 });
+
+  await page.getByLabel('Back to Chat').click();
+  conversation.status = 'SPEC_AMENDMENT';
+  conversation.updated_at = new Date().toISOString();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByTestId('mobile-spec-amendment').waitFor({ timeout: 5000 });
+  await page.getByText('This request changes the approved build', { exact: true }).waitFor();
+  const startNewBox = await page.getByLabel('Start new objective').boundingBox();
+  const continueBox = await page.getByLabel('Continue current approved build').boundingBox();
+  assert(startNewBox && startNewBox.height >= 44, 'mobile amendment: Start new objective is not a practical touch target');
+  assert(continueBox && continueBox.height >= 44, 'mobile amendment: Continue current build is not a practical touch target');
+  assert(startNewBox.y < continueBox.y, 'mobile amendment: dominant new-objective action should appear before the secondary current-build action');
   assert(errors.length === 0, `mobile spec: browser errors: ${errors.join(' | ')}`);
+  await page.screenshot({ path: `${evidenceDir}/mobile-spec-amendment.png`, fullPage: true });
 
   console.log(JSON.stringify({
     viewport: { width: 390, height: 844 },
@@ -203,7 +220,9 @@ try {
     inlineLegacySpecification: false,
     dedicatedReview: true,
     approvalSucceeded: true,
-    controls: { approveBox, refreshBox, backBox },
+    amendmentLanguage: 'plain',
+    amendmentActions: ['Start new objective', 'Continue current build'],
+    controls: { approveBox, refreshBox, backBox, startNewBox, continueBox },
     composerClearOfNavigation: true,
   }, null, 2));
 
