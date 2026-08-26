@@ -549,7 +549,18 @@ export default function App() {
                   {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Resolving the active objective…</Text></View> : null}
                   {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Verifying response…</Text> : null}
                   {state.phase === 'SPEC_AMENDMENT' ? (
-                    <View style={styles.amendmentNotice} accessibilityLiveRegion="polite"><Text style={styles.amendmentTitle}>Specification amendment required</Text><Text style={styles.amendmentText}>The conversation is preserved. Parallax has stopped substantive work against the prior approved objective until the scope is clarified or amended.</Text></View>
+                    <View style={styles.amendmentNotice} accessibilityLiveRegion="polite">
+                      <Text style={styles.amendmentTitle}>Specification amendment required</Text>
+                      <Text style={styles.amendmentText}>The conversation is preserved. Parallax has stopped substantive work against the prior approved objective. Continue only within that approved objective, or start a new objective for materially different work.</Text>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel="Start new objective"
+                        onPress={() => void startConversation(mode)}
+                        style={styles.amendmentAction}
+                      >
+                        <Text style={styles.amendmentActionText}>Start new objective</Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : null}
                   {state.phase === 'ERROR' ? <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text> : null}
                 </ScrollView>
@@ -561,7 +572,7 @@ export default function App() {
                       accessibilityLabel="Message Parallax"
                       value={draft}
                       onChangeText={setDraft}
-                      placeholder="Describe the next outcome…"
+                      placeholder={canDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
                       placeholderTextColor={palette.muted}
                       style={styles.input}
                       onSubmitEditing={() => void respond()}
@@ -647,6 +658,8 @@ const styles = StyleSheet.create({
   amendmentNotice: { borderRadius: 18, backgroundColor: palette.rust100, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,59,23,0.16)' },
   amendmentTitle: { color: palette.charcoal950, fontSize: 11, fontWeight: '800', marginBottom: 5 },
   amendmentText: { color: palette.charcoal600, fontSize: 11, lineHeight: 17 },
+  amendmentAction: { alignSelf: 'flex-start', minHeight: 40, marginTop: 12, paddingHorizontal: 14, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust700 },
+  amendmentActionText: { color: palette.ivory50, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
   errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
   composerWrap: { flexShrink: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8, backgroundColor: 'rgba(251,247,238,0.88)' },
   composer: { maxWidth: 880, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: '#FFFDF8', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#564B38', shadowOpacity: 0.09, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } },
