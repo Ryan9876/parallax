@@ -9,22 +9,6 @@ import { ProjectCompatibilityGate } from './src/components/ProjectCompatibilityG
 
 type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
 
-function installResponsiveShellHandoff() {
-  if (typeof document === 'undefined' || document.getElementById('parallax-responsive-shell-handoff')) return;
-  const style = document.createElement('style');
-  style.id = 'parallax-responsive-shell-handoff';
-  style.textContent = `
-    @media (max-width: 759px) {
-      [data-testid="editorial-main-workplane"] [aria-label="Start new objective"] {
-        visibility: hidden !important;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-installResponsiveShellHandoff();
-
 function register(AppComponent: React.ComponentType) {
   function ProjectAwareApp() {
     return (
