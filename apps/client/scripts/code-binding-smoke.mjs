@@ -343,8 +343,26 @@ async function exerciseNewObjectiveRecovery(page, apiInstance) {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('mobile-guided-shell').waitFor({ state: 'visible', timeout: 5000 });
+  const mobileAmendment = page.getByTestId('mobile-spec-amendment');
+  await mobileAmendment.waitFor({ state: 'visible', timeout: 5000 });
   await recoveryAction.waitFor({ state: 'visible', timeout: 5000 });
   const mobileActionBox = await recoveryAction.boundingBox();
+  const mobileAmendmentBox = await mobileAmendment.boundingBox();
+  const mobileScrollState = await page.getByTestId('mobile-chat-scroll').evaluate((node) => ({
+    scrollTop: node.scrollTop,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+    top: node.getBoundingClientRect().top,
+    bottom: node.getBoundingClientRect().bottom,
+  }));
+  const rootState = await page.locator('#root').evaluate((node) => ({
+    height: node.style.height,
+    transform: node.style.transform,
+    keyboardVisible: node.dataset.parallaxKeyboardVisible ?? null,
+    top: node.getBoundingClientRect().top,
+    bottom: node.getBoundingClientRect().bottom,
+  }));
+  console.log(JSON.stringify({ mobileRecoveryGeometry: { mobileActionBox, mobileAmendmentBox, mobileScrollState, rootState } }, null, 2));
   assert(mobileActionBox && mobileActionBox.x >= 0 && mobileActionBox.x + mobileActionBox.width <= 391, 'Mobile Start new objective action is horizontally clipped');
   assert(mobileActionBox.y >= 0 && mobileActionBox.y < 844, 'Mobile Start new objective action is not viewport-reachable');
 
