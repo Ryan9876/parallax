@@ -6,7 +6,7 @@ on:
       spec:
         description: Specification path
         required: true
-        default: specs/P2-V0.1.0.md
+        default: specs/P2-V0.18.7.md
   push:
     branches:
       - 'p2/**'
@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     env:
-      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
+      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.18.7.md' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -94,7 +94,7 @@ jobs:
               'model': os.environ['MODEL'],
               'provider_backed': provider,
               'optimizer_executed': provider,
-              'compiler_artifact': 'P2-V0.1.0.plan.json',
+              'compiler_artifact': 'P2-V0.18.7.plan.json',
               'optimizer_artifact': 'optimized-program.json' if provider else None,
               'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
               'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
@@ -106,7 +106,7 @@ jobs:
         with:
           name: dspy-spec-evidence
           path: |
-            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/P2-V0.18.7.plan.json
             specs/compiled/optimized-program.json
             specs/compiled/optimized-program-evidence.json
             specs/compiled/dspy-run-status.json
