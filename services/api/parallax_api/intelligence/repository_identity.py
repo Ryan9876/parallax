@@ -33,6 +33,14 @@ _PATH_ROOTS = {
 }
 _FILE_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".yml", ".yaml")
 _TRAILING_PUNCTUATION = " \t\r\n.,:;!?)]}"
+_REPOSITORY_NAME_PUNCTUATION = ".,:;!?"
+
+
+def _clean_repository_name(value: str) -> str:
+    clean = value.rstrip(_REPOSITORY_NAME_PUNCTUATION)
+    if clean.casefold().endswith(".git"):
+        clean = clean[:-4]
+    return clean
 
 
 def normalize_github_repository_ref(value: str | None) -> str | None:
@@ -47,8 +55,9 @@ def normalize_github_repository_ref(value: str | None) -> str | None:
     if match is None:
         return None
     owner, repo = match.groups()
-    if repo.casefold().endswith(".git"):
-        repo = repo[:-4]
+    repo = _clean_repository_name(repo)
+    if not repo:
+        return None
     return f"{owner.casefold()}/{repo.casefold()}"
 
 
@@ -74,9 +83,9 @@ def _target_references(text: str) -> set[str]:
         if not _is_target_position(text, match.start(), match.end()):
             continue
         owner, repo = match.groups()
-        if repo.casefold().endswith(".git"):
-            repo = repo[:-4]
-        candidates.add(f"{owner.casefold()}/{repo.casefold()}")
+        repo = _clean_repository_name(repo)
+        if repo:
+            candidates.add(f"{owner.casefold()}/{repo.casefold()}")
 
     for match in _SHORTHAND_RE.finditer(text):
         if any(start <= match.start() < end for start, end in occupied):
@@ -84,7 +93,8 @@ def _target_references(text: str) -> set[str]:
         owner, repo = match.groups()
         if owner.casefold() in _PATH_ROOTS:
             continue
-        if repo.casefold().endswith(_FILE_SUFFIXES):
+        repo = _clean_repository_name(repo)
+        if not repo or repo.casefold().endswith(_FILE_SUFFIXES):
             continue
         if not _is_target_position(text, match.start(), match.end()):
             continue
