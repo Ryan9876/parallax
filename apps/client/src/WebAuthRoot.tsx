@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   googleButtonText: { color: '#171521', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
   gateHint: { color: palette.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 16 },
   accountLayer: { position: 'absolute', top: 70, right: 18, zIndex: 50, alignItems: 'flex-end' },
-  accountLayerCompact: { top: 9, right: 156 },
+  accountLayerCompact: { top: 9, right: 7 },
   accountPill: { maxWidth: 300, height: 34, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, borderRadius: 17, backgroundColor: 'rgba(245,238,223,0.98)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
   accountPillCompact: { width: 44, height: 44, borderRadius: 22, paddingHorizontal: 0, justifyContent: 'center', gap: 0 },
   accountDot: { width: 7, height: 7, borderRadius: 4 },
