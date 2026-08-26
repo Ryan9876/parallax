@@ -33,5 +33,8 @@ assert.match(capacity.error, /message is saved/);
 assert.doesNotMatch(capacity.error, /protected scope/i);
 assert.doesNotMatch(capacity.error, /retry or refine/i);
 assert.equal(state.motionForPhase(capacity.phase).laserActive, false);
+capacity = state.responseReducer(capacity, { type: 'START_THINKING' });
+assert.equal(capacity.phase, 'THINKING');
+assert.equal(capacity.error, undefined);
 
 console.log('response state tests passed');
