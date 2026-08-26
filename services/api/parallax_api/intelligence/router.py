@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from time import perf_counter
 from typing import Awaitable, Callable, Generic, TypeVar
 
@@ -11,6 +12,8 @@ MODEL_ORDER = (
     "openai/gpt-5.6-terra",
     "openai/gpt-5.6-sol",
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -51,10 +54,22 @@ class ModelRouter(Generic[T]):
                 duration = int((perf_counter() - started) * 1000)
                 if not validate(value):
                     records.append(AttemptRecord(model, "validation_failed", duration))
+                    logger.warning(
+                        "parallax_model_route validation_failed model=%s duration_ms=%s",
+                        model,
+                        duration,
+                    )
                     continue
                 records.append(AttemptRecord(model, "ok", duration))
                 return RouteResult(value=value, model=model, attempts=tuple(records))
             except Exception as exc:  # provider boundary intentionally sanitized here
                 duration = int((perf_counter() - started) * 1000)
-                records.append(AttemptRecord(model, "provider_failed", duration, type(exc).__name__))
+                error_class = type(exc).__name__
+                records.append(AttemptRecord(model, "provider_failed", duration, error_class))
+                logger.warning(
+                    "parallax_model_route provider_failed model=%s error_class=%s duration_ms=%s",
+                    model,
+                    error_class,
+                    duration,
+                )
         raise RoutingFailure(tuple(records))

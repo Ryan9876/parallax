@@ -25,6 +25,10 @@ AMENDMENT_MESSAGE = (
     "An approved specification amendment is required before I continue against the new objective."
 )
 
+CODE_OBJECTIVE_CAPTURED_MESSAGE = (
+    "Objective captured. Capture the Work Specification to continue with governed Code execution."
+)
+
 
 def service(
     session: Session = Depends(get_session),
@@ -71,6 +75,14 @@ async def stream_response(
 ):
     conversation = svc.get(conversation_id)
     prior_messages = tuple(conversation.messages)
+    first_code_objective = (
+        conversation.mode == "code"
+        and conversation.status == "ACTIVE"
+        and not any(
+            item.role == "user" and item.content.strip()
+            for item in prior_messages
+        )
+    )
     svc.append_follow_up(conversation_id, payload.content)
 
     async def events():
@@ -78,6 +90,28 @@ async def stream_response(
             return f"event: {name}\ndata: {json.dumps(data)}\n\n"
 
         yield event("state", {"phase": "THINKING"})
+
+        if first_code_objective:
+            assistant = svc.append_message(
+                conversation_id,
+                "assistant",
+                CODE_OBJECTIVE_CAPTURED_MESSAGE,
+            )
+            yield event("state", {"phase": "RESPONDING"})
+            yield event("chunk", {"text": CODE_OBJECTIVE_CAPTURED_MESSAGE})
+            yield event("state", {"phase": "VERIFYING"})
+            yield event(
+                "complete",
+                {
+                    "phase": "COMPLETE",
+                    "message_id": assistant.id,
+                    "confidence": 1.0,
+                    "scope_decision": None,
+                    "material_uncertainties": [],
+                    "assumptions": [],
+                },
+            )
+            return
 
         try:
             project_context = None

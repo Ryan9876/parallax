@@ -31,6 +31,7 @@ class FakeConversationService:
             spec_id="P2-V0.3.0",
             status="ACTIVE",
             mode="reason",
+            project_id=None,
             messages=[SimpleNamespace(role="user", content="Original approved objective")],
         )
 
@@ -55,6 +56,10 @@ class FakeConversationService:
         self.conversation.messages.append(message)
         return message
 
+    def project_for_conversation(self, conversation):
+        del conversation
+        return None
+
 
 class AmendmentCoordinator:
     async def respond(self, **kwargs):
@@ -71,7 +76,10 @@ class AmendmentCoordinator:
 
 
 class ContinueCoordinator:
+    calls = 0
+
     async def respond(self, **kwargs):
+        type(self).calls += 1
         return SimpleNamespace(
             answer="Continue under the active objective using the preserved prior conversation context.",
             confidence=0.93,
@@ -102,6 +110,11 @@ class ScopeFailureCoordinator:
         )
 
 
+class CoordinatorMustNotRun:
+    def __init__(self):
+        raise AssertionError("fresh Code objective must not initialize model-backed response coordination")
+
+
 def client_with(service: FakeConversationService, monkeypatch, coordinator_type):
     app = create_app(create_schema=False)
     app.dependency_overrides[conversation_routes.service] = lambda: service
@@ -130,6 +143,7 @@ def test_response_api_emits_amendment_handoff_without_substantive_chunks(monkeyp
 
 def test_response_api_streams_continue_answer_and_reason_metadata(monkeypatch):
     service = FakeConversationService()
+    ContinueCoordinator.calls = 0
     client = client_with(service, monkeypatch, ContinueCoordinator)
 
     response = client.post(
@@ -144,6 +158,46 @@ def test_response_api_streams_continue_answer_and_reason_metadata(monkeypatch):
     assert '"material_uncertainties"' in response.text
     assert service.conversation.status == "ACTIVE"
     assert service.conversation.messages[-1].role == "assistant"
+    assert ContinueCoordinator.calls == 1
+
+
+def test_fresh_code_objective_is_captured_without_scope_or_reason_inference(monkeypatch):
+    service = FakeConversationService()
+    service.conversation.mode = "code"
+    service.conversation.project_id = "project-test"
+    service.conversation.messages = []
+    client = client_with(service, monkeypatch, CoordinatorMustNotRun)
+
+    response = client.post(
+        "/v1/conversations/conversation-test/responses",
+        json={"content": "Add an about page"},
+    )
+
+    assert response.status_code == 200
+    assert "event: error" not in response.text
+    assert "event: chunk" in response.text
+    assert "Objective captured. Capture the Work Specification" in response.text
+    assert '"scope_decision": null' in response.text
+    assert [message.role for message in service.conversation.messages] == ["user", "assistant"]
+    assert service.conversation.messages[0].content == "Add an about page"
+    assert service.conversation.messages[1].content == conversation_routes.CODE_OBJECTIVE_CAPTURED_MESSAGE
+
+
+def test_established_code_follow_up_still_uses_protected_response_coordination(monkeypatch):
+    service = FakeConversationService()
+    service.conversation.mode = "code"
+    service.conversation.project_id = "project-test"
+    ContinueCoordinator.calls = 0
+    client = client_with(service, monkeypatch, ContinueCoordinator)
+
+    response = client.post(
+        "/v1/conversations/conversation-test/responses",
+        json={"content": "Make the About copy shorter."},
+    )
+
+    assert response.status_code == 200
+    assert '"scope_decision": "CONTINUE"' in response.text
+    assert ContinueCoordinator.calls == 1
 
 
 def test_response_api_returns_recoverable_reason_failure_with_trace(monkeypatch):
