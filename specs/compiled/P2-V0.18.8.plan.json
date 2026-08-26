@@ -1,0 +1,43 @@
+{
+  "architecture_decisions": [
+    "{Architecture Decision: Provide a bounded model-capacity message to indicate provider-capacity failures in the protected conversation response stream, while preserving conversation history and existing provider/model scope.}"
+  ],
+  "work_items": [
+    "{Work Item: Implement a bounded model-capacity message to indicate provider-capacity failures in the protected conversation response stream, while preserving conversation history and existing provider/model scope.}"
+  ],
+  "validations": [
+    "{Validation: Implement a bounded model-capacity message to indicate provider-capacity failures in the protected conversation response stream, while preserving conversation history and existing provider/model scope.}",
+    "AC-01: validate protected requirement — Conversation response recovery reuses `RoutingFailureKind` / sanitized attempt records from the accepted router contract and does not introduce raw-provider inspection or a competing classifier.",
+    "AC-02: validate protected requirement — When every configured scope attempt is `provider_failed` with sanitized `LMRateLimitError`, the SSE error uses a distinct bounded model-capacity code/message and does not emit `PROTECTED_SCOPE_FAILURE` or fabricate a scope decision.",
+    "AC-03: validate protected requirement — When protected scope resolution succeeds but every reason attempt rate-limits, the SSE error uses the same model-capacity semantics while retaining the already-established safe protected scope decision in the trace; no answer is fabricated.",
+    "AC-04: validate protected requirement — All-attempt protected-output validation exhaustion remains a protected scope/reason failure and is not represented as provider capacity exhaustion.",
+    "AC-05: validate protected requirement — Mixed or unknown provider failures use generic provider-unavailable semantics and do not claim rate limiting, quota state, billing state, or a retry interval.",
+    "AC-06: validate protected requirement — A provider-capacity failure leaves Project, conversation status, prior messages, and the submitted user turn intact and creates no Work Specification, Engineering Run, source mutation, approval, or REVIEW transition. Recovery copy says the message is saved/preserved and does not instruct the operator to resend identical content.",
+    "AC-07: validate protected requirement — The change adds no provider, model, credential, fallback, shell/network capability, routing order change, or deployment authority. Luna -> Terra -> Sol behavior remains intact.",
+    "AC-08: validate protected requirement — Client-visible errors and traces contain only bounded error codes, safe routing-attempt metadata already permitted by the current trace contract, and recovery text; no raw provider payload, secret, prompt, hidden reasoning, filesystem path, or billing/quota inference is exposed.",
+    "AC-09: validate protected requirement — Tests cover scope rate-limit, reason rate-limit after a valid scope decision, validation-only exhaustion, mixed/other provider failure, successful fallback, and preservation of conversation/status truth.",
+    "AC-10: validate protected requirement — Client/state acceptance proves the model-capacity message renders as a recoverable error, does not describe the event as a protected-scope defect, and does not imply that the user must duplicate the saved message.",
+    "AC-11: validate protected requirement — Reason/Code scope classification, first-Code-objective capture, Work Specification #252 recovery, Project/repository binding, authentication, source lineage, protected evaluation, REVIEW/HUMAN_REQUIRED, mobile behavior, and successful routing remain green.",
+    "AC-12: validate protected requirement — Before integration, this spec and authentic DSPy compiled plan pass protected validation; exact worker-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass. Worker PR targets `main` as bounded production stabilization, does not self-merge/deploy, and production is not claimed fixed until governed deployment and post-cutover verification complete."
+  ],
+  "risks": [
+    "{Risk: Provider-capacity failures in the protected conversation response stream may be represented as a bounded model-capacity message, while preserving conversation history and existing provider/model scope.}"
+  ],
+  "spec_id": "P2-V0.18.8",
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Existing sanitized classifier is authoritative","protected_requirement":"Conversation response recovery reuses `RoutingFailureKind` / sanitized attempt records from the accepted router contract and does not introduce raw-provider inspection or a competing classifier."},
+    {"id":"AC-02","title":"Scope rate-limit exhaustion is truthful","protected_requirement":"When every configured scope attempt is `provider_failed` with sanitized `LMRateLimitError`, the SSE error uses a distinct bounded model-capacity code/message and does not emit `PROTECTED_SCOPE_FAILURE` or fabricate a scope decision."},
+    {"id":"AC-03","title":"Reason rate-limit exhaustion is truthful","protected_requirement":"When protected scope resolution succeeds but every reason attempt rate-limits, the SSE error uses the same model-capacity semantics while retaining the already-established safe protected scope decision in the trace; no answer is fabricated."},
+    {"id":"AC-04","title":"Validation exhaustion remains distinct","protected_requirement":"All-attempt protected-output validation exhaustion remains a protected scope/reason failure and is not represented as provider capacity exhaustion."},
+    {"id":"AC-05","title":"Mixed provider exhaustion fails closed","protected_requirement":"Mixed or unknown provider failures use generic provider-unavailable semantics and do not claim rate limiting, quota state, billing state, or a retry interval."},
+    {"id":"AC-06","title":"Durable conversation history is preserved","protected_requirement":"A provider-capacity failure leaves Project, conversation status, prior messages, and the submitted user turn intact and creates no Work Specification, Engineering Run, source mutation, approval, or REVIEW transition. Recovery copy says the message is saved/preserved and does not instruct the operator to resend identical content."},
+    {"id":"AC-07","title":"Provider and model authority is unchanged","protected_requirement":"The change adds no provider, model, credential, fallback, shell/network capability, routing order change, or deployment authority. Luna -> Terra -> Sol behavior remains intact."},
+    {"id":"AC-08","title":"Safe observable evidence","protected_requirement":"Client-visible errors and traces contain only bounded error codes, safe routing-attempt metadata already permitted by the current trace contract, and recovery text; no raw provider payload, secret, prompt, hidden reasoning, filesystem path, or billing/quota inference is exposed."},
+    {"id":"AC-09","title":"Deterministic API and coordinator coverage","protected_requirement":"Tests cover scope rate-limit, reason rate-limit after a valid scope decision, validation-only exhaustion, mixed/other provider failure, successful fallback, and preservation of conversation/status truth."},
+    {"id":"AC-10","title":"Client recovery presentation","protected_requirement":"Client/state acceptance proves the model-capacity message renders as a recoverable error, does not describe the event as a protected-scope defect, and does not imply that the user must duplicate the saved message."},
+    {"id":"AC-11","title":"Existing protected regressions remain green","protected_requirement":"Reason/Code scope classification, first-Code-objective capture, Work Specification #252 recovery, Project/repository binding, authentication, source lineage, protected evaluation, REVIEW/HUMAN_REQUIRED, mobile behavior, and successful routing remain green."},
+    {"id":"AC-12","title":"Governed release boundary","protected_requirement":"Before integration, this spec and authentic DSPy compiled plan pass protected validation; exact worker-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass. Worker PR targets `main` as bounded production stabilization, does not self-merge/deploy, and production is not claimed fixed until governed deployment and post-cutover verification complete."}
+  ],
+  "critique": ["Provider-capacity failures in the protected conversation response stream are a material implementation risk."],
+  "dspy_run": {"executed":true,"model":"ollama_chat/llama3.2:1b","api_base":"http://127.0.0.1:11434","local_development_view":true}
+}
