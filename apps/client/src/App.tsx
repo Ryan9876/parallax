@@ -114,6 +114,12 @@ export default function App() {
     if (!compact) setMobileDetail(null);
   }, [compact]);
 
+  React.useLayoutEffect(() => {
+    if (!compact || !amendmentActive || mobileDestination !== 'chat') return;
+    liveEdgeRef.current = false;
+    threadRef.current?.scrollTo({ y: 0, animated: false });
+  }, [amendmentActive, compact, mobileDestination]);
+
   const scrollToLiveEdge = React.useCallback((animated = true) => {
     requestAnimationFrame(() => threadRef.current?.scrollToEnd({ animated }));
   }, []);
