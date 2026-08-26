@@ -94,7 +94,7 @@ try {
   assert(await page.getByRole('tab', { name: 'Observability' }).count() === 0, 'mobile evidence: Observability must not be a primary mobile destination');
   await page.getByRole('tab', { name: 'Build' }).click();
   await page.getByTestId('mobile-build-workspace').waitFor({ timeout: 5000 });
-  await page.getByLabel('Open build details').click();
+  await page.getByLabel('Open build details', { exact: true }).click();
   await page.getByText('Run observability', { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText('Sequence 3', { exact: true }).waitFor({ timeout: 10000 });
 
