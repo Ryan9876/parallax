@@ -1,5 +1,6 @@
 import React from 'react';
-import { api, type WorkSpecificationDto } from '../lib/api';
+import { ApiRequestError, api, type WorkSpecificationDto } from '../lib/api';
+import { workSpecificationDraftFailureMessage } from '../state/workSpecificationState';
 import { publishApprovedWorkSpecification } from '../lib/workSpecEvents';
 
 export function useWorkSpecification(conversationId: string | null) {
@@ -43,7 +44,11 @@ export function useWorkSpecification(conversationId: string | null) {
       const next = await api.draftWorkSpecification(conversationId);
       setSpecification(next);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Specification drafting failed.');
+      setError(
+        caught instanceof ApiRequestError
+          ? workSpecificationDraftFailureMessage(caught.status, caught.message)
+          : workSpecificationDraftFailureMessage(null, caught instanceof Error ? caught.message : null),
+      );
     } finally {
       setBusy(false);
     }
