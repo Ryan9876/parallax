@@ -3,14 +3,13 @@ name: Record production stabilization state
 on:
   push:
     branches:
-      - record/252-deployment-state
+      - "record/252-deployment-state"
 
 permissions:
   contents: write
 
 jobs:
   reconcile:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,102 +17,66 @@ jobs:
           ref: record/252-deployment-state
           fetch-depth: 2
       - name: Reconcile CURRENT-STATE
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
-          path = Path('CURRENT-STATE.md')
+          path = Path("CURRENT-STATE.md")
           text = path.read_text()
+          text = re.sub(r"^Release:.*$", "Release: Wave 5 generalized application delivery remains the production platform baseline, with production stabilization hotfixes #246, #244, #245, and #252 deployment-verified on top of Wave 5. Current application/runtime identity is `main@5ec7eabc046b9995c8d11d5081df15b986a558fe`; production API `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` and production client `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf` are READY on that exact merge SHA. Hotfix #246 operator functional retest passed. Work Specification capture is now explicitly retryable when all configured model routes are provider-rate-limited; this does not claim the underlying OpenAI API rate limit itself is removed.", text, count=1, flags=re.MULTILINE)
+          text = re.sub(r"^Date:.*$", "Date: 2026-08-26", text, count=1, flags=re.MULTILINE)
+          text = re.sub(r"^Status:.*$", "Status: **WAVE 5 RELEASED / HOTFIXES #246 #244 #245 #252 DEPLOYMENT-VERIFIED / API READY / CLIENT READY / #246 OPERATOR RETEST PASSED / WORK-SPEC RATE-LIMIT RECOVERY EXPLICIT / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**", text, count=1, flags=re.MULTILINE)
 
-          text = re.sub(
-              r'^Release:.*$',
-              'Release: Wave 5 generalized application delivery remains the production platform baseline, with production stabilization hotfixes #246, #244, #245, and #252 deployment-verified on top of Wave 5. Current application/runtime identity is `main@5ec7eabc046b9995c8d11d5081df15b986a558fe`; production API `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` and production client `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf` are READY on that exact merge SHA. Hotfix #246 operator functional retest passed. Work Specification capture is now explicitly retryable when all configured model routes are provider-rate-limited; this does not claim the underlying OpenAI API rate limit itself is removed.',
-              text,
-              count=1,
-              flags=re.MULTILINE,
-          )
-          text = re.sub(r'^Date:.*$', 'Date: 2026-08-26', text, count=1, flags=re.MULTILINE)
-          text = re.sub(
-              r'^Status:.*$',
-              'Status: **WAVE 5 RELEASED / HOTFIXES #246 #244 #245 #252 DEPLOYMENT-VERIFIED / API READY / CLIENT READY / #246 OPERATOR RETEST PASSED / WORK-SPEC RATE-LIMIT RECOVERY EXPLICIT / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**',
-              text,
-              count=1,
-              flags=re.MULTILINE,
-          )
+          section = '''## Production stabilization hotfixes #244, #245 and #252 — deployment-verified
 
-          new_sections = '''## Production stabilization hotfix #252 — deployment-verified
+Production acceptance testing after Wave 5 produced three bounded stabilization corrections in addition to #246. Hotfix #244 restored canonical repository-target enforcement before execution; hotfix #245 restored truthful durable IMPLEMENT-failure projection and Live Build fallback; hotfix #252 distinguishes provider rate-limit exhaustion during Work Specification capture from protected-output validation or mixed provider failure.
 
-Operator acceptance testing on the correctly bound `OT Time` Project reached governed Work Specification capture after hotfix #246, then production model-route diagnostics showed every configured OpenAI route (`openai/gpt-5.6-luna`, `openai/gpt-5.6-terra`, `openai/gpt-5.6-sol`) failing that request with sanitized `LMRateLimitError`. No Work Specification or Engineering Run was fabricated. The evidence proved provider rate limiting for those attempts but did not prove whether the underlying limit was account-wide, model-specific, budget-related, or temporary.
+For #244, exact candidate `40f8bc25fcfad6c725a666cf236c6ffda2402991` passed Workstream Spec Validation #357 (`32922601423`), Bounded Autonomy #563 (`32922601392`) and P2 CI #924 (`32922601357`), then PR #250 merged as `e818bc9f44e473195a1bfd7f82b3c0cb3abf7e42`. Production API `dpl_4udtw3EkTTqZH1nPbqJuGYbcjG81` reached READY on that exact merge SHA. The selected Project repository is rechecked at Work Specification approval and Engineering Run activation; no repository auto-switching or authority broadening was introduced.
 
-Issue #252 / PR #253 corrected the recovery semantics without broadening model or provider authority:
+For #245, exact candidate `7aebfb65d46df57ed38031d3e213a27dc9fe6303` passed Bounded Autonomy #564 and P2 CI #926, including full API regression, client typecheck/state/export, browser/Skia sparse FAILED/IMPLEMENT fallback, protected promotion/regression evaluation and release DSPy compilation. PR #251 merged as `464aa9f106348638cfd436aa427398edbd3e1583`. Production API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm` reached READY on that exact merge SHA. Sanitized pre-mutation failed IMPLEMENT attempts now project append-only failure evidence, and Live Build falls back to authoritative FAILED/resume-stage state without fabricating worker/source/provider/preview/evaluation success.
 
-- routing exhaustion is classified only from the existing sanitized bounded attempt record;
-- all-provider-attempt `LMRateLimitError` exhaustion is distinguished from protected-output validation exhaustion and mixed/other provider failure;
-- all-rate-limit Work Specification capture returns bounded HTTP 429 retry semantics and preserves the current objective/conversation at `SPEC · NOT CAPTURED`;
-- the client explicitly tells the operator model capacity is temporarily unavailable and that retrying `Capture Spec` later is safe;
-- no `Retry-After` duration is invented without trusted provider timing evidence;
-- no deterministic/fabricated Work Specification fallback is introduced;
-- provider, model family, model ordering, credentials, Project/repository authority, Engineering Run authority, source mutation, REVIEW/HUMAN_REQUIRED, deployment and authentication boundaries are unchanged.
+For #252, the operator's correctly bound `OT Time` Project reached Work Specification capture after #246, then all configured OpenAI routes returned sanitized `LMRateLimitError`. No Work Specification or Engineering Run was fabricated. Exact candidate `a9c5a6c941c596081202b3bc4dfa8f4d8fefb4d3` passed Workstream Spec Validation #359 (`32925099941`), Bounded Autonomy #565 (`32925099955`), P2 CI #928 (`32925099930`), full API regression, client typecheck/state/export, browser/Skia acceptance, protected promotion/regression evaluation, release DSPy compilation, and both Vercel preview checks. Expected-head PR #253 merged as `5ec7eabc046b9995c8d11d5081df15b986a558fe`.
 
-Exact candidate `a9c5a6c941c596081202b3bc4dfa8f4d8fefb4d3` passed Workstream Spec Validation #359 (`32925099941`), Bounded Autonomy #565 (`32925099955`), P2 CI #928 (`32925099930`), full API regression, client typecheck/state/export, browser/Skia acceptance, protected Code/Engineering/Reason promotion and regression rejection, release DSPy compilation/verification, and both Vercel preview checks. Expected-head PR #253 merged to `main` as `5ec7eabc046b9995c8d11d5081df15b986a558fe`.
+Current production API `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` and client `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf` are READY on exact merge SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`, with `aliasError=null`. API provider/delivery/projected-source/Blob/lineage/bootstrap/execution-snapshot/run-event-schema preflights passed; `/health` and `/ready` return HTTP 200; unauthenticated `/v1/projects` remains HTTP 401 with Bearer challenge; the client root returns HTTP 200; and recent API/client runtime-error scans are empty.
 
-Production deployment verification established:
+#252 classifies only from sanitized bounded route attempts: all-route `LMRateLimitError` exhaustion returns HTTP 429 with explicit retry semantics while preserving `SPEC · NOT CAPTURED`; validation-only and mixed/other failures remain distinct. No `Retry-After` duration is invented, no deterministic Work Specification fallback exists, and no provider/model/model-family/credential or execution/deployment authority changed. This corrects application recovery/reporting and does not assert that external OpenAI API capacity has recovered.
 
-- API deployment `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q` is `READY`, target `production`, exact Git SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`, `aliasError=null`, with aliases including `parallax-api-tan.vercel.app`;
-- API build preflights passed registered provider/source-tree/private Blob, exact repository delivery permission, projected source, immutable Blob get/put/get, lineage composition/rollback, projected bootstrap/runtime/process recreation/replay/no-stage-mutation/project rollback, execution snapshot/deny-all/offline dependencies/no-repository-source, and run-event schema verification;
-- `/health` and `/ready` return HTTP 200 with database/providers healthy and one registered provider target;
-- unauthenticated `/v1/projects` remains HTTP 401 with the Bearer challenge;
-- production client deployment `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf` is `READY` on the same exact Git SHA, `aliasError=null`, owns the canonical production aliases, and the root alias returns HTTP 200;
-- recent deployment-level API and client runtime-error scans are empty.
-
-The immediately preceding known-good rollback pair is hotfix #245: API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm`, both READY. Hotfix #252 corrects classification and operator recovery only; underlying external API capacity may still require a later retry or provider-account remediation outside this application release.
-
-## Production stabilization reconciliation — #244 and #245 deployment-verified
-
-Hotfix #244 restored canonical repository identity enforcement after operator testing exposed a Work Specification whose requested repository conflicted with the selected Project. Exact candidate `40f8bc25fcfad6c725a666cf236c6ffda2402991` passed Workstream Spec Validation #357 (`32922601423`), Bounded Autonomy #563 (`32922601392`) and P2 CI #924 (`32922601357`), then expected-head PR #250 merged as `e818bc9f44e473195a1bfd7f82b3c0cb3abf7e42`. Production API `dpl_4udtw3EkTTqZH1nPbqJuGYbcjG81` reached READY on that exact merge SHA. The selected Project repository is rechecked at Work Specification approval and Engineering Run activation; no repository auto-switching or authority broadening was introduced.
-
-Hotfix #245 restored truthful durable IMPLEMENT-failure observability. Exact candidate `7aebfb65d46df57ed38031d3e213a27dc9fe6303` passed Bounded Autonomy #564 and P2 CI #926, including full API regression, client typecheck/state/export, browser/Skia sparse FAILED/IMPLEMENT fallback, protected promotion/regression evaluation and release DSPy compilation. Expected-head PR #251 merged as `464aa9f106348638cfd436aa427398edbd3e1583`. Production API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm` both reached READY on that exact merge SHA. Future sanitized pre-mutation failed IMPLEMENT attempts now project append-only failure evidence, the autonomous endpoint preserves the durable expected failure if optional projection fails after commit, and Live Build falls back to authoritative FAILED/resume-stage state without fabricating worker/source/provider/preview/evaluation success.
+The immediate rollback pair is #245: API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm`, both READY.
 
 '''
-          marker = '## Production stabilization hotfix #246'
-          if '## Production stabilization hotfix #252' not in text:
+          marker = "## Production stabilization hotfix #246"
+          if "## Production stabilization hotfixes #244, #245 and #252" not in text:
               if marker not in text:
-                  raise SystemExit('expected #246 section marker not found')
-              text = text.replace(marker, new_sections + marker, 1)
+                  raise SystemExit("expected #246 marker not found")
+              text = text.replace(marker, section + marker, 1)
 
-          text = text.replace(
-              '## Production stabilization hotfix #246 — deployment-verified / operator retest pending',
-              '## Production stabilization hotfix #246 — deployment-verified / operator retest passed',
-              1,
-          )
-          text = text.replace(
-              'Issue #246 remains open until the operator repeats the original fresh `OT Time` Code-objective flow in production and confirms it reaches `SPEC · NOT CAPTURED` without `PROTECTED_SCOPE_FAILURE` before Work Specification capture.',
-              'Issue #246 is closed after the operator repeated the original fresh `OT Time` Code-objective flow in production: conversation `085bb6e7-ba2a-4770-b08e-e25618350534` persisted `Create an about page` exactly once, returned the deterministic Work Specification handoff, and reached `SPEC · NOT CAPTURED` without `PROTECTED_SCOPE_FAILURE`.',
-              1,
-          )
+          text = text.replace("## Production stabilization hotfix #246 — deployment-verified / operator retest pending", "## Production stabilization hotfix #246 — deployment-verified / operator retest passed", 1)
+          text = text.replace("Issue #246 remains open until the operator repeats the original fresh `OT Time` Code-objective flow in production and confirms it reaches `SPEC · NOT CAPTURED` without `PROTECTED_SCOPE_FAILURE` before Work Specification capture.", "Issue #246 is closed after the operator repeated the original fresh `OT Time` Code-objective flow in production: conversation `085bb6e7-ba2a-4770-b08e-e25618350534` persisted `Create an about page` exactly once, returned the deterministic Work Specification handoff, and reached `SPEC · NOT CAPTURED` without `PROTECTED_SCOPE_FAILURE`.", 1)
 
-          current_truth = '''## Current production truth
+          current = '''## Current production truth
 
-The deployment-verified current Parallax application/runtime identity is `main@5ec7eabc046b9995c8d11d5081df15b986a558fe`, layered on the Wave 5 generalized-delivery release and production stabilization hotfixes #246, #244, #245 and #252.
+The deployment-verified current Parallax application/runtime identity is `main@5ec7eabc046b9995c8d11d5081df15b986a558fe`, layered on the Wave 5 generalized-delivery release and stabilization hotfixes #246, #244, #245 and #252.
 
-The current production API is Vercel deployment `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q`. It is `READY`, target `production`, bound to exact Git SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`, has `aliasError=null`, and owns `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, and `parallax-api-git-main-lew7.vercel.app`. Provider/delivery/projected-source/Blob/lineage/bootstrap/execution-snapshot/run-event-schema build preflights passed; `/health` and `/ready` are HTTP 200; unauthenticated `/v1/projects` is HTTP 401 with Bearer challenge; and the recent runtime-error scan is clean.
+The current production API is `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q`: READY, target production, exact Git SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`, `aliasError=null`, with the canonical API aliases. Its production preflights passed; `/health` and `/ready` are HTTP 200; unauthenticated `/v1/projects` is HTTP 401 with Bearer challenge; and recent runtime-error scans are clean.
 
-The current production client is Vercel deployment `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf`, also bound to exact Git SHA `5ec7eabc046b9995c8d11d5081df15b986a558fe`. It is `READY`, has `aliasError=null`, owns `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`, serves HTTP 200 at the canonical production alias, and has no recent runtime-error entries.
+The current production client is `dpl_DwjTqyD5BZSGf6XAexZzg42enBQf`: READY on the same exact Git SHA, `aliasError=null`, with the canonical client aliases. The production root is HTTP 200 and recent client runtime-error scans are clean.
 
-The immediate rollback pair is #245: API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm`, both READY on application merge `464aa9f106348638cfd436aa427398edbd3e1583`. Earlier known-good API references `dpl_4udtw3EkTTqZH1nPbqJuGYbcjG81`, `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`, and Wave 5 `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` remain available. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
+The immediate rollback pair is #245: API `dpl_7WkoYsKjrQ2tVkbzgNQyWAeVDmhn` and client `dpl_B58TT1qEK5MnMtXdxzJCdbLnL3Gm`, both READY on merge `464aa9f106348638cfd436aa427398edbd3e1583`. Earlier known-good API references include #244 `dpl_4udtw3EkTTqZH1nPbqJuGYbcjG81`, #246 `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`, and Wave 5 `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`.
 
-Hotfix #246 operator functional retest passed. The subsequent Work Specification capture attempt exposed provider rate limiting across all configured routes; #252 now reports that case as explicit retryable capacity state while preserving the objective and mandatory model-generated/approved Work Specification boundary. This state record does not assert that external OpenAI API capacity has recovered.
+Hotfix #246 operator functional retest passed. The subsequent Work Specification capture exposed provider rate limiting across all configured routes; #252 now reports that as explicit retryable capacity state while preserving the mandatory model-generated and operator-approved Work Specification boundary. This record does not claim external OpenAI API capacity has recovered.
 
-`ARCHITECTURE.md` v3.1 remains the durable architecture record. `PROJECT-CONSTITUTION.md` v1.4 and `DESIGN-SYSTEM.md` remain unchanged because these stabilization hotfixes restore or clarify existing boundaries rather than changing constitutional authority, durable generalized-delivery architecture, or visual language.
+`ARCHITECTURE.md` v3.1, `PROJECT-CONSTITUTION.md` v1.4 and `DESIGN-SYSTEM.md` remain unchanged because these stabilization hotfixes restore or clarify existing contracts without changing durable architecture, constitutional authority or visual language.
 '''
-          pattern = r'## Current production truth\n.*?(?=\n## Wave 4 autonomous IMPLEMENT progression recovery)'
+          pattern = r"## Current production truth\n.*?(?=\n## Wave 4 autonomous IMPLEMENT progression recovery)"
           if not re.search(pattern, text, flags=re.DOTALL):
-              raise SystemExit('current production truth section not found')
-          text = re.sub(pattern, current_truth.rstrip(), text, count=1, flags=re.DOTALL)
-
+              raise SystemExit("current production truth section not found")
+          text = re.sub(pattern, current.rstrip(), text, count=1, flags=re.DOTALL)
           path.write_text(text)
+          PY
       - name: Remove temporary workflow and commit record
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
