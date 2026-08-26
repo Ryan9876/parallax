@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 import logging
 from time import perf_counter
 from typing import Awaitable, Callable, Generic, TypeVar
@@ -31,10 +32,35 @@ class RouteResult(Generic[T]):
     attempts: tuple[AttemptRecord, ...]
 
 
+class RoutingFailureKind(str, Enum):
+    RATE_LIMITED = "RATE_LIMITED"
+    VALIDATION_EXHAUSTED = "VALIDATION_EXHAUSTED"
+    PROVIDER_EXHAUSTED = "PROVIDER_EXHAUSTED"
+
+
+def classify_routing_failure(attempts: tuple[AttemptRecord, ...]) -> RoutingFailureKind:
+    """Classify only from the already-sanitized bounded attempt record.
+
+    Raw provider exceptions and payloads remain outside this contract. Mixed
+    failures intentionally fall back to generic provider exhaustion rather than
+    inferring account-wide capacity or protected-output semantics.
+    """
+
+    if attempts and all(
+        item.status == "provider_failed" and item.error == "LMRateLimitError"
+        for item in attempts
+    ):
+        return RoutingFailureKind.RATE_LIMITED
+    if attempts and all(item.status == "validation_failed" for item in attempts):
+        return RoutingFailureKind.VALIDATION_EXHAUSTED
+    return RoutingFailureKind.PROVIDER_EXHAUSTED
+
+
 class RoutingFailure(RuntimeError):
     def __init__(self, attempts: tuple[AttemptRecord, ...]):
         super().__init__("All configured Parallax models failed")
         self.attempts = attempts
+        self.kind = classify_routing_failure(attempts)
 
 
 AttemptFn = Callable[[str], Awaitable[T]]
