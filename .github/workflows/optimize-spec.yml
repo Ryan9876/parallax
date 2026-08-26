@@ -45,10 +45,11 @@ jobs:
             echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "model=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
             echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
           fi
 
@@ -61,9 +62,11 @@ jobs:
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
             sleep 1
           done
-          ollama pull llama3.2:1b
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
 
       - name: Compile approved spec with DSPy critic + compiler
+        timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py "$SPEC_PATH"
@@ -89,6 +92,7 @@ jobs:
           path = Path('specs/compiled/dspy-run-status.json')
           path.write_text(json.dumps({
               'executed': True,
+              'spec_id': 'P2-V0.18.7',
               'spec_compiler_executed': True,
               'spec_critic_executed': True,
               'model': os.environ['MODEL'],
