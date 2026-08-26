@@ -227,20 +227,33 @@ try {
     throw new Error(`Google callback did not reach the workspace. diagnostics=${JSON.stringify({ diagnostics, googleSessionExchangeObserved: Boolean(googleExchangeAuthorization), sessionMarkerObserved, observedRequests: observedRequests.slice(-30), browserErrors: browserErrors.slice(-20) })}`, { cause: error });
   }
   const accountMenu = page.getByRole('button', { name: 'Parallax access menu' });
+  const mobileShell = page.getByTestId('mobile-guided-shell');
+  const askButton = page.getByRole('button', { name: 'Ask mode' });
+  const buildButton = page.getByRole('button', { name: 'Build mode' });
+  const newConversationButton = page.getByRole('button', { name: 'New conversation' });
+  const bottomNavigation = page.getByTestId('mobile-bottom-navigation');
+  const composer = page.getByLabel('Message Parallax');
   await accountMenu.waitFor({ timeout: 5000 });
-  const workSpec = page.getByLabel('Work specification', { exact: true });
-  await workSpec.waitFor({ timeout: 5000 });
-  const reasonButton = page.getByRole('button', { name: /^reason$/i });
-  const codeButton = page.getByRole('button', { name: /^code$/i });
+  await mobileShell.waitFor({ timeout: 5000 });
+  await askButton.waitFor({ timeout: 5000 });
+  await buildButton.waitFor({ timeout: 5000 });
+  await newConversationButton.waitFor({ timeout: 5000 });
+  await bottomNavigation.waitFor({ timeout: 5000 });
 
   const accountBox = await accountMenu.boundingBox();
-  const workSpecBox = await workSpec.boundingBox();
-  const reasonBox = await reasonButton.boundingBox();
-  const codeBox = await codeButton.boundingBox();
-  assert(accountBox && workSpecBox && reasonBox && codeBox, 'Mobile top-bar/spec geometry was unavailable');
-  assert(workSpecBox.height < 160, `Mobile collapsed Work Specification remained too tall: ${workSpecBox.height}px`);
-  assert(!overlaps(accountBox, workSpecBox), `Mobile account launcher overlaps Work Specification: account=${JSON.stringify(accountBox)} spec=${JSON.stringify(workSpecBox)}`);
-  assert(!overlaps(accountBox, reasonBox) && !overlaps(accountBox, codeBox), `Mobile account launcher overlaps mode controls: account=${JSON.stringify(accountBox)} reason=${JSON.stringify(reasonBox)} code=${JSON.stringify(codeBox)}`);
+  const askBox = await askButton.boundingBox();
+  const buildBox = await buildButton.boundingBox();
+  const newConversationBox = await newConversationButton.boundingBox();
+  const navigationBox = await bottomNavigation.boundingBox();
+  const composerBox = await composer.boundingBox();
+  assert(accountBox && askBox && buildBox && newConversationBox && navigationBox && composerBox, 'Mobile authenticated-shell geometry was unavailable');
+  assert(accountBox.height >= 44 && accountBox.width >= 44, `Mobile account launcher is smaller than a practical touch target: ${JSON.stringify(accountBox)}`);
+  assert(accountBox.x >= 0 && accountBox.x + accountBox.width <= 390, `Mobile account launcher is clipped: ${JSON.stringify(accountBox)}`);
+  assert(await page.getByLabel('Work specification', { exact: true }).count() === 0, 'Mobile authenticated Chat restored the retired inline Work Specification');
+  assert(await page.getByRole('tab').count() === 3, 'Mobile authenticated workspace must expose exactly Chat, Build, and Project');
+  assert(!overlaps(accountBox, askBox) && !overlaps(accountBox, buildBox), `Mobile account launcher overlaps Ask/Build controls: account=${JSON.stringify(accountBox)} ask=${JSON.stringify(askBox)} build=${JSON.stringify(buildBox)}`);
+  assert(!overlaps(accountBox, newConversationBox), `Mobile account launcher overlaps new-conversation control: account=${JSON.stringify(accountBox)} newConversation=${JSON.stringify(newConversationBox)}`);
+  assert(composerBox.y + composerBox.height <= navigationBox.y + 1, `Mobile authenticated composer overlaps bottom navigation: composer=${JSON.stringify(composerBox)} navigation=${JSON.stringify(navigationBox)}`);
 
   assert(googleExchangeAuthorization === 'Bearer supabase-transient-token', 'Parallax API did not receive the transient Supabase token for exchange');
   assert(sessionMarkerObserved, 'Authenticated browser traffic did not use the Parallax session marker');
@@ -275,9 +288,11 @@ try {
     parallaxSessionExchange: true,
     sessionMarkerObserved,
     ownerAccessPanel: true,
-    mobileWorkSpecificationCompact: true,
+    mobileInlineWorkSpecificationRetired: true,
+    mobilePrimaryNavigation: ['Chat', 'Build', 'Project'],
+    mobileAccountTouchTarget: true,
     mobileAccountNoOverlap: true,
-    mobileModeControlsNoOverlap: true,
+    mobileComposerClearOfNavigation: true,
     mobileAccessPanelFit: true,
     logout: sessionDeleteObserved,
     expectedAuthBoundary401s: authBoundaryErrors.length,

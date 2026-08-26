@@ -2,6 +2,7 @@ const RESPONSE_SELECTOR = '[aria-label="Parallax response"]';
 const INPUT_SELECTOR = '[aria-label="Message Parallax"]';
 const SEND_SELECTOR = '[aria-label="Send message"]';
 const NEW_CONVERSATION_SELECTOR = '[aria-label="New conversation"]';
+const MOBILE_AMENDMENT_SELECTOR = '[data-testid="mobile-spec-amendment"]';
 const LIVE_EDGE_THRESHOLD = 120;
 const SETTLE_DELAY_MS = 120;
 
@@ -44,6 +45,10 @@ function distanceFromEnd(thread: HTMLElement) {
   return Math.max(0, thread.scrollHeight - thread.clientHeight - thread.scrollTop);
 }
 
+function mobileRecoveryHasViewportPriority() {
+  return window.innerWidth < 760 && Boolean(document.querySelector(MOBILE_AMENDMENT_SELECTOR));
+}
+
 function bindThread(thread: HTMLElement | null) {
   if (!thread || thread === state.thread) return;
 
@@ -66,6 +71,7 @@ function bindThread(thread: HTMLElement | null) {
 }
 
 function pinToLiveEdge() {
+  if (mobileRecoveryHasViewportPriority()) return;
   const thread = findThread() ?? state.thread;
   bindThread(thread);
   if (!thread || !state.armed) return;
