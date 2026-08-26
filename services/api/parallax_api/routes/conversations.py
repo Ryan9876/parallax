@@ -29,6 +29,24 @@ CODE_OBJECTIVE_CAPTURED_MESSAGE = (
     "Objective captured. Capture the Work Specification to continue with governed Code execution."
 )
 
+MODEL_CAPACITY_RECOVERY_MESSAGE = (
+    "Model capacity is temporarily unavailable. Your message is saved; "
+    "when capacity returns, continue from here instead of sending it again."
+)
+
+MODEL_PROVIDER_RECOVERY_MESSAGE = (
+    "Parallax model provider is temporarily unavailable. Your message is saved; "
+    "when service returns, continue from here instead of sending it again."
+)
+
+
+def _coordination_failure_message(exc: ResponseCoordinationFailure) -> str:
+    if exc.error_code == "MODEL_CAPACITY_RATE_LIMITED":
+        return MODEL_CAPACITY_RECOVERY_MESSAGE
+    if exc.error_code == "MODEL_PROVIDER_UNAVAILABLE":
+        return MODEL_PROVIDER_RECOVERY_MESSAGE
+    return f"{exc.public_message} Your conversation is preserved; retry or refine the request."
+
 
 def service(
     session: Session = Depends(get_session),
@@ -160,7 +178,7 @@ async def stream_response(
                     "phase": "ERROR",
                     "error": exc.error_code,
                     "recoverable": True,
-                    "message": f"{exc.public_message} Your conversation is preserved; retry or refine the request.",
+                    "message": _coordination_failure_message(exc),
                     "trace": exc.trace.as_public_dict(),
                 },
             )
