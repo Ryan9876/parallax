@@ -82,6 +82,7 @@ export default function App() {
   const [accessError, setAccessError] = React.useState('');
   const [accessBusy, setAccessBusy] = React.useState(false);
   const pendingRefreshRef = React.useRef<string | null>(null);
+  const pendingNewObjectiveRef = React.useRef<string | null>(null);
   const threadRef = React.useRef<ScrollView>(null);
   const liveEdgeRef = React.useRef(true);
   const motion = motionForPhase(state.phase);
@@ -89,17 +90,21 @@ export default function App() {
   const engineering = useEngineeringRun(conversationId, mode === 'code');
   const workSpecification = useWorkSpecification(conversationId);
   const canDraftWorkSpecification = messages.some((message) => message.role === 'user' && !message.id.startsWith('fallback-'));
-  const freshMobileObjective = state.phase === 'IDLE'
-    && activeConversation?.status === 'ACTIVE'
-    && activeConversation.messages.length === 0;
+  const mobileNewObjectiveTransition = pendingNewObjectiveRef.current !== null
+    && conversationId !== pendingNewObjectiveRef.current;
+  const freshMobileObjective = mobileNewObjectiveTransition || (
+    state.phase === 'IDLE'
+      && activeConversation?.status === 'ACTIVE'
+      && activeConversation.messages.length === 0
+  );
   const mobileCanDraftWorkSpecification = canDraftWorkSpecification && !freshMobileObjective;
-  const mobileSpecification = workSpecification.specification?.conversation_id === conversationId
+  const mobileSpecification = !mobileNewObjectiveTransition && workSpecification.specification?.conversation_id === conversationId
     ? workSpecification.specification
     : null;
-  const mobileApprovedSpecification = workSpecification.approvedSpecification?.conversation_id === conversationId
+  const mobileApprovedSpecification = !mobileNewObjectiveTransition && workSpecification.approvedSpecification?.conversation_id === conversationId
     ? workSpecification.approvedSpecification
     : null;
-  const mobileRun = engineering.run?.conversation_id === conversationId ? engineering.run : null;
+  const mobileRun = !mobileNewObjectiveTransition && engineering.run?.conversation_id === conversationId ? engineering.run : null;
   const activeProjectId = activeConversation?.project_id ?? engineering.run?.project_id ?? null;
   const activeProjectBinding = activeConversation?.project_binding_status ?? engineering.run?.project_binding_status ?? null;
   const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
@@ -116,6 +121,12 @@ export default function App() {
     if (Platform.OS !== 'web') return;
     globalThis.localStorage?.setItem('parallax:p2:draft', draft);
   }, [draft]);
+
+  React.useEffect(() => {
+    const target = pendingNewObjectiveRef.current;
+    if (!target || conversationId !== target || state.phase !== 'IDLE' || messages.length !== 0) return;
+    pendingNewObjectiveRef.current = null;
+  }, [conversationId, messages, state.phase]);
 
   React.useEffect(() => {
     if (workspaceView === 'observability' && !observabilityAvailable) setWorkspaceView('conversation');
@@ -252,6 +263,7 @@ export default function App() {
     if (['THINKING', 'RESPONDING', 'VERIFYING'].includes(state.phase)) return;
     try {
       const created = await api.createConversation(nextMode);
+      pendingNewObjectiveRef.current = created.id;
       applyConversation(created);
       if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
       setMode(nextMode);
