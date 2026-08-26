@@ -28,7 +28,6 @@ function listen(server, port) {
   });
 }
 
-// Close active sockets as well as the listener so an assertion failure cannot mask itself behind keep-alive teardown.
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -250,7 +249,7 @@ try {
     await withApi({ projects: [] }, async (state) => {
       await withPage({ width: 390, height: 844 }, async (page) => {
         await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-        await page.getByText('code', { exact: true }).click();
+        await page.getByLabel('Build mode').click();
         await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
         await page.getByLabel('Project name').fill('Mobile Builder');
         await page.getByLabel('Repository identity').fill('owner/mobile-builder');
@@ -300,6 +299,7 @@ try {
     desktopExistingProjectSelection: true,
     reasonPayloadPreserved: true,
     mobileProjectCreation: true,
+    mobileUsesBuildLanguage: true,
     repositoryShorthandNormalized: true,
     canonicalProjectIdOnly: true,
     staleProjectFailsClosed: true,
