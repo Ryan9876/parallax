@@ -19,6 +19,16 @@ import { EditorialNavigationRail, type EditorialShellView } from './components/E
 import { EditorialProjectWorkspace } from './components/EditorialProjectWorkspace';
 import { EditorialUtilityRail } from './components/EditorialUtilityRail';
 import { EditorialWorkspaceHeader } from './components/EditorialWorkspaceHeader';
+import {
+  MobileAmendmentNotice,
+  MobileBottomNavigation,
+  MobileBuildWorkspace,
+  MobileContextCard,
+  MobileHeader,
+  MobileProjectWorkspace,
+  MobileSpecificationDetail,
+  type MobileDestination,
+} from './components/mobile/MobileExperience';
 import { LiveBuildWorkspace } from './components/observability/LiveBuildWorkspace';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
 import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
@@ -43,6 +53,8 @@ const FALLBACK_MESSAGES: MessageDto[] = [
   },
 ];
 
+type MobileDetail = 'specification' | 'live-build' | null;
+
 export default function App() {
   const { width } = useWindowDimensions();
   const compact = width < 760;
@@ -51,6 +63,10 @@ export default function App() {
   const utilityWidth = width >= 1600 ? 320 : 296;
   const [mode, setMode] = React.useState<'reason' | 'code'>('reason');
   const [workspaceView, setWorkspaceView] = React.useState<EditorialShellView>('conversation');
+  const [mobileDestination, setMobileDestination] = React.useState<MobileDestination>('chat');
+  const [mobileDetail, setMobileDetail] = React.useState<MobileDetail>(null);
+  const [mobileActionBusy, setMobileActionBusy] = React.useState(false);
+  const [mobileActionError, setMobileActionError] = React.useState('');
   const [draft, setDraft] = React.useState('');
   const [state, dispatch] = React.useReducer(responseReducer, initialResponseState);
   const [conversationId, setConversationId] = React.useState<string | null>(null);
@@ -76,6 +92,8 @@ export default function App() {
   const activeProjectId = activeConversation?.project_id ?? engineering.run?.project_id ?? null;
   const activeProjectBinding = activeConversation?.project_binding_status ?? engineering.run?.project_binding_status ?? null;
   const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
+  const amendmentActive = state.phase === 'SPEC_AMENDMENT' || activeConversation?.status === 'SPEC_AMENDMENT';
+  const mobileBuildActive = Boolean(engineering.run && !['COMPLETE', 'CANCELLED'].includes(engineering.run.state));
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -91,6 +109,10 @@ export default function App() {
   React.useEffect(() => {
     if (workspaceView === 'observability' && !observabilityAvailable) setWorkspaceView('conversation');
   }, [observabilityAvailable, workspaceView]);
+
+  React.useEffect(() => {
+    if (!compact) setMobileDetail(null);
+  }, [compact]);
 
   const scrollToLiveEdge = React.useCallback((animated = true) => {
     requestAnimationFrame(() => threadRef.current?.scrollToEnd({ animated }));
@@ -118,6 +140,9 @@ export default function App() {
 
   const applyConversation = React.useCallback((conversation: ConversationDto) => {
     setWorkspaceView('conversation');
+    setMobileDestination('chat');
+    setMobileDetail(null);
+    setMobileActionError('');
     setConversationId(conversation.id);
     setMode(conversation.mode);
     setMessages(conversation.messages);
@@ -314,6 +339,7 @@ export default function App() {
       if (result.phase === 'SPEC_AMENDMENT' || scopeAmendment) {
         requireAmendment();
         applyConversation(await api.getConversation(id));
+        dispatch({ type: 'REQUIRE_AMENDMENT' });
         return;
       }
       if (!result.text.trim()) throw new Error('Parallax returned an empty response');
@@ -360,6 +386,27 @@ export default function App() {
     setWorkspaceView(view);
   }, [observabilityAvailable]);
 
+  const resumeApprovedScope = React.useCallback(async () => {
+    if (!conversationId || mobileActionBusy) return;
+    setMobileActionBusy(true);
+    setMobileActionError('');
+    try {
+      const conversation = await api.resumeApprovedScope(conversationId);
+      if (state.phase !== 'IDLE') dispatch({ type: 'RESET' });
+      applyConversation(conversation);
+      await workSpecification.refresh();
+      setApiOnline(true);
+    } catch (error) {
+      if (error instanceof AuthenticationRequiredError) {
+        lockAccess('Your private session expired. Unlock Parallax to continue.');
+      } else {
+        setMobileActionError(error instanceof Error ? error.message : 'The approved build could not be resumed.');
+      }
+    } finally {
+      setMobileActionBusy(false);
+    }
+  }, [applyConversation, conversationId, lockAccess, mobileActionBusy, state.phase, workSpecification]);
+
   if (!accessResolved) {
     return (
       <View style={styles.accessRoot}>
@@ -398,6 +445,180 @@ export default function App() {
     );
   }
 
+  if (compact) {
+    if (mobileDetail === 'specification' && workSpecification.specification) {
+      return (
+        <View style={styles.root}>
+          <LivingSurface energy={motion.surfaceEnergy} />
+          <SafeAreaView style={styles.safe}>
+            <MobileSpecificationDetail
+              specification={workSpecification.specification}
+              busy={workSpecification.busy || mobileActionBusy}
+              error={workSpecification.error ?? mobileActionError || null}
+              amendment={amendmentActive}
+              onBack={() => setMobileDetail(null)}
+              onApprove={() => void workSpecification.approve()}
+              onRefresh={() => void workSpecification.draft()}
+              onResumeApprovedScope={() => void resumeApprovedScope()}
+            />
+          </SafeAreaView>
+        </View>
+      );
+    }
+
+    if (mobileDetail === 'live-build' && engineering.run) {
+      return (
+        <View style={styles.root}>
+          <LivingSurface energy={motion.surfaceEnergy} />
+          <SafeAreaView style={styles.safe}>
+            <LiveBuildWorkspace run={engineering.run} onBack={() => setMobileDetail(null)} />
+          </SafeAreaView>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.root}>
+        <LivingSurface energy={motion.surfaceEnergy} />
+        <SafeAreaView style={styles.safe}>
+          <View style={styles.mobileShell} testID="mobile-guided-shell">
+            <MobileHeader
+              mode={mode}
+              projectId={activeProjectId}
+              conversationTitle={activeConversation?.title}
+              onModeChange={(nextMode) => void changeMode(nextMode)}
+              onNewConversation={() => void startConversation(mode)}
+            />
+
+            <View style={styles.mobileContent}>
+              {mobileDestination === 'chat' ? (
+                <>
+                  <ScrollView
+                    ref={threadRef}
+                    style={styles.threadScroll}
+                    contentContainerStyle={[styles.thread, styles.threadCompact]}
+                    keyboardShouldPersistTaps="handled"
+                    onScroll={handleThreadScroll}
+                    onContentSizeChange={handleThreadContentSizeChange}
+                    scrollEventThrottle={32}
+                    testID="mobile-chat-scroll"
+                  >
+                    {amendmentActive ? (
+                      <MobileAmendmentNotice
+                        busy={mobileActionBusy}
+                        canResumeApprovedScope={Boolean(workSpecification.approvedSpecification)}
+                        onStartNewObjective={() => void startConversation(mode)}
+                        onResumeApprovedScope={() => void resumeApprovedScope()}
+                      />
+                    ) : (
+                      <MobileContextCard
+                        specification={workSpecification.specification}
+                        run={mode === 'code' ? engineering.run : null}
+                        canDraft={canDraftWorkSpecification && mode === 'code'}
+                        busy={workSpecification.busy}
+                        error={workSpecification.error}
+                        onCapture={() => void workSpecification.draft()}
+                        onReviewSpecification={() => workSpecification.specification && setMobileDetail('specification')}
+                        onOpenBuild={() => setMobileDestination('build')}
+                      />
+                    )}
+                    {mobileActionError ? <Text style={styles.mobileActionError}>{mobileActionError}</Text> : null}
+
+                    {messages.length === 0 ? (
+                      <View style={[styles.emptyState, styles.emptyStateCompact]}>
+                        <View style={styles.emptyLogoWell}><ParallaxLogo size={58} /></View>
+                        <Text style={[styles.emptyTitle, styles.emptyTitleCompact]}>Start with the outcome.</Text>
+                        <Text style={styles.emptyCopy}>Describe what you want to accomplish. Parallax will keep the conversation and protected build flow aligned.</Text>
+                      </View>
+                    ) : messages.map((message) => message.role === 'user' ? (
+                      <View key={message.id} style={styles.userBlock}>
+                        <Text style={styles.meta}>YOU</Text>
+                        <View style={styles.userBubble}><Text selectable style={styles.userText}>{message.content}</Text></View>
+                      </View>
+                    ) : message.role === 'assistant' ? (
+                      <View key={message.id} style={styles.assistantBlock}>
+                        <View style={styles.assistantHead}>
+                          <ParallaxLogo size={34} />
+                          <View>
+                            <Text style={styles.assistantName}>Parallax</Text>
+                            <Text style={styles.meta}>{mode === 'reason' ? 'ASK' : 'BUILD'} · {message.id === activePrintId ? 'LIVE' : 'COMPLETE'}</Text>
+                          </View>
+                        </View>
+                        <View accessibilityLabel="Parallax response" testID="assistant-response" style={[styles.responseCard, styles.responseCardCompact]}>
+                          {message.id === activePrintId ? (
+                            <LaserTypesetter text={message.content} active streamComplete={streamFinished} onComplete={() => finishPrint(message.id)} />
+                          ) : (
+                            <Text selectable accessibilityLiveRegion="polite" style={[styles.assistantText, styles.assistantTextCompact]}>{message.content}</Text>
+                          )}
+                          {message.id === activePrintId ? (
+                            <View style={styles.statusRow}><View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} /><Text style={styles.statusText}>{streamFinished ? 'Settling response' : 'Live response'}</Text></View>
+                          ) : null}
+                        </View>
+                      </View>
+                    ) : null)}
+
+                    {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Resolving the active objective…</Text></View> : null}
+                    {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Verifying response…</Text> : null}
+                    {state.phase === 'ERROR' ? <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text> : null}
+                  </ScrollView>
+
+                  <View style={[styles.composerWrap, styles.composerWrapCompact]}>
+                    <View style={[styles.composer, styles.composerCompact]}>
+                      <TextInput
+                        accessibilityLabel="Message Parallax"
+                        value={draft}
+                        onChangeText={setDraft}
+                        placeholder={mode === 'code' ? 'Describe what you want to build or change…' : 'Ask Parallax…'}
+                        placeholderTextColor={palette.muted}
+                        style={styles.input}
+                        onSubmitEditing={() => void respond()}
+                        multiline
+                      />
+                      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void respond()} style={styles.send}><Text style={styles.sendText}>↑</Text></TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              ) : null}
+
+              {mobileDestination === 'build' ? (
+                <MobileBuildWorkspace
+                  specification={workSpecification.specification}
+                  run={mode === 'code' ? engineering.run : null}
+                  canDraft={canDraftWorkSpecification && mode === 'code'}
+                  busy={workSpecification.busy}
+                  error={workSpecification.error}
+                  onCaptureSpecification={() => void workSpecification.draft()}
+                  onReviewSpecification={() => workSpecification.specification && setMobileDetail('specification')}
+                  onOpenDetails={() => engineering.run && setMobileDetail('live-build')}
+                />
+              ) : null}
+
+              {mobileDestination === 'project' ? (
+                <MobileProjectWorkspace
+                  activeConversation={activeConversation}
+                  conversations={conversations}
+                  onOpenConversation={(conversation) => void openConversation(conversation)}
+                  onStartAsk={() => void startConversation('reason')}
+                  onStartBuild={() => void startConversation('code')}
+                />
+              ) : null}
+            </View>
+
+            <MobileBottomNavigation
+              active={mobileDestination}
+              buildActive={mobileBuildActive}
+              onSelect={(destination) => {
+                setMobileActionError('');
+                setMobileDetail(null);
+                setMobileDestination(destination);
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   const headerEyebrow = workspaceView === 'projects'
     ? 'Project workspace'
     : mode === 'code'
@@ -413,27 +634,25 @@ export default function App() {
       <LivingSurface energy={motion.surfaceEnergy} />
       <SafeAreaView style={styles.safe}>
         <View style={styles.shell}>
-          {!compact ? (
-            <EditorialNavigationRail
-              width={navigationWidth}
-              activeView={workspaceView}
-              conversations={conversations}
-              conversationId={conversationId}
-              observabilityAvailable={observabilityAvailable}
-              apiOnline={apiOnline}
-              activeSpecId={activeConversation?.spec_id ?? null}
-              projectId={activeProjectId}
-              projectBindingStatus={activeProjectBinding}
-              onSelectView={selectWorkspace}
-              onNewConversation={() => void startConversation(mode)}
-              onOpenConversation={(conversation) => void openConversation(conversation)}
-            />
-          ) : null}
+          <EditorialNavigationRail
+            width={navigationWidth}
+            activeView={workspaceView}
+            conversations={conversations}
+            conversationId={conversationId}
+            observabilityAvailable={observabilityAvailable}
+            apiOnline={apiOnline}
+            activeSpecId={activeConversation?.spec_id ?? null}
+            projectId={activeProjectId}
+            projectBindingStatus={activeProjectBinding}
+            onSelectView={selectWorkspace}
+            onNewConversation={() => void startConversation(mode)}
+            onOpenConversation={(conversation) => void openConversation(conversation)}
+          />
 
           <View style={styles.main} testID="editorial-main-workplane">
             {workspaceView !== 'observability' ? (
               <EditorialWorkspaceHeader
-                compact={compact}
+                compact={false}
                 mode={mode}
                 eyebrow={headerEyebrow}
                 title={headerTitle}
@@ -447,7 +666,6 @@ export default function App() {
 
             {workspaceView === 'conversation' ? (
               <>
-                {!compact ? (
                 <View style={styles.governedContext}>
                   <WorkSpecificationStatus
                     specification={workSpecification.specification}
@@ -467,14 +685,7 @@ export default function App() {
                       onCancel={() => void engineering.cancel()}
                     />
                   ) : null}
-
-                  {compact && mode === 'code' && engineering.run ? (
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open Live Build observability" onPress={() => setWorkspaceView('observability')} style={styles.mobileLiveBuild}>
-                      <Text style={styles.mobileLiveBuildText}>Open Live Build · Observability</Text>
-                    </TouchableOpacity>
-                  ) : null}
                 </View>
-                ) : null}
 
                 <ScrollView
                   ref={threadRef}
@@ -485,34 +696,6 @@ export default function App() {
                   onContentSizeChange={handleThreadContentSizeChange}
                   scrollEventThrottle={32}
                 >
-                  {compact ? (
-                <View style={styles.governedContext}>
-                  <WorkSpecificationStatus
-                    specification={workSpecification.specification}
-                    busy={workSpecification.busy}
-                    error={workSpecification.error}
-                    canDraft={canDraftWorkSpecification}
-                    onDraft={() => void workSpecification.draft()}
-                    onApprove={() => void workSpecification.approve()}
-                  />
-
-                  {mode === 'code' && engineering.run ? (
-                    <EngineeringRunStatus
-                      run={engineering.run}
-                      busy={engineering.busy}
-                      onPause={() => void engineering.pause()}
-                      onResume={() => void engineering.resume()}
-                      onCancel={() => void engineering.cancel()}
-                    />
-                  ) : null}
-
-                  {compact && mode === 'code' && engineering.run ? (
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open Live Build observability" onPress={() => setWorkspaceView('observability')} style={styles.mobileLiveBuild}>
-                      <Text style={styles.mobileLiveBuildText}>Open Live Build · Observability</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                  ) : null}
                   {messages.length === 0 ? (
                     <View style={styles.emptyState}>
                       <View style={styles.emptyLogoWell}><ParallaxLogo size={62} /></View>
@@ -567,7 +750,6 @@ export default function App() {
 
                 <View style={styles.composerWrap}>
                   <View style={styles.composer}>
-                    {compact ? <TouchableOpacity onPress={() => void startConversation(mode)} style={styles.newMobile} accessibilityLabel="New conversation"><Text style={styles.newMobileText}>＋</Text></TouchableOpacity> : null}
                     <TextInput
                       accessibilityLabel="Message Parallax"
                       value={draft}
@@ -626,15 +808,18 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.ivory50 },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },
+  mobileShell: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.94)' },
+  mobileContent: { flex: 1, minHeight: 0 },
   main: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.82)' },
   governedContext: { flexShrink: 0, width: '100%', maxWidth: 980, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 10 },
-  mobileLiveBuild: { minHeight: 44, marginHorizontal: 2, marginTop: 8, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal100, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,132,135,0.30)' },
-  mobileLiveBuildText: { color: palette.teal700, fontSize: 10, fontWeight: '800' },
   threadScroll: { flex: 1, minHeight: 0 },
   thread: { width: '100%', maxWidth: 940, alignSelf: 'center', paddingHorizontal: 30, paddingTop: 28, paddingBottom: 34 },
+  threadCompact: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 24 },
   emptyState: { maxWidth: 620, alignSelf: 'center', alignItems: 'center', paddingTop: 62, paddingHorizontal: 24 },
+  emptyStateCompact: { paddingTop: 30, paddingHorizontal: 8 },
   emptyLogoWell: { width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#5B4C36', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 7 } },
   emptyTitle: { color: palette.charcoal950, fontSize: 31, lineHeight: 36, fontWeight: '500', marginTop: 18, letterSpacing: -0.9, fontFamily: serif },
+  emptyTitleCompact: { fontSize: 26, lineHeight: 31 },
   emptyCopy: { color: palette.charcoal600, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
   orientationRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 20 },
   orientationChip: { minHeight: 34, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 14, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
@@ -647,7 +832,9 @@ const styles = StyleSheet.create({
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 11, paddingLeft: 2 },
   assistantName: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: palette.charcoal950, fontFamily: serif },
   responseCard: { borderRadius: 22, paddingTop: 20, paddingBottom: 21, paddingHorizontal: 22, backgroundColor: 'rgba(245,238,223,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#5A4D38', shadowOpacity: 0.06, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+  responseCardCompact: { borderRadius: 19, paddingTop: 16, paddingBottom: 17, paddingHorizontal: 16 },
   assistantText: { color: palette.charcoal950, fontSize: 17, lineHeight: 28, letterSpacing: -0.12 },
+  assistantTextCompact: { fontSize: 16, lineHeight: 25 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.cream200 },
   statusDotActive: { backgroundColor: palette.teal600 },
@@ -661,10 +848,11 @@ const styles = StyleSheet.create({
   amendmentAction: { alignSelf: 'flex-start', minHeight: 40, marginTop: 12, paddingHorizontal: 14, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust700 },
   amendmentActionText: { color: palette.ivory50, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
   errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
+  mobileActionError: { color: palette.danger, fontSize: 10, lineHeight: 15, marginBottom: 18, paddingHorizontal: 2 },
   composerWrap: { flexShrink: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8, backgroundColor: 'rgba(251,247,238,0.88)' },
+  composerWrapCompact: { paddingHorizontal: 10, paddingBottom: 8, paddingTop: 6, backgroundColor: 'rgba(251,247,238,0.98)' },
   composer: { maxWidth: 880, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: '#FFFDF8', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#564B38', shadowOpacity: 0.09, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } },
-  newMobile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.cream200 },
-  newMobileText: { color: palette.rust700, fontSize: 18 },
+  composerCompact: { borderRadius: 19, padding: 6 },
   input: { flex: 1, minWidth: 0, minHeight: 44, maxHeight: 110, paddingHorizontal: 11, paddingVertical: 10, color: palette.charcoal950, fontSize: 16, letterSpacing: -0.05 },
   send: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal600, shadowColor: '#145D5E', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   sendText: { color: palette.ivory50, fontSize: 19 },
