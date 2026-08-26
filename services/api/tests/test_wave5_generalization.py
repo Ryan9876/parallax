@@ -822,6 +822,7 @@ class TestRuntimeFactory:
 
 
 def _runtime_environment(tmp_path: Path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     engine = make_engine(f"sqlite:///{tmp_path / 'wave5-reference.db'}")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
@@ -1014,6 +1015,7 @@ class FailThenPassValidator:
 
 
 def _correction_run(tmp_path: Path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     engine = make_engine(f"sqlite:///{tmp_path / 'wave5-correction.db'}")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
@@ -1036,7 +1038,10 @@ def _correction_run(tmp_path: Path):
                 title="Repair deterministic validation defect",
                 objective="Repair the bounded reference defect without weakening validation.",
                 constraints=["Do not modify protected policy paths."],
-                acceptance_criteria=["Fresh corrected lineage passes protected validation."],
+                acceptance_criteria=[
+                    "Fresh corrected lineage passes protected validation.",
+                    "Accepted Work Specification and evaluator policy remain unchanged during correction.",
+                ],
                 risks=["Correction must not mutate policy."],
                 open_questions=[],
                 confidence=0.99,
