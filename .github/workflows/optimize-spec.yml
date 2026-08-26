@@ -7,50 +7,43 @@ on:
     paths:
       - '.github/workflows/optimize-spec.yml'
 
-permissions:
-  contents: write
-
 jobs:
-  reconcile:
+  sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: p2/hotfix-246-state-record
-          fetch-depth: 0
-      - name: Reconcile CURRENT-STATE and restore canonical workflow
-        shell: bash
+          fetch-depth: 2
+      - name: Record deployment-verified hotfix 246 state
         run: |
-          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path('CURRENT-STATE.md')
-          text = path.read_text()
+          state = path.read_text(encoding='utf-8')
+          lines = state.splitlines()
 
-          release = (
-              'Release: Wave 5 remains the deployment-verified generalized-delivery base, with production API hotfix #246 '
-              '**deployment-verified on top of that release**. Exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` '
-              'merged through PR #247 to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`; production API deployment '
-              '`dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is READY on that exact merge SHA. The hotfix contains no client-runtime '
-              'change, so deployment-verified client `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` remains current production.'
-          )
-          text, count = re.subn(r'^Release: .*$', release, text, count=1, flags=re.MULTILINE)
-          if count != 1:
-              raise SystemExit(f'expected one Release line, found {count}')
+          for index, line in enumerate(lines):
+              if line.startswith('Release: '):
+                  lines[index] = 'Release: Wave 5 remains the deployment-verified generalized-delivery base, with production API hotfix #246 **deployment-verified on top of that release**. Exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` merged through PR #247 to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`; production API deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is READY on that exact merge SHA. The hotfix contains no client-runtime change, so deployment-verified client `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` remains current production.'
+                  break
+          else:
+              raise SystemExit('CURRENT-STATE Release marker not found')
 
-          status = (
-              'Status: **WAVE 5 BASE RELEASE / HOTFIX #246 PRODUCTION DEPLOYMENT-VERIFIED / API READY / '
-              'CLIENT RETAINED AND VERIFIED / OPERATOR FUNCTIONAL RETEST PENDING / HUMAN REVIEW BOUNDARY PRESERVED / '
-              'ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**'
-          )
-          text, count = re.subn(r'^Status: .*$', status, text, count=1, flags=re.MULTILINE)
-          if count != 1:
-              raise SystemExit(f'expected one Status line, found {count}')
+          for index, line in enumerate(lines):
+              if line.startswith('Status: '):
+                  lines[index] = 'Status: **WAVE 5 BASE RELEASE / HOTFIX #246 PRODUCTION DEPLOYMENT-VERIFIED / API READY / CLIENT RETAINED AND VERIFIED / OPERATOR FUNCTIONAL RETEST PENDING / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**'
+                  break
+          else:
+              raise SystemExit('CURRENT-STATE Status marker not found')
 
-          marker = '## Wave 5 production release and deployment verification\n'
-          hotfix_section = '''## Production hotfix #246 — first Code objective bootstrap
+          state = '\n'.join(lines) + '\n'
+          wave5_marker = '## Wave 5 production release and deployment verification\n'
+          if '## Production hotfix #246 — first Code objective bootstrap\n' not in state:
+              hotfix = '''## Production hotfix #246 — first Code objective bootstrap
 
 Production acceptance testing on 2026-08-25 created Project `9e898865-b98e-41d3-b000-bdc87bad377f` (`OT Time`) with the correct canonical repository `github:ryan9876/ot-time`, then fresh Code conversation `a3ea40d6-dbf9-4694-970d-8ff4b2f87024` with objective `Add an about page`. The first-turn `/responses` path unnecessarily invoked model-backed protected scope/reason coordination before any approved objective existed and surfaced `PROTECTED_SCOPE_FAILURE`; `Capture Spec` then exhausted the model route and returned HTTP 503 without persisting a Work Specification. Issue #246 records this production regression. The earlier wrong-repository defect remains separately tracked by #244, and failed-IMPLEMENT observability remains separately tracked by #245.
 
@@ -65,64 +58,41 @@ The production client is unchanged and remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn
 Operator functional retest remains pending. Deployment verification proves the corrected first-Code-objective path, exact-head regression gates and production service health; it does **not** yet prove that the subsequent real provider-backed Work Specification draft succeeds for the operator session. If `Capture Spec` still exhausts routing, the new bounded diagnostics are the required production evidence for distinguishing provider failure from protected-output validation failure. Issue #246 remains open until that functional retest is resolved.
 
 '''
-          if '## Production hotfix #246 — first Code objective bootstrap' not in text:
-              if marker not in text:
-                  raise SystemExit('Wave 5 section marker missing')
-              text = text.replace(marker, hotfix_section + marker, 1)
+              if wave5_marker not in state:
+                  raise SystemExit('Wave 5 production marker not found')
+              state = state.replace(wave5_marker, hotfix + wave5_marker, 1)
 
-          production_api = (
-              'The deployment-verified production API/runtime binary is Vercel deployment '
-              '`dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` from hotfix merge '
-              '`main@36548611c3806d08d6fbfcdb686fe2a025956194`. It is `READY`, target `production`, and the live production '
-              'aliases serve its health/readiness traffic. The Wave 5 generalized-delivery capability base remains '
-              '`main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb`; #246 advances the production API binary only with the bounded '
-              'first-Code-objective bootstrap correction and model-route diagnostics.'
-          )
-          pattern = (
-              r'The deployment-verified production API/runtime binary is Vercel deployment '
-              r'`dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`.*?\n\n'
-          )
-          text, count = re.subn(pattern, production_api + '\n\n', text, count=1, flags=re.DOTALL)
-          if count != 1:
-              raise SystemExit(f'expected one prior current-production API paragraph, found {count}')
+          current_start = state.index('## Current production truth\n')
+          history_start = state.index('## Wave 4 autonomous IMPLEMENT progression recovery\n')
+          current = '''## Current production truth
 
-          rollback = (
-              'The immediately preceding known-good API production deployment '
-              '`dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` from Wave 5 application merge '
-              '`main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains `READY` and is the immediate rollback reference for '
-              'hotfix #246. The earlier known-good deployment `dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5` remains available as a '
-              'secondary application rollback reference, with `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` retained as the older '
-              'reference. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.'
-          )
-          pattern = (
-              r'The immediately preceding known-good API production deployment '
-              r'`dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5`.*?\n\n'
-          )
-          text, count = re.subn(pattern, rollback + '\n\n', text, count=1, flags=re.DOTALL)
-          if count != 1:
-              raise SystemExit(f'expected one prior rollback paragraph, found {count}')
+The deployment-verified production API/runtime binary is Vercel deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` from hotfix merge `main@36548611c3806d08d6fbfcdb686fe2a025956194`. It is `READY`, target `production`, and the live production aliases serve its health/readiness traffic. The Wave 5 generalized-delivery capability base remains `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb`; #246 advances the production API binary only with the bounded first-Code-objective bootstrap correction and model-route diagnostics.
 
-          record_note = (
-              'This `CURRENT-STATE.md` update is a record-only reconciliation after hotfix #246 production deployment verification. '
-              'When this record-only change is merged, it must not redefine the application/runtime deployment identity: current '
-              'production API identity remains `main@36548611c3806d08d6fbfcdb686fe2a025956194` / '
-              '`dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`, while the retained production client remains '
-              '`dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.'
-          )
-          pattern = r'This post-cutover `CURRENT-STATE\.md` reconciliation is a record-only repository change\..*?\n\n'
-          text, count = re.subn(pattern, record_note + '\n\n', text, count=1, flags=re.DOTALL)
-          if count != 1:
-              raise SystemExit(f'expected one prior record-only paragraph, found {count}')
+The deployment-verified production client remains Vercel deployment `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` from application head `main@ff8e2395df081ebff376d703dfd97f3c10008240`. Hotfix #246 contains no client-runtime change, so the retained client remains `READY` and current production.
 
-          path.write_text(text)
+The exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` passed Workstream Spec Validation #352, Bounded Autonomy #554, P2 CI #913, full API regression, browser/Skia acceptance, protected Code/Engineering/Reason promotion evaluation and regression rejection, release DSPy compilation, and both Vercel Preview checks before PR #247 merged it as `36548611c3806d08d6fbfcdb686fe2a025956194`. The Wave 5 release candidate and cumulative S1-S6 validation evidence remain valid as the capability base beneath this bounded production hotfix.
+
+The immediately preceding known-good API production deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` from Wave 5 application merge `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains `READY` and is the immediate rollback reference for hotfix #246. The earlier known-good deployment `dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5` remains available as a secondary application rollback reference, with `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` retained as the older reference. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
+
+The client did not change in #246. Its known fallback `dpl_vDHBaGyi4q3pAGvNpULJwi8p95RR` remains available, while current production remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.
+
+This `CURRENT-STATE.md` update is a record-only reconciliation after hotfix #246 production deployment verification. When this record-only change is merged, it must not redefine the application/runtime deployment identity: current production API identity remains `main@36548611c3806d08d6fbfcdb686fe2a025956194` / `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`, while the retained production client remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.
+
+'''
+          state = state[:current_start] + current + state[history_start:]
+          path.write_text(state, encoding='utf-8')
           PY
-
-          git checkout 36548611c3806d08d6fbfcdb686fe2a025956194 -- .github/workflows/optimize-spec.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add CURRENT-STATE.md .github/workflows/optimize-spec.yml
-          staged="$(git diff --cached --name-only | sort)"
-          expected="$(printf '%s\n' '.github/workflows/optimize-spec.yml' 'CURRENT-STATE.md' | sort)"
-          test "$staged" = "$expected"
-          git commit -m 'docs(state): record hotfix 246 deployment verification'
+      - name: Restore canonical workflows and commit record-only reconciliation
+        run: |
+          git show 36548611c3806d08d6fbfcdb686fe2a025956194:.github/workflows/optimize-spec.yml > .github/workflows/optimize-spec.yml
+          git show 36548611c3806d08d6fbfcdb686fe2a025956194:.github/workflows/ci.yml > .github/workflows/ci.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CURRENT-STATE.md .github/workflows/optimize-spec.yml .github/workflows/ci.yml
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' .github/workflows/ci.yml .github/workflows/optimize-spec.yml CURRENT-STATE.md | sort)"
+          test "$changed" = "$expected"
+          test "$(git hash-object .github/workflows/optimize-spec.yml)" = "6478b5ac11eeedbd5b4d4711feb4193394ac1bdd"
+          test "$(git hash-object .github/workflows/ci.yml)" = "2bf9bf503430f2fa90705de6e1b3a32e064e14ea"
+          git commit -m "docs(state): record hotfix 246 deployment verification"
           git push origin HEAD:p2/hotfix-246-state-record
