@@ -502,6 +502,7 @@ export default function App() {
               {mobileDestination === 'chat' ? (
                 <>
                   <ScrollView
+                    key={amendmentActive ? 'mobile-amendment-chat' : 'mobile-chat'}
                     ref={threadRef}
                     style={styles.threadScroll}
                     contentContainerStyle={[styles.thread, styles.threadCompact]}
