@@ -6,9 +6,10 @@ import json
 from typing import Protocol
 
 from ..models import EngineeringRun
-from .domain import WorkflowStage
+from .domain import AttemptStatus, WorkflowStage
 from .execution import ExecutionSpec
 from .implementation_runtime import ImplementationRuntimeError, ProtectedImplementationRuntime
+from .run_events import RunEventError
 from .sandbox_execution import ProtectedCommandRegistry
 from .service import EngineeringRunService
 from .state_machine import RevisionConflict
@@ -198,20 +199,51 @@ class AutonomyCoordinator:
                             stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
                             steps=tuple(steps),
                         )
-                    failed = self.service.complete_stage(
-                        run_id=run.id,
-                        stage=WorkflowStage.IMPLEMENT,
-                        operation_key=stage_key,
-                        expected_revision=run.revision,
-                        passed=False,
-                        evidence={
-                            "error_class": type(exc).__name__,
-                            "mutation_applied": False,
-                        },
-                        failure_code="AUTONOMOUS_IMPLEMENT_FAILED",
-                        program_id="protected-implementation-runtime-v0.15.4",
-                        tool_id="safe-source-implementation-v1",
-                    )
+                    try:
+                        failed = self.service.complete_stage(
+                            run_id=run.id,
+                            stage=WorkflowStage.IMPLEMENT,
+                            operation_key=stage_key,
+                            expected_revision=run.revision,
+                            passed=False,
+                            evidence={
+                                "error_class": type(exc).__name__,
+                                "mutation_applied": False,
+                            },
+                            failure_code="AUTONOMOUS_IMPLEMENT_FAILED",
+                            program_id="protected-implementation-runtime-v0.15.4",
+                            tool_id="safe-source-implementation-v1",
+                        )
+                    except RunEventError:
+                        # EngineeringRun/attempt persistence commits before optional
+                        # observation projection. Recover only the exact expected
+                        # durable failure; never fabricate an unknown mutation.
+                        recorded = self.service.runs.find_operation(run.id, stage_key)
+                        durable_run = self.service.get(run.id)
+                        if (
+                            recorded is None
+                            or recorded.stage != WorkflowStage.IMPLEMENT.value
+                            or recorded.status != AttemptStatus.FAILED.value
+                            or recorded.failure_code != "AUTONOMOUS_IMPLEMENT_FAILED"
+                            or durable_run.state != WorkflowStage.FAILED.value
+                            or durable_run.resume_stage != WorkflowStage.IMPLEMENT.value
+                            or durable_run.last_failure_code != "AUTONOMOUS_IMPLEMENT_FAILED"
+                        ):
+                            raise
+                        steps.append(
+                            AutonomyStep(
+                                stage=stage.value,
+                                outcome="FAILED",
+                                attempt_id=recorded.id,
+                                replayed=False,
+                                tool_id="implementation-runtime",
+                            )
+                        )
+                        return AutonomyResult(
+                            run=durable_run,
+                            stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
+                            steps=tuple(steps),
+                        )
                     steps.append(
                         AutonomyStep(
                             stage=stage.value,

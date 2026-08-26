@@ -37,7 +37,7 @@ export type SummaryMetric = {
 };
 
 export type ComponentHealthItem = {
-  key: 'event-plane' | 'worker' | 'source-lineage' | 'github' | 'vercel' | 'evaluation';
+  key: 'run' | 'event-plane' | 'worker' | 'source-lineage' | 'github' | 'vercel' | 'evaluation';
   label: string;
   status: string;
   detail: string;
@@ -70,10 +70,12 @@ const SAFE_METADATA_KEYS = new Set([
   'control_status',
   'current_state',
   'current_step',
+  'error_class',
   'evaluation_id',
   'exit_code',
   'file_count',
   'meaningful_progress',
+  'mutation_applied',
   'next_recovery_action',
   'preview_deployment_id',
   'preview_status',
@@ -138,10 +140,22 @@ export function projectPipeline(run: EngineeringRunDto, events: RunEventDto[]): 
     if (stage) latest.set(stage, event);
   }
 
+  const failedStage = run.state === 'FAILED' && run.resume_stage && PIPELINE_STAGES.includes(run.resume_stage as PipelineStage)
+    ? run.resume_stage as PipelineStage
+    : null;
+
   return PIPELINE_STAGES.map((stage) => {
     const event = latest.get(stage);
     if (event) {
       return { stage, status: statusForEvent(event), sequence: event.sequence, summary: event.summary };
+    }
+    if (failedStage === stage) {
+      return {
+        stage,
+        status: 'FAILED',
+        sequence: null,
+        summary: run.last_failure_code ? `${stage} failed · ${run.last_failure_code}` : `${stage} failed`,
+      };
     }
     // Existing authoritative run state may identify the currently active protected stage,
     // but absence of persisted success never becomes completion.
@@ -210,7 +224,7 @@ export function observabilitySummary(events: RunEventDto[]): SummaryMetric[] {
   ];
 }
 
-export function componentHealth(events: RunEventDto[], transport: RunTransportState): ComponentHealthItem[] {
+export function componentHealth(events: RunEventDto[], transport: RunTransportState, run?: EngineeringRunDto): ComponentHealthItem[] {
   const transportItem: ComponentHealthItem = transport === 'LIVE'
     ? { key: 'event-plane', label: 'Run event plane', status: 'Live', detail: 'Replay completed and resumable event observation is live.', sequence: events.at(-1)?.sequence ?? null, tone: 'olive' }
     : transport === 'CONNECTING'
@@ -219,6 +233,23 @@ export function componentHealth(events: RunEventDto[], transport: RunTransportSt
         ? { key: 'event-plane', label: 'Run event plane', status: 'Attention', detail: 'Observer transport reported an error; persisted replay remains authoritative.', sequence: events.at(-1)?.sequence ?? null, tone: 'rust' }
         : { key: 'event-plane', label: 'Run event plane', status: 'Unavailable', detail: 'Live observer transport is not currently connected.', sequence: events.at(-1)?.sequence ?? null, tone: 'neutral' };
 
+  const authoritativeRun: ComponentHealthItem | null = run
+    ? run.state === 'FAILED'
+      ? {
+          key: 'run',
+          label: 'Engineering Run',
+          status: 'Failed',
+          detail: `${run.resume_stage || 'Run'} failed${run.last_failure_code ? ` · ${run.last_failure_code}` : ''}. Durable Engineering Run state remains authoritative even when optional component evidence is unavailable.`,
+          sequence: null,
+          tone: 'rust',
+        }
+      : run.state === 'REVIEW'
+        ? { key: 'run', label: 'Engineering Run', status: 'Review required', detail: 'Authoritative run reached the protected operator review boundary.', sequence: null, tone: 'olive' }
+        : run.state === 'COMPLETE'
+          ? { key: 'run', label: 'Engineering Run', status: 'Complete', detail: 'Authoritative run is complete.', sequence: null, tone: 'olive' }
+          : { key: 'run', label: 'Engineering Run', status: 'Active', detail: `Authoritative run state: ${run.state}.`, sequence: null, tone: 'teal' }
+    : null;
+
   const worker = latestMatching(events, (event) => event.subsystem === 'WORKER' || Boolean(event.worker_execution_id));
   const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || Boolean(event.source_lineage_ref));
   const github = latestMatching(events, (event) => event.subsystem === 'GITHUB');
@@ -226,6 +257,7 @@ export function componentHealth(events: RunEventDto[], transport: RunTransportSt
   const evaluation = latestMatching(events, (event) => event.subsystem === 'EVALUATION' || event.event_type === 'EVALUATION_RESULT');
 
   return [
+    ...(authoritativeRun ? [authoritativeRun] : []),
     transportItem,
     { key: 'worker', label: 'Worker runtime', ...componentStatus(worker) },
     { key: 'source-lineage', label: 'Source lineage', ...componentStatus(lineage) },

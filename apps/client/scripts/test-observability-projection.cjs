@@ -6,7 +6,9 @@ const {
   evidenceAuditFacts,
   observabilitySummary,
   providerIdentities,
+  projectPipeline,
   recentAlerts,
+  safeEventMetadata,
 } = require('../.tmp-observability/lib/observabilityProjection.js');
 
 const PROJECT_ID = '77777777-7777-4777-8777-777777777777';
@@ -40,6 +42,29 @@ function event(sequence, overrides = {}) {
     ...overrides,
   };
 }
+
+const failedRun = {
+  state: 'FAILED',
+  resume_stage: 'IMPLEMENT',
+  last_failure_code: 'AUTONOMOUS_IMPLEMENT_FAILED',
+};
+const sparseFailureEvents = [
+  event(1, { event_type: 'RUN_CREATED', outcome: 'STARTED', summary: 'Run created.' }),
+  event(2, { stage: 'SPECIFY', outcome: 'SUCCEEDED', summary: 'Specification bound.' }),
+  event(3, { stage: 'PLAN', outcome: 'SUCCEEDED', summary: 'Plan accepted.' }),
+];
+const failedPipeline = projectPipeline(failedRun, sparseFailureEvents);
+const implementFailure = failedPipeline.find((item) => item.stage === 'IMPLEMENT');
+assert.equal(implementFailure.status, 'FAILED');
+assert.equal(implementFailure.summary.includes('AUTONOMOUS_IMPLEMENT_FAILED'), true);
+const failedHealth = componentHealth(sparseFailureEvents, 'LIVE', failedRun);
+const authoritativeFailure = failedHealth.find((item) => item.key === 'run');
+assert.equal(authoritativeFailure.status, 'Failed');
+assert.equal(authoritativeFailure.detail.includes('IMPLEMENT failed'), true);
+assert.equal(authoritativeFailure.detail.includes('AUTONOMOUS_IMPLEMENT_FAILED'), true);
+const safeFailureMetadata = safeEventMetadata(event(4, { metadata: { error_class: 'ImplementationContractError', mutation_applied: false } }));
+assert.equal(safeFailureMetadata.some((item) => item.key === 'error_class' && item.value === 'ImplementationContractError'), true);
+assert.equal(safeFailureMetadata.some((item) => item.key === 'mutation_applied' && item.value === 'false'), true);
 
 const emptySummary = observabilitySummary([]);
 assert.equal(emptySummary.find((item) => item.key === 'sequence').value, 'Unavailable');
@@ -96,6 +121,15 @@ assert.equal(active.latestStage, 'REVIEW');
 assert.equal(active.latestOutcome, 'HUMAN_REQUIRED');
 assert.equal(active.latestSequence, '#7');
 
+const liveBuildSource = readFileSync('src/components/observability/LiveBuildWorkspace.tsx', 'utf8');
+for (const required of [
+  'live-build-durable-failure',
+  'Durable run failure',
+  'Missing optional worker, provider, preview, lineage, or evaluation evidence does not mean the run is still waiting.',
+]) {
+  assert.equal(liveBuildSource.includes(required), true, `Missing durable failure fallback marker: ${required}`);
+}
+
 const dashboardSource = readFileSync('src/components/observability/RunEventStream.tsx', 'utf8');
 for (const required of [
   'observability-summary-strip',
@@ -119,6 +153,7 @@ console.log(JSON.stringify({
   durableAuditFacts: true,
   providerIdentityEvidenceOnly: true,
   recoveryAndHumanRequiredDistinct: true,
+  durableFailureFallback: true,
   dashboardCompositionContract: true,
   fabricatedTelemetryAbsent: true,
 }, null, 2));
