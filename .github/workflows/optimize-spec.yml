@@ -16,10 +16,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: integration/wave5-generalized-delivery
-          fetch-depth: 2
-      - name: Verify exact validated integration parent
+          fetch-depth: 4
+      - name: Verify validated integration ancestry
         run: |
-          test "$(git rev-parse HEAD^)" = "14961d06d5e3b1c83f9d45c94bcc0727a2ec115a"
+          git merge-base --is-ancestor 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a HEAD
+          test "$(git show 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a:ARCHITECTURE.md | grep -m1 '^Version:')" = "Version: 3.0"
       - name: Update authoritative Wave 5 records
         run: |
           python - <<'PY'
@@ -75,12 +76,13 @@ jobs:
           PY
       - name: Restore canonical workflow and commit record-only change
         run: |
-          git show HEAD^:.github/workflows/optimize-spec.yml > .github/workflows/optimize-spec.yml
+          git show 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a:.github/workflows/optimize-spec.yml > .github/workflows/optimize-spec.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ARCHITECTURE.md CURRENT-STATE.md .github/workflows/optimize-spec.yml
           changed="$(git diff --cached --name-only | sort)"
-          expected="$(printf '%s\n' ARCHITECTURE.md CURRENT-STATE.md | sort)"
+          expected="$(printf '%s\n' .github/workflows/optimize-spec.yml ARCHITECTURE.md CURRENT-STATE.md | sort)"
           test "$changed" = "$expected"
+          test "$(git hash-object .github/workflows/optimize-spec.yml)" = "6478b5ac11eeedbd5b4d4711feb4193394ac1bdd"
           git commit -m "docs(w5): record validated generalized delivery integration"
           git push origin HEAD:integration/wave5-generalized-delivery
