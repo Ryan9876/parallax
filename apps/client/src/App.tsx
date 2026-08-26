@@ -493,7 +493,13 @@ export default function App() {
         <View style={styles.root}>
           <LivingSurface energy={motion.surfaceEnergy} />
           <SafeAreaView style={styles.safe}>
-            <LiveBuildWorkspace run={mobileRun} onBack={() => setMobileDetail(null)} />
+            <LiveBuildWorkspace
+              run={mobileRun}
+              onBack={() => {
+                setMobileDetail(null);
+                setMobileDestination('chat');
+              }}
+            />
           </SafeAreaView>
         </View>
       );
