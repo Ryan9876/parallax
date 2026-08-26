@@ -3,6 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import type { ConversationDto, EngineeringRunDto, WorkSpecificationDto } from '../../lib/api';
 import { palette } from '../../theme';
 import { ParallaxLogo } from '../ParallaxLogo';
+import { useProjectCompatibility } from '../ProjectCompatibilityGate';
 
 export type MobileDestination = 'chat' | 'build' | 'project';
 
@@ -20,13 +21,18 @@ function shortProject(projectId: string | null): string {
 }
 
 export function MobileHeader({ mode, projectId, conversationTitle, onModeChange, onNewConversation }: MobileHeaderProps) {
+  const projectCompatibility = useProjectCompatibility();
+  const projectName = projectId && projectCompatibility.project?.id === projectId
+    ? projectCompatibility.project.name
+    : shortProject(projectId);
+
   return (
     <View style={styles.header} testID="mobile-workspace-header">
       <View style={styles.headerIdentity}>
         <ParallaxLogo size={34} />
         <View style={styles.headerCopy}>
           <Text style={styles.brand}>Parallax</Text>
-          <Text numberOfLines={1} style={styles.projectLabel}>{shortProject(projectId)}</Text>
+          <Text numberOfLines={1} style={styles.projectLabel}>{projectName}</Text>
           {conversationTitle ? <Text numberOfLines={1} style={styles.conversationLabel}>{conversationTitle}</Text> : null}
         </View>
       </View>
@@ -432,18 +438,38 @@ type ProjectWorkspaceProps = {
 };
 
 export function MobileProjectWorkspace({ activeConversation, conversations, onOpenConversation, onStartAsk, onStartBuild }: ProjectWorkspaceProps) {
+  const projectCompatibility = useProjectCompatibility();
   const activeProjectId = activeConversation?.project_id ?? null;
+  const boundProject = activeProjectId && projectCompatibility.project?.id === activeProjectId
+    ? projectCompatibility.project
+    : null;
+  const displayProject = boundProject ?? (!activeProjectId ? projectCompatibility.project : null);
+  const projectTitle = displayProject?.name ?? shortProject(activeProjectId);
+  const projectCaption = projectCompatibility.historical
+    ? 'Historical Build conversation · no canonical Project binding'
+    : activeProjectId
+      ? `Bound Project · ${activeProjectId.slice(0, 8)}`
+      : displayProject
+        ? 'Selected for future Build work'
+        : 'Choose a Project before starting Build work';
+
   return (
     <ScrollView style={styles.screenScroll} contentContainerStyle={styles.screenContent} testID="mobile-project-workspace">
       <Text style={styles.screenKicker}>CURRENT CONTEXT</Text>
       <Text style={styles.screenTitle}>Project</Text>
-      <Text style={styles.screenCopy}>Keep the active project and conversation obvious. Project authority still comes from the protected server binding.</Text>
+      <Text style={styles.screenCopy}>See where Build work belongs, switch conversations, or choose the Project for your next Build.</Text>
 
       <View style={styles.projectCard}>
-        <Text style={styles.detailLabel}>CURRENT PROJECT</Text>
-        <Text style={styles.projectTitle}>{shortProject(activeProjectId)}</Text>
+        <Text style={styles.detailLabel}>{activeProjectId ? 'CURRENT PROJECT' : 'BUILD PROJECT'}</Text>
+        <Text style={styles.projectTitle}>{projectTitle}</Text>
+        <Text style={styles.projectMeta}>{projectCaption}</Text>
         <Text numberOfLines={2} style={styles.projectConversation}>{activeConversation?.title ?? 'No conversation selected'}</Text>
-        <Text style={styles.projectMeta}>{activeConversation?.mode === 'code' ? 'Build' : 'Ask'} · {activeConversation?.project_binding_status ?? 'No binding'}</Text>
+        <Text style={styles.projectConversationMeta}>{activeConversation?.mode === 'code' ? 'Build' : 'Ask'} · {activeConversation?.project_binding_status ?? 'No binding'}</Text>
+        {!projectCompatibility.historical ? (
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={displayProject ? 'Change project' : 'Choose project'} onPress={projectCompatibility.openProjectSelector} style={styles.changeProjectButton}>
+            <Text style={styles.changeProjectButtonText}>{displayProject ? 'Change project' : 'Choose project'}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.newActionRow}>
@@ -562,8 +588,11 @@ const styles = StyleSheet.create({
   attemptMeta: { color: palette.charcoal600, fontSize: 9, lineHeight: 14, marginTop: 2 },
   projectCard: { padding: 16, borderRadius: 19, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, marginBottom: 14 },
   projectTitle: { color: palette.charcoal950, fontSize: 19, lineHeight: 24, fontWeight: '700' },
-  projectConversation: { color: palette.charcoal600, fontSize: 11, lineHeight: 17, marginTop: 5 },
-  projectMeta: { color: palette.olive700, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 8 },
+  projectMeta: { color: palette.olive700, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 6 },
+  projectConversation: { color: palette.charcoal600, fontSize: 11, lineHeight: 17, marginTop: 12 },
+  projectConversationMeta: { color: palette.charcoal450, fontSize: 9, lineHeight: 13, marginTop: 4 },
+  changeProjectButton: { minHeight: 44, marginTop: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  changeProjectButtonText: { color: palette.teal700, fontSize: 10, fontWeight: '800' },
   newActionRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   secondaryActionTile: { flex: 1, minHeight: 86, padding: 14, borderRadius: 17, justifyContent: 'center', backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   primaryActionTile: { flex: 1, minHeight: 86, padding: 14, borderRadius: 17, justifyContent: 'center', backgroundColor: palette.rust600 },
