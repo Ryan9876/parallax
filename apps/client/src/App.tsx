@@ -83,7 +83,6 @@ export default function App() {
   const [accessBusy, setAccessBusy] = React.useState(false);
   const pendingRefreshRef = React.useRef<string | null>(null);
   const threadRef = React.useRef<ScrollView>(null);
-  const composerRef = React.useRef<TextInput>(null);
   const liveEdgeRef = React.useRef(true);
   const motion = motionForPhase(state.phase);
   const activeConversation = conversations.find((item) => item.id === conversationId);
@@ -114,12 +113,6 @@ export default function App() {
   React.useEffect(() => {
     if (!compact) setMobileDetail(null);
   }, [compact]);
-
-  React.useLayoutEffect(() => {
-    if (!compact || !amendmentActive || mobileDestination !== 'chat') return;
-    liveEdgeRef.current = false;
-    threadRef.current?.scrollTo({ y: 0, animated: false });
-  }, [amendmentActive, compact, mobileDestination]);
 
   const scrollToLiveEdge = React.useCallback((animated = true) => {
     requestAnimationFrame(() => threadRef.current?.scrollToEnd({ animated }));
@@ -156,7 +149,7 @@ export default function App() {
     setActivePrintId(null);
     setStreamFinished(true);
     pendingRefreshRef.current = null;
-    liveEdgeRef.current = conversation.status !== 'SPEC_AMENDMENT';
+    liveEdgeRef.current = true;
     updateConversationSummary(conversation);
   }, [updateConversationSummary]);
 
@@ -297,9 +290,7 @@ export default function App() {
       setStreamFinished(false);
       pendingRefreshRef.current = id;
       dispatch({ type: 'START_THINKING' });
-      setTimeout(() => {
-        if (liveEdgeRef.current) scrollToLiveEdge(true);
-      }, 20);
+      setTimeout(() => scrollToLiveEdge(true), 20);
 
       const startAssistant = () => {
         if (assistantStarted) return;
@@ -322,8 +313,6 @@ export default function App() {
       const requireAmendment = () => {
         if (scopeAmendment) return;
         scopeAmendment = true;
-        liveEdgeRef.current = false;
-        composerRef.current?.blur();
         setStreamFinished(true);
         setActivePrintId(null);
         dispatch({ type: 'REQUIRE_AMENDMENT' });
@@ -504,7 +493,6 @@ export default function App() {
               {mobileDestination === 'chat' ? (
                 <>
                   <ScrollView
-                    key={amendmentActive ? 'mobile-amendment-chat' : 'mobile-chat'}
                     ref={threadRef}
                     style={styles.threadScroll}
                     contentContainerStyle={[styles.thread, styles.threadCompact]}
@@ -576,7 +564,6 @@ export default function App() {
                   <View style={[styles.composerWrap, styles.composerWrapCompact]}>
                     <View style={[styles.composer, styles.composerCompact]}>
                       <TextInput
-                        ref={composerRef}
                         accessibilityLabel="Message Parallax"
                         value={draft}
                         onChangeText={setDraft}
@@ -763,7 +750,6 @@ export default function App() {
                 <View style={styles.composerWrap}>
                   <View style={styles.composer}>
                     <TextInput
-                      ref={composerRef}
                       accessibilityLabel="Message Parallax"
                       value={draft}
                       onChangeText={setDraft}
