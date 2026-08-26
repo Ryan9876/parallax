@@ -1,86 +1,115 @@
-name: Hotfix 246 Deployment Record Sync
+name: DSPy Spec Optimization
 
 on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: Specification path
+        required: true
+        default: specs/P2-V0.1.0.md
   push:
     branches:
-      - 'p2/hotfix-246-state-record'
+      - 'p2/**'
     paths:
+      - 'specs/**'
+      - 'scripts/compile_spec.py'
+      - 'scripts/optimize_spec.py'
+      - 'services/api/parallax_api/intelligence/**'
+      - 'services/api/tests/test_metrics.py'
       - '.github/workflows/optimize-spec.yml'
 
 jobs:
-  sync:
+  optimize:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    env:
+      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          ref: p2/hotfix-246-state-record
-          fetch-depth: 0
-      - name: Record deployment-verified hotfix 246 state
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - run: python scripts/validate_spec.py "$SPEC_PATH"
+
+      - id: credentials
+        name: Select DSPy development model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "model=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
+          else
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
+          fi
+
+      - name: Install local Ollama development LM
+        if: steps.credentials.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+
+      - name: Compile approved spec with DSPy critic + compiler
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py "$SPEC_PATH"
+
+      - name: Optimize SpecCompiler with MIPROv2
+        if: steps.credentials.outputs.provider == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/optimize_spec.py "$SPEC_PATH"
+
+      - name: Record DSPy development evidence
+        if: success()
+        env:
+          PROVIDER: ${{ steps.credentials.outputs.provider }}
+          MODEL: ${{ steps.credentials.outputs.model }}
         run: |
           python - <<'PY'
+          import json
+          import os
           from pathlib import Path
 
-          path = Path('CURRENT-STATE.md')
-          state = path.read_text(encoding='utf-8')
-          lines = state.splitlines()
-
-          for index, line in enumerate(lines):
-              if line.startswith('Release: '):
-                  lines[index] = 'Release: Wave 5 remains the deployment-verified generalized-delivery base, with production API hotfix #246 **deployment-verified on top of that release**. Exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` merged through PR #247 to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`; production API deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is READY on that exact merge SHA. The hotfix contains no client-runtime change, so deployment-verified client `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` remains current production.'
-                  break
-          else:
-              raise SystemExit('CURRENT-STATE Release marker not found')
-
-          for index, line in enumerate(lines):
-              if line.startswith('Status: '):
-                  lines[index] = 'Status: **WAVE 5 BASE RELEASE / HOTFIX #246 PRODUCTION DEPLOYMENT-VERIFIED / API READY / CLIENT RETAINED AND VERIFIED / OPERATOR FUNCTIONAL RETEST PENDING / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**'
-                  break
-          else:
-              raise SystemExit('CURRENT-STATE Status marker not found')
-
-          state = '\n'.join(lines) + '\n'
-          wave5_marker = '## Wave 5 production release and deployment verification\n'
-          if '## Production hotfix #246 — first Code objective bootstrap\n' not in state:
-              hotfix = (
-                  '## Production hotfix #246 — first Code objective bootstrap\n\n'
-                  'Production acceptance testing on 2026-08-25 created Project `9e898865-b98e-41d3-b000-bdc87bad377f` (`OT Time`) with the correct canonical repository `github:ryan9876/ot-time`, then fresh Code conversation `a3ea40d6-dbf9-4694-970d-8ff4b2f87024` with objective `Add an about page`. The first-turn `/responses` path unnecessarily invoked model-backed protected scope/reason coordination before any approved objective existed and surfaced `PROTECTED_SCOPE_FAILURE`; `Capture Spec` then exhausted the model route and returned HTTP 503 without persisting a Work Specification. Issue #246 records this production regression. The earlier wrong-repository defect remains separately tracked by #244, and failed-IMPLEMENT observability remains separately tracked by #245.\n\n'
-                  'PR #247 corrects only the redundant first-turn inference boundary. A fresh `ACTIVE` Code conversation with no prior durable user objective now persists that first objective once and returns a deterministic handoff to Work Specification capture without initializing model-backed response/scope coordination. Work Specification generation, explicit approval, Project/repository authority, Engineering Run activation, provider delivery, REVIEW/HUMAN_REQUIRED and deployment authority are unchanged. Reason mode and established Code follow-ups continue through the protected scope/reason path. The model router also emits bounded operational diagnostics containing only model identity, route status, duration and exception class; prompts, generated output, exception messages, credentials and hidden reasoning remain excluded.\n\n'
-                  'Exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` passed Workstream Spec Validation #352 (`32921051668`), Bounded Autonomy #554 (`32921051600`), Parallax P2 CI #913 (`32921051574`), full API tests, client typecheck/state/export, browser/Skia acceptance, protected Code/Engineering/Reason promotion and regression rejection, release DSPy compilation, and both Vercel Preview checks. PR #247 merged that candidate to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`.\n\n'
-                  'Production API deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is `READY`, target `production`, and bound to exact merge SHA `36548611c3806d08d6fbfcdb686fe2a025956194`. Its build passed registered-provider/source-tree/private-Blob preflight, exact repository delivery-permission preflight, projected-source verification, private Blob immutable get/put/get, lineage composition with metadata rollback, projected bootstrap with engineering-runtime/process-recreation/replay/no-stage-mutation/project rollback, execution-snapshot deny-all/offline-dependency verification, and the Wave 4 run-event schema guard. Post-cutover `https://parallax-api-tan.vercel.app/health` and `/ready` returned HTTP 200; `/ready` reported `database=ok`, `providers=ok`, and one provider target, and deployment-scoped runtime logs prove those requests were served by `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`.\n\n'
-                  'The production client is unchanged and remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`. Immediate API rollback is the preceding READY Wave 5 deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`. No migration, environment/configuration mutation, credential change or provider-authority expansion is part of #246.\n\n'
-                  'Operator functional retest remains pending. Deployment verification proves the corrected first-Code-objective path, exact-head regression gates and production service health; it does **not** yet prove that the subsequent real provider-backed Work Specification draft succeeds for the operator session. If `Capture Spec` still exhausts routing, the new bounded diagnostics are the required production evidence for distinguishing provider failure from protected-output validation failure. Issue #246 remains open until that functional retest is resolved.\n\n'
-              )
-              if wave5_marker not in state:
-                  raise SystemExit('Wave 5 production marker not found')
-              state = state.replace(wave5_marker, hotfix + wave5_marker, 1)
-
-          current_start = state.index('## Current production truth\n')
-          history_start = state.index('## Wave 4 autonomous IMPLEMENT progression recovery\n')
-          current = (
-              '## Current production truth\n\n'
-              'The deployment-verified production API/runtime binary is Vercel deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` from hotfix merge `main@36548611c3806d08d6fbfcdb686fe2a025956194`. It is `READY`, target `production`, and the live production aliases serve its health/readiness traffic. The Wave 5 generalized-delivery capability base remains `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb`; #246 advances the production API binary only with the bounded first-Code-objective bootstrap correction and model-route diagnostics.\n\n'
-              'The deployment-verified production client remains Vercel deployment `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` from application head `main@ff8e2395df081ebff376d703dfd97f3c10008240`. Hotfix #246 contains no client-runtime change, so the retained client remains `READY` and current production.\n\n'
-              'The exact hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` passed Workstream Spec Validation #352, Bounded Autonomy #554, P2 CI #913, full API regression, browser/Skia acceptance, protected Code/Engineering/Reason promotion evaluation and regression rejection, release DSPy compilation, and both Vercel Preview checks before PR #247 merged it as `36548611c3806d08d6fbfcdb686fe2a025956194`. The Wave 5 release candidate and cumulative S1-S6 validation evidence remain valid as the capability base beneath this bounded production hotfix.\n\n'
-              'The immediately preceding known-good API production deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` from Wave 5 application merge `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains `READY` and is the immediate rollback reference for hotfix #246. The earlier known-good deployment `dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5` remains available as a secondary application rollback reference, with `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` retained as the older reference. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.\n\n'
-              'The client did not change in #246. Its known fallback `dpl_vDHBaGyi4q3pAGvNpULJwi8p95RR` remains available, while current production remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.\n\n'
-              'This `CURRENT-STATE.md` update is a record-only reconciliation after hotfix #246 production deployment verification. When this record-only change is merged, it must not redefine the application/runtime deployment identity: current production API identity remains `main@36548611c3806d08d6fbfcdb686fe2a025956194` / `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`, while the retained production client remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.\n\n'
-          )
-          state = state[:current_start] + current + state[history_start:]
-          path.write_text(state, encoding='utf-8')
+          provider = os.environ['PROVIDER'] == 'true'
+          path = Path('specs/compiled/dspy-run-status.json')
+          path.write_text(json.dumps({
+              'executed': True,
+              'spec_compiler_executed': True,
+              'spec_critic_executed': True,
+              'model': os.environ['MODEL'],
+              'provider_backed': provider,
+              'optimizer_executed': provider,
+              'compiler_artifact': 'P2-V0.1.0.plan.json',
+              'optimizer_artifact': 'optimized-program.json' if provider else None,
+              'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
+              'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
+          }, indent=2) + '\n', encoding='utf-8')
           PY
-      - name: Restore canonical workflows and commit record-only reconciliation
-        run: |
-          git show 36548611c3806d08d6fbfcdb686fe2a025956194:.github/workflows/optimize-spec.yml > .github/workflows/optimize-spec.yml
-          git show 36548611c3806d08d6fbfcdb686fe2a025956194:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CURRENT-STATE.md .github/workflows/optimize-spec.yml .github/workflows/ci.yml
-          changed="$(git diff --cached --name-only | sort)"
-          expected="$(printf '%s\n' .github/workflows/ci.yml .github/workflows/optimize-spec.yml CURRENT-STATE.md | sort)"
-          test "$changed" = "$expected"
-          test "$(git hash-object .github/workflows/optimize-spec.yml)" = "6478b5ac11eeedbd5b4d4711feb4193394ac1bdd"
-          test "$(git hash-object .github/workflows/ci.yml)" = "2bf9bf503430f2fa90705de6e1b3a32e064e14ea"
-          git commit -m "docs(state): record hotfix 246 deployment verification"
-          git push origin HEAD:p2/hotfix-246-state-record
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dspy-spec-evidence
+          path: |
+            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/optimized-program.json
+            specs/compiled/optimized-program-evidence.json
+            specs/compiled/dspy-run-status.json
+            /tmp/ollama.log
+          if-no-files-found: warn
+          retention-days: 14
