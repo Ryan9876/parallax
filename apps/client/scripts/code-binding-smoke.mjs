@@ -367,7 +367,7 @@ async function exerciseNewObjectiveRecovery(page, apiInstance) {
   assert(mobileActionBox.y >= 0 && mobileActionBox.y < 844, 'Mobile Start new objective action is not viewport-reachable');
 
   await recoveryAction.click();
-  await page.waitForFunction(() => !document.body.innerText.includes('Specification amendment required'), null, { timeout: 5000 });
+  await mobileAmendment.waitFor({ state: 'detached', timeout: 5000 });
   assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Describe the outcome you want…', 'Fresh objective did not restore new-objective composer guidance');
 
   const after = apiInstance.snapshot();
