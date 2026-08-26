@@ -339,7 +339,6 @@ export default function App() {
       if (result.phase === 'SPEC_AMENDMENT' || scopeAmendment) {
         requireAmendment();
         applyConversation(await api.getConversation(id));
-        dispatch({ type: 'REQUIRE_AMENDMENT' });
         return;
       }
       if (!result.text.trim()) throw new Error('Parallax returned an empty response');
