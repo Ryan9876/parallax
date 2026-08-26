@@ -11,7 +11,10 @@ _SHORTHAND_RE = re.compile(
     r"(?<![A-Za-z0-9_./-])([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9][A-Za-z0-9._-]{0,99})(?![A-Za-z0-9_./-])"
 )
 _TARGET_CUE_RE = re.compile(
-    r"(?i)(?:\b(?:repository|repo|project|target)\b|\b(?:for|against|in|on)\s+(?:the\s+)?(?:requested\s+)?)\s*[:=\-–—]?\s*$"
+    r"(?i)(?:"
+    r"\b(?:repository|repo|project|target)\b(?:\s+(?:is|for))?"
+    r"|\b(?:for|against|in|on)\s+(?:the\s+)?(?:requested\s+)?(?:repository\s+)?"
+    r")\s*[:=\-–—]?\s*$"
 )
 _PATH_ROOTS = {
     ".github",
@@ -28,6 +31,8 @@ _PATH_ROOTS = {
     "test",
     "tests",
 }
+_FILE_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".yml", ".yaml")
+_TRAILING_PUNCTUATION = " \t\r\n.,:;!?)]}"
 
 
 def normalize_github_repository_ref(value: str | None) -> str | None:
@@ -52,15 +57,26 @@ def _display_ref(normalized: str) -> str:
     return f"github:{owner}/{repo}"
 
 
+def _is_target_position(text: str, start: int, end: int) -> bool:
+    prefix = text[max(0, start - 96):start]
+    if _TARGET_CUE_RE.search(prefix):
+        return True
+    before = text[:start].strip()
+    after = text[end:].strip(_TRAILING_PUNCTUATION)
+    return not before and not after
+
+
 def _target_references(text: str) -> set[str]:
     candidates: set[str] = set()
     occupied: list[tuple[int, int]] = []
     for match in _EXPLICIT_GITHUB_RE.finditer(text):
+        occupied.append(match.span())
+        if not _is_target_position(text, match.start(), match.end()):
+            continue
         owner, repo = match.groups()
         if repo.casefold().endswith(".git"):
             repo = repo[:-4]
         candidates.add(f"{owner.casefold()}/{repo.casefold()}")
-        occupied.append(match.span())
 
     for match in _SHORTHAND_RE.finditer(text):
         if any(start <= match.start() < end for start, end in occupied):
@@ -68,10 +84,9 @@ def _target_references(text: str) -> set[str]:
         owner, repo = match.groups()
         if owner.casefold() in _PATH_ROOTS:
             continue
-        if repo.casefold().endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".yml", ".yaml")):
+        if repo.casefold().endswith(_FILE_SUFFIXES):
             continue
-        prefix = text[max(0, match.start() - 72):match.start()]
-        if not _TARGET_CUE_RE.search(prefix):
+        if not _is_target_position(text, match.start(), match.end()):
             continue
         candidates.add(f"{owner.casefold()}/{repo.casefold()}")
     return candidates
