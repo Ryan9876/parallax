@@ -8,7 +8,7 @@ from uuid import uuid4
 from .context import ReasonContext
 from .protected_metrics import evaluate_reason_result, evaluate_scope_output
 from .reason import DspyReasonProgram, ReasonProgram, ReasonResult
-from .router import AttemptRecord, ModelRouter, RoutingFailure
+from .router import AttemptRecord, ModelRouter, RoutingFailure, RoutingFailureKind
 from .scope import (
     DspyScopeProgram,
     ProtectedScopePolicy,
@@ -68,6 +68,23 @@ class CoordinatedResponse:
 
 ScopeFactory = Callable[[str], ScopeProgram]
 ReasonFactory = Callable[[str], ReasonProgram]
+
+
+def _routing_failure_contract(kind: RoutingFailureKind, *, stage: str) -> tuple[str, str]:
+    """Map sanitized routing exhaustion to a bounded operator-visible contract.
+
+    Validation exhaustion remains a protected-output failure. Provider capacity
+    and other provider exhaustion are infrastructure evidence, not proof that a
+    protected scope/reason decision itself was invalid.
+    """
+
+    if kind is RoutingFailureKind.RATE_LIMITED:
+        return "MODEL_CAPACITY_RATE_LIMITED", "Model capacity is temporarily unavailable."
+    if kind is RoutingFailureKind.PROVIDER_EXHAUSTED:
+        return "MODEL_PROVIDER_UNAVAILABLE", "Parallax model provider is temporarily unavailable."
+    if stage == "scope":
+        return "PROTECTED_SCOPE_FAILURE", "Parallax could not establish a protected scope decision."
+    return "PROTECTED_REASON_FAILURE", "Parallax could not produce a response that passed protected verification."
 
 
 class ResponseCoordinator:
@@ -149,9 +166,10 @@ class ResponseCoordinator:
                 protected_verification_passed=False,
                 final_state="ERROR",
             )
+            error_code, public_message = _routing_failure_contract(exc.kind, stage="scope")
             raise ResponseCoordinationFailure(
-                error_code="PROTECTED_SCOPE_FAILURE",
-                public_message="Parallax could not establish a protected scope decision.",
+                error_code=error_code,
+                public_message=public_message,
                 trace=trace,
             ) from None
 
@@ -209,9 +227,10 @@ class ResponseCoordinator:
                 protected_verification_passed=False,
                 final_state="ERROR",
             )
+            error_code, public_message = _routing_failure_contract(exc.kind, stage="reason")
             raise ResponseCoordinationFailure(
-                error_code="PROTECTED_REASON_FAILURE",
-                public_message="Parallax could not produce a response that passed protected verification.",
+                error_code=error_code,
+                public_message=public_message,
                 trace=trace,
             ) from None
 
