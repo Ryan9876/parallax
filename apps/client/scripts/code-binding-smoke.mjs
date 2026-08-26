@@ -342,6 +342,7 @@ async function exerciseNewObjectiveRecovery(page, apiInstance) {
   assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'Amendment composer still implies a fresh objective can continue in-place');
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId('mobile-guided-shell').waitFor({ state: 'visible', timeout: 5000 });
   await recoveryAction.waitFor({ state: 'visible', timeout: 5000 });
   const mobileActionBox = await recoveryAction.boundingBox();
   assert(mobileActionBox && mobileActionBox.x >= 0 && mobileActionBox.x + mobileActionBox.width <= 391, 'Mobile Start new objective action is horizontally clipped');
