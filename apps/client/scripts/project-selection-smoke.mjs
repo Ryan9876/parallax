@@ -245,6 +245,26 @@ try {
     });
   });
 
+  await scenario('mobile bound Project identity resolves on open', async () => {
+    await withApi({
+      projects: [project(ALPHA_ID, 'Alpha Mobile', 'github:owner/alpha-mobile')],
+      initialConversation: conversation('12121212-1212-4212-8212-121212121212', 'code', ALPHA_ID, 'PROJECT_BOUND'),
+    }, async (state) => {
+      await withPage({ width: 390, height: 844 }, async (page) => {
+        await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
+        await page.getByTestId('mobile-workspace-header').getByText('Alpha Mobile', { exact: true }).waitFor({ timeout: 5000 });
+        assert(state.projectGets === 1, 'mobile bound conversation did not resolve the canonical Project display name exactly once');
+        assert(state.conversationPosts.length === 0, 'opening a bound mobile Build conversation should not create or rebind a conversation');
+
+        await page.getByRole('tab', { name: 'Project' }).click();
+        const workspace = page.getByTestId('mobile-project-workspace');
+        await workspace.getByText('Alpha Mobile', { exact: true }).waitFor({ timeout: 5000 });
+        await workspace.getByText('CURRENT PROJECT', { exact: true }).waitFor();
+        await page.getByLabel('Change project').waitFor();
+      });
+    });
+  });
+
   await scenario('mobile Project creation', async () => {
     await withApi({ projects: [] }, async (state) => {
       await withPage({ width: 390, height: 844 }, async (page) => {
@@ -254,7 +274,7 @@ try {
         await page.getByLabel('Project name').fill('Mobile Builder');
         await page.getByLabel('Repository identity').fill('owner/mobile-builder');
         await page.getByLabel('Create Project').click();
-        await page.getByText('PROJECT · Mobile Builder').waitFor({ timeout: 5000 });
+        await page.getByTestId('mobile-workspace-header').getByText('Mobile Builder', { exact: true }).waitFor({ timeout: 5000 });
 
         assert(state.projectPosts.length === 1, 'mobile create flow did not call Project creation exactly once');
         assert(state.projectPosts[0].name === 'Mobile Builder', 'Project create changed the requested name');
@@ -262,6 +282,11 @@ try {
         const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
         assert(codePosts.length === 1 && codePosts[0].project_id === CREATED_ID, 'mobile Code creation did not bind the server-returned canonical Project ID');
         await assertComposerVisible(page);
+
+        await page.getByRole('tab', { name: 'Project' }).click();
+        const workspace = page.getByTestId('mobile-project-workspace');
+        await workspace.getByText('Mobile Builder', { exact: true }).waitFor({ timeout: 5000 });
+        await page.getByLabel('Change project').waitFor();
       });
     });
   });
@@ -298,6 +323,7 @@ try {
   console.log(JSON.stringify({
     desktopExistingProjectSelection: true,
     reasonPayloadPreserved: true,
+    mobileBoundProjectNameResolved: true,
     mobileProjectCreation: true,
     mobileUsesBuildLanguage: true,
     repositoryShorthandNormalized: true,
