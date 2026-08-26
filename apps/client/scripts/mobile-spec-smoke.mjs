@@ -10,11 +10,15 @@ mkdirSync(evidenceDir, { recursive: true });
 const mime = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+  '.json': 'application/json',
   '.wasm': 'application/wasm',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
 };
+
+const PROJECT_ID = '12121212-1212-4212-8212-121212121212';
+const CONVERSATION_ID = '33333333-3333-4333-8333-333333333333';
+const SPEC_ID = '44444444-4444-4444-8444-444444444444';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -46,61 +50,59 @@ function staticServer() {
 }
 
 const conversation = {
-  id: '33333333-3333-4333-8333-333333333333',
+  id: CONVERSATION_ID,
   title: 'Add a Simple About Page',
   mode: 'code',
   status: 'ACTIVE',
-  spec_id: 'P2-V0.13.0',
-  created_at: '2026-08-22T12:00:00Z',
-  updated_at: '2026-08-22T12:00:00Z',
+  spec_id: 'P2-V0.18.7',
+  project_id: PROJECT_ID,
+  project_binding_status: 'PROJECT_BOUND',
+  created_at: '2026-08-26T12:00:00Z',
+  updated_at: '2026-08-26T12:00:00Z',
   messages: [
     {
       id: 'mobile-user-1',
       role: 'user',
       content: 'Add a simple accessible About page and keep the existing application styling.',
       status: 'complete',
-      created_at: '2026-08-22T12:00:00Z',
+      created_at: '2026-08-26T12:00:00Z',
     },
   ],
 };
 
-const workSpecification = {
-  id: '44444444-4444-4444-8444-444444444444',
-  conversation_id: conversation.id,
+let workSpecification = {
+  id: SPEC_ID,
+  conversation_id: CONVERSATION_ID,
   revision: 3,
   status: 'DRAFT',
   title: 'Add a Simple About Page',
-  objective: 'Add a simple, accessible About page to the application and make it reachable through the application existing navigation or routing structure.',
+  objective: 'Add a simple, accessible About page to the application and make it reachable through the existing navigation or routing structure.',
   constraints: [
-    'Use the application existing UI patterns, navigation, and styling conventions where applicable.',
+    'Use the existing UI patterns, navigation, and styling conventions where applicable.',
     'Keep the page simple and limited to the functionality described.',
-    'Do not invent organization, product, contact, or legal metadata that has not been supplied.',
     'Preserve current application behavior outside the About page change.',
   ],
   acceptance_criteria: [
     'An About page is available at a distinct application route or navigation destination.',
-    'Users can reach the About page through the application existing navigation structure, where such navigation exists.',
+    'Users can reach the About page through the existing navigation structure.',
     'The page renders successfully without console errors or broken links.',
-    'The page uses the application existing visual styling and is usable on supported screen sizes.',
+    'The page uses the existing visual styling and is usable on supported screen sizes.',
     'The About page content and required metadata are confirmed before final implementation.',
   ],
-  risks: [
-    'A mobile implementation could crowd the conversation workspace if the specification review surface is not bounded.',
-    'An oversized governed surface could obscure the persistent composer.',
-  ],
+  risks: ['A mobile implementation could crowd the conversation workspace if specification review remains inline.'],
   open_questions: ['What exact About page metadata should be displayed?'],
   confidence: 0.93,
   program_version: 'mobile-spec-smoke',
   model_id: 'test-model',
-  created_at: '2026-08-22T12:00:00Z',
-  updated_at: '2026-08-22T12:00:00Z',
+  created_at: '2026-08-26T12:00:00Z',
+  updated_at: '2026-08-26T12:00:00Z',
   approved_at: null,
 };
 
 function apiServer() {
   function cors(response, origin) {
     response.setHeader('access-control-allow-origin', origin ?? '*');
-    response.setHeader('access-control-allow-headers', 'Content-Type,Accept');
+    response.setHeader('access-control-allow-headers', 'Content-Type,Accept,Authorization');
     response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
   }
 
@@ -121,27 +123,20 @@ function apiServer() {
     }
 
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
-    if (pathname === '/v1/conversations' && request.method === 'GET') {
-      json(response, 200, [conversation], origin);
-      return;
+    if (pathname === '/v1/session' && request.method === 'GET') return json(response, 200, { authenticated: true }, origin);
+    if (pathname === '/v1/conversations' && request.method === 'GET') return json(response, 200, [conversation], origin);
+    if (pathname === `/v1/conversations/${CONVERSATION_ID}` && request.method === 'GET') return json(response, 200, conversation, origin);
+    if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
+    if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') {
+      return json(response, 200, workSpecification.status === 'APPROVED' ? workSpecification : null, origin);
     }
-    if (pathname === `/v1/conversations/${conversation.id}` && request.method === 'GET') {
-      json(response, 200, conversation, origin);
-      return;
+    if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, null, origin);
+    if (pathname === `/v1/work-specifications/${SPEC_ID}/approve` && request.method === 'POST') {
+      const now = new Date().toISOString();
+      workSpecification = { ...workSpecification, status: 'APPROVED', approved_at: now, updated_at: now };
+      return json(response, 200, workSpecification, origin);
     }
-    if (pathname === `/v1/conversations/${conversation.id}/work-specifications/latest` && request.method === 'GET') {
-      json(response, 200, workSpecification, origin);
-      return;
-    }
-    if (pathname === `/v1/conversations/${conversation.id}/work-specifications/approved` && request.method === 'GET') {
-      json(response, 200, null, origin);
-      return;
-    }
-    if (pathname === `/v1/engineering-runs/conversation/${conversation.id}/latest` && request.method === 'GET') {
-      json(response, 200, null, origin);
-      return;
-    }
-    json(response, 404, { detail: 'not found' }, origin);
+    return json(response, 404, { detail: 'not found' }, origin);
   });
 }
 
@@ -167,46 +162,49 @@ try {
   });
 
   await page.goto('http://127.0.0.1:8767', { waitUntil: 'networkidle' });
-  await page.getByText('SPEC · DRAFT').waitFor({ timeout: 10000 });
-  await page.getByLabel('Expand work specification').click();
-  await page.getByLabel('Work specification details').waitFor({ timeout: 5000 });
+  await page.getByTestId('mobile-guided-shell').waitFor({ timeout: 10000 });
+  await page.getByLabel('Review specification').waitFor({ timeout: 10000 });
 
-  const specBox = await page.getByLabel('Work specification', { exact: true }).boundingBox();
-  const detailsBox = await page.getByLabel('Work specification details').boundingBox();
+  const nav = page.getByTestId('mobile-bottom-navigation');
+  const navBox = await nav.boundingBox();
   const inputBox = await page.getByLabel('Message Parallax').boundingBox();
-  const approveBox = await page.getByLabel('Approve work specification').boundingBox();
-  const refreshBox = await page.getByLabel('Refresh work specification draft').boundingBox();
-  const collapseBox = await page.getByLabel('Collapse work specification').boundingBox();
-  const detailScroll = await page.getByLabel('Work specification details').evaluate((node) => ({
-    clientHeight: node.clientHeight,
-    scrollHeight: node.scrollHeight,
-    overflowY: getComputedStyle(node).overflowY,
-  }));
+  assert(navBox && inputBox, 'mobile spec: mobile navigation or composer geometry was not measurable');
+  assert(inputBox.y + inputBox.height <= navBox.y + 1, 'mobile spec: composer overlaps the bottom navigation');
+  assert(await page.getByLabel('Work specification').count() === 0, 'mobile spec: legacy inline Work Specification should not render in Chat');
+  assert(await page.getByRole('tab').count() === 3, 'mobile spec: primary navigation must expose exactly Chat, Build, and Project');
 
-  assert(specBox && detailsBox && inputBox, 'mobile spec: required geometry was not measurable');
-  assert(specBox.y + specBox.height <= inputBox.y - 8, `mobile spec: specification overlaps composer (${specBox.y + specBox.height} > ${inputBox.y - 8})`);
-  assert(specBox.height <= 540, `mobile spec: expanded specification is too tall (${specBox.height}px)`);
-  assert(detailScroll.scrollHeight > detailScroll.clientHeight + 24, 'mobile spec: long specification details are not internally scrollable');
-  assert(['auto', 'scroll'].includes(detailScroll.overflowY), `mobile spec: expected scrollable detail overflow, got ${detailScroll.overflowY}`);
+  await page.getByLabel('Review specification').click();
+  await page.getByTestId('mobile-specification-detail').waitFor({ timeout: 5000 });
+  await page.getByText('Review before building', { exact: true }).waitFor();
+  await page.getByText('ACCEPTANCE CRITERIA', { exact: true }).waitFor();
+  await page.getByText('OPEN QUESTIONS', { exact: true }).waitFor();
+  await page.getByText('RISKS', { exact: true }).waitFor();
 
-  for (const [name, box] of [['approve', approveBox], ['refresh', refreshBox], ['collapse', collapseBox]]) {
-    assert(box && box.height >= 44, `mobile spec: ${name} target is smaller than 44px`);
+  const detailRoot = await page.getByTestId('mobile-specification-detail').boundingBox();
+  const approveBox = await page.getByLabel('Approve and continue').boundingBox();
+  const refreshBox = await page.getByLabel('Refresh specification draft').boundingBox();
+  const backBox = await page.getByLabel('Back to Chat').boundingBox();
+  assert(detailRoot && approveBox && refreshBox && backBox, 'mobile spec: dedicated detail controls were not measurable');
+  for (const [name, box] of [['approve', approveBox], ['refresh', refreshBox], ['back', backBox]]) {
+    assert(box.height >= 44, `mobile spec: ${name} target is smaller than 44px`);
   }
   assert(!boxesOverlap(approveBox, refreshBox), 'mobile spec: approve and refresh controls overlap');
-  assert(!boxesOverlap(refreshBox, collapseBox), 'mobile spec: refresh and disclosure controls overlap');
-  assert(!boxesOverlap(approveBox, collapseBox), 'mobile spec: approve and disclosure controls overlap');
+  assert(await page.getByLabel('Message Parallax').count() === 0, 'mobile spec: composer should not compete with the full-screen specification review');
+
+  await page.screenshot({ path: `${evidenceDir}/mobile-specification-review.png`, fullPage: true });
+  await page.getByLabel('Approve and continue').click();
+  await page.waitForTimeout(250);
+  await page.getByText('Approved build', { exact: true }).waitFor({ timeout: 5000 });
   assert(errors.length === 0, `mobile spec: browser errors: ${errors.join(' | ')}`);
 
-  await page.screenshot({ path: `${evidenceDir}/mobile-spec-expanded.png` });
   console.log(JSON.stringify({
     viewport: { width: 390, height: 844 },
-    specBox,
-    detailsBox,
-    inputBox,
-    detailScroll,
-    controls: { approveBox, refreshBox, collapseBox },
-    nonOverlapping: true,
-    internallyScrollable: true,
+    bottomNavigation: ['Chat', 'Build', 'Project'],
+    inlineLegacySpecification: false,
+    dedicatedReview: true,
+    approvalSucceeded: true,
+    controls: { approveBox, refreshBox, backBox },
+    composerClearOfNavigation: true,
   }, null, 2));
 
   await page.close();
