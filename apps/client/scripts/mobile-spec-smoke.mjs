@@ -50,6 +50,18 @@ function staticServer() {
   });
 }
 
+const project = {
+  id: PROJECT_ID,
+  slug: 'mobile-about-project',
+  name: 'Mobile About Project',
+  description: null,
+  repository_ref: 'github:owner/mobile-about-project',
+  workspace_ref: `project:${PROJECT_ID}`,
+  status: 'active',
+  created_at: '2026-08-26T12:00:00Z',
+  updated_at: '2026-08-26T12:00:00Z',
+};
+
 const conversation = {
   id: CONVERSATION_ID,
   title: 'Add a Simple About Page',
@@ -152,6 +164,7 @@ function apiServer() {
 
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
     if (pathname === '/v1/session' && request.method === 'GET') return json(response, 200, { authenticated: true }, origin);
+    if (pathname === '/v1/projects' && request.method === 'GET') return json(response, 200, [project], origin);
     if (pathname === '/v1/conversations' && request.method === 'GET') return json(response, 200, [conversation], origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}` && request.method === 'GET') return json(response, 200, conversation, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
