@@ -96,11 +96,12 @@ try {
     if (!thread) throw new Error('conversation scroll container not found');
     thread.scrollTop = thread.scrollHeight;
     const extra = document.createElement('div'); extra.dataset.liveEdgeFixture = 'follow';
-    extra.textContent = Array.from({ length: 18 }, (_, index) => `Settled state update line ${index + 1}.`).join(' '); node.appendChild(extra);
+    extra.textContent = Array.from({ length: 80 }, (_, index) => `Settled state update line ${index + 1}.`).join(' '); node.appendChild(extra);
   });
   await page.waitForTimeout(220);
   const afterSettledMutation = await response.evaluate(threadGeometry);
   assert(afterSettledMutation && afterSettledMutation.distanceFromEnd <= 4, `mobile Chat continuity: settled state mutation was not followed (${afterSettledMutation?.distanceFromEnd}px from end)`);
+  assert(afterSettledMutation.scrollHeight - afterSettledMutation.clientHeight >= 180, 'mobile Chat continuity: scroll-away fixture did not create enough scrollable content');
 
   await response.evaluate((node) => {
     let thread = node.parentElement;
