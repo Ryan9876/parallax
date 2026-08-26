@@ -1,88 +1,115 @@
-name: Wave 5 Authoritative Record Sync
+name: DSPy Spec Optimization
 
 on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: Specification path
+        required: true
+        default: specs/P2-V0.1.0.md
   push:
     branches:
-      - 'integration/wave5-generalized-delivery'
+      - 'p2/**'
     paths:
+      - 'specs/**'
+      - 'scripts/compile_spec.py'
+      - 'scripts/optimize_spec.py'
+      - 'services/api/parallax_api/intelligence/**'
+      - 'services/api/tests/test_metrics.py'
       - '.github/workflows/optimize-spec.yml'
 
 jobs:
-  sync:
+  optimize:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    env:
+      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          ref: integration/wave5-generalized-delivery
-          fetch-depth: 4
-      - name: Verify validated integration ancestry
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - run: python scripts/validate_spec.py "$SPEC_PATH"
+
+      - id: credentials
+        name: Select DSPy development model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          git merge-base --is-ancestor 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a HEAD
-          test "$(git show 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a:ARCHITECTURE.md | grep -m1 '^Version:')" = "Version: 3.0"
-      - name: Update authoritative Wave 5 records
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "model=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
+          else
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
+          fi
+
+      - name: Install local Ollama development LM
+        if: steps.credentials.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+
+      - name: Compile approved spec with DSPy critic + compiler
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py "$SPEC_PATH"
+
+      - name: Optimize SpecCompiler with MIPROv2
+        if: steps.credentials.outputs.provider == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/optimize_spec.py "$SPEC_PATH"
+
+      - name: Record DSPy development evidence
+        if: success()
+        env:
+          PROVIDER: ${{ steps.credentials.outputs.provider }}
+          MODEL: ${{ steps.credentials.outputs.model }}
         run: |
           python - <<'PY'
+          import json
+          import os
           from pathlib import Path
 
-          architecture = Path('ARCHITECTURE.md')
-          arch = architecture.read_text(encoding='utf-8')
-          if 'Version: 3.0' not in arch:
-              raise SystemExit('expected ARCHITECTURE.md v3.0 marker not found')
-          arch = arch.replace('Version: 3.0', 'Version: 3.1', 1)
-
-          system_needle = '  ├─ Project lifecycle and owner-scoped repository binding\n'
-          system_insert = (
-              system_needle
-              + '  ├─ bounded repository intelligence + compatibility profiles\n'
-              + '  ├─ exact-digest governed skill + Project service-binding registries\n'
-              + '  ├─ objective-to-application orchestration + validated engineering memory\n'
-          )
-          if system_needle not in arch:
-              raise SystemExit('architecture system-shape insertion marker not found')
-          arch = arch.replace(system_needle, system_insert, 1)
-
-          wave5_section = '''## Wave 5 generalized application delivery\n\nWave 5 generalizes the protected app-builder architecture without introducing a second execution or authority path. Repository understanding, skill selection, service resolution, objective orchestration and engineering-memory reuse are typed evidence/admission layers in front of the existing canonical Project/Work Specification/Engineering Run/source-lineage runtime. The accepted protected runtime remains the sole mutation, execution, provider-delivery and REVIEW authority.\n\nRepository intelligence consumes a bounded `RepositoryEvidenceSnapshot` bound to canonical Project, repository identity and source revision and emits a deterministic `RepositoryCompatibilityProfile`. The profile records repository shape, compatibility state, normalized signals, bounded blockers and inspectable command candidates. Repository files, manifests, scripts, comments and other source text remain untrusted evidence: they cannot grant commands, tools, capabilities, credentials, provider scope, deployment authority, approval or policy override. Ambiguous or unsupported evidence fails closed rather than guessing an application root or execution route.\n\nGoverned skills are immutable typed procedures admitted only by exact skill ID/version/content digest under server-owned policy. Skill selection requires the current objective kind, accepted repository shape/signals and an explicit server-owned capability snapshot. A skill may require capabilities but cannot create them. Application service needs resolve only through exact Project-scoped service bindings admitted by server policy for declared service/interface/adapter/feature contracts and opaque secret-slot identities; bindings never expose raw credentials to models, repository content or benchmark configuration.\n\nObjective-to-application orchestration binds canonical Project/run identity, approved Work Specification revision/digest and acceptance IDs, exact repository revision/compatibility-profile digest, governed skill selection, Project service bindings, capability policy and bounded correction policy. Its `READY` or `HUMAN_REQUIRED` decision is deterministic admission evidence, not source-mutation, command, provider, deployment or approval authority. Missing capability, incompatible or ambiguous service binding, unsupported repository evidence or identity drift remains fail-closed.\n\nValidated engineering memory is immutable provenance-bound evidence. Project-private memory is non-observable across Project boundaries by default. Cross-Project reuse is limited to explicitly approved sanitized/generalized content bound to exact memory identity/version/digest. Repository/profile drift, required-signal mismatch and evaluator-policy drift reject stale candidates. A memory HIT never changes the current Work Specification or evaluator threshold and always retains `fresh_validation_required=true`; memory cannot grant tools, service bindings, provider scope, execution, source mutation, deployment or approval.\n\nThe permanent Wave 5 generalization proof composes these accepted S1-S5 layers with the existing protected reference runtime and correction controller across materially different static/client-web, Python-service and workspace/monorepo shapes plus ambiguous and malicious negative fixtures. The proof verifies exact-lineage IMPLEMENT/BUILD/TEST/VERIFY, bounded fresh-lineage correction, governed GitHub/Vercel Preview delivery, process/delivery replay idempotency, privacy-safe reuse and the explicit `REVIEW` / `HUMAN_REQUIRED` ceiling. The S6 proof/evaluation layer itself is read-only evidence logic and owns no filesystem, source, command, provider, deployment or approval mutation surface.\n\n'''
-          marker = '## Project-scoped tool authority\n'
-          if marker not in arch:
-              raise SystemExit('architecture Wave 5 section marker not found')
-          arch = arch.replace(marker, wave5_section + marker, 1)
-          architecture.write_text(arch, encoding='utf-8')
-
-          current_state = Path('CURRENT-STATE.md')
-          state = current_state.read_text(encoding='utf-8')
-          lines = state.splitlines()
-          for index, line in enumerate(lines):
-              if line.startswith('Release: '):
-                  lines[index] = 'Release: Wave 5 generalized application delivery is fully source-integrated on `integration/wave5-generalized-delivery`; cumulative S1-S6 code integration `14961d06d5e3b1c83f9d45c94bcc0727a2ec115a` passed exact-head Workstream Spec Validation #346 (`32916448744`), Bounded Autonomy #548 (`32916448731`), P2 CI #905 (`32916448734`) and both Vercel Preview checks. This is validated integration, not production deployment. Production remains the deployment-verified Wave 4 application/runtime recorded below until a separately evidenced `main` merge and production cutover are verified.'
-                  break
-          else:
-              raise SystemExit('CURRENT-STATE Release marker not found')
-          for index, line in enumerate(lines):
-              if line.startswith('Status: '):
-                  lines[index] = 'Status: **WAVE 5 S1-S6 SOURCE-INTEGRATED / CUMULATIVE RELEASE VALIDATED / PRODUCTION PROMOTION PENDING / WAVE 4 PRODUCTION REMAINS DEPLOYMENT-VERIFIED / HUMAN REVIEW BOUNDARY PRESERVED / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**'
-                  break
-          else:
-              raise SystemExit('CURRENT-STATE Status marker not found')
-          state = '\n'.join(lines) + '\n'
-
-          integration_section = '''## Wave 5 validated integration state\n\nControl Tower #215 has accepted and serialized all six Wave 5 workstreams through S6 #221. Expected-head merge of S6 PR #240 produced cumulative code-integration SHA `14961d06d5e3b1c83f9d45c94bcc0727a2ec115a`. Validation PR #241 then proved that exact S1-S6 integration head with Workstream Spec Validation #346, Bounded Autonomy #548, P2 CI #905, full API regression, browser/Skia acceptance, protected Code/Engineering/Reason promotion evaluation, release DSPy compilation/plan verification and successful Vercel Preview checks for both deployable projects.\n\nThe integrated Wave 5 capability set is:\n\n- deterministic repository intelligence/compatibility evidence for unfamiliar repository shapes, with repository content remaining untrusted and non-authoritative;\n- exact-digest governed skills constrained by server-owned capability snapshots;\n- Project-scoped application service bindings using logical interfaces/features and opaque secret-slot identities rather than model-visible credentials;\n- exact Project/run/Work Specification/repository-profile objective-to-application orchestration with fail-closed `HUMAN_REQUIRED`;\n- provenance-bound validated engineering memory that defaults Project-private, requires explicit sanitized-sharing approval for cross-Project reuse and never weakens fresh validation;\n- a permanent multi-shape generalization benchmark and integrated proof covering static web, Python service, workspace/monorepo, ambiguity, malicious repository instructions, memory HIT/MISS, bounded correction, exact-lineage runtime execution, governed Preview publication and duplicate-safe replay.\n\n`ARCHITECTURE.md` v3.1 records these durable contracts. `PROJECT-CONSTITUTION.md` and `DESIGN-SYSTEM.md` remain unchanged because Wave 5 does not alter constitutional authority or the visual language.\n\nProduction has **not** been changed by this integration. No Wave 5 `main` merge, production deployment, database migration, provider/credential mutation or production configuration mutation has yet occurred. The deployment-verified Wave 4 API/client identities and rollback candidates below therefore remain the current production truth. PR #241 is the governed Wave 5 release-candidate surface; this authoritative record update is included on that candidate and must itself pass final exact-head gates before promotion.\n\n'''
-          marker = '## Current production truth\n'
-          if marker not in state:
-              raise SystemExit('CURRENT-STATE integration section marker not found')
-          state = state.replace(marker, integration_section + marker, 1)
-          current_state.write_text(state, encoding='utf-8')
+          provider = os.environ['PROVIDER'] == 'true'
+          path = Path('specs/compiled/dspy-run-status.json')
+          path.write_text(json.dumps({
+              'executed': True,
+              'spec_compiler_executed': True,
+              'spec_critic_executed': True,
+              'model': os.environ['MODEL'],
+              'provider_backed': provider,
+              'optimizer_executed': provider,
+              'compiler_artifact': 'P2-V0.1.0.plan.json',
+              'optimizer_artifact': 'optimized-program.json' if provider else None,
+              'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
+              'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
+          }, indent=2) + '\n', encoding='utf-8')
           PY
-      - name: Restore canonical workflow and commit record-only change
-        run: |
-          git show 14961d06d5e3b1c83f9d45c94bcc0727a2ec115a:.github/workflows/optimize-spec.yml > .github/workflows/optimize-spec.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ARCHITECTURE.md CURRENT-STATE.md .github/workflows/optimize-spec.yml
-          changed="$(git diff --cached --name-only | sort)"
-          expected="$(printf '%s\n' .github/workflows/optimize-spec.yml ARCHITECTURE.md CURRENT-STATE.md | sort)"
-          test "$changed" = "$expected"
-          test "$(git hash-object .github/workflows/optimize-spec.yml)" = "6478b5ac11eeedbd5b4d4711feb4193394ac1bdd"
-          git commit -m "docs(w5): record validated generalized delivery integration"
-          git push origin HEAD:integration/wave5-generalized-delivery
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dspy-spec-evidence
+          path: |
+            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/optimized-program.json
+            specs/compiled/optimized-program-evidence.json
+            specs/compiled/dspy-run-status.json
+            /tmp/ollama.log
+          if-no-files-found: warn
+          retention-days: 14
