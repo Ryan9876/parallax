@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   accountLabel: { maxWidth: 150, color: palette.textSoft, fontSize: 10 },
   accountRole: { color: palette.muted, fontSize: 7, fontWeight: '800', letterSpacing: 0.7 },
   accessPanel: { width: 390, maxHeight: 590, marginTop: 9, padding: 19, borderRadius: 22, backgroundColor: 'rgba(251,247,238,0.99)', borderWidth: 1, borderColor: palette.borderStrong },
-  accessPanelCompact: { position: 'absolute', top: 53, right: -144, maxHeight: 560, marginTop: 0, padding: 16, borderRadius: 20 },
+  accessPanelCompact: { position: 'absolute', top: 53, right: 5, maxHeight: 560, marginTop: 0, padding: 16, borderRadius: 20 },
   accessPanelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   accessKicker: { color: palette.peach, fontSize: 8, fontWeight: '800', letterSpacing: 1.2 },
   accessTitle: { color: palette.cream, fontSize: 22, fontWeight: '600', letterSpacing: -0.5, marginTop: 4 },
