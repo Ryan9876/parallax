@@ -335,10 +335,19 @@ async function exerciseNewObjectiveRecovery(page, apiInstance) {
   await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
   await page.getByLabel('Send message').click();
   await page.getByText('Specification amendment required').waitFor({ timeout: 10000 });
-  await page.getByLabel('Start new objective').waitFor({ timeout: 5000 });
+  const recoveryAction = page.getByLabel('Start new objective');
+  await recoveryAction.waitFor({ timeout: 5000 });
+  assert((page.viewportSize()?.width ?? 0) >= 760, 'Desktop recovery assertion did not run at a desktop viewport');
+  assert(await recoveryAction.isVisible(), 'Desktop did not expose the explicit Start new objective action');
   assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'Amendment composer still implies a fresh objective can continue in-place');
 
-  await page.getByLabel('Start new objective').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await recoveryAction.waitFor({ state: 'visible', timeout: 5000 });
+  const mobileActionBox = await recoveryAction.boundingBox();
+  assert(mobileActionBox && mobileActionBox.x >= 0 && mobileActionBox.x + mobileActionBox.width <= 391, 'Mobile Start new objective action is horizontally clipped');
+  assert(mobileActionBox.y >= 0 && mobileActionBox.y < 844, 'Mobile Start new objective action is not viewport-reachable');
+
+  await recoveryAction.click();
   await page.waitForFunction(() => !document.body.innerText.includes('Specification amendment required'), null, { timeout: 5000 });
   assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Describe the outcome you want…', 'Fresh objective did not restore new-objective composer guidance');
 
@@ -385,6 +394,8 @@ try {
     boundedAutonomyImplementContinuation: true,
     reducedGraphicsParity: true,
     explicitNewObjectiveRecovery: true,
+    desktopRecoveryActionVisible: true,
+    mobileRecoveryActionVisible: true,
     freshObjectivePreservesCanonicalProject: true,
     freshObjectiveDoesNotInheritSpecOrRun: true,
   }, null, 2));
