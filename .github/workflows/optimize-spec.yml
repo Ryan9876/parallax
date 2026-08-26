@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: p2/hotfix-246-state-record
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Record deployment-verified hotfix 246 state
         run: |
           python - <<'PY'
