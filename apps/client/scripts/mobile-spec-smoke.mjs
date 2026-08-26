@@ -163,6 +163,15 @@ function apiServer() {
       engineeringRun = engineeringRun ?? activatedRun();
       return json(response, 200, engineeringRun, origin);
     }
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/events` && request.method === 'GET') {
+      return json(response, 200, { events: [], next_after_sequence: 0, has_more: false }, origin);
+    }
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/events/stream` && request.method === 'GET') {
+      cors(response, origin);
+      response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+      response.end(': ready\n\n');
+      return;
+    }
     if (pathname === `/v1/work-specifications/${SPEC_ID}/approve` && request.method === 'POST') {
       const now = new Date().toISOString();
       workSpecification = { ...workSpecification, status: 'APPROVED', approved_at: now, updated_at: now };
