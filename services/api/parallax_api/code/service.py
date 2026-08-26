@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 
 from ..models import Conversation, EngineeringRun, WorkSpecification
+from ..intelligence.repository_identity import find_repository_identity_conflict
 from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.engineering_runs import EngineeringRunRepository, RecordedMutation
@@ -326,6 +327,49 @@ class EngineeringRunService:
             raise SpecBindingError("historical unbound engineering runs cannot enter protected execution")
         return conversation
 
+    @staticmethod
+    def _repository_target_texts(conversation: Conversation, specification: WorkSpecification) -> tuple[str, ...]:
+        latest_user = next(
+            (
+                item.content.strip()
+                for item in reversed(conversation.messages)
+                if item.role == "user" and item.content.strip()
+            ),
+            "",
+        )
+        return tuple(
+            value
+            for value in (latest_user, specification.title, specification.objective)
+            if isinstance(value, str) and value.strip()
+        )
+
+    def _assert_repository_identity_compatible(
+        self,
+        *,
+        conversation_id: str,
+        specification: WorkSpecification,
+    ) -> None:
+        conversation = self._conversation_for_access(conversation_id)
+        if conversation is None:
+            raise EngineeringRunNotFound("conversation not found")
+        if conversation.mode != "code" or conversation.project_id is None:
+            return
+        if self.projects is None or not self.owner_subject:
+            if self.require_project_binding:
+                raise SpecBindingError("Project repository binding service unavailable")
+            return
+        project = self.projects.get_for_owner(conversation.project_id, self.owner_subject)
+        if project is None:
+            raise EngineeringRunNotFound("Project not found")
+        if not project.repository_ref:
+            return
+        conflict = find_repository_identity_conflict(
+            canonical_repository_ref=project.repository_ref,
+            target_texts=self._repository_target_texts(conversation, specification),
+        )
+        if conflict is not None:
+            raise SpecBindingError(conflict.public_message)
+
     def _approved_work_specification(
         self,
         *,
@@ -345,6 +389,10 @@ class EngineeringRunService:
             raise SpecBindingError("work specification must be explicitly approved before Code execution")
         if specification.revision < 1:
             raise SpecBindingError("work specification revision is invalid")
+        self._assert_repository_identity_compatible(
+            conversation_id=conversation_id,
+            specification=specification,
+        )
         return specification
 
     def _bound_work_specification(
