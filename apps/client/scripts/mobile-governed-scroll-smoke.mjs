@@ -100,9 +100,10 @@ try {
   assert(navBefore && composerBefore, 'mobile guided scroll: navigation/composer not measurable');
 
   await page.getByRole('tab', { name: 'Project' }).click();
-  await page.getByTestId('mobile-project-workspace').waitFor({ timeout: 5000 });
-  await page.getByText('Governed Logo Project', { exact: true }).waitFor();
-  await page.getByText('Mobile governed build flow', { exact: true }).waitFor();
+  const projectWorkspace = page.getByTestId('mobile-project-workspace');
+  await projectWorkspace.waitFor({ timeout: 5000 });
+  await projectWorkspace.getByText('Governed Logo Project', { exact: true }).waitFor();
+  await projectWorkspace.getByText('Mobile governed build flow', { exact: true }).waitFor();
   assert(await page.getByLabel('Message Parallax').count() === 0, 'mobile guided scroll: composer must not compete with Project workspace');
 
   await page.getByRole('tab', { name: 'Chat' }).click();
