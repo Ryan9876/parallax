@@ -15,6 +15,8 @@ const mime = {
 
 const PROJECT_ID = '77777777-7777-4777-8777-777777777777';
 const OTHER_PROJECT_ID = '88888888-8888-4888-8888-888888888888';
+const AMENDMENT_OBJECTIVE = 'Replace the approved objective entirely.';
+const AMENDMENT_MESSAGE = 'This request materially changes the approved objective. An approved specification amendment is required before I continue against the new objective.';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -76,7 +78,9 @@ function apiServer() {
 
   function makeConversation(mode) {
     return {
-      id: mode === 'code' ? '33333333-3333-4333-8333-333333333333' : '11111111-1111-4111-8111-111111111111',
+      id: mode === 'code'
+        ? `33333333-3333-4333-8333-${String(codeConversationRequests.length).padStart(12, '0')}`
+        : '11111111-1111-4111-8111-111111111111',
       title: 'New conversation',
       mode,
       status: 'ACTIVE',
@@ -264,8 +268,20 @@ function apiServer() {
     if (/^\/v1\/conversations\/[^/]+\/responses$/.test(pathname) && request.method === 'POST') {
       const payload = await body(request);
       const now = new Date().toISOString();
-      const user = { id: 'user-code', role: 'user', content: String(payload.content ?? ''), status: 'complete', created_at: now };
-      const assistant = { id: 'assistant-code', role: 'assistant', content: 'The Code objective is captured and ready for an explicit Work Specification.', status: 'complete', created_at: now };
+      const user = { id: `user-code-${conversation.messages.length}`, role: 'user', content: String(payload.content ?? ''), status: 'complete', created_at: now };
+      if (user.content === AMENDMENT_OBJECTIVE) {
+        const assistant = { id: `assistant-amendment-${conversation.messages.length}`, role: 'assistant', content: AMENDMENT_MESSAGE, status: 'complete', created_at: now };
+        conversation.status = 'SPEC_AMENDMENT';
+        conversation.messages = [...conversation.messages, user, assistant];
+        cors(response, origin);
+        response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+        response.write(`event: state\ndata: ${JSON.stringify({ phase: 'THINKING' })}\n\n`);
+        response.write(`event: state\ndata: ${JSON.stringify({ phase: 'SPEC_AMENDMENT' })}\n\n`);
+        response.write(`event: amendment\ndata: ${JSON.stringify({ phase: 'SPEC_AMENDMENT', message_id: assistant.id, text: assistant.content, confidence: 0.96, scope_decision: 'SPEC_AMENDMENT' })}\n\n`);
+        response.end();
+        return;
+      }
+      const assistant = { id: `assistant-code-${conversation.messages.length}`, role: 'assistant', content: 'The Code objective is captured and ready for an explicit Work Specification.', status: 'complete', created_at: now };
       conversation.title = user.content.slice(0, 72);
       conversation.messages = [...conversation.messages, user, assistant];
       cors(response, origin);
@@ -281,7 +297,11 @@ function apiServer() {
     json(response, 404, { detail: 'not found' }, origin);
   });
 
-  return { server, codeConversationRequests };
+  return {
+    server,
+    codeConversationRequests,
+    snapshot: () => ({ conversation, workSpecification, engineeringRun }),
+  };
 }
 
 async function exerciseCodeBinding(page) {
@@ -306,6 +326,34 @@ async function exerciseCodeBinding(page) {
   await page.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
 }
 
+async function exerciseNewObjectiveRecovery(page, apiInstance) {
+  const before = apiInstance.snapshot();
+  assert(before.workSpecification?.status === 'APPROVED', 'New-objective recovery requires an approved Work Specification');
+  assert(before.engineeringRun?.state === 'IMPLEMENT', 'New-objective recovery requires an active prior Engineering Run');
+  const priorConversationId = before.conversation?.id;
+
+  await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
+  await page.getByLabel('Send message').click();
+  await page.getByText('Specification amendment required').waitFor({ timeout: 10000 });
+  await page.getByLabel('Start new objective').waitFor({ timeout: 5000 });
+  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'Amendment composer still implies a fresh objective can continue in-place');
+
+  await page.getByLabel('Start new objective').click();
+  await page.waitForFunction(() => !document.body.innerText.includes('Specification amendment required'), null, { timeout: 5000 });
+  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Describe the outcome you want…', 'Fresh objective did not restore new-objective composer guidance');
+
+  const after = apiInstance.snapshot();
+  assert(after.conversation?.id !== priorConversationId, 'Start new objective did not create a fresh conversation');
+  assert(after.conversation?.mode === 'code', 'Start new objective did not preserve Code mode');
+  assert(after.conversation?.project_id === PROJECT_ID, 'Fresh Code objective did not retain the canonical selected Project');
+  assert(after.workSpecification === null, 'Fresh Code objective inherited a Work Specification');
+  assert(after.engineeringRun === null, 'Fresh Code objective inherited an Engineering Run');
+  assert(apiInstance.codeConversationRequests.length === 2, 'Start new objective did not create exactly one additional Code conversation');
+  assert(apiInstance.codeConversationRequests.every((request) => request.project_id === PROJECT_ID), 'Fresh Code objective bypassed canonical Project compatibility resolution');
+  assert(await page.getByText('SPEC · APPROVED').count() === 0, 'Fresh objective still renders the prior approved Work Specification');
+  assert(await page.getByText(/Code run ·/).count() === 0, 'Fresh objective still renders the prior Engineering Run');
+}
+
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const apiInstance = apiServer();
@@ -318,7 +366,6 @@ try {
   await exerciseCodeBinding(page);
   assert(apiInstance.codeConversationRequests.length === 1, 'Code binding smoke created an unexpected number of Code conversations');
   assert(await page.locator('canvas').count() > 0, 'Code binding smoke: Skia did not initialize');
-  await page.close();
 
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
@@ -329,11 +376,17 @@ try {
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
   await reduced.close();
 
+  await exerciseNewObjectiveRecovery(page, apiInstance);
+  await page.close();
+
   console.log(JSON.stringify({
     canonicalProjectBinding: true,
     codeSpecBinding: true,
     boundedAutonomyImplementContinuation: true,
     reducedGraphicsParity: true,
+    explicitNewObjectiveRecovery: true,
+    freshObjectivePreservesCanonicalProject: true,
+    freshObjectiveDoesNotInheritSpecOrRun: true,
   }, null, 2));
 } finally {
   await browser?.close();
