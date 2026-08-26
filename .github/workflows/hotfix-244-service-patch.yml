@@ -1,0 +1,114 @@
+name: Hotfix 244 Service Patch
+
+on:
+  push:
+    branches:
+      - 'hotfix/244-repository-identity-guard'
+    paths:
+      - '.github/workflows/hotfix-244-service-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/244-repository-identity-guard
+          fetch-depth: 0
+      - name: Apply activation boundary guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/api/parallax_api/code/service.py')
+          text = path.read_text(encoding='utf-8')
+
+          import_needle = 'from ..models import Conversation, EngineeringRun, WorkSpecification\n'
+          import_insert = import_needle + 'from ..intelligence.repository_identity import find_repository_identity_conflict\n'
+          assert import_needle in text
+          assert 'from ..intelligence.repository_identity import find_repository_identity_conflict\n' not in text
+          text = text.replace(import_needle, import_insert, 1)
+
+          method_needle = '    def _approved_work_specification(\n'
+          assert method_needle in text
+          methods = '''    @staticmethod
+              def _repository_target_texts(conversation: Conversation, specification: WorkSpecification) -> tuple[str, ...]:
+                  latest_user = next(
+                      (
+                          item.content.strip()
+                          for item in reversed(conversation.messages)
+                          if item.role == "user" and item.content.strip()
+                      ),
+                      "",
+                  )
+                  return tuple(
+                      value
+                      for value in (latest_user, specification.title, specification.objective)
+                      if isinstance(value, str) and value.strip()
+                  )
+
+              def _assert_repository_identity_compatible(
+                  self,
+                  *,
+                  conversation_id: str,
+                  specification: WorkSpecification,
+              ) -> None:
+                  conversation = self._conversation_for_access(conversation_id)
+                  if conversation is None:
+                      raise EngineeringRunNotFound("conversation not found")
+                  if conversation.mode != "code" or conversation.project_id is None:
+                      return
+                  if self.projects is None or not self.owner_subject:
+                      if self.require_project_binding:
+                          raise SpecBindingError("Project repository binding service unavailable")
+                      return
+                  project = self.projects.get_for_owner(conversation.project_id, self.owner_subject)
+                  if project is None:
+                      raise EngineeringRunNotFound("Project not found")
+                  if not project.repository_ref:
+                      return
+                  conflict = find_repository_identity_conflict(
+                      canonical_repository_ref=project.repository_ref,
+                      target_texts=self._repository_target_texts(conversation, specification),
+                  )
+                  if conflict is not None:
+                      raise SpecBindingError(conflict.public_message)
+
+          '''
+          methods = '\n'.join(line[12:] if line.startswith('            ') else line for line in methods.splitlines()) + '\n'
+          text = text.replace(method_needle, methods + method_needle, 1)
+
+          return_needle = '''        if specification.revision < 1:
+                      raise SpecBindingError("work specification revision is invalid")
+                  return specification
+          '''
+          return_needle = '\n'.join(line[8:] if line.startswith('        ') else line for line in return_needle.splitlines()) + '\n'
+          replacement = '''        if specification.revision < 1:
+                      raise SpecBindingError("work specification revision is invalid")
+                  self._assert_repository_identity_compatible(
+                      conversation_id=conversation_id,
+                      specification=specification,
+                  )
+                  return specification
+          '''
+          replacement = '\n'.join(line[8:] if line.startswith('        ') else line for line in replacement.splitlines()) + '\n'
+          assert return_needle in text
+          text = text.replace(return_needle, replacement, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Verify syntax and focused guard tests
+        run: |
+          python -m py_compile services/api/parallax_api/code/service.py services/api/parallax_api/intelligence/repository_identity.py services/api/parallax_api/services/work_specifications.py
+      - name: Remove temporary workflow and commit patch
+        run: |
+          rm .github/workflows/hotfix-244-service-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add services/api/parallax_api/code/service.py .github/workflows/hotfix-244-service-patch.yml
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m 'fix: guard run activation against repository mismatch'
+          git push origin HEAD:hotfix/244-repository-identity-guard
