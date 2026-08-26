@@ -359,6 +359,25 @@ try {
   await mobile.getByLabel('Back to conversation').click();
   await mobile.getByLabel('Message Parallax').waitFor();
 
+  engineeringRun.state = 'FAILED';
+  engineeringRun.resume_stage = 'IMPLEMENT';
+  engineeringRun.last_failure_code = 'AUTONOMOUS_IMPLEMENT_FAILED';
+  engineeringRun.revision = 3;
+  engineeringRun.attempts = [{ id: '77777777-7777-4777-8777-777777777778', stage: 'IMPLEMENT', attempt_number: 1, status: 'FAILED', failure_code: 'AUTONOMOUS_IMPLEMENT_FAILED', evidence: { error_class: 'ImplementationContractError', mutation_applied: false }, started_at: now, completed_at: now }];
+  events.splice(3);
+
+  const failedMobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await failedMobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
+  await failedMobile.getByLabel('Open Live Build observability').click();
+  await failedMobile.getByRole('tab', { name: 'Run', exact: true }).click();
+  await failedMobile.getByTestId('live-build-durable-failure').waitFor({ timeout: 8000 });
+  await failedMobile.getByText('IMPLEMENT failed', { exact: true }).waitFor();
+  await failedMobile.getByText('AUTONOMOUS_IMPLEMENT_FAILED', { exact: true }).waitFor();
+  await failedMobile.getByRole('tab', { name: 'Activity', exact: true }).click();
+  await failedMobile.getByText('Engineering Run', { exact: true }).waitFor();
+  await failedMobile.getByText('Failed', { exact: true }).first().waitFor();
+  await failedMobile.getByText(/AUTONOMOUS_IMPLEMENT_FAILED/).first().waitFor();
+
   assert(await desktop.locator('[data-testid="live-build-workspace"]').count() === 1, 'Desktop Live Build workspace did not mount exactly once');
   console.log(JSON.stringify({
     desktopLiveBuild: true,
@@ -371,6 +390,7 @@ try {
     minimumObserverTargets: true,
     mobileCodeDiffTestsEvidenceHealth: true,
     mobileLiveBuildEntryAndReturn: true,
+    durableFailedRunFallback: true,
   }, null, 2));
 } finally {
   await browser?.close();

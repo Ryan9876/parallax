@@ -1,4 +1,5 @@
 import React from 'react';
+import type { EngineeringRunDto } from '../../lib/api';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import {
   componentHealth,
@@ -60,8 +61,8 @@ function SummaryStrip({ events }: { events: RunEventDto[] }) {
   );
 }
 
-function ComponentHealth({ events, transport }: { events: RunEventDto[]; transport: RunTransportState }) {
-  const items = componentHealth(events, transport);
+function ComponentHealth({ events, transport, run }: { events: RunEventDto[]; transport: RunTransportState; run: EngineeringRunDto }) {
+  const items = componentHealth(events, transport, run);
   return (
     <View style={styles.supportCard} testID="observability-component-health">
       <Text style={styles.supportKicker}>RUN-SCOPED SIGNALS</Text>
@@ -118,6 +119,7 @@ function EvidenceAudit({ events }: { events: RunEventDto[] }) {
 }
 
 export function RunEventStream({
+  run,
   events,
   transport,
   followLive,
@@ -127,6 +129,7 @@ export function RunEventStream({
   onJumpLatest,
   compact = false,
 }: {
+  run: EngineeringRunDto;
   events: RunEventDto[];
   transport: RunTransportState;
   followLive: boolean;
@@ -183,7 +186,7 @@ export function RunEventStream({
           </ScrollView>
         </View>
         <View style={[styles.supportColumn, !showSupportBesideStream && styles.supportColumnStacked]}>
-          <ComponentHealth events={events} transport={transport} />
+          <ComponentHealth events={events} transport={transport} run={run} />
           <EvidenceAudit events={events} />
         </View>
       </View>

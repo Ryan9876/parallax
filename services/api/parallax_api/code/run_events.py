@@ -56,6 +56,7 @@ _METADATA_KEYS = frozenset(
         "lease_generation",
         "lineage_bound_execution",
         "meaningful_progress",
+        "mutation_applied",
         "next_recovery_action",
         "no_progress_count",
         "oscillation_count",

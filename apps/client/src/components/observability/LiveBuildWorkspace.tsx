@@ -149,8 +149,19 @@ function EvidenceView({ observer }: { observer: Observer }) {
 
 function ContextRail({ observer, run, stacked = false }: { observer: Observer; run: EngineeringRunDto; stacked?: boolean }) {
   const health = observerHealth(observer.view.transport, run, observer.view.events);
-  const alerts = recentAlerts(observer.view.events);
   const last = observer.view.events[observer.view.events.length - 1];
+  const eventAlerts = recentAlerts(observer.view.events);
+  const durableFailureAlert = run.state === 'FAILED'
+    && !eventAlerts.some((alert) => Boolean(run.last_failure_code) && alert.detail.includes(run.last_failure_code || ''))
+    ? {
+        key: 'durable-run-failure',
+        sequence: last?.sequence ?? 0,
+        tone: 'rust' as const,
+        title: 'Durable run failure',
+        detail: `${run.resume_stage || 'Run'} failed${run.last_failure_code ? ` · ${run.last_failure_code}` : ''}.`,
+      }
+    : null;
+  const alerts = durableFailureAlert ? [durableFailureAlert, ...eventAlerts].slice(0, 5) : eventAlerts;
   return (
     <View style={[styles.contextRail, stacked && styles.contextRailStacked]} accessibilityLabel="Live Build contextual health">
       <View style={styles.contextCard}>
@@ -165,6 +176,7 @@ function ContextRail({ observer, run, stacked = false }: { observer: Observer; r
         <View style={styles.factRow}><Text style={styles.factLabel}>REVISION</Text><Text style={styles.factValue}>{run.revision}</Text></View>
         <View style={styles.factRow}><Text style={styles.factLabel}>SEQUENCE</Text><Text style={styles.factValue}>{last?.sequence ?? 'No event yet'}</Text></View>
         <View style={styles.factRow}><Text style={styles.factLabel}>PROJECT</Text><Text numberOfLines={1} style={styles.factValue}>{run.project_id || 'Historical unbound'}</Text></View>
+        {run.last_failure_code ? <View style={styles.factRow}><Text style={styles.factLabel}>FAILURE</Text><Text style={[styles.factValue, styles.failureValue]}>{run.resume_stage || 'FAILED'} · {run.last_failure_code}</Text></View> : null}
       </View>
       <View style={styles.contextCard}>
         <Text style={styles.contextTitle}>Recent Alerts</Text>
@@ -192,6 +204,13 @@ function RunOverview({ observer, run, pipeline }: { observer: Observer; run: Eng
         </View>
         <TinyPill tone={current?.status === 'FAILED' ? 'rust' : current?.status === 'ACTIVE' || current?.status === 'RECOVERING' ? 'teal' : 'olive'}>{run.state}</TinyPill>
       </View>
+      {run.state === 'FAILED' ? (
+        <View style={styles.runFailure} accessibilityLiveRegion="polite" testID="live-build-durable-failure">
+          <Text style={styles.runFailureTitle}>{run.resume_stage || 'Run'} failed</Text>
+          <Text style={styles.runFailureCode}>{run.last_failure_code || 'Failure code unavailable'}</Text>
+          <Text style={styles.contextNote}>This is authoritative Engineering Run state. Missing optional worker, provider, preview, lineage, or evaluation evidence does not mean the run is still waiting.</Text>
+        </View>
+      ) : null}
       <View style={styles.runCardGrid}>
         <View style={styles.runCard}><Text style={styles.factLabel}>LATEST EVENT</Text><Text style={styles.runCardValue}>{latest ? `#${latest.sequence} · ${latest.outcome.replaceAll('_', ' ')}` : 'No persisted event'}</Text><Text style={styles.contextNote}>{latest?.summary || 'Waiting for persisted run evidence.'}</Text></View>
         <View style={styles.runCard}><Text style={styles.factLabel}>LATEST ATTEMPT</Text><Text style={styles.runCardValue}>{latestAttempt ? `${latestAttempt.stage || latestAttempt.subsystem} · #${latestAttempt.sequence}` : 'Not recorded'}</Text><Text style={styles.contextNote}>{latestAttempt ? latestAttempt.outcome.replaceAll('_', ' ') : 'No bounded attempt evidence has been observed.'}</Text></View>
@@ -247,12 +266,12 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
     if (observer.view.selectedTab === 'Terminal') return <AttemptView observer={observer} />;
     if (observer.view.selectedTab === 'Tests') return <AttemptView observer={observer} testsOnly />;
     if (observer.view.selectedTab === 'Evidence') return <EvidenceView observer={observer} />;
-    return <RunEventStream events={observer.view.events} transport={observer.view.transport} followLive={observer.view.followLive} viewPaused={observer.view.viewPaused} onFollowLive={observer.setFollowLive} onPauseView={observer.pauseView} onJumpLatest={observer.jumpToLatest} />;
+    return <RunEventStream run={run} events={observer.view.events} transport={observer.view.transport} followLive={observer.view.followLive} viewPaused={observer.view.viewPaused} onFollowLive={observer.setFollowLive} onPauseView={observer.pauseView} onJumpLatest={observer.jumpToLatest} />;
   };
 
   const renderFocusedSection = () => {
     if (mobileSection === 'Run') return <RunOverview observer={observer} run={run} pipeline={pipeline} />;
-    if (mobileSection === 'Activity') return <RunEventStream compact events={observer.view.events} transport={observer.view.transport} followLive={observer.view.followLive} viewPaused={observer.view.viewPaused} onFollowLive={observer.setFollowLive} onPauseView={observer.pauseView} onJumpLatest={observer.jumpToLatest} />;
+    if (mobileSection === 'Activity') return <RunEventStream compact run={run} events={observer.view.events} transport={observer.view.transport} followLive={observer.view.followLive} viewPaused={observer.view.viewPaused} onFollowLive={observer.setFollowLive} onPauseView={observer.pauseView} onJumpLatest={observer.jumpToLatest} />;
     if (mobileSection === 'Code') return (
       <View style={styles.focusedSection}>
         <FocusedSwitcher first={{ key: 'Code', label: 'Source', accessibilityLabel: 'Show source code' }} second={{ key: 'Diff', label: 'Diff', accessibilityLabel: 'Show source diff' }} active={observer.view.selectedTab} onSelect={observer.setSelectedTab} />
@@ -438,6 +457,10 @@ const styles = StyleSheet.create({
   runHeroCopy: { flex: 1, minWidth: 0 },
   runStage: { color: palette.charcoal950, fontSize: 24, lineHeight: 29, fontWeight: '700', fontFamily: Platform.OS === 'web' ? 'Georgia, ui-serif, serif' : undefined },
   runStageStatus: { color: palette.teal700, fontSize: 10, fontWeight: '800', marginTop: 4 },
+  runFailure: { padding: 14, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(196,74,27,0.32)', backgroundColor: palette.rust100 },
+  runFailureTitle: { color: palette.rust700, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  runFailureCode: { color: palette.rust700, fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 3, marginBottom: 5 },
+  failureValue: { color: palette.rust700 },
   runCardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   runCard: { minWidth: 220, flexGrow: 1, flexBasis: 260, minHeight: 108, justifyContent: 'space-between', gap: 8, padding: 14, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, backgroundColor: palette.ivory50 },
   runCardValue: { color: palette.charcoal950, fontSize: 12, lineHeight: 17, fontWeight: '700' },

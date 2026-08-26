@@ -5,7 +5,9 @@ import json
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from parallax_api.code.autonomy import AutonomyCoordinator, AutonomyStopReason
 from parallax_api.code.domain import WorkflowStage
+from parallax_api.code.implementation_runtime import ImplementationRuntimeError
 from parallax_api.code.run_events import (
     RunEventOutcome,
     RunEventPersistenceError,
@@ -297,3 +299,105 @@ def test_worker_stall_recovery_and_reassignment_are_projected_without_lease_rene
             "RECOVERING",
         ]
         assert all(event.append.worker_execution_id == lease.execution_id for event in worker_events)
+
+class _NeverExecutor:
+    def probe(self, *, operation_key: str):
+        raise AssertionError(f"unexpected executor probe: {operation_key}")
+
+    def execute(self, spec):
+        raise AssertionError(f"unexpected executor execution: {spec}")
+
+
+class _FailingImplementationRuntime:
+    def execute(self, **_kwargs):
+        raise ImplementationRuntimeError("sanitized implementation failure", mutation_applied=False)
+
+
+class _FailingProjectionSink:
+    def emit(self, _event):
+        raise RunEventPersistenceError("injected optional projection failure")
+
+
+def test_failed_implement_attempt_projects_sanitized_failure_event(tmp_path):
+    Session = session_factory(tmp_path)
+    with Session() as session:
+        repository = RunEventRepository(session)
+        sink = PersistentRunEventSink(repository)
+        project, _, service, run = activate(session, event_sink=sink)
+        _, plan = plan_evidence(service, run)
+        planned = service.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.PLAN,
+            operation_key="failure-event:plan",
+            expected_revision=run.revision,
+            passed=True,
+            evidence=plan,
+        )
+        failed = service.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.IMPLEMENT,
+            operation_key="failure-event:implement",
+            expected_revision=planned.run.revision,
+            passed=False,
+            evidence={"error_class": "ImplementationContractError", "mutation_applied": False},
+            failure_code="AUTONOMOUS_IMPLEMENT_FAILED",
+            program_id="protected-implementation-runtime-v0.15.4",
+            tool_id="safe-source-implementation-v1",
+        )
+
+        assert failed.run.state == WorkflowStage.FAILED.value
+        assert failed.run.resume_stage == WorkflowStage.IMPLEMENT.value
+        assert failed.run.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+        events = repository.list_for_run(project_id=project.id, run_id=run.id, limit=100)
+        projected = next(
+            event
+            for event in events
+            if event.append.stage == WorkflowStage.IMPLEMENT.value
+            and event.append.outcome is RunEventOutcome.FAILED
+        )
+        assert projected.append.event_type is RunEventType.STAGE_RESULT
+        assert projected.append.subsystem.value == "IMPLEMENTATION"
+        assert projected.append.attempt_id == failed.attempt_id
+        assert projected.append.failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+        assert projected.append.metadata["error_class"] == "ImplementationContractError"
+        assert projected.append.metadata["mutation_applied"] is False
+        serialized = json.dumps(projected.append.canonical_payload(), sort_keys=True)
+        assert "sanitized implementation failure" not in serialized
+
+
+def test_autonomy_returns_durable_failure_when_optional_event_projection_fails(tmp_path):
+    Session = session_factory(tmp_path)
+    with Session() as session:
+        project, _, service, run = activate(session, event_sink=None)
+        _, plan = plan_evidence(service, run)
+        planned = service.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.PLAN,
+            operation_key="projection-failure:plan",
+            expected_revision=run.revision,
+            passed=True,
+            evidence=plan,
+        )
+        service.event_sink = _FailingProjectionSink()
+
+        result = AutonomyCoordinator(
+            service,
+            _NeverExecutor(),
+            implementation_runtime=_FailingImplementationRuntime(),
+        ).run(
+            run_id=run.id,
+            operation_key="projection-failure",
+            expected_revision=planned.run.revision,
+        )
+
+        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
+        assert result.run.state == WorkflowStage.FAILED.value
+        assert result.run.resume_stage == WorkflowStage.IMPLEMENT.value
+        assert result.run.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+        attempts = [item for item in result.run.attempts if item.stage == WorkflowStage.IMPLEMENT.value]
+        assert len(attempts) == 1
+        assert attempts[0].status == "FAILED"
+        assert result.steps[-1].attempt_id == attempts[0].id
+        assert result.steps[-1].outcome == "FAILED"
+        assert project.id == result.run.project_id
+
