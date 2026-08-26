@@ -1,8 +1,34 @@
 # Parallax 2.0 Current State
 
-Release: Wave 5 generalized application delivery is **deployment-verified in production**. Validated release candidate `2fb01805ba612228d116ca4c4d8d0980d7886007` merged to `main` as `c39b5352be940f4052baa65c7cdd9d7c3ec773bb`; production API deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` is READY on that exact merge SHA. The Wave 5 release has no client-runtime changes, so the existing deployment-verified client `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` remains current production.
+Release: Wave 5 generalized application delivery remains the production platform baseline, with production stabilization hotfix #246 **deployment-verified on top of Wave 5**. Hotfix candidate `7eaa290fd57a2a333976ed882f29075f9d022e3f` merged to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`; production API deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is READY on that exact merge SHA. The hotfix contains no client-runtime change, so deployment-verified client `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` remains current production. Operator functional retest of the original fresh-Code-objective flow is still pending.
 Date: 2026-08-25
-Status: **WAVE 5 RELEASED / PRODUCTION DEPLOYMENT-VERIFIED / API READY / CLIENT RETAINED AND VERIFIED / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 5 RELEASED / HOTFIX #246 DEPLOYMENT-VERIFIED / API READY / OPERATOR FUNCTIONAL RETEST PENDING / CLIENT RETAINED AND VERIFIED / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+
+## Production stabilization hotfix #246 — deployment-verified / operator retest pending
+
+Operator acceptance testing against a newly created `OT Time` Project bound to `github:ryan9876/ot-time` exposed a production workflow defect before Work Specification capture. A fresh Code objective (`Add an about page`) unnecessarily entered the model-backed protected scope/response plane even though there was no prior approved objective to compare against; that route exhausted after bounded provider/model attempts. A subsequent `Capture Spec` attempt independently exhausted Work Specification generation and returned HTTP 503. No Work Specification or Engineering Run was fabricated.
+
+Issue #246 / PR #247 corrected the first failure boundary without broadening authority:
+
+- a fresh ACTIVE Code conversation with no prior durable user objective now persists its first objective exactly once and hands off deterministically to Work Specification capture instead of invoking model-backed scope/reason inference;
+- Reason mode and established Code follow-ups continue to use protected scope classification;
+- Work Specification generation, explicit approval, canonical Project/repository binding, Engineering Run activation, source mutation, REVIEW/HUMAN_REQUIRED, provider and deployment boundaries are unchanged;
+- model-router diagnostics now record only bounded operational fields needed to distinguish provider failure from protected-output validation failure; prompts, response text, credentials, secrets and chain-of-thought remain excluded.
+
+Exact hotfix head `7eaa290fd57a2a333976ed882f29075f9d022e3f` passed Workstream Spec Validation #352 (`32921051668`), Bounded Autonomy #554 (`32921051600`), P2 CI #913 (`32921051574`), API/contract regression, client typecheck/state/export/browser-Skia, protected Code/Engineering/Reason promotion and regression rejection, release DSPy compilation/verification, and both Vercel checks before expected-head PR #247 merged to `main` as `36548611c3806d08d6fbfcdb686fe2a025956194`.
+
+Production deployment verification established:
+
+- API deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` is `READY`, target `production`, exact Git SHA `36548611c3806d08d6fbfcdb686fe2a025956194`, with `aliasError=null` and production aliases including `parallax-api-tan.vercel.app`;
+- the build passed registered-provider/source-tree/private-Blob, exact repository delivery-permission, projected-source, immutable Blob get/put/get, lineage composition/rollback, projected bootstrap/runtime/process-recreation/replay/no-stage-mutation/project-rollback, execution-snapshot/deny-all/offline-dependency/no-repository-source and run-event schema preflights;
+- `/health` returned HTTP 200 with `status=ok`;
+- `/ready` returned HTTP 200 with `status=ready`, `database=ok`, `providers=ok`, and one registered provider target;
+- unauthenticated `/v1/projects` returned HTTP 401 with the Bearer challenge;
+- deployment-scoped `error`/`fatal` runtime logs returned no entries after cutover.
+
+The hotfix changes API runtime behavior only; the production client remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`. Immediate rollback for the API is the prior deployment-verified Wave 5 API `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`. Issue #246 remains open until the operator repeats the original fresh `OT Time` Code-objective flow in production and confirms it reaches `SPEC · NOT CAPTURED` without `PROTECTED_SCOPE_FAILURE` before Work Specification capture.
+
+This stabilization does not change durable constitutional authority, visual language, generalized application architecture, schema, production configuration, credentials, provider scope or deployment authority. `PROJECT-CONSTITUTION.md`, `ARCHITECTURE.md` v3.1 and `DESIGN-SYSTEM.md` therefore remain unchanged.
 
 ## Wave 5 production release and deployment verification
 
@@ -26,17 +52,17 @@ The integrated Wave 5 capability set is now production-released at the source/ap
 
 ## Current production truth
 
-The deployment-verified production API/runtime binary is Vercel deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` from Wave 5 release merge `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb`. It is `READY`, has no alias error, and owns `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, and `parallax-api-git-main-lew7.vercel.app`. Live post-cutover health/readiness/authentication checks and deployment-scoped runtime-error scans are clean as recorded above.
+The deployment-verified production API/runtime binary is Vercel deployment `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB` from stabilization hotfix merge `main@36548611c3806d08d6fbfcdb686fe2a025956194`, layered on the Wave 5 release. It is `READY`, has no alias error, and owns `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, and `parallax-api-git-main-lew7.vercel.app`. Live post-cutover health/readiness/authentication checks and deployment-scoped error/fatal scans are clean as recorded above. Operator functional retest of the fresh-Code-objective regression remains pending.
 
 The deployment-verified production client remains Vercel deployment `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn` from application head `main@ff8e2395df081ebff376d703dfd97f3c10008240`. Wave 5 changes no client-runtime file, so its release-triggered client deployment was canceled/ignored as expected rather than replacing the binary. The retained client is `READY`, has no alias error, owns `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`, and served HTTP 200 after the Wave 5 API cutover.
 
 The exact Wave 5 release candidate `2fb01805ba612228d116ca4c4d8d0980d7886007` passed Parallax P2 CI #909, Bounded Autonomy Pilot #552, Workstream Spec Validation #350, protected promotion evaluation, release DSPy compilation/plan verification, full API regression, browser/Skia acceptance, and both Vercel release checks before expected-head merge. The pure cumulative S1-S6 code head `14961d06d5e3b1c83f9d45c94bcc0727a2ec115a` had independently passed P2 CI #905, Bounded Autonomy #548, Workstream #346 and its applicable Vercel Preview checks before authoritative record synchronization.
 
-The immediately preceding known-good API production deployment `dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5` from `main@ff8e2395df081ebff376d703dfd97f3c10008240` remains `READY` and is the immediate application rollback reference for Wave 5. The older API rollback deployment `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` remains available as an earlier known-good reference. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
+The immediately preceding known-good API production deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc` from Wave 5 release `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains `READY` and is the immediate rollback reference for hotfix #246. Earlier known-good API references `dpl_ExFCK2iMVDbJbRiBZcL4faspHaw5` and `dpl_2L4R6g3em7LJc7XWdRp5rueGFRK1` remain available. Routine rollback remains non-destructive and follows the existing flag-first/application-deployment policy.
 
 The client did not change in Wave 5. Its immediately preceding known-good fallback `dpl_vDHBaGyi4q3pAGvNpULJwi8p95RR` remains available as the client rollback candidate, while current production remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.
 
-This post-cutover `CURRENT-STATE.md` reconciliation is a record-only repository change. It must not be treated as a new application/runtime binary release when merged; the Wave 5 application deployment identity remains `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` / API deployment `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`.
+This `CURRENT-STATE.md` reconciliation is a record-only repository change and must not be treated as a new application/runtime binary release when merged. Current API runtime identity remains `main@36548611c3806d08d6fbfcdb686fe2a025956194` / `dpl_3FdvRJbf34KZfaL9mgE8eWJ6wZGB`; the Wave 5 base release remains `main@c39b5352be940f4052baa65c7cdd9d7c3ec773bb` / `dpl_9fdjDUX73b8VDcRA2ipVuXhwtgKc`, and the retained client remains `dpl_HxCGSRkEuJJ6qmHwokwPSM6XMcEn`.
 
 ## Wave 4 autonomous IMPLEMENT progression recovery
 
