@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+from ..intelligence.repository_identity import find_repository_identity_conflict
 from ..intelligence.work_specification import WorkSpecificationDraft
 from ..projects.repository import ProjectRepository
 from ..repositories.conversations import ConversationRepository
@@ -39,6 +40,35 @@ class WorkSpecificationService:
             return None
         return self.projects.get_for_owner(conversation.project_id, self.owner_subject)
 
+    @staticmethod
+    def _repository_target_texts(conversation, specification) -> tuple[str, ...]:
+        latest_user = next(
+            (
+                item.content.strip()
+                for item in reversed(conversation.messages)
+                if item.role == "user" and item.content.strip()
+            ),
+            "",
+        )
+        return tuple(
+            value
+            for value in (latest_user, specification.title, specification.objective)
+            if isinstance(value, str) and value.strip()
+        )
+
+    def _assert_repository_identity_compatible(self, conversation, specification) -> None:
+        if conversation.mode != "code":
+            return
+        project = self.project_for_conversation(conversation)
+        if project is None or not project.repository_ref:
+            return
+        conflict = find_repository_identity_conflict(
+            canonical_repository_ref=project.repository_ref,
+            target_texts=self._repository_target_texts(conversation, specification),
+        )
+        if conflict is not None:
+            raise HTTPException(status_code=409, detail=conflict.public_message)
+
     def latest(self, conversation_id: str):
         self.conversation(conversation_id)
         return self.repository.latest(conversation_id)
@@ -67,6 +97,7 @@ class WorkSpecificationService:
             raise HTTPException(status_code=404, detail="Work specification not found")
 
         conversation = self.conversation(specification.conversation_id)
+        self._assert_repository_identity_compatible(conversation, specification)
         latest = self.repository.latest(specification.conversation_id)
         releases_amendment = (
             conversation.status == "SPEC_AMENDMENT"
