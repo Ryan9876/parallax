@@ -7,7 +7,7 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .dspy_programs import build_lm
-from .router import ModelRouter, RoutingFailure
+from .router import ModelRouter, RoutingFailure, RoutingFailureKind
 
 
 class WorkSpecificationDraft(BaseModel):
@@ -121,7 +121,9 @@ class WorkSpecificationGeneration:
 
 
 class WorkSpecificationGenerationFailure(RuntimeError):
-    pass
+    def __init__(self, message: str, *, kind: RoutingFailureKind):
+        super().__init__(message)
+        self.kind = kind
 
 
 class WorkSpecificationCoordinator:
@@ -164,5 +166,8 @@ class WorkSpecificationCoordinator:
         try:
             result = await self.router.route(attempt, validate_work_specification_draft)
         except RoutingFailure as exc:
-            raise WorkSpecificationGenerationFailure("Parallax could not produce a valid work specification draft") from exc
+            raise WorkSpecificationGenerationFailure(
+                "Parallax could not produce a valid work specification draft",
+                kind=exc.kind,
+            ) from exc
         return WorkSpecificationGeneration(draft=result.value, model=result.model)
