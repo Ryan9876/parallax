@@ -283,7 +283,9 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await mobile.getByLabel('Open Live Build observability').click();
+  await mobile.getByRole('tab', { name: 'Build', exact: true }).click();
+  await mobile.getByTestId('mobile-build-workspace').waitFor({ timeout: 8000 });
+  await mobile.getByLabel('Open build details').click();
   await mobile.getByText('Run observability', { exact: true }).waitFor({ timeout: 8000 });
   await mobile.getByTestId('live-build-focused-navigation').waitFor();
 
@@ -368,7 +370,9 @@ try {
 
   const failedMobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await failedMobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await failedMobile.getByLabel('Open Live Build observability').click();
+  await failedMobile.getByRole('tab', { name: 'Build', exact: true }).click();
+  await failedMobile.getByTestId('mobile-build-workspace').waitFor({ timeout: 8000 });
+  await failedMobile.getByLabel('Open build details').click();
   await failedMobile.getByRole('tab', { name: 'Run', exact: true }).click();
   await failedMobile.getByTestId('live-build-durable-failure').waitFor({ timeout: 8000 });
   await failedMobile.getByText('IMPLEMENT failed', { exact: true }).waitFor();
