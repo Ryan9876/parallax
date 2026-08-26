@@ -1,8 +1,25 @@
 # Parallax 2.0 Current State
 
-Release: Wave 4 Live Development stabilization is deployment-verified. The production API/runtime recovery is complete, the Warm Editorial client stabilization remains deployed, and a fresh real Project-bound autonomous production proof previously advanced through protected IMPLEMENT/BUILD/TEST/VERIFY to the explicit REVIEW/HUMAN_REQUIRED boundary with persisted exact-lineage GitHub/Vercel Preview delivery evidence. Deployment-verified mobile governed-context and Run Observability scroll hotfixes remain active. A deployment-verified autonomous IMPLEMENT recovery now also ensures Project-bound Code responses and Work Specification drafting receive server-authoritative repository capability context, IMPLEMENT remains an autonomous continuation stage, and any recoverable pre-mutation implementation failure becomes explicit durable FAILED state instead of leaving an apparently stuck active run.
+Release: Wave 5 generalized application delivery is fully source-integrated on `integration/wave5-generalized-delivery`; cumulative S1-S6 code integration `14961d06d5e3b1c83f9d45c94bcc0727a2ec115a` passed exact-head Workstream Spec Validation #346 (`32916448744`), Bounded Autonomy #548 (`32916448731`), P2 CI #905 (`32916448734`) and both Vercel Preview checks. This is validated integration, not production deployment. Production remains the deployment-verified Wave 4 application/runtime recorded below until a separately evidenced `main` merge and production cutover are verified.
 Date: 2026-08-25
-Status: **WAVE 4 PRODUCTION DEPLOYED / AUTONOMOUS IMPLEMENT RECOVERY DEPLOYED / MOBILE GOVERNED-CONTEXT SCROLL HOTFIX DEPLOYED / MOBILE RUN OBSERVABILITY SCROLL HOTFIX DEPLOYED / LIVE OBSERVABILITY ACTIVE / STABILIZATION VERIFIED / END-TO-END AUTONOMOUS PRODUCTION READINESS RESTORED / HUMAN REVIEW BOUNDARY PRESERVED / PREVIOUS API AND CLIENT RELEASES RETAINED AS ROLLBACK CANDIDATES / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+Status: **WAVE 5 S1-S6 SOURCE-INTEGRATED / CUMULATIVE RELEASE VALIDATED / PRODUCTION PROMOTION PENDING / WAVE 4 PRODUCTION REMAINS DEPLOYMENT-VERIFIED / HUMAN REVIEW BOUNDARY PRESERVED / SINGLE-USER PRODUCTION PROMOTION STANDING AUTHORITY ACTIVE**
+
+## Wave 5 validated integration state
+
+Control Tower #215 has accepted and serialized all six Wave 5 workstreams through S6 #221. Expected-head merge of S6 PR #240 produced cumulative code-integration SHA `14961d06d5e3b1c83f9d45c94bcc0727a2ec115a`. Validation PR #241 then proved that exact S1-S6 integration head with Workstream Spec Validation #346, Bounded Autonomy #548, P2 CI #905, full API regression, browser/Skia acceptance, protected Code/Engineering/Reason promotion evaluation, release DSPy compilation/plan verification and successful Vercel Preview checks for both deployable projects.
+
+The integrated Wave 5 capability set is:
+
+- deterministic repository intelligence/compatibility evidence for unfamiliar repository shapes, with repository content remaining untrusted and non-authoritative;
+- exact-digest governed skills constrained by server-owned capability snapshots;
+- Project-scoped application service bindings using logical interfaces/features and opaque secret-slot identities rather than model-visible credentials;
+- exact Project/run/Work Specification/repository-profile objective-to-application orchestration with fail-closed `HUMAN_REQUIRED`;
+- provenance-bound validated engineering memory that defaults Project-private, requires explicit sanitized-sharing approval for cross-Project reuse and never weakens fresh validation;
+- a permanent multi-shape generalization benchmark and integrated proof covering static web, Python service, workspace/monorepo, ambiguity, malicious repository instructions, memory HIT/MISS, bounded correction, exact-lineage runtime execution, governed Preview publication and duplicate-safe replay.
+
+`ARCHITECTURE.md` v3.1 records these durable contracts. `PROJECT-CONSTITUTION.md` and `DESIGN-SYSTEM.md` remain unchanged because Wave 5 does not alter constitutional authority or the visual language.
+
+Production has **not** been changed by this integration. No Wave 5 `main` merge, production deployment, database migration, provider/credential mutation or production configuration mutation has yet occurred. The deployment-verified Wave 4 API/client identities and rollback candidates below therefore remain the current production truth. PR #241 is the governed Wave 5 release-candidate surface; this authoritative record update is included on that candidate and must itself pass final exact-head gates before promotion.
 
 ## Current production truth
 

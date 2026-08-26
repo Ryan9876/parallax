@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.0
+Version: 3.1
 Status: Authoritative
 
 ## System shape
@@ -24,6 +24,9 @@ FastAPI intelligence service
   ├─ Google identity verification + authorized-user allowlist
   ├─ signed browser-session boundary + bearer break-glass compatibility
   ├─ Project lifecycle and owner-scoped repository binding
+  ├─ bounded repository intelligence + compatibility profiles
+  ├─ exact-digest governed skill + Project service-binding registries
+  ├─ objective-to-application orchestration + validated engineering memory
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -233,6 +236,20 @@ The controller preserves a last-known-good candidate. Regressive or equal-qualit
 The deployed optimization controller is subordinate to correctness and authority. It can prioritize the dependency critical path, apply integration backpressure, propose graph/lease/path-safe work stealing, select proven change-impact validation, reuse provenance-safe caches/patterns/repair memory, route within approved model classes, preflight specifications, create disposable speculative integration candidates, preserve acceptance ownership during workstream sizing and record bounded development-performance telemetry.
 
 Optimization outputs cannot advance accepted source lineage, waive worker/integration/release full gates, widen Project/tool/provider authority, promote speculative results or cross Project-private evidence boundaries. Unknown or unproven impact falls back to full validation.
+
+## Wave 5 generalized application delivery
+
+Wave 5 generalizes the protected app-builder architecture without introducing a second execution or authority path. Repository understanding, skill selection, service resolution, objective orchestration and engineering-memory reuse are typed evidence/admission layers in front of the existing canonical Project/Work Specification/Engineering Run/source-lineage runtime. The accepted protected runtime remains the sole mutation, execution, provider-delivery and REVIEW authority.
+
+Repository intelligence consumes a bounded `RepositoryEvidenceSnapshot` bound to canonical Project, repository identity and source revision and emits a deterministic `RepositoryCompatibilityProfile`. The profile records repository shape, compatibility state, normalized signals, bounded blockers and inspectable command candidates. Repository files, manifests, scripts, comments and other source text remain untrusted evidence: they cannot grant commands, tools, capabilities, credentials, provider scope, deployment authority, approval or policy override. Ambiguous or unsupported evidence fails closed rather than guessing an application root or execution route.
+
+Governed skills are immutable typed procedures admitted only by exact skill ID/version/content digest under server-owned policy. Skill selection requires the current objective kind, accepted repository shape/signals and an explicit server-owned capability snapshot. A skill may require capabilities but cannot create them. Application service needs resolve only through exact Project-scoped service bindings admitted by server policy for declared service/interface/adapter/feature contracts and opaque secret-slot identities; bindings never expose raw credentials to models, repository content or benchmark configuration.
+
+Objective-to-application orchestration binds canonical Project/run identity, approved Work Specification revision/digest and acceptance IDs, exact repository revision/compatibility-profile digest, governed skill selection, Project service bindings, capability policy and bounded correction policy. Its `READY` or `HUMAN_REQUIRED` decision is deterministic admission evidence, not source-mutation, command, provider, deployment or approval authority. Missing capability, incompatible or ambiguous service binding, unsupported repository evidence or identity drift remains fail-closed.
+
+Validated engineering memory is immutable provenance-bound evidence. Project-private memory is non-observable across Project boundaries by default. Cross-Project reuse is limited to explicitly approved sanitized/generalized content bound to exact memory identity/version/digest. Repository/profile drift, required-signal mismatch and evaluator-policy drift reject stale candidates. A memory HIT never changes the current Work Specification or evaluator threshold and always retains `fresh_validation_required=true`; memory cannot grant tools, service bindings, provider scope, execution, source mutation, deployment or approval.
+
+The permanent Wave 5 generalization proof composes these accepted S1-S5 layers with the existing protected reference runtime and correction controller across materially different static/client-web, Python-service and workspace/monorepo shapes plus ambiguous and malicious negative fixtures. The proof verifies exact-lineage IMPLEMENT/BUILD/TEST/VERIFY, bounded fresh-lineage correction, governed GitHub/Vercel Preview delivery, process/delivery replay idempotency, privacy-safe reuse and the explicit `REVIEW` / `HUMAN_REQUIRED` ceiling. The S6 proof/evaluation layer itself is read-only evidence logic and owns no filesystem, source, command, provider, deployment or approval mutation surface.
 
 ## Project-scoped tool authority
 

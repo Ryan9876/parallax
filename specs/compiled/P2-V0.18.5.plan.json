@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "Deterministic, privacy-safe validated engineering-memory layer for Parallax, reusable proven compatibility facts, generalized implementation patterns and validation evidence without treating prior model output, prior repository content or another Project's private artifacts as authority."
+  ],
+  "work_items": [
+    "Implementation of a memory layer that reduces repeated discovery and planning effort, reusable evidence for compatibility facts, generalized implementation patterns, and validation evidence."
+  ],
+  "validations": [
+    "Validation of the proposed memory layer against the current Project's accepted Work Specification, exact-lineage implementation, protected BUILD/TEST/VERIFY checks, evaluator thresholds, and REVIEW/HUMAN_REQUIRED ceiling.",
+    "AC-01: validate protected requirement \u2014 A memory item is admitted only as an immutable canonical ID/version/content digest with complete bounded source/profile/Work Specification/acceptance/validation/evaluator provenance. Same identity/digest is idempotent; changed content at the same ID/version fails `MEMORY_VERSION_CONFLICT` without mutating the registry.",
+    "AC-02: validate protected requirement \u2014 A `PROJECT_PRIVATE` item is eligible only when requester Project exactly equals source Project. Tests prove a different Project cannot select it or obtain its private source Project/repository/revision/provenance details through safe selection output or diagnostics.",
+    "AC-03: validate protected requirement \u2014 A `SANITIZED_SHARED` item is cross-Project eligible only when an exact server-owned `(memory_id, version, content_digest)` sharing approval exists and bounded shared-content sanitization passes. Missing/digest-mismatched approval or unsafe shared content fails closed; source/model text cannot self-approve sharing.",
+    "AC-04: validate protected requirement \u2014 Selection consumes the accepted S1 compatibility profile. Repository shape and required normalized signals must match deterministically. `COMPATIBILITY_FACT` reuse requires exact current source-identity/profile digest; changed revision/profile evidence is rejected as stale rather than reused.",
+    "AC-05: validate protected requirement \u2014 The request is bound to current Work Specification ID/revision/digest, ordered acceptance IDs and evaluator-policy digest. Memory cannot change those values. Stale evaluator-policy evidence is rejected, and every selected candidate explicitly requires fresh current protected validation.",
+    "AC-06: validate protected requirement \u2014 For the same admitted memory set and reuse request, candidate eligibility, result ordering, counters and selection ID are identical across insertion ordering, retry and process recreation. Selection performs no mutation/publication and duplicate exact admissions do not create duplicate results.",
+    "AC-07: validate protected requirement \u2014 Cross-Project safe results contain only memory identity/version/digest, sanitized generalized content, bounded applicability/validation evidence and a provenance digest. They contain no source Project ID, repository identity, source revision, source blob/path/diff, prompt, credential, secret/handle, provider payload, unrestricted log, private Work Specification content or hidden reasoning.",
+    "AC-08: validate protected requirement \u2014 Public memory and selection contracts expose explicit false authority flags and no executable/provider/secret fields. Tests prove memory availability cannot grant tools, governed skills, service bindings, source mutation, shell commands, provider actions, deployment targets, approvals or Engineering Run transitions.",
+    "AC-09: validate protected requirement \u2014 Tests demonstrate deterministic same-Project private hits and cross-Project sanitized-shared hits, expose bounded hit/count evidence, and prove hit and miss paths retain identical fresh-validation/evaluator requirements. Source/profile or policy drift converts the relevant hit into a bounded miss/rejection without lowering validation.",
+    "AC-10: validate protected requirement \u2014 Wave 4 protected autonomy, immutable lineage, IMPLEMENT/BUILD/TEST/VERIFY, correction, source delivery, provider least privilege, authentication and S1 repository-intelligence regressions remain unchanged or stronger. S5 introduces no shared/runtime-authority rewrite.",
+    "AC-11: validate protected requirement \u2014 The final candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded validated-memory domain and focused tests only. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass. The worker PR targets `integration/wave5-generalized-delivery`; no worker merge/deploy/migration/provider/configuration mutation occurs."
+  ],
+  "risks": [
+    "Risk of granting raw cross-Project artifacts, cross-Project item eligibility without exact server-owned sharing approval, and lack of provenance for reused candidate items."
+  ],
+  "spec_id": "P2-V0.18.5",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Immutable provenance-bound memory admission",
+      "protected_requirement": "A memory item is admitted only as an immutable canonical ID/version/content digest with complete bounded source/profile/Work Specification/acceptance/validation/evaluator provenance. Same identity/digest is idempotent; changed content at the same ID/version fails `MEMORY_VERSION_CONFLICT` without mutating the registry."
+    },
+    {
+      "id": "AC-02",
+      "title": "Project-private isolation by default",
+      "protected_requirement": "A `PROJECT_PRIVATE` item is eligible only when requester Project exactly equals source Project. Tests prove a different Project cannot select it or obtain its private source Project/repository/revision/provenance details through safe selection output or diagnostics."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact approved sanitized cross-Project reuse",
+      "protected_requirement": "A `SANITIZED_SHARED` item is cross-Project eligible only when an exact server-owned `(memory_id, version, content_digest)` sharing approval exists and bounded shared-content sanitization passes. Missing/digest-mismatched approval or unsafe shared content fails closed; source/model text cannot self-approve sharing."
+    },
+    {
+      "id": "AC-04",
+      "title": "S1 compatibility-bound applicability and stale-fact rejection",
+      "protected_requirement": "Selection consumes the accepted S1 compatibility profile. Repository shape and required normalized signals must match deterministically. `COMPATIBILITY_FACT` reuse requires exact current source-identity/profile digest; changed revision/profile evidence is rejected as stale rather than reused."
+    },
+    {
+      "id": "AC-05",
+      "title": "Current Work Specification and evaluator policy remain authoritative",
+      "protected_requirement": "The request is bound to current Work Specification ID/revision/digest, ordered acceptance IDs and evaluator-policy digest. Memory cannot change those values. Stale evaluator-policy evidence is rejected, and every selected candidate explicitly requires fresh current protected validation."
+    },
+    {
+      "id": "AC-06",
+      "title": "Deterministic replay and canonical ordering",
+      "protected_requirement": "For the same admitted memory set and reuse request, candidate eligibility, result ordering, counters and selection ID are identical across insertion ordering, retry and process recreation. Selection performs no mutation/publication and duplicate exact admissions do not create duplicate results."
+    },
+    {
+      "id": "AC-07",
+      "title": "Privacy-safe bounded selection output",
+      "protected_requirement": "Cross-Project safe results contain only memory identity/version/digest, sanitized generalized content, bounded applicability/validation evidence and a provenance digest. They contain no source Project ID, repository identity, source revision, source blob/path/diff, prompt, credential, secret/handle, provider payload, unrestricted log, private Work Specification content or hidden reasoning."
+    },
+    {
+      "id": "AC-08",
+      "title": "Memory cannot grant execution or provider authority",
+      "protected_requirement": "Public memory and selection contracts expose explicit false authority flags and no executable/provider/secret fields. Tests prove memory availability cannot grant tools, governed skills, service bindings, source mutation, shell commands, provider actions, deployment targets, approvals or Engineering Run transitions."
+    },
+    {
+      "id": "AC-09",
+      "title": "Measurable reuse with identical validation requirements",
+      "protected_requirement": "Tests demonstrate deterministic same-Project private hits and cross-Project sanitized-shared hits, expose bounded hit/count evidence, and prove hit and miss paths retain identical fresh-validation/evaluator requirements. Source/profile or policy drift converts the relevant hit into a bounded miss/rejection without lowering validation."
+    },
+    {
+      "id": "AC-10",
+      "title": "Existing protected runtime and S1 regressions remain green",
+      "protected_requirement": "Wave 4 protected autonomy, immutable lineage, IMPLEMENT/BUILD/TEST/VERIFY, correction, source delivery, provider least privilege, authentication and S1 repository-intelligence regressions remain unchanged or stronger. S5 introduces no shared/runtime-authority rewrite."
+    },
+    {
+      "id": "AC-11",
+      "title": "Exact-head worker release boundary",
+      "protected_requirement": "The final candidate contains this approved spec, authentic committed DSPy plan evidence, the bounded validated-memory domain and focused tests only. Exact-head Workstream Spec Validation, Parallax P2 CI and Bounded Autonomy pass. The worker PR targets `integration/wave5-generalized-delivery`; no worker merge/deploy/migration/provider/configuration mutation occurs."
+    }
+  ],
+  "critique": [
+    "* **Memory is evidence, never authority.** Selection can recommend reusable evidence but cannot authorize work or mutate execution state."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
