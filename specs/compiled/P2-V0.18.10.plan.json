@@ -1,0 +1,51 @@
+{
+  "architecture_decisions": [
+    "{Architecture Decision: Use Vercel AI Gateway for deterministic production transport}"
+  ],
+  "work_items": [
+    "{Work Item: Correct failed P2-V0.18.9 production transport assumption}"
+  ],
+  "validations": [
+    "{Validation: Validate that the Gateway transport selection is deterministic and does not rely on process-environment `VERCEL_OIDC_TOKEN`}",
+    "AC-01: validate protected requirement \u2014 For a production request with a valid `x-vercel-oidc-token` and no explicit DSPY override, the validated request credential is passed into DSPy construction; `build_lm(\"openai/gpt-5.6-terra\", ...)` preserves that canonical model string and passes `api_base=\"https://ai-gateway.vercel.sh/v1\"` plus the opaque request token as LM authentication.",
+    "AC-02: validate protected requirement \u2014 Automatic production model transport must not read or rely on process-environment `VERCEL_OIDC_TOKEN`. A production request missing valid request-scoped OIDC and lacking an explicit DSPY override fails closed instead of silently selecting direct OpenAI or another credential source.",
+    "AC-03: validate protected requirement \u2014 `ModelRouter.MODEL_ORDER` remains exactly `openai/gpt-5.6-luna`, `openai/gpt-5.6-terra`, `openai/gpt-5.6-sol`; Gateway transport selection does not rewrite those externally recorded identities.",
+    "AC-04: validate protected requirement \u2014 If `DSPY_API_BASE` or `DSPY_API_KEY` is explicitly configured, `build_lm` uses the explicit values and does not substitute the Vercel Gateway endpoint, even when request-scoped OIDC or Gateway API keys are also available.",
+    "AC-05: validate protected requirement \u2014 After any explicit DSPY override, an explicitly admitted request-scoped production OIDC credential wins. For non-production or controlled non-request construction without such a credential, server-owned Gateway keys resolve deterministically as `AI_GATEWAY_API_KEY` then `VERCEL_AI_GATEWAY_API_KEY`. Process-environment `VERCEL_OIDC_TOKEN` is excluded from automatic resolution.",
+    "AC-06: validate protected requirement \u2014 Outside production, when no explicit DSPY override, Gateway API key or admitted request credential exists, Parallax preserves existing direct-provider/local development behavior and does not fabricate credentials or provider authority.",
+    "AC-07: validate protected requirement \u2014 Focused tests prove Gateway keys/OIDC tokens are passed only into the LM constructor/provider boundary and never appear in public/canonical model identity, routing traces, persisted evidence, logger messages, exception text or source-controlled examples.",
+    "AC-08: validate protected requirement \u2014 The credential-free local DSPy/Ollama path using explicit `DSPY_API_BASE` continues to execute without Gateway substitution, and authentic SpecCritic + SpecCompiler development evidence remains possible.",
+    "AC-09: validate protected requirement \u2014 The automatic hosted Gateway path no longer depends on rewriting canonical models to `vercel_ai_gateway/...`; deterministic tests reject reintroduction of the namespace-only OIDC assumption.",
+    "AC-10: validate protected requirement \u2014 Conversation scope/reason, Work Specification drafting, and protected implementation generation use one bounded Gateway transport contract derived from the validated request-scoped production identity; none may silently fall back to a different provider path in production.",
+    "AC-11: validate protected requirement \u2014 `RoutingFailureKind`, sanitized `AttemptRecord`, Work Specification recovery semantics, authentication, Project/repository binding, Work Specification approval, Engineering Run state, source lineage, tools, provider delivery, protected evaluation, REVIEW/HUMAN_REQUIRED and deployment authority remain unchanged and existing regressions stay green.",
+    "AC-12: validate protected requirement \u2014 The authentic compiled DSPy plan passes `--require-dspy`; exact worker-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass; merge uses expected-head protection; production API promotion is bound to an exact release identity; post-cutover authenticated Capture Spec succeeds, `/health` and `/ready` are HTTP 200, and exact-deployment runtime logs show no model-capacity failure for that smoke before `CURRENT-STATE.md` is reconciled and #284 is closed."
+  ],
+  "risks": [
+    "{Risk: Risk of failure to preserve canonical Parallax model identities and Luna -> Terra -> Sol order}"
+  ],
+  "spec_id": "P2-V0.18.10",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production request-scoped OIDC Gateway selection is deterministic",
+      "protected_requirement": "For a production request with a valid `x-vercel-oidc-token` and no explicit DSPY override, the validated request credential is passed into DSPy construction; `build_lm(\"openai/gpt-5.6-terra\", ...)` preserves that canonical model string and passes `api_base=\"https://ai-gateway.vercel.sh/v1\"` plus the opaque request token as LM authentication."
+    },
+    {
+      "id": "AC-02",
+      "title": "Build-time OIDC and direct OpenAI are not production runtime fallbacks",
+      "protected_requirement": "Automatic production model transport must not read or rely on process-environment `VERCEL_OIDC_TOKEN`. A production request missing valid request-scoped OIDC and lacking an explicit DSPY override fails closed instead of silently selecting direct OpenAI or another credential source."
+    },
+    {
+      "id": "AC-03",
+      "title": "Canonical model identity and order are preserved",
+      "protected_requirement": "`ModelRouter.MODEL_ORDER` remains exactly `openai/gpt-5.6-luna`, `openai/gpt-5.6-terra`, `openai/gpt-5.6-sol`; Gateway transport selection does not rewrite those externally recorded identities."
+    },
+    {
+      "id": "AC-04",
+      "title": "Explicit DSPY override remains authoritative",
+      "protected_requirement": "If `DSPY_API_BASE` or `DSPY_API_KEY` is explicitly configured, `build_lm` uses the explicit values and does not substitute the Vercel Gateway endpoint, even when request-scoped OIDC or Gateway API keys are also available."
+    },
+    {
+      "id": "AC-05",
+      "title": "Gateway credential precedence is bounded",
+      "protected_requirement": "After any explicit DSPY override, an explicitlÄ…‘µ¥ÑÑ•É•ÅÕ•ÍÐµÍ½Á•ÁÉ½‘ÕÑ¥½¸=%É•‘•¹Ñ¥…°Ý¥¹Ì¸½È¹½¸µÁÉ½‘ÕÑ¥½¸½È½¹ÑÉ½±±•¹½¸µÉ•ÅÕ•ÍÐ½¹ÍÑÉÕÑ¥½¸Ý¥Ñ¡½ÕÐÍÕ „É•‘•¹Ñ¥…°°Í•ÉÙ•Èµ½Ý¹•…Ñ•Ý…ä­•åÌÉ•Í½±Ù”‘•Ñ•Éµ¥¹¥ÍÑ¥…±±ä…Ì%}Q]e}A%}-e€Ñ¡•¸YI1}%}Q]e}A%}-e€¸AÉ½•ÍÌµ•¹Ù¥É½¹µ•¹ÐYI1}=%}Q=-9€¥Ì•á±Õ‘•™É½´…ÕÑ½µ…Ñ¥ŒÉ•Í½±ÕÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÀØˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰9½¸µÁÉ½‘ÕÑ¥½¸¹¼µÉ•‘•¹Ñ¥…°‰•¡…Ù¥½ÈÉ•µ…¥¹Ì½µÁ…Ñ¥‰±”ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰=ÕÑÍ¥‘”ÁÉ½‘ÕÑ¥½¸°Ý¡•¸¹¼•áÁ±¥¥ÐMAd½Ù•ÉÉ¥‘”°…Ñ•Ý…äA$­•ä½È…‘µ¥ÑÑ•É•ÅÕ•ÍÐÉ•‘•¹Ñ¥…°•á¥ÍÑÌ°A…É…±±…àÁÉ•Í•ÉÙ•Ì•á¥ÍÑ¥¹œ‘¥É•ÐµÁÉ½Ù¥‘•È½±½…°‘•Ù•±½Áµ•¹Ð‰•¡…Ù¥½È…¹‘½•Ì¹½Ð™…‰É¥…Ñ”É•‘•¹Ñ¥…±Ì½ÈÁÉ½Ù¥‘•È…ÕÑ¡½É¥Ñä¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÀÜˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰M•É•ÐµÍ…™”½¹ÍÑÉÕÑ¥½¸ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰½ÕÍ•Ñ•ÍÑÌÁÉ½Ù”…Ñ•Ý…ä­•åÌ½=%Ñ½­•¹Ì…É”Á…ÍÍ•½¹±ä¥¹Ñ¼Ñ¡”14½¹ÍÑÉÕÑ½È½ÁÉ½Ù¥‘•È‰½Õ¹‘…Éä…¹¹•Ù•È…ÁÁ•…È¥¸ÁÕ‰±¥Œ½…¹½¹¥…°µ½‘•°¥‘•¹Ñ¥Ñä°É½ÕÑ¥¹œÑÉ…•Ì°Á•ÉÍ¥ÍÑ••Ù¥‘•¹”°±½•Èµ•ÍÍ…•Ì°•á•ÁÑ¥½¸Ñ•áÐ½ÈÍ½ÕÉ”µ½¹ÑÉ½±±••á…µÁ±•Ì¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´Ààˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰á¥ÍÑ¥¹œ±½…°MAä‘•Ù•±½Áµ•¹ÐÉ•µ…¥¹Ì½µÁ…Ñ¥‰±”ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰Q¡”É•‘•¹Ñ¥…°µ™É•”±½…°MAä½=±±…µ„Á…Ñ ÕÍ¥¹œ•áÁ±¥¥ÐMAe}A%}	M€½¹Ñ¥¹Õ•ÌÑ¼•á•ÕÑ”Ý¥Ñ¡½ÕÐ…Ñ•Ý…äÍÕ‰ÍÑ¥ÑÕÑ¥½¸°…¹…ÕÑ¡•¹Ñ¥ŒMÁ•É¥Ñ¥Œ€¬MÁ•½µÁ¥±•È‘•Ù•±½Áµ•¹Ð•Ù¥‘•¹”É•µ…¥¹ÌÁ½ÍÍ¥‰±”¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´Àäˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰…¥±•@ÈµXÀ¸Äà¸ä…‘…ÁÑ•È…ÍÍÕµÁÑ¥½¸¥Ì¹½ÐÉ•Ñ…¥¹•ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰Q¡”…ÕÑ½µ…Ñ¥Œ¡½ÍÑ•…Ñ•Ý…äÁ…Ñ ¹¼±½¹•È‘•Á•¹‘Ì½¸É•ÝÉ¥Ñ¥¹œ…¹½¹¥…°µ½‘•±ÌÑ¼Ù•É•±}…¥}…Ñ•Ý…ä¼¸¸¹€ì‘•Ñ•Éµ¥¹¥ÍÑ¥ŒÑ•ÍÑÌÉ•©•ÐÉ•¥¹ÑÉ½‘ÕÑ¥½¸½˜Ñ¡”¹…µ•ÍÁ…”µ½¹±ä=%…ÍÍÕµÁÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÀˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰±°ÁÉ½‘ÕÑ¥½¸MAä•¹ÑÉäÁ½¥¹ÑÌÉ••¥Ù”Ñ¡”Í…µ”ÑÉ…¹ÍÁ½ÉÐ…ÕÑ¡½É¥Ñäˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰½¹Ù•ÉÍ…Ñ¥½¸Í½Á”½É•…Í½¸°]½É¬MÁ•¥™¥…Ñ¥½¸‘É…™Ñ¥¹œ°…¹ÁÉ½Ñ•Ñ•¥µÁ±•µ•¹Ñ…Ñ¥½¸•¹•É…Ñ¥½¸ÕÍ”½¹”‰½Õ¹‘•…Ñ•Ý…äÑÉ…¹ÍÁ½ÉÐ½¹ÑÉ…Ð‘•É¥Ù•™É½´Ñ¡”Ù…±¥‘…Ñ•É•ÅÕ•ÍÐµÍ½Á•ÁÉ½‘ÕÑ¥½¸¥‘•¹Ñ¥Ñäì¹½¹”µ…äÍ¥±•¹Ñ±ä™…±°‰…¬Ñ¼„‘¥™™•É•¹ÐÁÉ½Ù¥‘•ÈÁ…Ñ ¥¸ÁÉ½‘ÕÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÄˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰á¥ÍÑ¥¹œ™…¥±ÕÉ”…¹ÁÉ½Ñ•Ñ•µÉÕ¹Ñ¥µ”Í•µ…¹Ñ¥ÌÉ•µ…¥¸Õ¹¡…¹•ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰I½ÕÑ¥¹…¥±ÕÉ•-¥¹‘€°Í…¹¥Ñ¥é•ÑÑ•µÁÑI•½É‘€°]½É¬MÁ•¥™¥…Ñ¥½¸É•½Ù•ÉäÍ•µ…¹Ñ¥Ì°…ÕÑ¡•¹Ñ¥…Ñ¥½¸°AÉ½©•Ð½É•Á½Í¥Ñ½Éä‰¥¹‘¥¹œ°]½É¬MÁ•¥™¥…Ñ¥½¸…ÁÁÉ½Ù…°°¹¥¹••É¥¹œIÕ¸ÍÑ…Ñ”°Í½ÕÉ”±¥¹•…”°Ñ½½±Ì°ÁÉ½Ù¥‘•È‘•±¥Ù•Éä°ÁÉ½Ñ•Ñ••Ù…±Õ…Ñ¥½¸°IY%\½!U59}IEU%I…¹‘•Á±½åµ•¹Ð…ÕÑ¡½É¥ÑäÉ•µ…¥¸Õ¹¡…¹•…¹•á¥ÍÑ¥¹œÉ•É•ÍÍ¥½¹ÌÍÑ…äÉ••¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÈˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰½Ù•É¹•É•±•…Í”…¹ÁÉ½‘ÕÑ¥½¸ÁÉ½½˜ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ðˆè€‰Q¡”…ÕÑ¡•¹Ñ¥Œ½µÁ¥±•MAäÁ±…¸Á…ÍÍ•Ì€´µÉ•ÅÕ¥É”µ‘ÍÁå€ì•á…ÐÝ½É­•Èµ¡•…]½É­ÍÑÉ•…´MÁ•ŒY…±¥‘…Ñ¥½¸°	½Õ¹‘•ÕÑ½¹½µä…¹@È$Á…ÍÌìµ•É”ÕÍ•Ì•áÁ•Ñ•µ¡•…ÁÉ½Ñ•Ñ¥½¸ìÁÉ½‘ÕÑ¥½¸A$ÁÉ½µ½Ñ¥½¸¥Ì‰½Õ¹Ñ¼…¸•á…ÐÉ•±•…Í”¥‘•¹Ñ¥ÑäìÁ½ÍÐµÕÑ½Ù•È…ÕÑ¡•¹Ñ¥…Ñ•…ÁÑÕÉ”MÁ•ŒÍÕ••‘Ì°€½¡•…±Ñ¡€…¹€½É•…‘å€…É”!QQ@€ÈÀÀ°…¹•á…Ðµ‘•Á±½åµ•¹ÐÉÕ¹Ñ¥µ”±½ÌÍ¡½Ü¹¼µ½‘•°µ…Á…¥Ñä™…¥±ÕÉ”™½ÈÑ¡…ÐÍµ½­”‰•™½É”UII9PµMQQ¹µ‘€¥ÌÉ•½¹¥±•…¹€ŒÈàÐ¥Ì±½Í•¸ˆ(€€€ô(€t°(€€‰É¥Ñ¥ÅÕ”ˆèl(€€€€‰Q¡”¥µÁ±•µ•¹Ñ…Ñ¥½¸É¥Í¬½È½µ¥ÍÍ¥½¸¥¸Ñ¡”…ÁÁÉ½Ù•Í½™ÑÝ…É”ÍÁ•¥™¥…Ñ¥½¸¥ÌÑ¡”¥¹½ÉÉ•Ð…ÍÍÕµÁÑ¥½¸½˜Ñ¡”™…¥±•@ÈµXÀ¸Äà¸äÁÉ½‘ÕÑ¥½¸ÑÉ…¹ÍÁ½ÉÐÕÍ¥¹œÑ¡”Y•É•°$…Ñ•Ý…ä…ÌÑ¡”‘•Ñ•Éµ¥¹¥ÍÑ¥ŒÑÉ…¹ÍÁ½ÉÐ…ÕÑ¡½É¥Ñä™½ÈÑ¡”MAäµ½‘•°ÑÉ…™™¥Œ°‘•ÍÁ¥Ñ”Ñ¡”•áÁ±¥¥Ð‘•Ù•±½Áµ•¹Ð½Ù•ÉÉ¥‘•Ì…¹±½…°½$‰•¡…Ù¥½È‰•¥¹œÁÉ•Í•ÉÙ•¸ˆ(€t°(€€‰‘ÍÁå}ÉÕ¸ˆèì(€€€€‰•á•ÕÑ•ˆèÑÉÕ”°(€€€€‰µ½‘•°ˆè€‰½±±…µ…}¡…Ð½±±…µ„Ì¸ÈèÅˆˆ°(€€€€‰…Á¥}‰…Í”ˆè€‰¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèÄÄÐÌÐˆ°(€€€€‰±½…±}‘•Ù•±½Áµ•¹Ñ}Ù¥•ÜˆèÑÉÕ”(€ô)ô
