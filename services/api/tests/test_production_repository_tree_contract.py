@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from parallax_api.tools.providers import GitHubTreeEntry, GitHubTreeResult
 from parallax_api.tools.providers.github import MAX_TREE_ENTRIES
 
@@ -10,6 +12,23 @@ from parallax_api.tools.providers.github import MAX_TREE_ENTRIES
 REPOSITORY = "github:Ryan9876/parallax"
 REVISION = "a" * 40
 _ALLOWED_FILE_MODES = {"100644", "100755"}
+
+
+def test_github_tree_result_accepts_exact_capacity_and_rejects_one_over() -> None:
+    entries = tuple(
+        GitHubTreeEntry(f"capacity/file-{index:04d}.txt", "file", 1, f"{index % 16:x}" * 40)
+        for index in range(MAX_TREE_ENTRIES)
+    )
+
+    result = GitHubTreeResult(REPOSITORY, REVISION, entries)
+    assert len(result.entries) == 1024 == MAX_TREE_ENTRIES
+
+    with pytest.raises(ValueError, match="bounded entry limit"):
+        GitHubTreeResult(
+            REPOSITORY,
+            REVISION,
+            entries + (GitHubTreeEntry("capacity/overflow.txt", "file", 1, "f" * 40),),
+        )
 
 
 def test_current_parallax_repository_matches_exact_github_tree_contract() -> None:
