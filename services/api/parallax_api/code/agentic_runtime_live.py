@@ -505,8 +505,8 @@ class LiveAgenticControlPlane(AgenticControlPlane):
                         plan,
                         assignment,
                         source_context=AgentSourceContext(
-                            lineage_id=request.source_context.content_digest,
-                            revision_id=f"source:{request.source_context.content_digest[:24]}",
+                            lineage_id=request.source_context.digest,
+                            revision_id=f"source:{request.source_context.digest[:24]}",
                         ),
                     )
                     lease = self.worker_bridge.checkpoint(
