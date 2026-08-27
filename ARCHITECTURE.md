@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.7
+Version: 3.8
 Status: Authoritative
 
 ## System shape
@@ -32,6 +32,7 @@ FastAPI intelligence service
   ├─ independent evaluation + quality evidence
   ├─ bounded outcome routing + development economics
   ├─ bounded candidate competition + synthesis evidence
+  ├─ integrated agentic reference proof + Wave 5 comparison
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -75,7 +76,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S5 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S6 are accepted on the governed Wave 6 integration branch but are not production deployments. The release audit identified that ordinary Engineering Runtime composition does not yet activate the accepted S1-S5 agentic control plane, so runtime activation closure #304 / P2-V0.19.7 is required before any Wave 6 production promotion. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -343,6 +344,18 @@ Winner selection is deterministic, provenance-bound and replayable under exact c
 
 Synthesis never splices unvalidated fragments directly into canonical lineage. A synthesis request produces a distinct candidate identity/source lineage that must pass fresh exact-lineage BUILD/TEST/VERIFY, protected deterministic validation and fresh independent evaluation before it can become eligible for comparison. Competition records and their safe downstream S6 projection expose bounded evidence only and confer no canonical acceptance authority.
 
+## Wave 6 integrated reference proof
+
+Wave 6 S6 composes the accepted S1-S5 protocol, orchestration, independent-evaluation, routing/economic and competition/synthesis evidence with existing protected worker/source/delivery evidence into one deterministic read-only reference proof. It is accepted on the governed Wave 6 integration branch and creates no new execution or authority path.
+
+The proof binds exact canonical Project ID, Engineering Run ID, Work Specification ID/revision/digest and stable acceptance IDs through S2 team/schedule identity, S3 candidate/evaluator policy, S4 routing evidence, S5 competition evidence, exact candidate/source-lineage identity and bounded verified Preview delivery evidence. Identity or lineage substitution fails closed.
+
+Protected deterministic failure and `HUMAN_REQUIRED` take precedence over quality/economic/benchmark claims. A supported integrated proof requires a READY Preview, preserved correctness/safety/privacy/governance guardrails and a material Wave 5 comparison improvement on an appropriate fixture. Benchmark dimensions distinguish observed, unknown and incomparable state; missing values are never treated as free, fast or successful.
+
+Proof/recovery fingerprints are deterministic and replay-safe. Bounded worker reassignment evidence may be included, but the proof itself cannot acquire a worker lease, mutate source, accept lineage, invoke providers, route spending, transition an Engineering Run, merge, production-deploy, approve release, complete REVIEW or resolve a protected human boundary. Safe serialization excludes source bytes, patches, credentials, raw provider payloads, prompts, hidden reasoning, arbitrary commands and arbitrary URLs.
+
+S6 proves the accepted control-plane contracts and their evidence composition; it does not by itself activate those decisions in the ordinary production Engineering Runtime. Whole-product release audit therefore keeps Wave 6 production promotion blocked on #304 / P2-V0.19.7, which must attach the accepted agentic decision plane to the existing protected runtime without creating a second canonical writer or weakening the current source-lineage/validation/provider/REVIEW boundaries.
+
 ## Project-scoped tool authority
 
 The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
@@ -479,6 +492,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
 - routing context/policy/dependency drift, deterministic/S3 rejection, untrusted/stale/invalid/cross-Project economic evidence or contradictory routing records: exclude the affected strategy before economics and return bounded fallback, insufficient evidence, policy rejection or HUMAN_REQUIRED; never optimize around a protected failure;
 - competition context/policy/candidate drift, deterministic candidate failure, producer/evaluator identity conflict, stale or ineligible routing evidence, cross-Project evidence, unvalidated synthesis or replay conflict: disqualify the affected candidate or stop with bounded fallback/no-selection/HUMAN_REQUIRED; never manufacture a winner;
+- integrated reference-proof identity/evidence drift, non-ready Preview evidence, benchmark guardrail regression or missing material improvement: return the bounded proof failure disposition; never convert benchmark evidence into execution, source acceptance, deployment or REVIEW authority;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
@@ -525,13 +539,14 @@ Major trust boundaries are:
 13. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
 14. server-owned outcome-routing eligibility/economic policy with provenance-bound evidence and non-tradeable correctness floors;
 15. server-owned candidate-competition/synthesis policy with exact-lineage isolation and fresh-validation requirements;
-16. server-owned tool capability registry;
-17. server-owned provider target/credential registry, request-scoped runtime OIDC identity, fixed hosted model transport and encoded connector wire contract;
-18. persisted provider action/audit and replay identity;
-19. protected evaluation/promotion policy;
-20. optional non-authoritative run-event projection behind migration + exact activation flag;
-21. governed logical workspace deletion with retained protected evidence, authoritative Engineering Run terminality, owner-scoped destructive authority and external-provider separation;
-22. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
+16. exact integrated S1-S5 reference-proof/benchmark identity with deterministic failure precedence, guardrail-parity requirements and no mutation/release authority;
+17. server-owned tool capability registry;
+18. server-owned provider target/credential registry, request-scoped runtime OIDC identity, fixed hosted model transport and encoded connector wire contract;
+19. persisted provider action/audit and replay identity;
+20. protected evaluation/promotion policy;
+21. optional non-authoritative run-event projection behind migration + exact activation flag;
+22. governed logical workspace deletion with retained protected evidence, authoritative Engineering Run terminality, owner-scoped destructive authority and external-provider separation;
+23. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
 
 ## Inherited development-policy architecture
 
