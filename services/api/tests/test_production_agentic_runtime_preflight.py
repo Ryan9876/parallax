@@ -48,7 +48,10 @@ def test_candidate_artifact_preflight_rejects_corrupt_immutable_read() -> None:
     objects.objects[digest] = b"corrupt"
 
     canary = preflight._canary(DEPLOYMENT_SHA)
-    with pytest.raises(AgenticRuntimeError, match="integrity validation"):
+    # The immutable object-store layer verifies the content address first and
+    # normalizes a corrupt object as unavailable before the candidate envelope
+    # parser can run. Either way the candidate cannot be replayed or mutated.
+    with pytest.raises(AgenticRuntimeError, match="artifact is unavailable"):
         store.restore(
             digest,
             request=preflight._request(canary),
