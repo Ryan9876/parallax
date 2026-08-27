@@ -45,11 +45,18 @@ def main() -> None:
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
+        # W6 agentic activation uses the service's installed runtime dependencies
+        # plus the same private immutable Blob substrate proven above. This canary
+        # exercises the exact selected-candidate artifact persist/restore contract
+        # before production cutover and fails closed if activation/configuration is
+        # incomplete.
+        _run("scripts/production_agentic_runtime_preflight.py")
         _run_isolated_preflight("scripts/production_projected_bootstrap_preflight.py")
         _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")
         _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
     else:
         print("Production lineage composition preflight: SKIP (non-production)")
+        print("Production agentic runtime preflight: SKIP (non-production)")
         print("Production projected bootstrap preflight: SKIP (non-production)")
         print("Production execution-snapshot preflight: SKIP (non-production)")
         print("Production run-event schema guard: SKIP (non-production)")
