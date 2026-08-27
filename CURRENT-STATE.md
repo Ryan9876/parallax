@@ -2,13 +2,13 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / S1-S4 CUMULATIVE CHECKPOINT ACCEPTED / CAPACITY PREREQUISITE #281 INTEGRATED / POST-CAPACITY RECORD VALIDATION PENDING / S5 BLOCKED ON FINAL CHECKPOINT / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / POST-CAPACITY S1-S4 CHECKPOINT ACCEPTED / CAPACITY PREREQUISITE #281 INTEGRATED / S5 SPEC-FIRST ACTIVE / S5 SEMANTIC IMPLEMENTATION BLOCKED ON AUTHENTIC DSPY DEVELOPMENT GATE / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus bounded stabilization through #127, mobile stabilization #261/#262, and response-stream stabilization #271/#272.
 
-Wave 6 S1-S4 and maintenance prerequisite #281 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
+Wave 6 S1-S4, maintenance prerequisite #281 and S5 spec-first work are **not** production deployments. They exist only under the governed Wave 6 integration/workstream branches. Repository/integration identity and deployed application identity remain deliberately distinct.
 
 ### Production client
 
@@ -77,11 +77,15 @@ S1-S3 functional integration commit: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.
 S4 functional integration commit: `0d1cb510e2a7c37b024a994a29642e4047ae84d9`.  
 S4 durable architecture reconciliation: `ARCHITECTURE.md` v3.4 commit `063775b6ac5a465cdfae2e642bfa07275e251d0f`.  
 Accepted S1-S4 record-reconciled checkpoint: `3a73068951b09c35c00ba7568fac865c0122f640`.  
-Repository-capacity prerequisite #281 / PR #282 integration commit: `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.
+Repository-capacity prerequisite #281 / PR #282 integration commit: `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.  
+Accepted post-capacity record-reconciled S5 dependency checkpoint: `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`.  
+S5 workstream branch: `ws/w6-candidate-competition`.
 
-The S1-S4 record-reconciled checkpoint `3a73068951b09c35c00ba7568fac865c0122f640` passed fresh cumulative Workstream Spec Validation #442 / `33033559763`, Bounded Autonomy Pilot #652 / `33033559626`, and P2 CI #1038 / `33033559757`. It is accepted as the pre-capacity S5 dependency state.
+The S1-S4 record-reconciled checkpoint `3a73068951b09c35c00ba7568fac865c0122f640` passed cumulative Workstream Spec Validation #442 / `33033559763`, Bounded Autonomy Pilot #652 / `33033559626`, and P2 CI #1038 / `33033559757`.
 
-S5 specification artifacts could not be added safely at that checkpoint because the self-hosting repository had reached the then-protected 512-entry GitHub source-tree ceiling. Control Tower therefore isolated the capacity concern as maintenance prerequisite #281 rather than weakening S4 or hiding S5 files inside unrelated modules. #281 is now integrated; the final CURRENT-STATE commit containing this reconciliation must pass fresh cumulative validation before Control Tower releases S5 spec-first work from the exact post-capacity checkpoint.
+S5 specification artifacts could not be added safely at that checkpoint because the self-hosting repository had reached the then-protected 512-entry GitHub source-tree ceiling. Control Tower isolated that concern as maintenance prerequisite #281 rather than weakening S4 or hiding S5 files inside unrelated modules. #281 was accepted/integrated after exact worker `da32b90621e5da1971a6306243049bd463990642` passed Workstream #444 / `33034064564`, Bounded Autonomy #653 / `33034064574`, and P2 CI #1040 / `33034064545`.
+
+The resulting post-capacity record checkpoint `f79bc8ca3f2ebce31a82725b9851a410d4c7418b` then passed fresh cumulative Workstream Spec Validation #447 / `33034424089`, Bounded Autonomy Pilot #655 / `33034403657`, and P2 CI #1043 / `33034424125`. Control Tower accepted that exact SHA as the W6-S5 dependency baseline and released **spec-first S5 work only**. S5 semantic implementation remains blocked until `P2-V0.19.5` has stable acceptance IDs, authentic DSPy SpecCritic + SpecCompiler evidence committed at `specs/compiled/P2-V0.19.5.plan.json`, protected `--require-dspy` validation passes, any temporary DSPy workflow modification is restored byte-for-byte, and Control Tower explicitly releases the semantic development gate.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
@@ -137,14 +141,22 @@ Exact worker tests prove 1024 entries are accepted, 1025 are rejected, requested
 
 This prerequisite increases bounded read capacity only. It grants no new provider, credential, source-lineage, Engineering Run, validation, merge/deploy, spending, approval or REVIEW authority.
 
+### S5 — Candidate Competition & Synthesis — SPEC-FIRST ACTIVE / SEMANTIC IMPLEMENTATION BLOCKED
+
+Issue #268 / spec `P2-V0.19.5`; accepted dependency baseline `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`; branch `ws/w6-candidate-competition`.
+
+Control Tower has authorized specification and DSPy development-gate work only. The S5 contract is being defined around selective bounded competition, exact candidate/source-lineage isolation, deterministic validation before comparison, structurally independent S3 evaluation, bounded S4 economics, deterministic winner evidence, and synthesis as a request for a **new** candidate lineage that must undergo fresh BUILD/TEST/VERIFY and independent evaluation. S5 remains evidence-only: it cannot accept canonical source, transition protected Engineering Run state, invoke providers or spending, merge/deploy, approve, complete REVIEW or bypass `HUMAN_REQUIRED`.
+
+No S5 semantic runtime implementation is accepted or integrated. A drafted spec or generated plan alone is not semantic-release evidence.
+
 ### Current Wave 6 dependency state
 
 1. #264 / `W6-S1` / `P2-V0.19.1` — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / `W6-S2` / `P2-V0.19.2` — **COMPLETE / ACCEPTED / INTEGRATED**;
 3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
 4. #267 / `W6-S4` / `P2-V0.19.4` — **COMPLETE / ACCEPTED / INTEGRATED / CUMULATIVE S1-S4 CHECKPOINT ACCEPTED**;
-5. #281 / `W6-CAPACITY-1` — **COMPLETE / ACCEPTED / INTEGRATED; POST-CAPACITY RECORD CHECKPOINT VALIDATION PENDING**;
-6. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED ONLY ON ACCEPTANCE OF THE FINAL POST-CAPACITY RECORD-RECONCILED EXACT HEAD**;
+5. #281 / `W6-CAPACITY-1` — **COMPLETE / ACCEPTED / INTEGRATED**;
+6. #268 / `W6-S5` / `P2-V0.19.5` — **ACTIVE / SPEC-FIRST ONLY / SEMANTIC IMPLEMENTATION BLOCKED ON AUTHENTIC DSPY DEVELOPMENT GATE**;
 7. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
 PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
@@ -182,14 +194,16 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Durable invariants
 
 - canonical Project, Work Specification, Engineering Run, repository/source identity and accepted lineage remain server-owned;
-- deterministic/protected validation outranks model, agent, evaluator or routing judgment;
-- repository/source/model/agent/evaluator/routing content is evidence, not authority;
+- deterministic/protected validation outranks model, agent, evaluator, routing or competition judgment;
+- repository/source/model/agent/evaluator/routing/competition content is evidence, not authority;
 - exact agent task/result/checkpoint evidence cannot redefine acceptance or canonical source state;
 - team orchestration cannot grant capabilities, provider scope, credentials, source authority or validation/release authority;
 - independent evaluation cannot override deterministic failure or become acceptance/merge/deployment/REVIEW authority;
 - economic routing cannot trade correctness, deterministic validation, evaluator policy, privacy or human boundaries for cost/time;
 - missing/unknown/unavailable/stale/invalid economic evidence is never synthesized as zero or success;
 - routing cannot invoke providers, authorize spending, accept lineage, choose a final candidate winner, merge/deploy or complete REVIEW;
+- candidate competition cannot accept canonical source, reinterpret deterministic failure, authorize spending/provider actions, or turn synthesis into an unvalidated source splice;
+- any synthesized candidate is a new exact lineage requiring fresh deterministic validation and fresh independent evaluation;
 - repository source-tree reads remain hard-bounded and fail closed on provider truncation or caller-bound oversize; capacity changes do not create provider authority;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
 - correction cannot weaken acceptance/evaluation policy;
@@ -204,8 +218,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.4 — unchanged by #281; the durable S4 architecture remains authoritative and the existing bounded-provider/lineage architecture already covers this resource-capacity adjustment.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4/#281 introduce no durable product visual-language change.
-- `CURRENT-STATE.md` — reconciled to accepted S1-S4 cumulative validation and integrated repository-capacity prerequisite #281; S5 remains blocked until this exact post-capacity record head is cumulatively accepted.
+- `ARCHITECTURE.md` v3.4 — unchanged at S5 entry; S5 has not yet passed its semantic development gate or changed durable system architecture.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4/#281/S5 spec-first work introduces no durable product visual-language change.
+- `CURRENT-STATE.md` — reconciled to accepted post-capacity S1-S4 checkpoint `f79bc8ca3f2ebce31a82725b9851a410d4c7418b` and the Control Tower decision authorizing S5 spec-first work while keeping semantic implementation blocked on authentic DSPy evidence.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
