@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Deterministic validation remains authoritative. Agent/evaluator/routing/competition judgment cannot outvote failed or missing protected BUILD/TEST/VERIFY evidence."
+  ],
+  "work_items": [
+    "Create the permanent integrated Wave 6 reference proof demonstrating that Parallax can take an approved development objective and, without requiring the operator to manually manage agents, deterministically select an appropriate governed engineering team, coordinate dependency-safe work, recover/reassign bounded failures, independently evaluate exact candidates, use trustworthy quality/cost/time evidence, selectively compete or synthesize alternatives when policy admits it, and publish an exact-lineage working Preview that stops at `REVIEW` / `HUMAN_REQUIRED`."
+  ],
+  "validations": [
+    "The operator does not manually manage agents. Server-owned policy decides one-agent versus bounded multi-agent formation, dependencies, reassignment and selective competition within existing S1-S5 limits.",
+    "AC-01: validate protected requirement \u2014 Every supported reference case binds one canonical Project, exact Work Specification revision/digest and stable acceptance IDs, one Engineering Run, exact task/attempt identities, exact candidate/source-lineage identity and exact relevant S1-S5 policy/evidence identities through protected execution, evaluation, routing/competition and Preview evidence. Mismatch, drift, duplicate or cross-Project identity fails closed.",
+    "AC-02: validate protected requirement \u2014 Permanent fixtures prove S2 independently chooses one versus bounded multi-agent teams from admitted capabilities, schedules dependency-safe parallel work, serializes overlapping coordination domains and does not require manual operator assignment. Ineligible agents cannot be forced into the team by fixture or agent content.",
+    "AC-03: validate protected requirement \u2014 A permanent failure/recovery fixture proves worker/agent failure is recovered or reassigned only from durable accepted evidence with correct generation/attempt identity, bounded retry/reassignment/no-progress behavior and no duplicate accepted source mutation after process recreation/retry.",
+    "AC-04: validate protected requirement \u2014 Permanent fixtures prove protected deterministic BUILD/TEST/VERIFY evidence remains authoritative, producer self-assessment cannot satisfy S3 independence, failed/missing deterministic evidence cannot be outvoted, and exact replay/conflicting evaluation behavior remains deterministic and fail-closed.",
+    "AC-05: validate protected requirement \u2014 S4 composition exposes provenance-bound quality, elapsed-time, cost/usage, retry/reassignment and intervention evidence with explicit known/unknown/stale state. Economic advantage cannot override correctness, required evaluation support or unresolved `HUMAN_REQUIRED`.",
+    "AC-06: validate protected requirement \u2014 S5 composition proves competition occurs only when policy admits it, non-competitive cases remain single-candidate, only eligible candidates enter deterministic comparison, winner evidence remains non-accepting, and synthesis creates a fresh candidate/attempt/lineage requiring fresh protected validation and independent evaluation.",
+    "AC-07: validate protected requirement \u2014 A permanent integrated case proves the supported exact candidate/source lineage is the lineage delivered to Preview through the existing protected provider path, publication evidence is exact and bounded, and replay/process recreation does not duplicate publication or substitute a stale lineage.",
+    "AC-08: validate protected requirement \u2014 Successful integrated execution ends at the protected operator-review ceiling. Fixtures and adversarial cases prove no agent/evaluator/routing/competition/benchmark content can merge, production-deploy, approve, complete REVIEW or bypass `HUMAN_REQUIRED`.",
+    "AC-09: validate protected requirement \u2014 Permanent negative fixtures prove capability/credential escalation, acceptance redefinition, self-acceptance, validation weakening/fabrication, cross-Project leakage, stale/replay/conflicting evidence, lower-cost failed-candidate preference, out-of-policy competition, inherited synthesis validation and unauthorized merge/deploy/REVIEW attempts are rejected or fail closed with bounded evidence.",
+    "AC-10: validate protected requirement \u2014 Exact reference-case replay produces equivalent proof fingerprints/results; admitted identity/policy/evidence drift produces distinguishable fingerprints; conflicting records fail closed. Safe proof serialization excludes secrets/source bytes/raw payloads/prompts/hidden reasoning/arbitrary commands and grants no new authority.",
+    "AC-11: validate protected requirement \u2014 For appropriate permanent cases, the harness reports trustworthy Wave 5 baseline versus Wave 6 challenger evidence and demonstrates material improvement in at least one of completion reliability, operator intervention, quality, cost or elapsed time while protected correctness, safety, privacy and governance do not regress. Unknown/incomparable dimensions remain explicit.",
+    "AC-12: validate protected requirement \u2014 `P2-V0.19.6` has stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation; temporary DSPy workflow changes are restored byte-for-byte; focused S6 and relevant S1-S5/protected-runtime regressions pass; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no merge, deployment, production mutation or release claim."
+  ],
+  "risks": [
+    "Failure recovery is durable and bounded. Recovery/reassignment must derive from accepted worker/lease/checkpoint/evidence state; replay cannot duplicate mutation or publication."
+  ],
+  "spec_id": "P2-V0.19.6",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact end-to-end canonical identity continuity",
+      "protected_requirement": "Every supported reference case binds one canonical Project, exact Work Specification revision/digest and stable acceptance IDs, one Engineering Run, exact task/attempt identities, exact candidate/source-lineage identity and exact relevant S1-S5 policy/evidence identities through protected execution, evaluation, routing/competition and Preview evidence. Mismatch, drift, duplicate or cross-Project identity fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Autonomous smallest-adequate team formation and dependency-safe coordination",
+      "protected_requirement": "Permanent fixtures prove S2 independently chooses one versus bounded multi-agent teams from admitted capabilities, schedules dependency-safe parallel work, serializes overlapping coordination domains and does not require manual operator assignment. Ineligible agents cannot be forced into the team by fixture or agent content."
+    },
+    {
+      "id": "AC-03",
+      "title": "Durable bounded recovery and reassignment",
+      "protected_requirement": "A permanent failure/recovery fixture proves worker/agent failure is recovered or reassigned only from durable accepted evidence with correct generation/attempt identity, bounded retry/reassignment/no-progress behavior and no duplicate accepted source mutation after process recreation/retry."
+    },
+    {
+      "id": "AC-04",
+      "title": "Protected validation precedence and independent quality judgment",
+      "protected_requirement": "Permanent fixtures prove protected deterministic BUILD/TEST/VERIFY evidence remains authoritative, producer self-assessment cannot satisfy S3 independence, failed/missing deterministic evidence cannot be outvoted, and exact replay/conflicting evaluation behavior remains deterministic and fail-closed."
+    },
+    {
+      "id": "AC-05",
+      "title": "Trustworthy outcome routing and development economics",
+      "protected_requirement": "S4 composition exposes provenance-bound quality, elapsed-time, cost/usage, retry/reassignment and intervention evidence with explicit known/unknown/stale state. Economic advantage cannot override correctness, required evaluation support or unresolved `HUMAN_REQUIRED`."
+    },
+    {
+      "id": "AC-06",
+      "title": "Selective competition and fresh-lineage synthesis",
+      "protected_requirement": "S5 composition proves competition occurs only when policy admits it, non-competitive cases remain single-candidate, only eligible candidates enter deterministic comparison, winner evidence remains non-accepting, and synthesis creates a fresh candidate/attempt/lineage requiring fresh protected validation and independent evaluation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Exact-lineage replay-safe Preview publication",
+      "protected_requirement": "A permanent integrated case proves the supported exact candidate/source lineage is the lineage delivered to Preview through the existing protected provider path, publication evidence is exact and bounded, and replay/process recreation does not duplicate publication or substitute a stale lineage."
+    },
+    {
+      "id": "AC-08",
+      "title": "REVIEW/HUMAN_REQUIRED autonomous ceiling",
+      "protected_requirement": "Successful integrated execution ends at the protected operator-review ceiling. Fixtures and adversarial cases prove no agent/evaluator/routing/competition/benchmark content can merge, production-deploy, approve, complete REVIEW or bypass `HUMAN_REQUIRED`."
+    },
+    {
+      "id": "AC-09",
+      "title": "Adversarial authority, validation and privacy resistance",
+      "protected_requirement": "Permanent negative fixtures prove capability/credential escalation, acceptance redefinition, self-acceptance, validation weakening/fabrication, cross-Project leakage, stale/replay/conflicting evidence, lower-cost failed-candidate preference, out-of-policy competition, inherited synthesis validation and unauthorized merge/deploy/REVIEW attempts are rejected or fail closed with bounded evidence."
+    },
+    {
+      "id": "AC-10",
+      "title": "Deterministic replay, recovery and safe proof serialization",
+      "protected_requirement": "Exact reference-case replay produces equivalent proof fingerprints/results; admitted identity/policy/evidence drift produces distinguishable fingerprints; conflicting records fail closed. Safe proof serialization excludes secrets/source bytes/raw payloads/prompts/hidden reasoning/arbitrary commands and grants no new authority."
+    },
+    {
+      "id": "AC-11",
+      "title": "Measured Wave 5 comparison without governance regression",
+      "protected_requirement": "For appropriate permanent cases, the harness reports trustworthy Wave 5 baseline versus Wave 6 challenger evidence and demonstrates material improvement in at least one of completion reliability, operator intervention, quality, cost or elapsed time while protected correctness, safety, privacy and governance do not regress. Unknown/incomparable dimensions remain explicit."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact-head release evidence and worker boundary",
+      "protected_requirement": "`P2-V0.19.6` has stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation; temporary DSPy workflow changes are restored byte-for-byte; focused S6 and relevant S1-S5/protected-runtime regressions pass; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no merge, deployment, production mutation or release claim."
+    }
+  ],
+  "critique": [
+    "Deterministic validation remains authoritative. Agent/evaluator/routing/competition judgment cannot outvote failed or missing protected BUILD/TEST/VERIFY evidence."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
