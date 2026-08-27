@@ -10,11 +10,9 @@ from parallax_api.code.domain import TERMINAL_STAGES
 from parallax_api.db import Base, get_session, make_engine
 from parallax_api.models import Conversation, EngineeringRun
 from parallax_api.projects.model import Project
-from parallax_api.projects.repository import TERMINAL_RUN_STATES as PROJECT_TERMINAL_RUN_STATES
+from parallax_api.projects.repository import terminal_run_states as project_terminal_run_states
 from parallax_api.projects.routes import router as projects_router
-from parallax_api.repositories.conversations import (
-    TERMINAL_RUN_STATES as CONVERSATION_TERMINAL_RUN_STATES,
-)
+from parallax_api.repositories.conversations import terminal_run_states as conversation_terminal_run_states
 from parallax_api.routes.conversations import router as conversations_router
 
 
@@ -91,8 +89,8 @@ def set_run_state(Session, run_id: str, state: str) -> None:
 
 def test_deletion_terminal_states_track_protected_runtime_contract():
     expected = frozenset(stage.value for stage in TERMINAL_STAGES)
-    assert CONVERSATION_TERMINAL_RUN_STATES == expected
-    assert PROJECT_TERMINAL_RUN_STATES == expected
+    assert conversation_terminal_run_states() == expected
+    assert project_terminal_run_states() == expected
     assert "SPEC_AMENDMENT" in expected
     assert "FAILED" not in expected
 
