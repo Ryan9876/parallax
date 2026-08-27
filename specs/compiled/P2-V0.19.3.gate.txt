@@ -1,1 +1,0 @@
-Temporary branch-local gate trigger; delete immediately after protected-plan validation.
