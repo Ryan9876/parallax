@@ -2,13 +2,13 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1 ACCEPTED AND INTEGRATED / S2-S3 DEPENDENCY GATE RELEASED / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S3 ACCEPTED AND INTEGRATED / S4 CUMULATIVE-BASELINE GATE PENDING / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus bounded stabilization through #127, mobile stabilization #261/#262, and response-stream stabilization #271/#272.
 
-Wave 6 S1 is **not** a production deployment. It is accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
+Wave 6 S1-S3 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
 
 ### Production client
 
@@ -40,17 +40,7 @@ Wave 6 S1 is **not** a production deployment. It is accepted only on the governe
 
 ### Mobile #261 / PR #262
 
-The mobile release replaced the confusing compact desktop composition with a mobile-specific guided model while preserving server-owned engineering authority. Deployment-verified behavior includes:
-
-- mobile primary destinations `Chat`, `Build`, and `Project`;
-- conversation-first Chat with a persistent touch-safe composer;
-- full-screen Work Specification review;
-- plain-language `SPEC_AMENDMENT` recovery;
-- guided Build lifecycle with authoritative engineering evidence;
-- canonical Project/conversation switching;
-- compact authenticated access-launcher behavior;
-- Live Build return behavior that returns to Chat;
-- no API/runtime, credential, source-lineage, provider, approval, REVIEW/HUMAN_REQUIRED, merge, or deployment authority broadening.
+The mobile release replaced the confusing compact desktop composition with a mobile-specific guided model while preserving server-owned engineering authority. Deployment-verified behavior includes mobile primary destinations `Chat`, `Build`, and `Project`; conversation-first Chat; full-screen Work Specification review; plain-language `SPEC_AMENDMENT` recovery; guided Build lifecycle; canonical Project/conversation switching; compact authenticated access-launcher behavior; and Live Build return behavior that returns to Chat.
 
 Historical mobile release identity:
 
@@ -74,83 +64,56 @@ Release evidence retained:
 
 ## Wave 5 baseline retained
 
-Control Tower #215 completed the generalized application-delivery program:
-
-1. #216 / `P2-V0.18.1` — Repository Intelligence & Compatibility;
-2. #217 / `P2-V0.18.2` — Governed Skills Runtime;
-3. #218 / `P2-V0.18.3` — Application Service Bindings;
-4. #219 / `P2-V0.18.4` — Objective-to-Application Orchestration;
-5. #220 / `P2-V0.18.5` — Validated Engineering Memory & Reuse;
-6. #221 / `P2-V0.18.6` — Generalization Benchmark & Integrated Reference Proof.
-
-Final Wave 5 application release merge `c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains the generalized-delivery architectural baseline. Production stabilization after that release is cumulative rather than a replacement architecture.
+Control Tower #215 completed the generalized application-delivery program through #216-#221 / `P2-V0.18.1`-`P2-V0.18.6`. Final Wave 5 application release merge `c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains the generalized-delivery architectural baseline. Production stabilization after that release is cumulative rather than a replacement architecture.
 
 ## Wave 6 — Agentic Development Control Plane
 
-Control Tower: #263.
-
-Integration branch: `integration/wave6-agentic-control-plane`.
-
-Accepted post-response-stabilization starting baseline: `c87d5ec6b2c59a983d1b97f1d4f61d2e02808e5c`.
+Control Tower: #263.  
+Integration branch: `integration/wave6-agentic-control-plane`.  
+Accepted post-response-stabilization starting baseline: `c87d5ec6b2c59a983d1b97f1d4f61d2e02808e5c`.  
+Accepted cumulative S1 checkpoint: `53952ab5010275410f06f5940ffaa89e139016eb`.  
+Current raw S1-S3 integration commit before record reconciliation: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
-Issue: #264  
-Spec: `P2-V0.19.1`  
-Worker branch: `ws/w6-agent-adapter-protocol`  
-Worker PR: #274  
-Exact validated worker head: `8cc911128d41dc648f2fb6136524edb3e35cfeaf`  
-Exact S1 integration commit: `78720fbfcce3adba508765e30c5e452f1bd33b9e`
+Issue #264 / spec `P2-V0.19.1`; worker PR #274; exact validated worker `8cc911128d41dc648f2fb6136524edb3e35cfeaf`; integration commit `78720fbfcce3adba508765e30c5e452f1bd33b9e`.
 
-S1 establishes a provider-neutral protocol for engineering agents as bounded labor. The accepted contract provides:
+S1 establishes provider-neutral engineering agents as bounded labor with exact Project/run/spec/acceptance/task/attempt binding; typed agent/adapter identity and capability declarations as evidence only; bounded result/checkpoint/evidence references; deterministic stale/revoked/duplicate/replay/competing-terminal admission; explicit usage provenance; privacy-safe serialization; and reference-adapter interchangeability/recovery semantics. It creates no second source-lineage, validation, provider, release, approval or REVIEW authority path.
 
-- exact canonical Project/run/Work Specification revision/digest/acceptance binding;
-- exact operation/request/attempt and optional source-lineage context binding;
-- typed agent and adapter identity/version/capability declarations as evidence only;
-- bounded result/checkpoint/evidence references;
-- normalized lifecycle, recoverable failure, terminal failure, timeout and cancellation evidence;
-- deterministic stale/revoked/duplicate/replay/competing-terminal admission behavior;
-- explicit observed/unavailable/unknown usage semantics with provenance;
-- privacy-safe evidence that excludes raw provider payloads, credentials, secret handles, arbitrary URLs, prompts and hidden reasoning;
-- at least two deterministic reference adapter behaviors demonstrating interchangeability/recovery semantics without transferring authority.
+Exact worker gates passed: Workstream #420 / `33025692576`, Bounded Autonomy #636 / `33025692605`, P2 CI #1016 / `33025692492`; focused protocol suite 34 passed; protected promotion, client/browser/Skia and DSPy release compilation passed.
 
-S1 does **not** create a second Engineering Run, worker, source-lineage, validation or release authority path. Agent/adapter output cannot accept canonical lineage, change acceptance criteria, grant tools/capabilities/credentials, obtain unrestricted shell/network access, merge/deploy, approve, or bypass REVIEW/HUMAN_REQUIRED.
+### S2 — Dynamic Development Team Orchestration — ACCEPTED / INTEGRATED
 
-### S1 spec-first and exact-head evidence
+Issue #265 / spec `P2-V0.19.2`; worker PR #278; exact validated worker `fc27331628b8f2a975a7bb63b21255c7784a5de3`; integration commit `78d25beffd21bb983fadcd179b3124c325c25a55`.
 
-Refreshed DSPy development gate:
+S2 composes S1 agent evidence into deterministic bounded team formation and orchestration. It admits agents only through server-owned eligibility policy; chooses the smallest adequate one-agent or bounded multi-agent team; validates dependency-safe scheduling; conservatively serializes overlapping coordination domains; creates deterministic replay-safe assignment identities; composes S1 task/result admission without acquiring source/run authority; permits reassignment only from durable worker evidence with explicit generation increments; and enforces bounded team, concurrency, retry, replan, reassignment and no-progress limits.
 
-- run `33023537013` — success;
-- artifact `9627539434`;
-- artifact digest `sha256:ae89ef99a16d6afc14a71f7174c954e328d469986ca8d0c1eff7a0783e7f2494`;
-- protected score `1.000`;
-- authentic compiled plan `specs/compiled/P2-V0.19.1.plan.json` committed;
-- `validate_spec.py ... --require-dspy` passed;
-- temporary branch-local DSPy workflow trigger restored before final implementation candidate.
+S2 remains labor orchestration evidence. It cannot grant capabilities/credentials/provider access, mutate or accept canonical source, weaken deterministic validation, decide final quality, merge/deploy, approve or bypass REVIEW/HUMAN_REQUIRED.
 
-Exact worker head `8cc911128d41dc648f2fb6136524edb3e35cfeaf` passed:
+Exact worker gates passed: Workstream #424 / `33028479989`, Bounded Autonomy #638 / `33028479972`, P2 CI #1020 / `33028480106`; full API regression `673 passed, 1 skipped`; client/browser/Skia, protected promotion and DSPy release compilation passed.
 
-- Workstream Spec Validation #420 / run `33025692576`;
-- Bounded Autonomy Pilot #636 / run `33025692605`;
-- P2 CI #1016 / run `33025692492`;
-- full API regression;
-- focused S1 protocol suite — 34 passed;
-- client/browser/Skia acceptance;
-- protected promotion evaluation;
-- DSPy release compilation.
+### S3 — Independent Evaluation & Quality Judgment — ACCEPTED / INTEGRATED
 
-PR #274 was merged with expected-head protection into the Wave 6 integration branch. No production promotion occurred.
+Issue #266 / spec `P2-V0.19.3`; worker PR #279; exact validated worker `cd16885d75931223d460468f6b14569b047c99b2`; integration commit `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.
+
+S3 establishes a bounded independent-evaluation evidence layer. Every evaluation binds exact Project/run/Work Specification revision/digest/acceptance IDs, exact candidate/source-lineage identity, producer identity, evaluator identity and server-owned evaluator-policy identity. Protected deterministic validation is authoritative and first; failed/missing/mismatched protected evidence cannot be outvoted by an evaluator. Producer self-assessment cannot satisfy independence. Qualitative findings are bounded, evidence-referenced and privacy-safe with explicit `SUPPORTED`, `DETERMINISTIC_BLOCKED`, `NOT_INDEPENDENT`, `INSUFFICIENT_EVIDENCE`, `POLICY_REJECTED` and `HUMAN_REQUIRED` outcomes. Replay is fingerprinted and duplicate-safe; competing records fail closed.
+
+S3 output is evidence only. It cannot accept lineage, transition protected Engineering Run state, choose provider/spending, choose a candidate winner, merge/deploy, complete REVIEW, grant capabilities or bypass HUMAN_REQUIRED.
+
+Spec/DSPy gate: run `33028365447`, artifact `9629322869`, digest `sha256:46d40930a053654bb0f99bd693bc82cdedfe52307a9e7651728fa38e99c3faea`, protected score `1.000`; reconciled development-gate head `50574a532abad2a67da32205e2524949b3c2f874` passed Workstream #430.
+
+Final exact worker head passed Workstream #431 / `33029830303`, Bounded Autonomy #644 / `33029830299`, and P2 CI #1027 / `33029830337`, including full API/contracts, client/browser/Skia, protected promotion evaluation and DSPy release compilation. Final scope was 0 commits behind accepted S2 and exactly four S3-owned paths.
 
 ### Current Wave 6 dependency state
 
 1. #264 / `W6-S1` / `P2-V0.19.1` — **COMPLETE / ACCEPTED / INTEGRATED**;
-2. #265 / `W6-S2` / `P2-V0.19.2` — **AUTHORIZED TO BEGIN SPEC-FIRST FROM ACCEPTED S1 DEPENDENCY STATE**;
-3. #266 / `W6-S3` / `P2-V0.19.3` — **AUTHORIZED TO BEGIN SPEC-FIRST FROM ACCEPTED S1 DEPENDENCY STATE**;
-4. #267 / `W6-S4` / `P2-V0.19.4` — telemetry/contracts may be designed, but final routing remains dependent on trustworthy accepted S1-S3 evidence;
-5. #268 / `W6-S5` / `P2-V0.19.5` — dependency-blocked on S2/S3/S4;
-6. #269 / `W6-S6` / `P2-V0.19.6` — dependency-blocked on accepted S1-S5.
+2. #265 / `W6-S2` / `P2-V0.19.2` — **COMPLETE / ACCEPTED / INTEGRATED**;
+3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
+4. #267 / `W6-S4` / `P2-V0.19.4` — **FUNCTIONAL DEPENDENCIES SATISFIED; WAITING FOR RECONCILED + EXACT-VALIDATED CUMULATIVE S1-S3 INTEGRATION BASELINE BEFORE SPEC-FIRST WORKER START**;
+5. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED ON ACCEPTED S4 OUTCOME EVIDENCE**;
+6. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
-S2 and S3 must each begin from exact accepted dependency baseline `78720fbfcce3adba508765e30c5e452f1bd33b9e` or a later Control-Tower-recorded integration head. Their semantic implementation remains blocked until each has its own valid Work Specification with stable acceptance IDs and authentic committed DSPy SpecCritic + SpecCompiler evidence.
+Control Tower must reconcile durable architecture/current-state records for S2/S3 and obtain fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI on the resulting exact integration head before recording the S4 worker baseline. PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
 
 ## Rollback
 
@@ -185,9 +148,11 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Durable invariants
 
 - canonical Project, Work Specification, Engineering Run, repository/source identity and accepted lineage remain server-owned;
-- deterministic/protected validation outranks model or agent judgment;
-- repository/source/model/agent content is evidence, not authority;
+- deterministic/protected validation outranks model, agent or evaluator judgment;
+- repository/source/model/agent/evaluator content is evidence, not authority;
 - exact agent task/result/checkpoint evidence cannot redefine acceptance or canonical source state;
+- team orchestration cannot grant capabilities, provider scope, credentials, source authority or validation/release authority;
+- independent evaluation cannot override deterministic failure or become acceptance/merge/deployment/REVIEW authority;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
 - correction cannot weaken acceptance/evaluation policy;
 - skills, service bindings, repository intelligence, engineering memory, agents and adapters cannot create execution/provider/deployment/approval authority;
@@ -201,8 +166,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.2 — updated because accepted S1 establishes a durable provider-neutral engineering-agent task/evidence/admission contract while preserving all pre-existing authority boundaries.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; S1 has no durable product visual-language change.
-- `CURRENT-STATE.md` — updated because S1 passed its exact-head gates, was accepted and integrated, #264 completed, and the S2/S3 dependency gate was materially released.
+- `ARCHITECTURE.md` — requires S2/S3 durable-contract reconciliation before the cumulative S1-S3 checkpoint can be accepted for S4.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; S2/S3 introduce no durable product visual-language change.
+- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S3 and the S4 cumulative-baseline gate.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
