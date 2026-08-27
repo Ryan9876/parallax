@@ -6,11 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..code.domain import TERMINAL_STAGES
 from ..models import EngineeringRun, utcnow
 from .model import Project
 
 
-TERMINAL_RUN_STATES = ("COMPLETE", "CANCELLED")
+TERMINAL_RUN_STATES = frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ProjectConflictError(RuntimeError):
