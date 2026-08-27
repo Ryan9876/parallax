@@ -3,12 +3,14 @@ from __future__ import annotations
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..code.domain import TERMINAL_STAGES
 from ..models import Conversation, EngineeringRun, Message, utcnow
 from ..projects.model import Project
 
 
-TERMINAL_RUN_STATES = frozenset(stage.value for stage in TERMINAL_STAGES)
+def terminal_run_states() -> frozenset[str]:
+    from ..code.domain import TERMINAL_STAGES
+
+    return frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ConversationRepository:
@@ -103,7 +105,7 @@ class ConversationRepository:
             select(EngineeringRun.id)
             .where(
                 EngineeringRun.conversation_id == conversation_id,
-                EngineeringRun.state.notin_(TERMINAL_RUN_STATES),
+                EngineeringRun.state.notin_(terminal_run_states()),
             )
             .limit(1)
         )
