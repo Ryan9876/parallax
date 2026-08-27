@@ -3,11 +3,12 @@ from __future__ import annotations
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from ..code.domain import TERMINAL_STAGES
 from ..models import Conversation, EngineeringRun, Message, utcnow
 from ..projects.model import Project
 
 
-TERMINAL_RUN_STATES = ("COMPLETE", "CANCELLED")
+TERMINAL_RUN_STATES = frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ConversationRepository:
