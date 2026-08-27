@@ -2,8 +2,8 @@ name: Apply Wave 6 live source-context digest fix
 
 on:
   push:
-    branches: [hotfix/w6-live-source-context-digest]
-    paths: [.github/workflows/apply-w6-live-source-context-digest.yml]
+    branches:
+      - hotfix/w6-live-source-context-digest
 
 permissions:
   contents: write
