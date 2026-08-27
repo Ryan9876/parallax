@@ -1,6 +1,98 @@
 {
+  "architecture_decisions": [
+    "{Architecture Decision: Implement a provider-neutral, configuration-driven model routing capability}"
+  ],
+  "work_items": [
+    "{Work Item: Add provider-neutral, configuration-driven model routing capability}"
+  ],
+  "validations": [
+    "{Validation: Protected validation and canonical model identity remain unchanged, while local-first routing is opt-in and server-owned}",
+    "AC-01: validate protected requirement \u2014 With no local-first configuration, effective runtime order remains exactly `openai/gpt-5.6-luna`, `openai/gpt-5.6-terra`, `openai/gpt-5.6-sol`, and existing hosted transport tests remain green.",
+    "AC-02: validate protected requirement \u2014 A bounded server-owned configuration can place one admitted local model before the hosted chain. Empty, duplicate, malformed, unsupported, caller-controlled or secret-bearing route configuration fails closed before model execution.",
+    "AC-03: validate protected requirement \u2014 A configured local endpoint applies only to its admitted local route. Hosted GPT-5.6 routes continue to use the fixed Vercel AI Gateway endpoint with canonical model IDs and are not redirected to the local endpoint.",
+    "AC-04: validate protected requirement \u2014 When the local route returns a result accepted by the existing protected validator, routing returns that result and does not attempt a hosted model. Bounded attempt evidence identifies the local model/provider without exposing endpoint credentials or payloads.",
+    "AC-05: validate protected requirement \u2014 When the local route is unavailable or raises a provider failure, routing records only sanitized bounded failure evidence and advances to the next admitted hosted route without changing the acceptance contract.",
+    "AC-06: validate protected requirement \u2014 When the local route returns output rejected by the existing protected validator, routing records `validation_failed`, advances to the next admitted route and cannot lower or bypass the validator.",
+    "AC-07: validate protected requirement \u2014 Request-scoped Vercel OIDC remains the only automatic hosted-production GPT-5.6 credential path. Process `VERCEL_OIDC_TOKEN` remains non-authoritative and local configuration cannot substitute a credential for hosted production routing.",
+    "AC-08: validate protected requirement \u2014 Existing `DSPY_API_BASE` / `DSPY_API_KEY` behavior remains an intentional operator override. Local-first provider configuration is not silently combined with or substituted for this compatibility path.",
+    "AC-09: validate protected requirement \u2014 Logs and attempt evidence contain only admitted model/provider identity, status, duration and sanitized error class. Tests prove endpoint credentials, authorization values, raw provider errors/results and generated content are not logged.",
+    "AC-10: validate protected requirement \u2014 Tests and code inspection prove local-first routing grants no shell/network capability, source acceptance, Project/spec mutation, provider spending authority, GitHub/Vercel authority, approval, REVIEW completion or production deployment authority.",
+    "AC-11: validate protected requirement \u2014 The worker branch passes authentic DSPy spec compilation, protected `--require-dspy` plan validation and applicable exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI. The PR remains draft/DO NOT MERGE and no deployment occurs.",
+    "AC-12: validate protected requirement \u2014 Before integration, Wave 6 is deployment-verified and `CURRENT-STATE.md` reconciled; this branch is rebased/reconciled to that exact production SHA, architecture drift is resolved, required authentic evidence and exact-head gates are rerun, and Control Tower explicitly authorizes integration."
+  ],
+  "risks": [
+    "{Risk: No material risk, but potential for local-first configuration failure or unavailability of admitted routes, which may advance to the next admitted route without changing acceptance requirements}"
+  ],
   "spec_id": "P2-V0.19.7",
-  "status": "PROVISIONAL_NON_AUTHENTIC",
-  "note": "Placeholder only. Must be replaced by authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation is considered development-gate complete.",
-  "acceptance_ids": ["AC-01","AC-02","AC-03","AC-04","AC-05","AC-06","AC-07","AC-08","AC-09","AC-10","AC-11","AC-12"]
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Default hosted compatibility",
+      "protected_requirement": "With no local-first configuration, effective runtime order remains exactly `openai/gpt-5.6-luna`, `openai/gpt-5.6-terra`, `openai/gpt-5.6-sol`, and existing hosted transport tests remain green."
+    },
+    {
+      "id": "AC-02",
+      "title": "Validated local-first configuration",
+      "protected_requirement": "A bounded server-owned configuration can place one admitted local model before the hosted chain. Empty, duplicate, malformed, unsupported, caller-controlled or secret-bearing route configuration fails closed before model execution."
+    },
+    {
+      "id": "AC-03",
+      "title": "Per-provider transport isolation",
+      "protected_requirement": "A configured local endpoint applies only to its admitted local route. Hosted GPT-5.6 routes continue to use the fixed Vercel AI Gateway endpoint with canonical model IDs and are not redirected to the local endpoint."
+    },
+    {
+      "id": "AC-04",
+      "title": "Local success stops escalation",
+      "protected_requirement": "When the local route returns a result accepted by the existing protected validator, routing returns that result and does not attempt a hosted model. Bounded attempt evidence identifies the local model/provider without exposing endpoint credentials or payloads."
+    },
+    {
+      "id": "AC-05",
+      "title": "Local provider failure falls back",
+      "protected_requirement": "When the local route is unavailable or raises a provider failure, routing records only sanitized bounded failure evidence and advances to the next admitted hosted route without changing the acceptance contract."
+    },
+    {
+      "id": "AC-06",
+      "title": "Local protected-validation failure falls back",
+      "protected_requirement": "When the local route returns output rejected by the existing protected validator, routing records `validation_failed`, advances to the next admitted route and cannot lower or bypass the validator."
+    },
+    {
+      "id": "AC-07",
+      "title": "Hosted credential boundary preserved",
+      "protected_requirement": "Request-scoped Vercel OIDC remains the only automatic hosted-production GPT-5.6 credential path. Process `VERCEL_OIDC_TOKEN` remains non-authoritative and local configuration cannot substitute a credential for hosted production routing."
+    },
+    {
+      "id": "AC-08",
+      "title": "Explicit DSPy override compatibility",
+      "protected_requirement": "Existing explicit `DSPY_API_BASE` / `DSPY_API_KEY` behavior remains an intentional operator override. Local-first provider configuration is not silently combined with or substituted for this compatibility path."
+    },
+    {
+      "id": "AC-09",
+      "title": "Bounded diagnostics and secret safety",
+      "protected_requirement": "Logs and attempt evidence contain only admitted model/provider identity, status, duration and sanitized error class. Tests prove endpoint credentials, authorization values, raw provider errors/results and generated content are not logged."
+    },
+    {
+      "id": "AC-10",
+      "title": "No authority expansion",
+      "protected_requirement": "Tests and code inspection prove local-first routing grants no shell/network capability, source acceptance, Project/spec mutation, provider spending authority, GitHub/Vercel authority, approval, REVIEW completion or production deployment authority."
+    },
+    {
+      "id": "AC-11",
+      "title": "Isolated exact-head validation",
+      "protected_requirement": "The worker branch passes authentic DSPy spec compilation, protected `--require-dspy` plan validation and applicable exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI. The PR remains draft/DO NOT MERGE and no deployment occurs."
+    },
+    {
+      "id": "AC-12",
+      "title": "Post-Wave-6 reconciliation gate",
+      "protected_requirement": "Before integration, Wave 6 is deployment-verified and `CURRENT-STATE.md` reconciled; this branch is rebased/reconciled to that exact production SHA, architecture drift is resolved, required authentic evidence and exact-head gates are rerun, and Control Tower explicitly authorizes integration."
+    }
+  ],
+  "critique": [
+    "Material implementation risk: Local-first routing configuration is not properly validated and sanitized, allowing arbitrary endpoints, credentials, or route orders to be supplied, potentially leading to security vulnerabilities and incorrect routing behavior."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
 }
