@@ -2,24 +2,30 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION #291 DEPLOYED BUT NOT YET ACCEPTED AS DEPLOYMENT-VERIFIED / CORRECTIVE P2-V0.18.12 / PR #294 ACTIVE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION #291 + CORRECTIVE P2-V0.18.12/#294 DEPLOYED AND INFRASTRUCTURE-VERIFIED / AUTHENTICATED DELETION SMOKE PENDING / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus the accepted stabilization chain through mobile #261/#262, response-stream #271/#272 and P2-V0.18.10 model transport.
 
-Safe conversation/Project deletion from #290 / PR #291 is **present in production** at merge `a6d7a6fd4d556d5544ede9c43b93972a8c590011`, with the required additive database migration applied and both client/API deployments READY. It is **not yet accepted as deployment-verified feature behavior** because post-merge audit found two correctness/authority gaps now owned by corrective `P2-V0.18.12` / PR #294.
+Safe conversation/Project deletion from #290 is present in production. Initial PR #291 introduced the logical-deletion schema/API/client behavior at merge `a6d7a6fd4d556d5544ede9c43b93972a8c590011`. Corrective P2-V0.18.12 / PR #294 then hardened the deletion lifecycle and destructive authorization at merge `109444dcd7e13bfe842dea71355607941258b073`. The corrective API deployment is READY, production `/health` and `/ready` pass, the protected unauthenticated conversation boundary still returns 401, and the exact deployment has no error/fatal runtime records in the post-cutover scan.
+
+The feature is **deployed and infrastructure-verified but not yet accepted as fully deployment-verified feature behavior** because one live authenticated deletion smoke from the production UI remains outstanding. Exact-head tests already prove the 204/403/404/409 deletion contracts without risking real production data.
 
 Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. The deletion workstream remains on the current production line and does not activate Wave 6.
 
-### Deployed #291 application identity
+### Corrective application identity
 
 - production source branch: `main`;
-- deployed application merge: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- current corrective application merge: `109444dcd7e13bfe842dea71355607941258b073`;
+- corrective validated worker head: `3f49d1b5fa7ff41bd89303c92db897030a82247d`;
 - feature issue/workstream: #290 — safe deletion for old conversations and Projects;
-- initial release PR: #291 — squash merged from validated head `64b13d4f41d6849031c414eaf82986421bb523c9`;
-- Parallax P2 CI #1064 — PASS on the final #291 feature head;
-- Bounded Autonomy Pilot #669 — PASS on the final #291 feature head.
+- initial release PR: #291 — merged at `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- corrective PR: #294 — merged from exact validated head `3f49d1b5fa7ff41bd89303c92db897030a82247d` onto latest main;
+- corrective governing spec: `P2-V0.18.12`;
+- Workstream Spec Validation #471 — PASS on the final corrective head;
+- Bounded Autonomy Pilot #680 — PASS on the final corrective head;
+- Parallax P2 CI #1078 — PASS on the final corrective head.
 
 ### Production database
 
@@ -37,29 +43,31 @@ Verified schema:
 - `uq_projects_owner_slug_active` enforces owner-local slug uniqueness only for active Projects;
 - `uq_projects_owner_repository_active` enforces owner-local repository uniqueness only for active Projects with a repository reference.
 
-The migration is additive/backward-compatible and must not be destructively rolled back while the corrective release is in progress.
+The migration is additive/backward-compatible and must not be destructively rolled back while safe-deletion tombstones or identity reuse may depend on it.
 
-### Production client for #291
+### Production client
+
+The corrective hardening changed no client source. The existing #291 client remains the production client:
 
 - Vercel project: `parallax`;
-- deployment: `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`;
+- production deployment: `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`;
 - state: `READY`;
 - target: `production`;
 - exact Git SHA: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
 - public production alias: `parallax-ashy-one-20.vercel.app`.
 
-The production alias returned HTTP 200 with the expected `Parallax 2.0` application shell.
+Vercel created but cancelled the no-client-change production build for corrective merge `109444dcd7e13bfe842dea71355607941258b073`; this is not represented as a deployed client artifact. The live production alias continues to return HTTP 200 with the expected `Parallax 2.0` application shell.
 
-### Production API for #291
+### Corrective production API
 
 - Vercel project: `parallax-api`;
-- deployment: `dpl_DKNMQrFEWa1kR8iY1vLQ6Y4sNYXP`;
+- corrective production deployment: `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex`;
 - state: `READY`;
 - target: `production`;
-- exact Git SHA: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- exact Git SHA: `109444dcd7e13bfe842dea71355607941258b073`;
 - public production alias: `parallax-api-tan.vercel.app`.
 
-Post-cutover infrastructure/runtime evidence established:
+Corrective build and post-cutover evidence established:
 
 - production provider preflight — PASS;
 - production delivery-permission preflight — PASS;
@@ -67,42 +75,49 @@ Post-cutover infrastructure/runtime evidence established:
 - private Blob SDK preflight — PASS;
 - durable lineage composition preflight — PASS;
 - projected bootstrap/runtime-composition preflight — PASS;
+- production execution-snapshot preflight — PASS;
+- production run-event schema guard — PASS;
 - `GET /health` → HTTP 200 with `status=ok`;
 - `GET /ready` → HTTP 200 with `database=ok`, `providers=ok`, `provider_targets=1`;
-- exact-deployment runtime scan after cutover found no `error`/`fatal` records.
+- unauthenticated `GET /v1/conversations` → HTTP 401 `Authentication required`;
+- exact-deployment runtime error/fatal scan after cutover found no matching records.
 
-This proves the #291 application and migration are deployed and infrastructure-ready. It does not override the post-merge deletion correctness findings below.
+Initial #291 API deployment `dpl_DKNMQrFEWa1kR8iY1vLQ6Y4sNYXP` remains a rollback candidate while the final authenticated deletion smoke is pending.
 
 ## Safe deletion corrective hardening — P2-V0.18.12 / PR #294
 
-Workstream #290 is **ACTIVE / CORRECTIVE VALIDATION**. Corrective branch `ws/safe-deletion-hardening` and PR #294 are limited to deletion lifecycle parity, historical-unbound destructive authorization, focused tests and later release-record reconciliation.
+PR #294 is **MERGED / DEPLOYED / INFRASTRUCTURE-VERIFIED**. The corrective implementation resolved both post-#291 audit findings.
 
-### Gap 1 — Engineering Run terminal-state drift
+### Engineering Run terminal-state parity
 
-The deployed #291 deletion guard duplicated terminal run states as only `COMPLETE` and `CANCELLED`. The protected Engineering Run runtime owns `TERMINAL_STAGES`, which also contains `SPEC_AMENDMENT`. Therefore the deployed #291 guard can incorrectly return HTTP 409 for a conversation/Project whose relevant run is already terminal `SPEC_AMENDMENT`.
+Conversation and Project deletion guards now derive terminality from the protected Engineering Run runtime's authoritative `TERMINAL_STAGES` contract rather than carrying an independent deletion-specific list. The current terminal set is `COMPLETE`, `SPEC_AMENDMENT`, and `CANCELLED`.
 
-Corrective acceptance requires deletion guards to derive from the authoritative protected runtime terminal-state contract rather than carrying an independent lifecycle list. `FAILED`, `REVIEW`, `PLAN` and other states outside protected `TERMINAL_STAGES` remain non-terminal and must continue to block deletion.
+Focused exact-head tests prove:
 
-### Gap 2 — historical unbound destructive authorization
+- `SPEC_AMENDMENT` does not block conversation or Project deletion;
+- `FAILED` remains non-terminal and blocks deletion with HTTP 409;
+- deletion helper state exactly matches the protected runtime contract, preventing silent lifecycle drift.
 
-Historical unbound conversations intentionally retain compatibility read visibility because they predate canonical Project ownership. The initial DELETE path reused that visibility without a separate durable ownership identity.
+### Historical unbound destructive authorization
 
-Corrective acceptance therefore requires application `owner` role for destructive deletion of a historical unbound conversation. Compatibility read visibility remains unchanged. Project-bound conversation and Project deletion continue to derive ownership from canonical Project identity and fail closed across owners.
+Historical unbound conversations intentionally retain compatibility read visibility because they predate canonical Project ownership. Corrective #294 separates that compatibility read visibility from destructive authority:
 
-### Corrective acceptance gate
+- application `owner` role is required to delete a historical unbound conversation;
+- non-owner DELETE returns HTTP 403 without mutation while ordinary compatibility read remains unchanged;
+- Project-bound conversation and Project deletion continue to derive ownership from canonical Project identity and fail closed as not found across owners.
 
-The safe-deletion feature is not marked deployment-verified until all of the following are true:
+### Remaining acceptance gate
 
-1. `P2-V0.18.12` spec validation passes;
-2. the exact corrective implementation head passes Workstream Spec Validation, Bounded Autonomy and P2 CI;
-3. merge uses expected-head protection after latest-main collision review;
-4. production deployment is tied to the exact corrective merged SHA;
-5. `/health`, `/ready`, runtime-error scans and authenticated deletion behavior are verified after cutover;
-6. `CURRENT-STATE.md` is reconciled to the verified corrective release and #290 is closed completed.
+All implementation, merge, database, deployment and infrastructure gates are complete. One acceptance item remains before the feature is called fully deployment-verified and #290 is closed:
+
+1. perform one authenticated production deletion of a genuinely old, non-current conversation or inactive Project through the existing production UI;
+2. confirm the item disappears from active history/selection and the UI remains healthy;
+3. inspect exact production API runtime logs for the deletion request and any error/fatal records;
+4. reconcile `CURRENT-STATE.md` to final deployment-verified status and close #290 completed.
 
 ## Intended durable deletion contract
 
-The architecture/design records now describe the durable contract the corrective release must satisfy:
+The architecture/design records describe the durable contract the corrective release now implements:
 
 - user-visible `Delete` is logical workspace deletion, not evidence purge;
 - deleted conversations/Projects disappear from active workspace reads;
@@ -110,7 +125,8 @@ The architecture/design records now describe the durable contract the corrective
 - linked GitHub repositories, pull requests and Vercel deployments are never deleted by workspace cleanup;
 - any relevant Engineering Run outside authoritative protected `TERMINAL_STAGES` blocks deletion with HTTP 409;
 - deleted Project slug/repository identities may be reused among active Projects, but replacement creates a new canonical `Project.id` and gains no inherited authority;
-- historical unbound conversation deletion requires application `owner` role;
+- historical unbound conversation deletion requires application `owner` role while compatibility read visibility remains unchanged;
+- Project-bound destructive ownership derives from canonical Project identity;
 - destructive UI actions require explicit confirmation and do not hide state until server success.
 
 ## P2-V0.18.10 model-transport stabilization retained
@@ -178,14 +194,24 @@ Rollback is component-specific and governed.
 
 ### API
 
-Pre-#291 accepted API reference:
+Immediate safe-deletion rollback candidate:
+
+- deployment `dpl_DKNMQrFEWa1kR8iY1vLQ6Y4sNYXP`;
+- source `a6d7a6fd4d556d5544ede9c43b93972a8c590011`.
+
+Pre-#291 accepted API reference remains:
 
 - deployment `dpl_EGoHSRe69rCTZbbZjLnmFcDcqQC9`;
 - source `e6fc6900239df436545318e6ab7f532d0d3789bc`.
 
-Because migration `20260827173141` is additive, application rollback does not require an emergency down-migration. Do not drop deletion tombstones or partial uniqueness indexes while #291/#294 data may depend on them.
+Because migration `20260827173141` is additive, application rollback does not require an emergency down-migration. Do not drop deletion tombstones or partial uniqueness indexes while deletion data may depend on them.
 
 ### Client
+
+The current safe-deletion client is still #291:
+
+- deployment `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`;
+- source `a6d7a6fd4d556d5544ede9c43b93972a8c590011`.
 
 Pre-#291 client reference:
 
@@ -202,7 +228,7 @@ Historical mobile rollback reference remains `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK` 
 - workers develop on isolated branches and stop at governed integration boundaries;
 - interacting production workstreams are serialized at shared lifecycle/record boundaries;
 - standing single-user production-promotion authority never waives exact-head gates, rollback, least privilege, post-cutover evidence or Preview/REVIEW boundaries;
-- deployed is not equivalent to deployment-verified when corrective acceptance gaps remain;
+- deployed is not equivalent to deployment-verified while the authenticated safe-deletion smoke remains outstanding;
 - no production-verification claim is valid without exact release identity plus post-cutover feature evidence.
 
 ## Durable invariants
@@ -211,6 +237,7 @@ Historical mobile rollback reference remains `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK` 
 - logical workspace deletion cannot erase or weaken protected engineering/source/provider evidence;
 - authoritative Engineering Run lifecycle state, not a duplicated deletion-specific list, decides whether a run is terminal;
 - historical compatibility read visibility does not imply destructive authorization;
+- historical unbound conversation deletion is restricted to application owner role until a separate durable ownership model exists;
 - deleting a Project never deletes external GitHub/Vercel resources;
 - reusing a deleted Project's human-readable identity creates a new canonical Project identity and grants no inherited authority;
 - deterministic/protected validation outranks model, agent, evaluator, routing or competition judgment;
@@ -225,8 +252,8 @@ Historical mobile rollback reference remains `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK` 
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.6 — records the durable governed logical-deletion/retention, evidence-retention, active-run and external-provider boundaries. Corrective #294 aligns implementation to the authoritative Engineering Run lifecycle and destructive authorization contract.
-- `DESIGN-SYSTEM.md` v3.1 — records explicit destructive-cleanup confirmation, server-conflict and cross-device semantics introduced by the feature; no additional design-system change is required for corrective #294.
-- `CURRENT-STATE.md` — corrected after post-merge audit to distinguish #291 as deployed/infrastructure-ready from deployment-verified feature acceptance; P2-V0.18.12 / PR #294 remains active until exact corrective deployment verification succeeds.
+- `ARCHITECTURE.md` v3.6 — records the durable governed logical-deletion/retention, evidence-retention, active-run and external-provider boundaries. A final refinement to explicitly record protected `TERMINAL_STAGES` derivation and owner-only historical-unbound destructive authorization remains appropriate with final feature acceptance.
+- `DESIGN-SYSTEM.md` v3.1 — records explicit destructive-cleanup confirmation, server-conflict and cross-device semantics; no corrective design-system change is required.
+- `CURRENT-STATE.md` — updated to record corrective P2-V0.18.12 / PR #294 as merged and exact API deployment `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex` as READY/infrastructure-verified while authenticated production deletion smoke remains pending.
 
-Wave 6 remains not deployed. Safe deletion is present in production but remains under corrective acceptance and must not be represented as fully deployment-verified until #294 completes its governed release gate.
+Wave 6 remains not deployed. Safe deletion is deployed with corrective hardening, but remains pending one authenticated feature smoke before full deployment-verification acceptance and closure of #290.
