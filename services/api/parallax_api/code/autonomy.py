@@ -261,6 +261,12 @@ class AutonomyCoordinator:
                             stop_reason=AutonomyStopReason.IMPLEMENTATION_FAILED,
                             steps=tuple(steps),
                         )
+                    failure_evidence: dict[str, object] = {
+                        "error_class": type(exc).__name__,
+                        "mutation_applied": False,
+                    }
+                    if exc.diagnostic_evidence is not None:
+                        failure_evidence["diagnostic_evidence"] = exc.diagnostic_evidence
                     try:
                         failed = self.service.complete_stage(
                             run_id=run.id,
@@ -268,10 +274,7 @@ class AutonomyCoordinator:
                             operation_key=stage_key,
                             expected_revision=run.revision,
                             passed=False,
-                            evidence={
-                                "error_class": type(exc).__name__,
-                                "mutation_applied": False,
-                            },
+                            evidence=failure_evidence,
                             failure_code="AUTONOMOUS_IMPLEMENT_FAILED",
                             program_id="protected-implementation-runtime-v0.15.4",
                             tool_id="safe-source-implementation-v1",
