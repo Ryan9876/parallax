@@ -56,6 +56,7 @@ def service(
         ConversationRepository(session),
         ProjectRepository(session),
         owner_subject=principal.subject,
+        owner_role=principal.role,
         require_project_binding=True,
     )
 
