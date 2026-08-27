@@ -7,7 +7,10 @@ from ..models import Conversation, EngineeringRun, Message, utcnow
 from ..projects.model import Project
 
 
-TERMINAL_RUN_STATES = ("COMPLETE", "CANCELLED")
+def terminal_run_states() -> frozenset[str]:
+    from ..code.domain import TERMINAL_STAGES
+
+    return frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ConversationRepository:
@@ -102,7 +105,7 @@ class ConversationRepository:
             select(EngineeringRun.id)
             .where(
                 EngineeringRun.conversation_id == conversation_id,
-                EngineeringRun.state.notin_(TERMINAL_RUN_STATES),
+                EngineeringRun.state.notin_(terminal_run_states()),
             )
             .limit(1)
         )

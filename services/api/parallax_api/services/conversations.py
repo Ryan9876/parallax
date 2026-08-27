@@ -14,12 +14,14 @@ class ConversationService:
         project_repository: ProjectRepository | None = None,
         *,
         owner_subject: str | None = None,
+        owner_role: str | None = None,
         active_spec_id: str | None = None,
         require_project_binding: bool = False,
     ):
         self.repository = repository
         self.projects = project_repository
         self.owner_subject = owner_subject.strip() if owner_subject else None
+        self.owner_role = owner_role.strip().casefold() if owner_role else None
         self.require_project_binding = require_project_binding
         self.active_spec_id = active_spec_id or settings.active_spec_id
 
@@ -64,6 +66,11 @@ class ConversationService:
 
     def delete(self, conversation_id: str) -> None:
         conversation = self.get(conversation_id)
+        if conversation.project_id is None and self.owner_role != "owner":
+            raise HTTPException(
+                status_code=403,
+                detail="Owner access required to delete historical unbound conversations",
+            )
         if self.repository.has_nonterminal_run(conversation.id):
             raise HTTPException(
                 status_code=409,
