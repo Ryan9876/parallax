@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.8
+Version: 3.9
 Status: Authoritative
 
 ## System shape
@@ -33,6 +33,7 @@ FastAPI intelligence service
   ├─ bounded outcome routing + development economics
   ├─ bounded candidate competition + synthesis evidence
   ├─ integrated agentic reference proof + Wave 5 comparison
+  ├─ live agentic runtime activation + durable selected-candidate replay
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -76,7 +77,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S6 are accepted on the governed Wave 6 integration branch but are not production deployments. The release audit identified that ordinary Engineering Runtime composition does not yet activate the accepted S1-S5 agentic control plane, so runtime activation closure #304 / P2-V0.19.7 is required before any Wave 6 production promotion. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S6 plus W6-R1 runtime activation are accepted on the governed Wave 6 integration branch but are not production deployments. W6-R1 attaches the accepted S1-S5 decision plane to the ordinary Engineering Runtime behind a server-owned activation switch while retaining the existing single-writer source-lineage, deterministic-validation, provider and REVIEW boundaries. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution and still requires separate release qualification.
 
 ## Core trust boundaries
 
@@ -346,7 +347,7 @@ Synthesis never splices unvalidated fragments directly into canonical lineage. A
 
 ## Wave 6 integrated reference proof
 
-Wave 6 S6 composes the accepted S1-S5 protocol, orchestration, independent-evaluation, routing/economic and competition/synthesis evidence with existing protected worker/source/delivery evidence into one deterministic read-only reference proof. It is accepted on the governed Wave 6 integration branch and creates no new execution or authority path.
+Wave 6 S6 composes the accepted S1-S5 protocol, orchestration, independent-evaluation, routing/economic and competition/synthesis evidence with existing protected worker/source/delivery evidence into one deterministic read-only reference proof. It is accepted on the governed Wave 6 integration branch and creates no independent execution or authority path.
 
 The proof binds exact canonical Project ID, Engineering Run ID, Work Specification ID/revision/digest and stable acceptance IDs through S2 team/schedule identity, S3 candidate/evaluator policy, S4 routing evidence, S5 competition evidence, exact candidate/source-lineage identity and bounded verified Preview delivery evidence. Identity or lineage substitution fails closed.
 
@@ -354,7 +355,19 @@ Protected deterministic failure and `HUMAN_REQUIRED` take precedence over qualit
 
 Proof/recovery fingerprints are deterministic and replay-safe. Bounded worker reassignment evidence may be included, but the proof itself cannot acquire a worker lease, mutate source, accept lineage, invoke providers, route spending, transition an Engineering Run, merge, production-deploy, approve release, complete REVIEW or resolve a protected human boundary. Safe serialization excludes source bytes, patches, credentials, raw provider payloads, prompts, hidden reasoning, arbitrary commands and arbitrary URLs.
 
-S6 proves the accepted control-plane contracts and their evidence composition; it does not by itself activate those decisions in the ordinary production Engineering Runtime. Whole-product release audit therefore keeps Wave 6 production promotion blocked on #304 / P2-V0.19.7, which must attach the accepted agentic decision plane to the existing protected runtime without creating a second canonical writer or weakening the current source-lineage/validation/provider/REVIEW boundaries.
+## Wave 6 live runtime activation
+
+W6-R1 / `P2-V0.19.7` activates the accepted Wave 6 control-plane decisions inside the ordinary protected Engineering Run composition. The route selects this composition only when the server-owned `PARALLAX_AGENTIC_RUNTIME_ENABLED` switch is enabled. Disabled mode preserves the pre-Wave-6 runtime. Enabled mode requires durable source lineage and fails closed rather than silently falling back to a second or ungoverned implementation path.
+
+PLAN remains an `EngineeringRunService` transition. The live agentic planner emits the existing required `work_items` and `validation_checks` evidence while adding the deterministic server-owned team/work-graph decision bound to exact Project/run/Work Specification/acceptance identity. Operator-selected agents are not authority input. The smallest adequate admitted team is selected within S2 bounds; multiple agents by themselves do not justify candidate-competition spend.
+
+Agent outputs remain labor/evidence. Selected proposal evidence enters the existing `ProtectedImplementationRuntime` and `SafeImplementationEngine`; only that runtime may validate the protected workspace, advance immutable source lineage through compare-and-swap, and hand the accepted exact lineage to BUILD/TEST/VERIFY. S3 deterministic-validation precedence, S4 routing eligibility, S5 candidate selection, provider limits, Preview ceiling and REVIEW/HUMAN_REQUIRED boundaries remain unchanged.
+
+The live control plane binds S2 dispatch to the accepted durable worker execution/lease/checkpoint/recovery contract. Recoverable process loss may reassign only after the prior lease is expired or durable recovery state explicitly admits reassignment, and the new lease generation becomes the only accepted generation. A competing active worker fails closed rather than being taken over.
+
+After candidate selection, Parallax persists the exact selected generation as a private immutable content-addressed candidate artifact and checkpoints the worker as `READY_FOR_INTEGRATION`, releasing the worker mutation lease. Process recreation may replay that exact candidate only when Project, run, Work Specification revision/digest, acceptance set, plan, base source lineage, base revision and source-context digest all still match and the proposal still passes current protected workspace validation. Drift, tampering, stale authority claims or missing durable evidence fail closed. Candidate replay does not accept source lineage, transition the Engineering Run, complete REVIEW or deploy production.
+
+The ordinary source-lineage and provider idempotency boundaries remain authoritative after replay. A restored selected candidate therefore cannot duplicate canonical mutation or Preview publication merely because the API process was recreated.
 
 ## Project-scoped tool authority
 
