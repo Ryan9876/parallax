@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import replace
 
 from parallax_api.intelligence.implementation_generation import (
-    ImplementationGeneration,
     ImplementationGenerationRequest,
     ImplementationProposal,
     validate_implementation_proposal,
@@ -12,7 +11,6 @@ from parallax_api.intelligence.router import AttemptRecord
 
 from .agent_protocol import AgentLifecycleStatus, AgentSourceContext
 from .agent_team_orchestration import (
-    OrchestrationDisposition,
     TeamPlan,
     admit_assignment_result,
     create_agent_task_request,
@@ -49,9 +47,14 @@ class DurableAgentWorkerBridge:
     expired or accepted durable worker state already authorizes REASSIGN.
     """
 
-    def __init__(self, service: EngineeringRunService) -> None:
+    def __init__(
+        self,
+        service: EngineeringRunService,
+        *,
+        recovery: WorkerRecoveryService | None = None,
+    ) -> None:
         self.service = service
-        self.recovery = WorkerRecoveryService(
+        self.recovery = recovery or WorkerRecoveryService(
             WorkerExecutionRepository(service.runs.session),
             service.runs,
             event_sink=service.event_sink,
@@ -97,7 +100,6 @@ class DurableAgentWorkerBridge:
         evidence_refs: tuple[str, ...],
         state: WorkerLifecycleState = WorkerLifecycleState.CHECKPOINTED,
     ) -> WorkerLease:
-        run = self.service.get(plan.identity.run_id)
         unit = plan.graph.get(work_unit_id)
         progress = self.recovery.checkpoint(
             lease,
@@ -166,12 +168,11 @@ class LiveAgenticControlPlane(AgenticControlPlane):
             candidate_validator=candidate_validator,
         )
         self.worker_bridge = DurableAgentWorkerBridge(service)
-        # The base W6-R1 candidate currently has no trustworthy runtime source
-        # for material-quality uncertainty. Its hard-coded 0.10 heuristic must
-        # therefore never trigger extra candidate spend merely because a team has
-        # multiple agents. S5 still evaluates/selects the single validated
-        # candidate; future evidence-backed signals can deliberately lower this
-        # threshold in a separately governed change.
+        # W6-R1 currently has no trustworthy runtime source for material-quality
+        # uncertainty. The base controller's 0.10 team heuristic must therefore
+        # not trigger extra candidate spend merely because a team has >1 agent.
+        # S5 still evaluates/selects the single validated candidate. A future
+        # governed evidence source can deliberately change this threshold.
         self.competition_policy = replace(
             self.competition_policy,
             minimum_expected_quality_gain=1.0,
