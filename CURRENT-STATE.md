@@ -2,13 +2,13 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / POST-CAPACITY S1-S4 CHECKPOINT ACCEPTED / CAPACITY PREREQUISITE #281 INTEGRATED / S5 SPEC-FIRST ACTIVE / S5 SEMANTIC IMPLEMENTATION BLOCKED ON AUTHENTIC DSPY DEVELOPMENT GATE / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / POST-CAPACITY S1-S4 CHECKPOINT ACCEPTED / CAPACITY PREREQUISITE #281 INTEGRATED / S5 SEMANTIC IMPLEMENTATION AUTHORIZED / S5 FINAL WORKER GATE PENDING / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus bounded stabilization through #127, mobile stabilization #261/#262, and response-stream stabilization #271/#272.
 
-Wave 6 S1-S4, maintenance prerequisite #281 and S5 spec-first work are **not** production deployments. They exist only under the governed Wave 6 integration/workstream branches. Repository/integration identity and deployed application identity remain deliberately distinct.
+Wave 6 S1-S4, maintenance prerequisite #281 and S5 development work are **not** production deployments. They exist only under the governed Wave 6 integration/workstream branches. Repository/integration identity and deployed application identity remain deliberately distinct.
 
 ### Production client
 
@@ -79,13 +79,19 @@ S4 durable architecture reconciliation: `ARCHITECTURE.md` v3.4 commit `063775b6a
 Accepted S1-S4 record-reconciled checkpoint: `3a73068951b09c35c00ba7568fac865c0122f640`.  
 Repository-capacity prerequisite #281 / PR #282 integration commit: `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.  
 Accepted post-capacity record-reconciled S5 dependency checkpoint: `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`.  
+Accepted S5 spec-first record parent: `951b9a33b27a95b3989a4e7f4f009e42643eb46d`.  
+Accepted S5 semantic-development head: `bf955f617ee89ffeaa1d5ea79cf9d54e3daf8acc`.  
 S5 workstream branch: `ws/w6-candidate-competition`.
 
 The S1-S4 record-reconciled checkpoint `3a73068951b09c35c00ba7568fac865c0122f640` passed cumulative Workstream Spec Validation #442 / `33033559763`, Bounded Autonomy Pilot #652 / `33033559626`, and P2 CI #1038 / `33033559757`.
 
 S5 specification artifacts could not be added safely at that checkpoint because the self-hosting repository had reached the then-protected 512-entry GitHub source-tree ceiling. Control Tower isolated that concern as maintenance prerequisite #281 rather than weakening S4 or hiding S5 files inside unrelated modules. #281 was accepted/integrated after exact worker `da32b90621e5da1971a6306243049bd463990642` passed Workstream #444 / `33034064564`, Bounded Autonomy #653 / `33034064574`, and P2 CI #1040 / `33034064545`.
 
-The resulting post-capacity record checkpoint `f79bc8ca3f2ebce31a82725b9851a410d4c7418b` then passed fresh cumulative Workstream Spec Validation #447 / `33034424089`, Bounded Autonomy Pilot #655 / `33034403657`, and P2 CI #1043 / `33034424125`. Control Tower accepted that exact SHA as the W6-S5 dependency baseline and released **spec-first S5 work only**. S5 semantic implementation remains blocked until `P2-V0.19.5` has stable acceptance IDs, authentic DSPy SpecCritic + SpecCompiler evidence committed at `specs/compiled/P2-V0.19.5.plan.json`, protected `--require-dspy` validation passes, any temporary DSPy workflow modification is restored byte-for-byte, and Control Tower explicitly releases the semantic development gate.
+The resulting post-capacity record checkpoint `f79bc8ca3f2ebce31a82725b9851a410d4c7418b` passed fresh cumulative Workstream Spec Validation #447 / `33034424089`, Bounded Autonomy Pilot #655 / `33034403657`, and P2 CI #1043 / `33034424125`. Control Tower accepted that exact SHA as the W6-S5 dependency baseline and released spec-first S5 work. The resulting authoritative state record `951b9a33b27a95b3989a4e7f4f009e42643eb46d` passed Workstream #449 / `33035040880`, Bounded #656 / `33035017184`, and P2 #1045 / `33035040831`.
+
+S5 then completed its authentic DSPy development gate. DSPy Spec Optimization #131 / run `33035322653` executed SpecCritic + SpecCompiler against `P2-V0.19.5`; artifact `9631815552` has digest `sha256:9dc59972e71aa1b601c3038b139e31072f1b04d63e650d5e4edffe99d378a8e5`. The generated plan byte digest is `sha256:38266c8ec3cc10a52b60a759bc8fb2f65c62a26c032d2ba9f161a6593848b603`, committed exactly as Git blob `89fc381f2098a67181128ce29550d7e83c0b48f0`. The shared DSPy workflow was restored byte-for-byte to canonical blob `6478b5ac11eeedbd5b4d4711feb4193394ac1bdd`.
+
+An initial manually transported plan blob was correctly rejected by Workstream #450 with `protected_acceptance_map_mismatch`. That failure was not waived or bypassed. The exact downloaded artifact was committed and the corrected development head `bf955f617ee89ffeaa1d5ea79cf9d54e3daf8acc` passed Workstream #451 / `33035881630`, Bounded Autonomy #657 / `33035881643`, and P2 CI #1047 / `33035881608`. Control Tower therefore released S5 semantic implementation within #268 scope. Final worker acceptance/integration and all production authority remain pending.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
@@ -141,13 +147,13 @@ Exact worker tests prove 1024 entries are accepted, 1025 are rejected, requested
 
 This prerequisite increases bounded read capacity only. It grants no new provider, credential, source-lineage, Engineering Run, validation, merge/deploy, spending, approval or REVIEW authority.
 
-### S5 — Candidate Competition & Synthesis — SPEC-FIRST ACTIVE / SEMANTIC IMPLEMENTATION BLOCKED
+### S5 — Candidate Competition & Synthesis — SEMANTIC IMPLEMENTATION AUTHORIZED / FINAL WORKER GATE PENDING
 
-Issue #268 / spec `P2-V0.19.5`; accepted dependency baseline `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`; branch `ws/w6-candidate-competition`.
+Issue #268 / spec `P2-V0.19.5`; accepted dependency baseline `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`; worker PR #283; branch `ws/w6-candidate-competition`; accepted semantic-development head `bf955f617ee89ffeaa1d5ea79cf9d54e3daf8acc`.
 
-Control Tower has authorized specification and DSPy development-gate work only. The S5 contract is being defined around selective bounded competition, exact candidate/source-lineage isolation, deterministic validation before comparison, structurally independent S3 evaluation, bounded S4 economics, deterministic winner evidence, and synthesis as a request for a **new** candidate lineage that must undergo fresh BUILD/TEST/VERIFY and independent evaluation. S5 remains evidence-only: it cannot accept canonical source, transition protected Engineering Run state, invoke providers or spending, merge/deploy, approve, complete REVIEW or bypass `HUMAN_REQUIRED`.
+Control Tower has accepted the authentic development gate and authorized semantic implementation within #268 scope. The S5 contract requires selective bounded competition, exact candidate/source-lineage isolation, deterministic validation before comparison, structurally independent S3 evaluation, bounded S4 economics that cannot override correctness, deterministic winner evidence, and synthesis only as a request for a **new** candidate lineage that must undergo fresh BUILD/TEST/VERIFY and independent evaluation before eligibility.
 
-No S5 semantic runtime implementation is accepted or integrated. A drafted spec or generated plan alone is not semantic-release evidence.
+S5 remains evidence-only. It cannot accept canonical source, transition protected Engineering Run state, invoke providers or spending, merge/deploy, approve, complete REVIEW or bypass `HUMAN_REQUIRED`. No S5 semantic runtime implementation is yet accepted/integrated; worker implementation and final exact-head gates remain pending.
 
 ### Current Wave 6 dependency state
 
@@ -156,7 +162,7 @@ No S5 semantic runtime implementation is accepted or integrated. A drafted spec 
 3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
 4. #267 / `W6-S4` / `P2-V0.19.4` — **COMPLETE / ACCEPTED / INTEGRATED / CUMULATIVE S1-S4 CHECKPOINT ACCEPTED**;
 5. #281 / `W6-CAPACITY-1` — **COMPLETE / ACCEPTED / INTEGRATED**;
-6. #268 / `W6-S5` / `P2-V0.19.5` — **ACTIVE / SPEC-FIRST ONLY / SEMANTIC IMPLEMENTATION BLOCKED ON AUTHENTIC DSPY DEVELOPMENT GATE**;
+6. #268 / `W6-S5` / `P2-V0.19.5` — **ACTIVE / SEMANTIC IMPLEMENTATION AUTHORIZED / FINAL WORKER GATE PENDING**;
 7. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
 PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
@@ -218,8 +224,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.4 — unchanged at S5 entry; S5 has not yet passed its semantic development gate or changed durable system architecture.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4/#281/S5 spec-first work introduces no durable product visual-language change.
-- `CURRENT-STATE.md` — reconciled to accepted post-capacity S1-S4 checkpoint `f79bc8ca3f2ebce31a82725b9851a410d4c7418b` and the Control Tower decision authorizing S5 spec-first work while keeping semantic implementation blocked on authentic DSPy evidence.
+- `ARCHITECTURE.md` v3.4 — unchanged at S5 semantic release; the development gate authorizes implementation but no new durable runtime architecture is yet accepted/integrated.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; S5 is backend control-plane work and introduces no durable product visual-language change.
+- `CURRENT-STATE.md` — reconciled to accepted S5 semantic-development gate `bf955f617ee89ffeaa1d5ea79cf9d54e3daf8acc` and Control Tower authorization for bounded semantic implementation while final worker acceptance/integration remains pending.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
