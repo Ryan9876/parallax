@@ -48,4 +48,51 @@
     {
       "id": "AC-05",
       "title": "Gateway credential precedence is bounded",
-      "protected_requirement": "After any explicit DSPY override, an explicitlÄ…‘µ¥ÑÑ•É•ÅÕ•ÍĞµÍ½Á•ÁÉ½‘ÕÑ¥½¸=%É•‘•¹Ñ¥…°İ¥¹Ì¸½È¹½¸µÁÉ½‘ÕÑ¥½¸½È½¹ÑÉ½±±•¹½¸µÉ•ÅÕ•ÍĞ½¹ÍÑÉÕÑ¥½¸İ¥Ñ¡½ÕĞÍÕ „É•‘•¹Ñ¥…°°Í•ÉÙ•Èµ½İ¹•…Ñ•İ…ä­•åÌÉ•Í½±Ù”‘•Ñ•Éµ¥¹¥ÍÑ¥…±±ä…Ì%}Q]e}A%}-e€Ñ¡•¸YI1}%}Q]e}A%}-e€¸AÉ½•ÍÌµ•¹Ù¥É½¹µ•¹ĞYI1}=%}Q=-9€¥Ì•á±Õ‘•™É½´…ÕÑ½µ…Ñ¥ŒÉ•Í½±ÕÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÀØˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰9½¸µÁÉ½‘ÕÑ¥½¸¹¼µÉ•‘•¹Ñ¥…°‰•¡…Ù¥½ÈÉ•µ…¥¹Ì½µÁ…Ñ¥‰±”ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰=ÕÑÍ¥‘”ÁÉ½‘ÕÑ¥½¸°İ¡•¸¹¼•áÁ±¥¥ĞMAd½Ù•ÉÉ¥‘”°…Ñ•İ…äA$­•ä½È…‘µ¥ÑÑ•É•ÅÕ•ÍĞÉ•‘•¹Ñ¥…°•á¥ÍÑÌ°A…É…±±…àÁÉ•Í•ÉÙ•Ì•á¥ÍÑ¥¹œ‘¥É•ĞµÁÉ½Ù¥‘•È½±½…°‘•Ù•±½Áµ•¹Ğ‰•¡…Ù¥½È…¹‘½•Ì¹½Ğ™…‰É¥…Ñ”É•‘•¹Ñ¥…±Ì½ÈÁÉ½Ù¥‘•È…ÕÑ¡½É¥Ñä¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÀÜˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰M•É•ĞµÍ…™”½¹ÍÑÉÕÑ¥½¸ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰½ÕÍ•Ñ•ÍÑÌÁÉ½Ù”…Ñ•İ…ä­•åÌ½=%Ñ½­•¹Ì…É”Á…ÍÍ•½¹±ä¥¹Ñ¼Ñ¡”14½¹ÍÑÉÕÑ½È½ÁÉ½Ù¥‘•È‰½Õ¹‘…Éä…¹¹•Ù•È…ÁÁ•…È¥¸ÁÕ‰±¥Œ½…¹½¹¥…°µ½‘•°¥‘•¹Ñ¥Ñä°É½ÕÑ¥¹œÑÉ…•Ì°Á•ÉÍ¥ÍÑ••Ù¥‘•¹”°±½•Èµ•ÍÍ…•Ì°•á•ÁÑ¥½¸Ñ•áĞ½ÈÍ½ÕÉ”µ½¹ÑÉ½±±••á…µÁ±•Ì¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´Ààˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰á¥ÍÑ¥¹œ±½…°MAä‘•Ù•±½Áµ•¹ĞÉ•µ…¥¹Ì½µÁ…Ñ¥‰±”ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰Q¡”É•‘•¹Ñ¥…°µ™É•”±½…°MAä½=±±…µ„Á…Ñ ÕÍ¥¹œ•áÁ±¥¥ĞMAe}A%}	M€½¹Ñ¥¹Õ•ÌÑ¼•á•ÕÑ”İ¥Ñ¡½ÕĞ…Ñ•İ…äÍÕ‰ÍÑ¥ÑÕÑ¥½¸°…¹…ÕÑ¡•¹Ñ¥ŒMÁ•É¥Ñ¥Œ€¬MÁ•½µÁ¥±•È‘•Ù•±½Áµ•¹Ğ•Ù¥‘•¹”É•µ…¥¹ÌÁ½ÍÍ¥‰±”¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´Àäˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰…¥±•@ÈµXÀ¸Äà¸ä…‘…ÁÑ•È…ÍÍÕµÁÑ¥½¸¥Ì¹½ĞÉ•Ñ…¥¹•ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰Q¡”…ÕÑ½µ…Ñ¥Œ¡½ÍÑ•…Ñ•İ…äÁ…Ñ ¹¼±½¹•È‘•Á•¹‘Ì½¸É•İÉ¥Ñ¥¹œ…¹½¹¥…°µ½‘•±ÌÑ¼Ù•É•±}…¥}…Ñ•İ…ä¼¸¸¹€ì‘•Ñ•Éµ¥¹¥ÍÑ¥ŒÑ•ÍÑÌÉ•©•ĞÉ•¥¹ÑÉ½‘ÕÑ¥½¸½˜Ñ¡”¹…µ•ÍÁ…”µ½¹±ä=%…ÍÍÕµÁÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÀˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰±°ÁÉ½‘ÕÑ¥½¸MAä•¹ÑÉäÁ½¥¹ÑÌÉ••¥Ù”Ñ¡”Í…µ”ÑÉ…¹ÍÁ½ÉĞ…ÕÑ¡½É¥Ñäˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰½¹Ù•ÉÍ…Ñ¥½¸Í½Á”½É•…Í½¸°]½É¬MÁ•¥™¥…Ñ¥½¸‘É…™Ñ¥¹œ°…¹ÁÉ½Ñ•Ñ•¥µÁ±•µ•¹Ñ…Ñ¥½¸•¹•É…Ñ¥½¸ÕÍ”½¹”‰½Õ¹‘•…Ñ•İ…äÑÉ…¹ÍÁ½ÉĞ½¹ÑÉ…Ğ‘•É¥Ù•™É½´Ñ¡”Ù…±¥‘…Ñ•É•ÅÕ•ÍĞµÍ½Á•ÁÉ½‘ÕÑ¥½¸¥‘•¹Ñ¥Ñäì¹½¹”µ…äÍ¥±•¹Ñ±ä™…±°‰…¬Ñ¼„‘¥™™•É•¹ĞÁÉ½Ù¥‘•ÈÁ…Ñ ¥¸ÁÉ½‘ÕÑ¥½¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÄˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰á¥ÍÑ¥¹œ™…¥±ÕÉ”…¹ÁÉ½Ñ•Ñ•µÉÕ¹Ñ¥µ”Í•µ…¹Ñ¥ÌÉ•µ…¥¸Õ¹¡…¹•ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰I½ÕÑ¥¹…¥±ÕÉ•-¥¹‘€°Í…¹¥Ñ¥é•ÑÑ•µÁÑI•½É‘€°]½É¬MÁ•¥™¥…Ñ¥½¸É•½Ù•ÉäÍ•µ…¹Ñ¥Ì°…ÕÑ¡•¹Ñ¥…Ñ¥½¸°AÉ½©•Ğ½É•Á½Í¥Ñ½Éä‰¥¹‘¥¹œ°]½É¬MÁ•¥™¥…Ñ¥½¸…ÁÁÉ½Ù…°°¹¥¹••É¥¹œIÕ¸ÍÑ…Ñ”°Í½ÕÉ”±¥¹•…”°Ñ½½±Ì°ÁÉ½Ù¥‘•È‘•±¥Ù•Éä°ÁÉ½Ñ•Ñ••Ù…±Õ…Ñ¥½¸°IY%\½!U59}IEU%I…¹‘•Á±½åµ•¹Ğ…ÕÑ¡½É¥ÑäÉ•µ…¥¸Õ¹¡…¹•…¹•á¥ÍÑ¥¹œÉ•É•ÍÍ¥½¹ÌÍÑ…äÉ••¸¸ˆ(€€€ô°(€€€ì(€€€€€€‰¥ˆè€‰´ÄÈˆ°(€€€€€€‰Ñ¥Ñ±”ˆè€‰½Ù•É¹•É•±•…Í”…¹ÁÉ½‘ÕÑ¥½¸ÁÉ½½˜ˆ°(€€€€€€‰ÁÉ½Ñ•Ñ•‘}É•ÅÕ¥É•µ•¹Ğˆè€‰Q¡”…ÕÑ¡•¹Ñ¥Œ½µÁ¥±•MAäÁ±…¸Á…ÍÍ•Ì€´µÉ•ÅÕ¥É”µ‘ÍÁå€ì•á…Ğİ½É­•Èµ¡•…]½É­ÍÑÉ•…´MÁ•ŒY…±¥‘…Ñ¥½¸°	½Õ¹‘•ÕÑ½¹½µä…¹@È$Á…ÍÌìµ•É”ÕÍ•Ì•áÁ•Ñ•µ¡•…ÁÉ½Ñ•Ñ¥½¸ìÁÉ½‘ÕÑ¥½¸A$ÁÉ½µ½Ñ¥½¸¥Ì‰½Õ¹Ñ¼…¸•á…ĞÉ•±•…Í”¥‘•¹Ñ¥ÑäìÁ½ÍĞµÕÑ½Ù•È…ÕÑ¡•¹Ñ¥…Ñ•…ÁÑÕÉ”MÁ•ŒÍÕ••‘Ì°€½¡•…±Ñ¡€…¹€½É•…‘å€…É”!QQ@€ÈÀÀ°…¹•á…Ğµ‘•Á±½åµ•¹ĞÉÕ¹Ñ¥µ”±½ÌÍ¡½Ü¹¼µ½‘•°µ…Á…¥Ñä™…¥±ÕÉ”™½ÈÑ¡…ĞÍµ½­”‰•™½É”UII9PµMQQ¹µ‘€¥ÌÉ•½¹¥±•…¹€ŒÈàĞ¥Ì±½Í•¸ˆ(€€€ô(€t°(€€‰É¥Ñ¥ÅÕ”ˆèl(€€€€‰Q¡”¥µÁ±•µ•¹Ñ…Ñ¥½¸É¥Í¬½È½µ¥ÍÍ¥½¸¥¸Ñ¡”…ÁÁÉ½Ù•Í½™Ñİ…É”ÍÁ•¥™¥…Ñ¥½¸¥ÌÑ¡”¥¹½ÉÉ•Ğ…ÍÍÕµÁÑ¥½¸½˜Ñ¡”™…¥±•@ÈµXÀ¸Äà¸äÁÉ½‘ÕÑ¥½¸ÑÉ…¹ÍÁ½ÉĞÕÍ¥¹œÑ¡”Y•É•°$…Ñ•İ…ä…ÌÑ¡”‘•Ñ•Éµ¥¹¥ÍÑ¥ŒÑÉ…¹ÍÁ½ÉĞ…ÕÑ¡½É¥Ñä™½ÈÑ¡”MAäµ½‘•°ÑÉ…™™¥Œ°‘•ÍÁ¥Ñ”Ñ¡”•áÁ±¥¥Ğ‘•Ù•±½Áµ•¹Ğ½Ù•ÉÉ¥‘•Ì…¹±½…°½$‰•¡…Ù¥½È‰•¥¹œÁÉ•Í•ÉÙ•¸ˆ(€t°(€€‰‘ÍÁå}ÉÕ¸ˆèì(€€€€‰•á•ÕÑ•ˆèÑÉÕ”°(€€€€‰µ½‘•°ˆè€‰½±±…µ…}¡…Ğ½±±…µ„Ì¸ÈèÅˆˆ°(€€€€‰…Á¥}‰…Í”ˆè€‰¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèÄÄĞÌĞˆ°(€€€€‰±½…±}‘•Ù•±½Áµ•¹Ñ}Ù¥•ÜˆèÑÉÕ”(€ô)ô
+      "protected_requirement": "After any explicit DSPY override, an explicitly admitted request-scoped production OIDC credential wins. For non-production or controlled non-request construction without such a credential, server-owned Gateway keys resolve deterministically as `AI_GATEWAY_API_KEY` then `VERCEL_AI_GATEWAY_API_KEY`. Process-environment `VERCEL_OIDC_TOKEN` is excluded from automatic resolution."
+    },
+    {
+      "id": "AC-06",
+      "title": "Non-production no-credential behavior remains compatible",
+      "protected_requirement": "Outside production, when no explicit DSPY override, Gateway API key or admitted request credential exists, Parallax preserves existing direct-provider/local development behavior and does not fabricate credentials or provider authority."
+    },
+    {
+      "id": "AC-07",
+      "title": "Secret-safe construction",
+      "protected_requirement": "Focused tests prove Gateway keys/OIDC tokens are passed only into the LM constructor/provider boundary and never appear in public/canonical model identity, routing traces, persisted evidence, logger messages, exception text or source-controlled examples."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing local DSPy development remains compatible",
+      "protected_requirement": "The credential-free local DSPy/Ollama path using explicit `DSPY_API_BASE` continues to execute without Gateway substitution, and authentic SpecCritic + SpecCompiler development evidence remains possible."
+    },
+    {
+      "id": "AC-09",
+      "title": "Failed P2-V0.18.9 adapter assumption is not retained",
+      "protected_requirement": "The automatic hosted Gateway path no longer depends on rewriting canonical models to `vercel_ai_gateway/...`; deterministic tests reject reintroduction of the namespace-only OIDC assumption."
+    },
+    {
+      "id": "AC-10",
+      "title": "All production DSPy entry points receive the same transport authority",
+      "protected_requirement": "Conversation scope/reason, Work Specification drafting, and protected implementation generation use one bounded Gateway transport contract derived from the validated request-scoped production identity; none may silently fall back to a different provider path in production."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing failure and protected-runtime semantics remain unchanged",
+      "protected_requirement": "`RoutingFailureKind`, sanitized `AttemptRecord`, Work Specification recovery semantics, authentication, Project/repository binding, Work Specification approval, Engineering Run state, source lineage, tools, provider delivery, protected evaluation, REVIEW/HUMAN_REQUIRED and deployment authority remain unchanged and existing regressions stay green."
+    },
+    {
+      "id": "AC-12",
+      "title": "Governed release and production proof",
+      "protected_requirement": "The authentic compiled DSPy plan passes `--require-dspy`; exact worker-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass; merge uses expected-head protection; production API promotion is bound to an exact release identity; post-cutover authenticated Capture Spec succeeds, `/health` and `/ready` are HTTP 200, and exact-deployment runtime logs show no model-capacity failure for that smoke before `CURRENT-STATE.md` is reconciled and #284 is closed."
+    }
+  ],
+  "critique": [
+    "The implementation risk or omission in the approved software specification is the incorrect assumption of the failed P2-V0.18.9 production transport using the Vercel AI Gateway as the deterministic transport authority for the DSPy model traffic, despite the explicit development overrides and local/CI behavior being preserved."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
