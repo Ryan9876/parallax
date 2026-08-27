@@ -4,11 +4,13 @@
   "buildCommand": "python scripts/vercel_build.py",
   "build": {
     "env": {
-      "PARALLAX_RUN_EVENTS_ENABLED": "1"
+      "PARALLAX_RUN_EVENTS_ENABLED": "1",
+      "PARALLAX_AGENTIC_RUNTIME_ENABLED": "1"
     }
   },
   "env": {
-    "PARALLAX_RUN_EVENTS_ENABLED": "1"
+    "PARALLAX_RUN_EVENTS_ENABLED": "1",
+    "PARALLAX_AGENTIC_RUNTIME_ENABLED": "1"
   },
   "rewrites": [
     {
