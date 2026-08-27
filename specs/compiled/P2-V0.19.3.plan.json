@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Deterministic validation is authoritative and first."
+  ],
+  "work_items": [
+    "Establish the Wave 6 independent-evaluation layer that can judge an agent-produced implementation candidate without allowing the implementing agent, evaluator, model, repository content, source content or provider output to become acceptance authority."
+  ],
+  "validations": [
+    "Exact canonical binding is mandatory. Every evaluation request and result binds the canonical Project ID, Engineering Run ID, Work Specification ID/revision/digest, exact stable acceptance IDs, exact candidate/source lineage identity, producer-agent identity, evaluator identity and evaluator-policy identity/version/digest.",
+    "AC-01: validate protected requirement — Every evaluation request/result binds exact canonical Project ID, Engineering Run ID, Work Specification ID/revision/digest, stable acceptance IDs, exact candidate/source lineage identity, producer identity, evaluator identity and evaluator-policy ID/version/digest. Construction/admission rejects malformed, duplicate, empty, stale or mismatched identity and cannot infer identity from source/model prose.",
+    "AC-02: validate protected requirement — A candidate with any required deterministic/protected validation failure, missing required validator evidence, stale evidence or identity-mismatched validation cannot receive an admitted `SUPPORTED` outcome. Tests prove an evaluator claiming success over deterministic failure is normalized/rejected as `DETERMINISTIC_BLOCKED` or equivalent and cannot weaken existing protected validation.",
+    "AC-03: validate protected requirement — Producer and evaluator identities are structurally compared. Exact self-evaluation and identity-ambiguous cases cannot count as independent evidence regardless of claimed confidence or prose. Tests preserve optional self-assessment only as explicitly non-independent auxiliary evidence.",
+    "AC-04: validate protected requirement — Every evaluation binds an immutable evaluator-policy ID/version/digest defining allowed qualitative dimensions, evidence requirements, thresholds/escalation rules and uncertainty handling. Agent/source/model content cannot add/remove acceptance IDs, change policy, lower deterministic requirements or fabricate a different policy digest.",
+    "AC-05: validate protected requirement — Missing, stale, contradictory, malformed or unsupported qualitative evidence yields explicit `INSUFFICIENT_EVIDENCE`, `POLICY_REJECTED` or `HUMAN_REQUIRED`-equivalent evidence rather than fabricated scores/confidence. Confidence is bounded and never overrides identity, deterministic validation, independence or evidence sufficiency failures.",
+    "AC-06: validate protected requirement — Evaluator output is parsed into bounded dimension outcomes, concise findings, evidence references, confidence/score only where policy permits and explicit uncertainty. Raw prompts, hidden reasoning, unrestricted provider payloads, arbitrary commands/URLs and authority-bearing instructions are absent from canonical evidence. An evaluator result cannot accept lineage, transition protected run state, merge, deploy, create capabilities or complete REVIEW.",
+    "AC-07: validate protected requirement — A deterministic evaluation fingerprint binds candidate identity, evaluator identity/version, evaluator-policy identity/version/digest and admitted evidence digests. Exact replay is duplicate-safe. Candidate/evidence/policy/evaluator changes create distinguishable fingerprints. Conflicting records for the same exact fingerprint fail closed rather than silently replacing one another.",
+    "AC-08: validate protected requirement — Tests prove evidence from another Project, another run, another Work Specification revision/digest, another source lineage or stale candidate attempt cannot satisfy an evaluation even when objective/source text appears equivalent. Only already-admitted sanitized/generalized memory references may cross Project boundaries under their existing authority; S3 cannot create new cross-Project visibility.",
+    "AC-09: validate protected requirement — Tests include attempts to redefine acceptance criteria, hide deterministic failure, claim independence in prose, inject evaluator-policy changes, request shell/network/provider authority, supply arbitrary deployment/merge instructions, smuggle secrets/raw provider payloads and reference cross-Project private evidence. All fail closed or remain inert bounded evidence.",
+    "AC-10: validate protected requirement — S3 exposes a deterministic safe downstream projection containing exact provenance, outcome, bounded dimension evidence, uncertainty, evaluator/policy identity and evidence digests/fingerprint. The projection contains no mutation capability and cannot select providers, route spending, choose winners, mutate canonical lineage, merge/deploy or complete REVIEW.",
+    "AC-11: validate protected requirement — S3 reuses rather than weakens existing Work Specification, Engineering Run, protected deterministic validation, source-lineage, correction, benchmark/promotion, provider authorization, delivery and REVIEW contracts. Relevant existing API/protected-autonomy/evaluation regression suites remain green and S1 agent-protocol tests remain green.",
+    "AC-12: validate protected requirement — `P2-V0.19.3` validates with stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Temporary DSPy workflow changes are restored byte-for-byte before runtime implementation/final candidate. Final S3 changed paths remain within issue #266 ownership; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy."
+  ],
+  "risks": [
+    "Adversarial agent/source/evaluator content cannot inject authority. Tests include attempts to redefine acceptance criteria, hide deterministic failure, claim independence in prose, inject evaluator-policy changes."
+  ],
+  "spec_id": "P2-V0.19.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact canonical evaluation identity binding",
+      "protected_requirement": "Every evaluation request/result binds exact canonical Project ID, Engineering Run ID, Work Specification ID/revision/digest, stable acceptance IDs, exact candidate/source lineage identity, producer identity, evaluator identity and evaluator-policy ID/version/digest. Construction/admission rejects malformed, duplicate, empty, stale or mismatched identity and cannot infer identity from source/model prose."
+    },
+    {
+      "id": "AC-02",
+      "title": "Deterministic protected validation always outranks evaluator judgment",
+      "protected_requirement": "A candidate with any required deterministic/protected validation failure, missing required validator evidence, stale evidence or identity-mismatched validation cannot receive an admitted `SUPPORTED` outcome. Tests prove an evaluator claiming success over deterministic failure is normalized/rejected as `DETERMINISTIC_BLOCKED` or equivalent and cannot weaken existing protected validation."
+    },
+    {
+      "id": "AC-03",
+      "title": "Implementer self-assessment cannot satisfy independence",
+      "protected_requirement": "Producer and evaluator identities are structurally compared. Exact self-evaluation and identity-ambiguous cases cannot count as independent evidence regardless of claimed confidence or prose. Tests preserve optional self-assessment only as explicitly non-independent auxiliary evidence."
+    },
+    {
+      "id": "AC-04",
+      "title": "Evaluator policy is exact, server-owned and provenance-bound",
+      "protected_requirement": "Every evaluation binds an immutable evaluator-policy ID/version/digest defining allowed qualitative dimensions, evidence requirements, thresholds/escalation rules and uncertainty handling. Agent/source/model content cannot add/remove acceptance IDs, change policy, lower deterministic requirements or fabricate a different policy digest."
+    },
+    {
+      "id": "AC-05",
+      "title": "Missing, contradictory or insufficient evidence produces bounded uncertainty",
+      "protected_requirement": "Missing, stale, contradictory, malformed or unsupported qualitative evidence yields explicit `INSUFFICIENT_EVIDENCE`, `POLICY_REJECTED` or `HUMAN_REQUIRED`-equivalent evidence rather than fabricated scores/confidence. Confidence is bounded and never overrides identity, deterministic validation, independence or evidence sufficiency failures."
+    },
+    {
+      "id": "AC-06",
+      "title": "Qualitative judgment is typed, bounded and non-authoritative",
+      "protected_requirement": "Evaluator output is parsed into bounded dimension outcomes, concise findings, evidence references, confidence/score only where policy permits and explicit uncertainty. Raw prompts, hidden reasoning, unrestricted provider payloads, arbitrary commands/URLs and authority-bearing instructions are absent from canonical evidence. An evaluator result cannot accept lineage, transition protected run state, merge, deploy, create capabilities or complete REVIEW."
+    },
+    {
+      "id": "AC-07",
+      "title": "Replay is idempotent and policy/evidence changes are version-distinguished",
+      "protected_requirement": "A deterministic evaluation fingerprint binds candidate identity, evaluator identity/version, evaluator-policy identity/version/digest and admitted evidence digests. Exact replay is duplicate-safe. Candidate/evidence/policy/evaluator changes create distinguishable fingerprints. Conflicting records for the same exact fingerprint fail closed rather than silently replacing one another."
+    },
+    {
+      "id": "AC-08",
+      "title": "Cross-Project and stale evidence is rejected",
+      "protected_requirement": "Tests prove evidence from another Project, another run, another Work Specification revision/digest, another source lineage or stale candidate attempt cannot satisfy an evaluation even when objective/source text appears equivalent. Only already-admitted sanitized/generalized memory references may cross Project boundaries under their existing authority; S3 cannot create new cross-Project visibility."
+    },
+    {
+      "id": "AC-09",
+      "title": "Adversarial agent/source/evaluator content cannot inject authority",
+      "protected_requirement": "Tests include attempts to redefine acceptance criteria, hide deterministic failure, claim independence in prose, inject evaluator-policy changes, request shell/network/provider authority, supply arbitrary deployment/merge instructions, smuggle secrets/raw provider payloads and reference cross-Project private evidence. All fail closed or remain inert bounded evidence."
+    },
+    {
+      "id": "AC-10",
+      "title": "S4/S5 receive trustworthy read-only evaluation evidence",
+      "protected_requirement": "S3 exposes a deterministic safe downstream projection containing exact provenance, outcome, bounded dimension evidence, uncertainty, evaluator/policy identity and evidence digests/fingerprint. The projection contains no mutation capability and cannot select providers, route spending, choose winners, mutate canonical lineage, merge/deploy or complete REVIEW."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing protected evaluation and runtime authority remains unchanged and green",
+      "protected_requirement": "S3 reuses rather than weakens existing Work Specification, Engineering Run, protected deterministic validation, source-lineage, correction, benchmark/promotion, provider authorization, delivery and REVIEW contracts. Relevant existing API/protected-autonomy/evaluation regression suites remain green and S1 agent-protocol tests remain green."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact-head worker boundary and development gate",
+      "protected_requirement": "`P2-V0.19.3` validates with stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Temporary DSPy workflow changes are restored byte-for-byte before runtime implementation/final candidate. Final S3 changed paths remain within issue #266 ownership; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy."
+    }
+  ],
+  "critique": [
+    "Evaluating Wave 6 independent-evaluation layer for Compact Parallax implementation\n\nThe proposed implementation of the Wave 6 independent-evaluation layer for Compact Parallax, while well-intentioned, poses several material implementation risks and omissions. The main concerns include:\n\n1. **Lack of explicit independence**: The evaluator identity must be structurally distinct from the candidate producer identity for the result to count as independent. However, this is not explicitly stated, which may lead to potential issues with reproducibility and trustworthiness.\n\n2. **Inadequate canonical binding**: The proposed `EvaluationBinding` structure is not fully defined, which may result in missing or inconsistent canonical bindings for the evaluation record.\n\n3. **Insufficient provenance**: The construction of the `EvaluationBinding` structure rejects empty or duplicate acceptance IDs, but it does not provide sufficient information about the creation timestamp or bounded sequence identity, which is necessary for provenance.\n\n4. **Inflexibility in handling missing or contradictory evidence**: The proposed handling of missing or contradictory evidence is not clearly defined, which may lead to inconsistencies in the evaluation record.\n\n5. **Lack of explicit rejection of stale or unsupported evidence**: The proposed handling of stale or unsupported evidence is not explicitly stated, which may lead to potential issues with the evaluation record.\n\n6. **Inadequate handling of adversarial agent/source/evaluator content**: The proposed handling of adversarial agent/source/evaluator content is not clearly defined, which may lead to potential issues with the evaluation record.\n\n7. **Lack of explicit rejection of cross-project evidence**: The proposed handling of cross-project evidence is not explicitly stated, which may lead to potential issues with the evaluation record.\n\n8. **Inadequate handling of existing protected evaluation and runtime authority**: The proposed handling of existing protected evaluation and runtime authority is not explicitly stated, which may lead to potential issues"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
