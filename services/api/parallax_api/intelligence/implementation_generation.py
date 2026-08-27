@@ -181,7 +181,14 @@ class ImplementationGeneration:
 
 
 class ImplementationGenerationFailure(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        diagnostic_evidence: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.diagnostic_evidence = diagnostic_evidence
 
 
 def validate_implementation_proposal(

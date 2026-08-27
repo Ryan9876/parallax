@@ -123,6 +123,14 @@ class AgenticRuntimeError(ValueError):
     """Fail-closed Wave 6 runtime activation error."""
 
 
+class CandidateValidationFailure(AgenticRuntimeError):
+    """Bounded protected-candidate rejection with sanitized diagnostics only."""
+
+    def __init__(self, message: str, *, diagnostic_evidence: dict[str, object]) -> None:
+        super().__init__(message)
+        self.diagnostic_evidence = diagnostic_evidence
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateValidationResult:
     content_digest: str
@@ -143,6 +151,69 @@ class CandidateValidationResult:
             max(0, int(evidence.get("duration_ms") or 0))
             for _, evidence in self.stage_evidence
         ) / 1000.0
+
+
+def _sha256_value(value: object) -> str | None:
+    if (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(ch in "0123456789abcdef" for ch in value)
+    ):
+        return value
+    return None
+
+
+def _candidate_validation_failure_diagnostic(
+    candidate_id: str,
+    validation: CandidateValidationResult,
+) -> dict[str, object] | None:
+    """Project only non-secret protected-stage identity for a failed candidate."""
+
+    failed = next(
+        (item for item in validation.stage_evidence if item[1].get("protected_success") is not True),
+        None,
+    )
+    if failed is None:
+        return None
+    stage, evidence = failed
+    if stage not in {WorkflowStage.BUILD.value, WorkflowStage.TEST.value, WorkflowStage.VERIFY.value}:
+        return None
+
+    raw_exit_code = evidence.get("exit_code")
+    exit_code = (
+        raw_exit_code
+        if isinstance(raw_exit_code, int) and not isinstance(raw_exit_code, bool)
+        else None
+    )
+    diagnostic: dict[str, object] = {
+        "candidate_id": candidate_id,
+        "failed_stage": stage,
+        "protected_success": False,
+        "exit_code_present": exit_code is not None,
+        "exit_code": exit_code,
+        "timed_out": evidence.get("timed_out") is True,
+        "candidate_is_canonical_lineage": False,
+        "accepts_source_lineage": False,
+        "source_lineage_accepted": False,
+        "production_deployed": False,
+    }
+    for key in ("invocation_digest", "stdout_digest", "stderr_digest"):
+        digest = _sha256_value(evidence.get(key))
+        if digest is not None:
+            diagnostic[key] = digest
+    content_digest = _sha256_value(validation.content_digest)
+    if content_digest is not None:
+        diagnostic["candidate_content_digest"] = content_digest
+    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180)):
+        value = evidence.get(key)
+        if (
+            isinstance(value, str)
+            and 0 < len(value) <= limit
+            and value.strip() == value
+            and all(ord(ch) >= 32 for ch in value)
+        ):
+            diagnostic[key] = value
+    return diagnostic
 
 
 class CandidateValidationExecutor(Protocol):
@@ -1467,6 +1538,15 @@ class AgenticControlPlane:
             )
             routing_record = route_outcomes(routing_request)
             if routing_record.selected_strategy_id is None:
+                diagnostic = _candidate_validation_failure_diagnostic(
+                    primary.candidate_id,
+                    primary.validation,
+                )
+                if diagnostic is not None:
+                    raise CandidateValidationFailure(
+                        f"agentic outcome routing stopped after protected candidate validation: {routing_record.reason_code}",
+                        diagnostic_evidence=diagnostic,
+                    )
                 raise AgenticRuntimeError(
                     f"agentic outcome routing stopped: {routing_record.reason_code}"
                 )
@@ -1561,6 +1641,13 @@ class AgenticControlPlane:
             return generation, evidence
         except ImplementationGenerationFailure:
             raise
+        except CandidateValidationFailure as exc:
+            raise ImplementationGenerationFailure(
+                "agentic runtime rejected a protected implementation candidate",
+                diagnostic_evidence={
+                    "candidate_validation_failure": dict(exc.diagnostic_evidence),
+                },
+            ) from exc
         except (AgenticRuntimeError, ValueError, ImplementationError, PatchError, OSError) as exc:
             raise ImplementationGenerationFailure(
                 "agentic runtime could not admit a protected implementation candidate"

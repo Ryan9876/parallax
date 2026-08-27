@@ -24,9 +24,24 @@ from .work_spec_binding import acceptance_map, work_specification_contract, work
 
 
 class ImplementationRuntimeError(RuntimeError):
-    def __init__(self, message: str, *, mutation_applied: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        mutation_applied: bool = False,
+        diagnostic_evidence: object | None = None,
+    ) -> None:
         super().__init__(message)
         self.mutation_applied = mutation_applied
+        if diagnostic_evidence is None:
+            self.diagnostic_evidence = None
+        else:
+            try:
+                self.diagnostic_evidence = _bounded_implementation_failure_evidence(diagnostic_evidence)
+            except ValueError:
+                # Diagnostics are observation only. Invalid or sensitive diagnostic
+                # material must be dropped rather than changing fail-closed behavior.
+                self.diagnostic_evidence = None
 
 
 class ProjectBindingError(ImplementationRuntimeError):
@@ -268,7 +283,12 @@ class ProtectedImplementationRuntime:
                 # and integrations. They receive no routing authority; their
                 # selected proposal is still rejected by the safe engine below.
                 generation = self.generator.generate_sync(request)
-        except (ImplementationGenerationFailure, TypeError, ValueError) as exc:
+        except ImplementationGenerationFailure as exc:
+            raise ImplementationContractError(
+                "protected implementation generation failed",
+                diagnostic_evidence=exc.diagnostic_evidence,
+            ) from exc
+        except (TypeError, ValueError) as exc:
             raise ImplementationContractError("protected implementation generation failed") from exc
 
         # Defense in depth: even a custom/injected generation coordinator cannot
@@ -495,6 +515,98 @@ def _bounded_controller_evidence(value: object) -> dict[str, object]:
     normalized = json.loads(encoded)
     if not isinstance(normalized, dict):
         raise ValueError("protected controller evidence normalization failed")
+    return normalized
+
+
+def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]:
+    """Allow only sanitized protected candidate failure diagnostics into durable failure evidence."""
+
+    if not isinstance(value, dict) or set(value) != {"candidate_validation_failure"}:
+        raise ValueError("implementation failure diagnostics have an invalid envelope")
+    raw = value["candidate_validation_failure"]
+    if not isinstance(raw, dict):
+        raise ValueError("candidate validation diagnostics must be an object")
+
+    allowed = {
+        "candidate_id",
+        "failed_stage",
+        "protected_success",
+        "exit_code_present",
+        "exit_code",
+        "timed_out",
+        "tool_id",
+        "invocation_digest",
+        "stdout_digest",
+        "stderr_digest",
+        "execution_snapshot_id",
+        "candidate_content_digest",
+        "candidate_is_canonical_lineage",
+        "accepts_source_lineage",
+        "source_lineage_accepted",
+        "production_deployed",
+    }
+    if set(raw) - allowed:
+        raise ValueError("candidate validation diagnostics contain a non-admitted field")
+
+    candidate_id = _bounded_identity(raw.get("candidate_id"), "candidate_id")
+    stage = raw.get("failed_stage")
+    if stage not in {WorkflowStage.BUILD.value, WorkflowStage.TEST.value, WorkflowStage.VERIFY.value}:
+        raise ValueError("candidate validation diagnostics contain an invalid stage")
+    if raw.get("protected_success") is not False:
+        raise ValueError("candidate validation failure cannot claim protected success")
+    if not isinstance(raw.get("exit_code_present"), bool):
+        raise ValueError("candidate validation exit-code presence must be boolean")
+    exit_code = raw.get("exit_code")
+    if exit_code is not None and (not isinstance(exit_code, int) or isinstance(exit_code, bool)):
+        raise ValueError("candidate validation exit code must be integer or null")
+    if raw["exit_code_present"] is not (exit_code is not None):
+        raise ValueError("candidate validation exit-code presence drifted")
+    if not isinstance(raw.get("timed_out"), bool):
+        raise ValueError("candidate validation timeout state must be boolean")
+
+    normalized_failure: dict[str, object] = {
+        "candidate_id": candidate_id,
+        "failed_stage": stage,
+        "protected_success": False,
+        "exit_code_present": raw["exit_code_present"],
+        "exit_code": exit_code,
+        "timed_out": raw["timed_out"],
+    }
+    for key in ("candidate_is_canonical_lineage", "accepts_source_lineage", "source_lineage_accepted", "production_deployed"):
+        if raw.get(key) is not False:
+            raise ValueError("candidate validation diagnostics asserted authority they do not own")
+        normalized_failure[key] = False
+
+    for key in ("invocation_digest", "stdout_digest", "stderr_digest", "candidate_content_digest"):
+        if key not in raw:
+            continue
+        digest = raw[key]
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in digest)
+        ):
+            raise ValueError("candidate validation diagnostics contain an invalid SHA-256 digest")
+        normalized_failure[key] = digest
+
+    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180)):
+        if key not in raw:
+            continue
+        field = raw[key]
+        if (
+            not isinstance(field, str)
+            or not field
+            or len(field) > limit
+            or field.strip() != field
+            or any(ord(ch) < 32 for ch in field)
+        ):
+            raise ValueError("candidate validation diagnostics contain an invalid bounded identity")
+        normalized_failure[key] = field
+
+    normalized = {"candidate_validation_failure": normalized_failure}
+    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    if len(encoded.encode("utf-8")) > 4_096:
+        raise ValueError("candidate validation diagnostics exceed durable evidence bound")
     return normalized
 
 
