@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .auth import require_access
+from .code.production_delivery import ProductionDeliveryConfigurationError
+from .code.runtime_credentials import runtime_vercel_oidc_token
 from .db import Base, engine
 from . import models  # noqa: F401
+from .intelligence.dspy_programs import request_model_gateway_credential
 from .projects.routes import router as projects_router
 from .routes.access import router as access_router
 from .routes.conversations import router as conversations_router
@@ -21,6 +24,7 @@ from .session import SESSION_HEADER_NAME
 
 
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
+_RUNTIME_OIDC_HEADER = "x-vercel-oidc-token"
 
 
 def create_app(*, create_schema: bool | None = None) -> FastAPI:
@@ -30,6 +34,28 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
         Base.metadata.create_all(engine)
 
     app = FastAPI(title="Parallax 2.0 API", version="0.10.0")
+
+    @app.middleware("http")
+    async def bind_request_model_gateway_credential(request: Request, call_next):
+        """Bind validated Vercel request identity to all downstream model construction.
+
+        The middleware is intentionally non-authoritative for requests that do
+        not construct a model: an absent/malformed request token binds no model
+        credential and ordinary health/session/read paths remain available.
+        Production `build_lm` itself fails closed if a model is actually needed
+        without an admitted request credential. This keeps one request-scoped
+        transport contract across conversation, Work Specification and protected
+        implementation-generation paths without persisting or logging the token.
+        """
+
+        credential = None
+        if request.headers.get(_RUNTIME_OIDC_HEADER) is not None:
+            try:
+                credential = runtime_vercel_oidc_token(request.headers)
+            except ProductionDeliveryConfigurationError:
+                credential = None
+        with request_model_gateway_credential(credential):
+            return await call_next(request)
 
     @app.get("/")
     def root():
