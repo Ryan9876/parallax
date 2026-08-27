@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { ConversationDto } from '../lib/api';
+import { api, type ConversationDto, type ProjectDto } from '../lib/api';
+import { deleteProject } from '../lib/deletionApi';
 import { palette } from '../theme';
 
 type Props = {
@@ -17,11 +18,51 @@ function Fact({ label, value, mono = false }: { label: string; value: string; mo
   );
 }
 
+function messageFor(cause: unknown): string {
+  return cause instanceof Error && cause.message.trim() ? cause.message : 'Project could not be deleted.';
+}
+
 export function EditorialProjectWorkspace({ conversation, onStartCodeWork }: Props) {
   const binding = conversation?.project_binding_status ?? null;
   const projectId = conversation?.project_id ?? null;
   const bound = binding === 'PROJECT_BOUND' && Boolean(projectId);
   const historical = binding === 'HISTORICAL_UNBOUND' && conversation?.mode === 'code';
+  const [projects, setProjects] = React.useState<ProjectDto[]>([]);
+  const [projectsLoading, setProjectsLoading] = React.useState(true);
+  const [projectError, setProjectError] = React.useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const loadProjects = React.useCallback(async () => {
+    setProjectsLoading(true);
+    try {
+      setProjects(await api.listProjects());
+      setProjectError('');
+    } catch (cause) {
+      setProjectError(cause instanceof Error ? cause.message : 'Projects are unavailable.');
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  const confirmDelete = React.useCallback(async (project: ProjectDto) => {
+    if (project.id === projectId || deletingId) return;
+    setDeletingId(project.id);
+    setProjectError('');
+    try {
+      await deleteProject(project.id);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setConfirmDeleteId(null);
+    } catch (cause) {
+      setProjectError(messageFor(cause));
+    } finally {
+      setDeletingId(null);
+    }
+  }, [deletingId, projectId]);
 
   return (
     <View style={styles.wrap} testID="editorial-project-workspace">
@@ -51,7 +92,7 @@ export function EditorialProjectWorkspace({ conversation, onStartCodeWork }: Pro
 
         <View style={styles.boundary}>
           <Text style={styles.boundaryTitle}>Authority boundary</Text>
-          <Text style={styles.boundaryCopy}>Project identity does not itself grant filesystem, provider, merge or deployment authority. Those controls remain behind the existing protected runtime contracts.</Text>
+          <Text style={styles.boundaryCopy}>Deleting a Project removes it and its bound conversations from the active Parallax workspace. Protected engineering evidence is retained, and linked GitHub repositories or Vercel deployments are never deleted by this action.</Text>
         </View>
       </View>
 
@@ -63,6 +104,62 @@ export function EditorialProjectWorkspace({ conversation, onStartCodeWork }: Pro
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Start Code work" onPress={onStartCodeWork} style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Start Code work</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.projectListCard}>
+        <View style={styles.projectListHeader}>
+          <View>
+            <Text style={styles.cardKicker}>Workspace projects</Text>
+            <Text style={styles.projectListTitle}>Manage old Projects</Text>
+          </View>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Refresh Projects" disabled={projectsLoading} onPress={() => void loadProjects()} style={styles.refreshButton}>
+            <Text style={styles.refreshButtonText}>{projectsLoading ? 'Refreshing…' : 'Refresh'}</Text>
+          </TouchableOpacity>
+        </View>
+        {projectError ? <Text accessibilityLiveRegion="polite" style={styles.errorText}>{projectError}</Text> : null}
+        {!projectsLoading && projects.length === 0 ? <Text style={styles.emptyText}>No active Projects.</Text> : null}
+        {projects.map((project) => {
+          const current = project.id === projectId;
+          const confirming = confirmDeleteId === project.id;
+          const deleting = deletingId === project.id;
+          return (
+            <View key={project.id} style={styles.projectRow}>
+              <View style={styles.projectRowMain}>
+                <View style={styles.projectRowCopy}>
+                  <Text numberOfLines={1} style={styles.projectName}>{project.name}</Text>
+                  <Text numberOfLines={1} style={styles.projectMeta}>{project.repository_ref ?? project.slug}</Text>
+                </View>
+                {current ? (
+                  <View style={styles.currentPill}><Text style={styles.currentPillText}>CURRENT</Text></View>
+                ) : (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete Project ${project.name}`}
+                    accessibilityHint="Requires confirmation and preserves protected engineering evidence"
+                    disabled={Boolean(deletingId)}
+                    onPress={() => { setProjectError(''); setConfirmDeleteId(project.id); }}
+                    style={styles.deleteButton}
+                  >
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {confirming ? (
+                <View style={styles.confirmPanel} accessibilityLiveRegion="polite">
+                  <Text style={styles.confirmCopy}>Delete “{project.name}” from Parallax? Its conversations will disappear from active history. GitHub/Vercel resources and protected engineering evidence remain intact.</Text>
+                  <View style={styles.confirmActions}>
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel Project deletion" disabled={deleting} onPress={() => setConfirmDeleteId(null)} style={styles.confirmCancel}>
+                      <Text style={styles.confirmCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Confirm delete Project ${project.name}`} disabled={deleting} onPress={() => void confirmDelete(project)} style={styles.confirmDelete}>
+                      <Text style={styles.confirmDeleteText}>{deleting ? 'Deleting…' : 'Delete Project'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -99,4 +196,27 @@ const styles = StyleSheet.create({
   actionText: { color: palette.charcoal600, fontSize: 10, lineHeight: 15 },
   actionButton: { minHeight: 44, paddingHorizontal: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600 },
   actionButtonText: { color: palette.ivory50, fontSize: 9, fontWeight: '800' },
+  projectListCard: { marginTop: 16, borderRadius: 22, padding: 20, backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  projectListHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12 },
+  projectListTitle: { color: palette.charcoal950, fontSize: 16, lineHeight: 21, fontWeight: '700' },
+  refreshButton: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  refreshButtonText: { color: palette.teal700, fontSize: 8, fontWeight: '800' },
+  errorText: { color: palette.danger, fontSize: 10, lineHeight: 15, marginBottom: 9 },
+  emptyText: { color: palette.charcoal450, fontSize: 10, lineHeight: 15 },
+  projectRow: { paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  projectRowMain: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  projectRowCopy: { flex: 1, minWidth: 0 },
+  projectName: { color: palette.charcoal950, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  projectMeta: { color: palette.charcoal450, fontSize: 9, lineHeight: 13, marginTop: 2 },
+  currentPill: { minHeight: 28, paddingHorizontal: 9, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.olive200 },
+  currentPillText: { color: palette.charcoal800, fontSize: 7, fontWeight: '800', letterSpacing: 0.5 },
+  deleteButton: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust100 },
+  deleteButtonText: { color: palette.rust700, fontSize: 8, fontWeight: '800' },
+  confirmPanel: { marginTop: 8, padding: 12, borderRadius: 14, backgroundColor: palette.rust100, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,59,23,0.18)' },
+  confirmCopy: { color: palette.charcoal700, fontSize: 9, lineHeight: 14 },
+  confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
+  confirmCancel: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  confirmCancelText: { color: palette.charcoal700, fontSize: 8, fontWeight: '800' },
+  confirmDelete: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600 },
+  confirmDeleteText: { color: palette.ivory50, fontSize: 8, fontWeight: '800' },
 });
