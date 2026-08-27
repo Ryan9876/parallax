@@ -1,0 +1,16 @@
+{
+  "spec_id": "P2-V0.19.3",
+  "development_method": "DSPy SpecCritic + SpecCompiler",
+  "workflow_run_id": 33028365447,
+  "workflow_head_sha": "2fb679f6c663b9ec8a124a20b05f8aaea8010826",
+  "artifact_id": 9629322869,
+  "artifact_digest": "sha256:46d40930a053654bb0f99bd693bc82cdedfe52307a9e7651728fa38e99c3faea",
+  "model": "ollama_chat/llama3.2:1b",
+  "local_development_view": true,
+  "spec_critic_executed": true,
+  "spec_compiler_executed": true,
+  "protected_score": 1.0,
+  "compiled_plan": "specs/compiled/P2-V0.19.3.plan.json",
+  "temporary_workflow_restored_blob_sha": "6478b5ac11eeedbd5b4d4711feb4193394ac1bdd",
+  "authority": "development evidence only; deterministic protected validation remains authoritative"
+}
