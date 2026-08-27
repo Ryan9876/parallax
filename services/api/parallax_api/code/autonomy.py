@@ -32,6 +32,19 @@ class LineageAwareAutonomousExecutor(Protocol):
     ) -> dict[str, object]: ...
 
 
+class AutonomousPlanRuntime(Protocol):
+    """Optional server-owned PLAN seam used by governed runtime composition."""
+
+    program_id: str
+
+    def plan(
+        self,
+        *,
+        run: EngineeringRun,
+        operation_key: str,
+    ) -> dict[str, object]: ...
+
+
 class AutonomyStopReason(str, Enum):
     IMPLEMENTATION_REQUIRED = "IMPLEMENTATION_REQUIRED"
     IMPLEMENTATION_FAILED = "IMPLEMENTATION_FAILED"
@@ -77,6 +90,10 @@ class AutonomyCoordinator:
     source lineage, BUILD/TEST/VERIFY are also fail-closed unless a lineage-aware
     executor is explicitly injected. A legacy executor must never silently test
     unrelated source after a successful protected mutation.
+
+    A composed PLAN runtime is likewise optional. When present it replaces only
+    the bounded PLAN evidence producer; durable PLAN authority remains the same
+    EngineeringRunService.complete_stage transition used by the legacy planner.
     """
 
     def __init__(
@@ -87,6 +104,7 @@ class AutonomyCoordinator:
         registry: ProtectedCommandRegistry | None = None,
         implementation_runtime: ProtectedImplementationRuntime | None = None,
         lineage_executor: LineageAwareAutonomousExecutor | None = None,
+        plan_runtime: AutonomousPlanRuntime | None = None,
         max_steps: int = 8,
     ) -> None:
         self.service = service
@@ -94,6 +112,7 @@ class AutonomyCoordinator:
         self.registry = registry or ProtectedCommandRegistry()
         self.implementation_runtime = implementation_runtime
         self.lineage_executor = lineage_executor
+        self.plan_runtime = plan_runtime
         self.max_steps = max_steps
 
     def run(
@@ -138,28 +157,71 @@ class AutonomyCoordinator:
                         steps=tuple(steps),
                     )
 
-                required = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
-                evidence: dict[str, object] = {
-                    "acceptance_ids_covered": required,
-                    "work_items": [
-                        {"acceptance_id": acceptance_id, "action": "satisfy protected acceptance criterion"}
-                        for acceptance_id in required
-                    ],
-                    "validation_checks": [
-                        {"acceptance_id": acceptance_id, "check": "verify against protected acceptance criterion"}
-                        for acceptance_id in required
-                    ],
-                    "planner": "protected-deterministic-v0.13.0",
-                    "executor_preflight": "passed",
-                }
+                stage_key = self._stage_key(operation_key, stage, run.revision)
+                if self.plan_runtime is None:
+                    required = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
+                    evidence: dict[str, object] = {
+                        "acceptance_ids_covered": required,
+                        "work_items": [
+                            {"acceptance_id": acceptance_id, "action": "satisfy protected acceptance criterion"}
+                            for acceptance_id in required
+                        ],
+                        "validation_checks": [
+                            {"acceptance_id": acceptance_id, "check": "verify against protected acceptance criterion"}
+                            for acceptance_id in required
+                        ],
+                        "planner": "protected-deterministic-v0.13.0",
+                        "executor_preflight": "passed",
+                    }
+                    program_id = "protected-autonomy-plan-v0.13.0"
+                else:
+                    program_id = str(self.plan_runtime.program_id)
+                    try:
+                        evidence = self.plan_runtime.plan(
+                            run=run,
+                            operation_key=stage_key,
+                        )
+                        if not isinstance(evidence, dict) or not evidence:
+                            raise ValueError("composed PLAN runtime returned invalid evidence")
+                    except ValueError as exc:
+                        failed = self.service.complete_stage(
+                            run_id=run.id,
+                            stage=WorkflowStage.PLAN,
+                            operation_key=stage_key,
+                            expected_revision=run.revision,
+                            passed=False,
+                            evidence={
+                                "planner": program_id,
+                                "executor_preflight": "passed",
+                                "error_class": type(exc).__name__,
+                                "agentic_plan_admission": "failed",
+                                "protected_stage_authority": False,
+                            },
+                            failure_code="AUTONOMOUS_PLAN_ADMISSION_FAILED",
+                            program_id=program_id,
+                        )
+                        steps.append(
+                            AutonomyStep(
+                                stage=stage.value,
+                                outcome="FAILED",
+                                attempt_id=failed.attempt_id,
+                                replayed=failed.replayed,
+                            )
+                        )
+                        return AutonomyResult(
+                            run=failed.run,
+                            stop_reason=AutonomyStopReason.FAILED,
+                            steps=tuple(steps),
+                        )
+
                 result = self.service.complete_stage(
                     run_id=run.id,
                     stage=WorkflowStage.PLAN,
-                    operation_key=self._stage_key(operation_key, stage, run.revision),
+                    operation_key=stage_key,
                     expected_revision=run.revision,
                     passed=True,
                     evidence=evidence,
-                    program_id="protected-autonomy-plan-v0.13.0",
+                    program_id=program_id,
                 )
                 steps.append(
                     AutonomyStep(
