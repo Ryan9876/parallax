@@ -11,13 +11,17 @@ def _run(*args: str) -> None:
     subprocess.run([sys.executable, *args], check=True)
 
 
-def _run_isolated_preflight(script: str) -> None:
+def _uv() -> str:
     uv = shutil.which("uv")
     if uv is None:
         raise RuntimeError("production durable bootstrap preflight requires uv")
+    return uv
+
+
+def _run_isolated_preflight(script: str) -> None:
     subprocess.run(
         [
-            uv,
+            _uv(),
             "run",
             "--isolated",
             "--no-project",
@@ -36,6 +40,22 @@ def _run_isolated_preflight(script: str) -> None:
     )
 
 
+def _run_project_preflight(script: str) -> None:
+    """Run a repository-owned preflight with the API project's full runtime deps."""
+
+    subprocess.run(
+        [
+            _uv(),
+            "run",
+            "--no-progress",
+            "--no-python-downloads",
+            "python",
+            script,
+        ],
+        check=True,
+    )
+
+
 def main() -> None:
     _run("scripts/production_provider_preflight.py")
     _run("scripts/production_delivery_permission_preflight.py")
@@ -45,12 +65,12 @@ def main() -> None:
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
-        # W6 agentic activation uses the service's installed runtime dependencies
-        # plus the same private immutable Blob substrate proven above. This canary
-        # exercises the exact selected-candidate artifact persist/restore contract
-        # before production cutover and fails closed if activation/configuration is
-        # incomplete.
-        _run("scripts/production_agentic_runtime_preflight.py")
+        # W6 selected-candidate replay imports the ordinary API runtime graph. Run
+        # it in the API project environment so the canary proves the deployed
+        # dependency set instead of a bare build interpreter. `uv run` keeps this
+        # repository-owned and fail-closed while the private Blob substrate was
+        # already proven by the preceding isolated lineage preflight.
+        _run_project_preflight("scripts/production_agentic_runtime_preflight.py")
         _run_isolated_preflight("scripts/production_projected_bootstrap_preflight.py")
         _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")
         _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
