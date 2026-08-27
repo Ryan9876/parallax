@@ -369,10 +369,14 @@ def test_score_policy_and_confidence_cannot_override_evidence_rules():
     assert record.outcome is EvaluationOutcome.POLICY_REJECTED
     assert any("does not permit a score" in item for item in record.uncertainties)
 
-    low_score = replace(judgment(request()).dimensions[0], score=0.20, confidence=1.0)
     req2 = request()
     raw = judgment(req2)
-    raw = replace(raw, dimensions=(low_score, raw.dimensions[1]))
+    by_dimension = {item.dimension: item for item in raw.dimensions}
+    low_score = replace(by_dimension["maintainability"], score=0.20, confidence=1.0)
+    raw = replace(
+        raw,
+        dimensions=(low_score, by_dimension["implementation-fit"]),
+    )
     record2 = evaluate_candidate(req2, raw)
     assert record2.outcome is EvaluationOutcome.POLICY_REJECTED
     assert any("below policy floor" in item for item in record2.uncertainties)
