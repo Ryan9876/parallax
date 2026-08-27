@@ -213,10 +213,10 @@ const styles = StyleSheet.create({
   deleteButton: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust100 },
   deleteButtonText: { color: palette.rust700, fontSize: 8, fontWeight: '800' },
   confirmPanel: { marginTop: 8, padding: 12, borderRadius: 14, backgroundColor: palette.rust100, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,59,23,0.18)' },
-  confirmCopy: { color: palette.charcoal700, fontSize: 9, lineHeight: 14 },
+  confirmCopy: { color: palette.charcoal600, fontSize: 9, lineHeight: 14 },
   confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
   confirmCancel: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  confirmCancelText: { color: palette.charcoal700, fontSize: 8, fontWeight: '800' },
+  confirmCancelText: { color: palette.charcoal600, fontSize: 8, fontWeight: '800' },
   confirmDelete: { minHeight: 36, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600 },
   confirmDeleteText: { color: palette.ivory50, fontSize: 8, fontWeight: '800' },
 });
