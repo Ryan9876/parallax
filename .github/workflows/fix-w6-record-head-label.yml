@@ -20,7 +20,7 @@ jobs:
       - name: Make runtime head wording self-stable
         shell: bash
         run: |
-          # Temporary branch-only record correction; this workflow removes itself.
+          # Temporary branch-only correction. It must remove itself from the durable diff.
           python - <<'PY'
           from pathlib import Path
           path = Path('CURRENT-STATE.md')
