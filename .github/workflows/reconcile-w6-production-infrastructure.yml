@@ -1,0 +1,181 @@
+name: Reconcile Wave 6 production infrastructure state
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.head_ref == 'records/w6-production-infrastructure-verified'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: records/w6-production-infrastructure-verified
+          fetch-depth: 0
+      - name: Reconcile authoritative current state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one occurrence, found {count}: {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          text, count = re.subn(
+              r'^Status: \*\*.*\*\*$',
+              'Status: **WAVE 6 PRODUCTION-DEPLOYED / INFRASTRUCTURE + RUNTIME-PREFLIGHT VERIFIED / AUTHENTICATED END-TO-END ENGINEERING RUN SMOKE PENDING / CLIENT READY / API READY / SAFE-DELETION AUTHENTICATED SMOKE ALSO PENDING**',
+              text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace authoritative status line')
+
+          marker = '## Current production truth\n'
+          if marker not in text:
+              raise SystemExit('current production truth marker missing')
+          release_section = '''## Wave 6 production release — infrastructure verified / authenticated acceptance pending
+
+Wave 6 S1-S6 plus W6-R1 runtime activation are now **production-deployed and infrastructure/runtime-preflight verified**, but the release is **not yet labeled fully deployment-verified** because the available deployment connector cannot present a Parallax application user session for the required authenticated Project-bound Engineering Run smoke. This boundary is intentionally not bypassed or fabricated.
+
+### Exact release identity
+
+- governed release issue: #312;
+- production release PR #313 exact qualified head: `3d90bbedfeca16a1d0dcf4e564dde6832fa0085d`;
+- initial Wave 6 release merge: `a5c700762bcf8ebbd5605d7e5d47756bab10fb4e`;
+- production release blockers #314, #316 and #319: **RESOLVED / CLOSED**;
+- final corrective worker head: `ce55f9c4fabd82774954007483997b9d52878e2c`;
+- final production application merge: `831fef94aa1c94ff1178b1a325e8774d49fd8752` from PR #321;
+- final corrective gates: Bounded Autonomy Pilot #711 — **PASS**; Parallax P2 CI #1119 — **PASS**, including browser/Skia acceptance, protected promotion/regression rejection, DSPy SpecCritic + SpecCompiler and protected compiled-plan verification;
+- exact-head Vercel client/API checks — **PASS**;
+- production activation is version-controlled as exact `PARALLAX_AGENTIC_RUNTIME_ENABLED=1`; rollback of the application SHA rolls back activation with it.
+
+Three fail-closed production attempts exposed and corrected release-only parity/packaging defects without cutting over production:
+
+1. `dpl_PcQce4HZ5LdVHryk549VHt5sh4AH` at `a5c700762bcf8ebbd5605d7e5d47756bab10fb4e` — rejected obsolete 512-entry production-preflight copies versus the already-accepted 1024 runtime ceiling;
+2. `dpl_9dyqpferYPTY8TNgA4Dm9JFGeHGQ` at `8bd124244f9bb8175c417e4c4084cc15d9bea066` — reached the Wave 6 canary but exposed missing API-root bootstrap for direct script execution;
+3. `dpl_4B3JuuCmu3AnW5ihaZ9ju7AgMf5d` at `bafda5b3d42ca3662a075cefb8c83bd9b017392e` — proved API-root bootstrap, then exposed missing service runtime dependencies for the canary launcher.
+
+None of those failed builds acquired production aliases.
+
+### Current production API
+
+- Vercel project: `parallax-api`;
+- deployment: `dpl_Ag7tavEunrhQRGb3q8CxBTVVaQQw`;
+- state: **READY**;
+- target: `production`;
+- exact Git SHA: `831fef94aa1c94ff1178b1a325e8774d49fd8752`;
+- aliases: `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, `parallax-api-git-main-lew7.vercel.app`;
+- alias error: none.
+
+The exact production build passed, before cutover:
+
+- registered provider/source-tree/private Blob preflight — **PASS**, 538 source-tree entries under the accepted 1024 ceiling;
+- exact repository delivery-permission preflight — **PASS**;
+- projected-source validation — **PASS**, 492 lineage-eligible files / 5,013,766 UTF-8 bytes;
+- private immutable Blob SDK get/put/get — **PASS**;
+- durable lineage composition — **PASS**, including metadata rollback verification;
+- Wave 6 selected-candidate artifact canary — **PASS**, artifact prefix `366be26db9bf`, `exact_round_trip_verified`;
+- projected bootstrap — **PASS**, including `engineering_runtime_verified`, `process_recreation_verified`, `replay_verified`, `no_stage_mutation_verified`, metadata rollback and Project rollback;
+- execution-snapshot guard — **PASS**, deny-all restore and offline-dependency verification;
+- run-event schema guard — **PASS**.
+
+Post-cutover verification on the exact deployment established:
+
+- `GET /health` -> HTTP 200 / `status=ok`;
+- `GET /ready` -> HTTP 200 / `database=ok` / `providers=ok` / `provider_targets=1`;
+- unauthenticated `GET /v1/projects` -> HTTP 401 / `Authentication required` with Bearer challenge;
+- exact-deployment `error`/`fatal` runtime-log scan -> no entries.
+
+Wave 6 changed no client-root source. Main-triggered client deployment `dpl_6ktW8JnnwQQWCmAUFfTcf2MeSZXe` was correctly canceled by the configured path-aware Ignored Build Step. Active verified client remains `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K` from #291.
+
+Immediate API rollback remains verified deployment `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex` at application SHA `109444dcd7e13bfe842dea71355607941258b073`. Immediate client rollback/retention identity is `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`.
+
+### Remaining Wave 6 completion gate
+
+The release contract in #312 still requires one authenticated production Project-bound Engineering Run proving agentic PLAN/IMPLEMENT -> exact-lineage BUILD/TEST/VERIFY -> Preview -> REVIEW stop plus selected-candidate replay/idempotency under the ordinary application authentication boundary. The build canaries prove the production runtime, immutable candidate persistence, process recreation, replay, no-stage-mutation, source-lineage and isolation substrates, but they do not substitute for an authenticated live application request.
+
+The available deployment connector cannot present the Parallax application bearer/session credential. As already recorded for #290 safe-deletion acceptance, production authentication will not be weakened and real user work will not be mutated merely to manufacture release evidence. Until an ordinary authenticated smoke exists, #312 and Wave 6 Control Tower #263 remain open and Wave 6 is recorded as **production-deployed / infrastructure + runtime-preflight verified / authenticated end-to-end acceptance pending**.
+
+'''
+          if '## Wave 6 production release — infrastructure verified / authenticated acceptance pending' not in text:
+              text = text.replace(marker, release_section + marker, 1)
+
+          replace_once(
+              'Wave 6 S1-S6 plus runtime-activation closure W6-R1 are accepted development architecture and are **not** production deployments.',
+              'Wave 6 S1-S6 plus runtime-activation closure W6-R1 are accepted development architecture and are now production-deployed at the exact application/deployment identity recorded above; final authenticated end-to-end release acceptance remains pending.',
+          )
+          replace_once(
+              'Current production baseline: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.',
+              'Current production application head: `main@831fef94aa1c94ff1178b1a325e8774d49fd8752`.',
+          )
+          replace_once(
+              'Wave 6 production deployment: **none**.',
+              'Wave 6 production deployment: `dpl_Ag7tavEunrhQRGb3q8CxBTVVaQQw` — **READY / infrastructure + runtime-preflight verified / authenticated end-to-end smoke pending**.',
+          )
+          replace_once(
+              'Production activation flag state: **not claimed enabled**.',
+              'Production activation flag state: **version-controlled exact `PARALLAX_AGENTIC_RUNTIME_ENABLED=1` in the deployed application SHA**.',
+          )
+          replace_once(
+              '8. #304 / W6-R1 Runtime Activation — **COMPLETE / VALIDATED / ACCEPTED / INTEGRATED / NOT DEPLOYED**.',
+              '8. #304 / W6-R1 Runtime Activation — **COMPLETE / VALIDATED / ACCEPTED / INTEGRATED / PRODUCTION-DEPLOYED / INFRASTRUCTURE + RUNTIME-PREFLIGHT VERIFIED / AUTHENTICATED END-TO-END SMOKE PENDING**.',
+          )
+
+          old_api = '''### Production API — corrective P2-V0.18.12
+
+- Vercel project: `parallax-api`;
+- production deployment: `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex`;
+- state: `READY`;
+- target: `production`;
+- exact Git SHA: `109444dcd7e13bfe842dea71355607941258b073`;
+- public production alias: `parallax-api-tan.vercel.app`.
+
+Post-cutover verification on the corrective deployment established:
+
+- production alias is serving deployment `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex`;
+- `GET /health` → HTTP 200 with `status=ok`;
+- `GET /ready` → HTTP 200 with `database=ok`, `providers=ok`, `provider_targets=1`;
+- exact corrective deployment runtime scan found no `error`/`fatal` records;
+- unauthenticated `GET /v1/conversations` → HTTP 401 with `Authentication required`, confirming the protected route remains behind the authentication boundary.
+'''
+          new_api = '''### Production API — current Wave 6 application / retained P2-V0.18.12 semantics
+
+- Vercel project: `parallax-api`;
+- production deployment: `dpl_Ag7tavEunrhQRGb3q8CxBTVVaQQw`;
+- state: `READY`;
+- target: `production`;
+- exact Git SHA: `831fef94aa1c94ff1178b1a325e8774d49fd8752`;
+- public production alias: `parallax-api-tan.vercel.app`.
+
+The Wave 6 application is cumulative and retains the accepted P2-V0.18.12 safe-deletion semantics. Post-cutover verification on the current deployment established:
+
+- production alias is serving deployment `dpl_Ag7tavEunrhQRGb3q8CxBTVVaQQw`;
+- `GET /health` → HTTP 200 with `status=ok`;
+- `GET /ready` → HTTP 200 with `database=ok`, `providers=ok`, `provider_targets=1`;
+- exact current deployment runtime scan found no `error`/`fatal` records;
+- unauthenticated `GET /v1/projects` → HTTP 401 with `Authentication required`, confirming the protected route remains behind the authentication boundary;
+- prior safe-deletion corrective API `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex` / `109444dcd7e13bfe842dea71355607941258b073` remains the immediate verified API rollback identity.
+'''
+          replace_once(old_api, new_api)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git rm .github/workflows/reconcile-w6-production-infrastructure.yml
+          git config user.name 'Ryan9876'
+          git config user.email 'ryansmith100@gmail.com'
+          git add CURRENT-STATE.md
+          git commit -m 'docs(records): record Wave 6 production infrastructure state'
+          git push origin HEAD:records/w6-production-infrastructure-verified
