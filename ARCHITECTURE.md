@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.8
+Version: 3.9
 Status: Authoritative
 
 ## System shape
 
-Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by PostgreSQL, private immutable object storage, bounded provider adapters and isolated execution infrastructure. Conversation remains the primary product surface. Reason, Code, Work Specifications, canonical Project identity, execution, source lineage, worker recovery, deterministic/browser/visual validation, autonomous correction, tool authority, protected evaluation, authentication, observation telemetry and release evidence remain separate governed capabilities behind that surface.
+Parallax 2.0 is a universal Expo / React Native client plus a Python FastAPI intelligence service backed by PostgreSQL, private immutable object storage, bounded provider adapters and isolated execution infrastructure. Conversation remains the primary product surface. Reason, Code, Work Specifications, canonical Project identity, execution, source lineage, worker recovery, agentic planning/dispatch, deterministic/browser/visual validation, autonomous correction, tool authority, protected evaluation, authentication, observation telemetry and release evidence remain separate governed capabilities behind that surface.
 
 ```text
 Expo / React Native client
@@ -29,6 +29,7 @@ FastAPI intelligence service
   ├─ objective-to-application orchestration + validated engineering memory
   ├─ governed engineering-agent adapter + evidence protocol
   ├─ bounded development-team orchestration
+  ├─ live agentic PLAN / candidate-selection composition
   ├─ independent evaluation + quality evidence
   ├─ bounded outcome routing + development economics
   ├─ bounded candidate competition + synthesis evidence
@@ -49,15 +50,16 @@ FastAPI intelligence service
   └─ Wave 4 non-authoritative run-event + protected observation read plane
           │
           ├────────────► Vercel Sandbox execution plane
-          │               ├─ exact accepted source lineage
+          │               ├─ accepted-lineage protected BUILD / TEST / VERIFY
+          │               ├─ disposable pre-commit candidate validation
           │               ├─ ephemeral isolated workspace
           │               ├─ registered commands only
           │               ├─ deny-all network policy
-          │               ├─ empty application-secret environment
-          │               └─ bounded BUILD / TEST / VERIFY evidence
+          │               └─ empty application-secret environment
           │
           ├────────────► Vercel private Blob
-          │               └─ immutable content-addressed source objects
+          │               ├─ immutable content-addressed source objects
+          │               └─ private content-addressed selected-candidate replay artifacts
           │
           ├────────────► hosted PostgreSQL / Supabase
           │               ├─ conversations/messages
@@ -76,7 +78,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S6 are accepted on the governed Wave 6 integration branch but are not production deployments. The release audit identified that ordinary Engineering Runtime composition does not yet activate the accepted S1-S5 agentic control plane, so runtime activation closure #304 / P2-V0.19.7 is required before any Wave 6 production promotion. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S6 plus W6-R1 runtime activation are validated and accepted on the governed Wave 6 integration branch but are not production deployments. W6-R1 closes the prior release-audit activation gap by attaching the accepted S1-S5 agentic decision plane to the ordinary protected Engineering Run path under explicit server-owned activation, while preserving the existing single-writer source-lineage/BUILD/TEST/VERIFY/Preview/REVIEW authority boundaries. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -90,7 +92,7 @@ Hosted web protected traffic uses same-origin `/p2-api/*` routing to the API. Pr
 
 ### API
 
-Routes call services/coordinators; services call repositories, execution adapters, lineage gateways, worker-recovery services, validation/correction controllers and bounded capability registries. Provider SDK details do not leak into public route contracts.
+Routes call services/coordinators; services call repositories, execution adapters, lineage gateways, worker-recovery services, agentic orchestration/evaluation/routing layers, validation/correction controllers and bounded capability registries. Provider SDK details do not leak into public route contracts.
 
 Operational probes remain deliberately public:
 
@@ -193,6 +195,48 @@ No fresh-repository fallback is permitted after an accepted IMPLEMENT lineage ex
 
 Repository bootstrap is part of `EngineeringRuntimeComposition`. A missing root lineage is created from the exact owner-scoped repository through the protected source projection; an existing durable head is replayed instead of reinitialized. Production rollback-only canaries exercise this composition through `EngineeringRuntimeComposition.run()` itself and deliberately stop before stage mutation.
 
+### Wave 6 live agentic composition
+
+When exact server-owned `PARALLAX_AGENTIC_RUNTIME_ENABLED=1` is active for an eligible Project-bound run, W6-R1 augments the same protected runtime rather than replacing it:
+
+```text
+Approved Work Specification + accepted source lineage
+      ↓
+ordinary Engineering Run PLAN
+      ↓
+server-owned S1/S2 agent admission + smallest-adequate team plan
+      ↓
+durable worker lease/checkpoint-bound agent dispatch
+      ↓
+non-canonical candidate proposal(s)
+      ↓
+disposable deny-all BUILD / TEST / VERIFY candidate validation
+      ↓
+independent S3 evaluation
+      ↓
+S4 admissibility/economic routing
+      ↓
+selective S5 candidate decision
+      ↓
+private immutable selected-candidate replay artifact
+      ↓
+existing ProtectedImplementationRuntime
+      ↓
+SafeImplementationEngine commit-time revalidation + mutation
+      ↓
+durable source-lineage CAS acceptance
+      ↓
+authoritative IMPLEMENT stage transition
+      ↓
+exact accepted-lineage BUILD / TEST / VERIFY
+      ↓
+existing GitHub / Vercel Preview delivery
+      ↓
+Operator REVIEW
+```
+
+Agentic PLAN, dispatch, evaluation, routing and competition are orchestration/evidence layers only. They do not obtain direct Engineering Run transition, source-head, tool/provider, merge, deployment or REVIEW authority. If agentic activation is enabled but required durable lineage/runtime composition is unavailable, the route fails closed rather than silently falling back to an ungoverned implementation path. Disabled activation preserves the prior runtime deterministically.
+
 ## Safe IMPLEMENT mutation
 
 The safe patch engine accepts only an explicit isolated filesystem root plus bounded patch requests. Requests bind to a relative path, expected base digest, supported unified diff and bounded source/patch/result sizes.
@@ -200,6 +244,8 @@ The safe patch engine accepts only an explicit isolated filesystem root plus bou
 It fails closed on traversal, symlink escape, binary/unsupported targets, secret-sensitive paths, malformed headers, stale base digests, unsupported rename/delete/chmod/directory semantics, duplicate targets, no-op patches and size violations.
 
 Multi-file implementation prepares all mutations before commit and rolls back on commit failure. Successful mutation evidence contains deterministic before/after/diff/artifact identity, never authority to bypass protected stage validation.
+
+The W6-R1 candidate seam does not bypass these rules. A selected agentic proposal is passed into `ProtectedImplementationRuntime`, which validates it against the exact server-resolved workspace immediately before canonical mutation. Stale or conflicting replay artifacts therefore mutate nothing.
 
 ## Durable source lineage
 
@@ -218,13 +264,23 @@ Accepted IMPLEMENT performs exact parent-lineage validation, verifies mutation a
 
 Production source bootstrap additionally applies a lineage-safe repository projection before file bytes enter source packages or durable storage. Secret-sensitive paths are excluded before provider file reads; strict UTF-8, NUL, per-file, aggregate-size and digest contracts remain fail-closed.
 
+### Selected-candidate replay artifacts
+
+W6-R1 uses the existing private immutable object-store abstraction for one additional evidence class: an exact selected-candidate replay artifact. Its namespace is separate from authoritative source objects and its contents do not become a source-lineage manifest/head.
+
+The artifact is content-addressed and binds exact Project, run, Work Specification revision/digest, acceptance IDs, team-plan identity, base source-lineage reference, base revision, bounded source-context digest, proposal digest, selected model/program identity and bounded controller evidence. It explicitly records that it cannot accept source lineage, transition the Engineering Run, deploy or complete REVIEW.
+
+The durable worker checkpoint stores only the artifact digest and bounded proposal/routing/competition references when the candidate reaches `READY_FOR_INTEGRATION`. After process recreation, the artifact must pass digest/integrity checks, exact identity rebinding and fresh safe-proposal validation against the current server-owned workspace before it can be handed to the canonical IMPLEMENT mutation boundary. Missing, corrupt, authority-asserting, cross-context or stale artifacts fail closed. This persistence prevents duplicate model/candidate work without creating a second canonical source store.
+
 ## Exact-lineage BUILD / TEST / VERIFY
 
 BUILD, TEST and VERIFY execute registered commands in isolated Vercel Sandboxes over a reconstruction of the accepted source lineage. Sandboxes are short-lived, deny network by default, receive no application-secret environment and are destroyed after use.
 
-Only bounded observable evidence is retained: stage identity, source-lineage identity, command identity, invocation digest, exit state, duration, bounded output excerpts/digests, timeout/redaction/network-policy identity and acceptance coverage.
+W6-R1 also uses disposable Vercel Sandboxes to validate non-canonical candidate workspaces before independent evaluation. Candidate validation uses the pinned execution snapshot, deny-all networking, an empty application-secret environment and the same registered BUILD/TEST/VERIFY command policy. Passing this disposable validation does not accept source lineage or transition the Engineering Run; final canonical validation still runs on the accepted lineage after IMPLEMENT.
 
-A stage result from another Project, run, Work Specification or source lineage cannot satisfy the protected run.
+Only bounded observable evidence is retained: stage identity, source-lineage/candidate identity, command identity, invocation digest, exit state, duration, bounded output excerpts/digests, timeout/redaction/network-policy identity and acceptance coverage.
+
+A stage result from another Project, run, Work Specification, candidate or source lineage cannot satisfy the protected run.
 
 ## Durable worker execution and recovery
 
@@ -233,6 +289,8 @@ A stage result from another Project, run, Work Specification or source lineage c
 A worker lease binds an opaque owner identity, monotonically increasing generation and bounded expiry. Only the current live generation has checkpoint/mutation authority. After reassignment, an abandoned/stale lease fails closed.
 
 Canonical checkpoints bind the same protected Project/run/Work Specification identity to current bounded step, accepted source lineage, last-known-good lineage, evidence/dependency references and retry/progress state. Worker-local memory is never authoritative.
+
+W6-R1 uses this same worker record to bind live agentic dispatch. Agent dispatch/result/proposal checkpoints retain exact team-plan/source-lineage context and current lease generation. Expired process ownership can only become a new agentic dispatch generation through the accepted `STALLED -> RECOVERING -> REASSIGNED` path; an active competing worker is never silently taken over. Candidate selection releases the worker lease into `READY_FOR_INTEGRATION` after the exact replay-artifact digest has been durably checkpointed.
 
 Recoverable process loss follows protected transitions such as:
 
@@ -354,7 +412,25 @@ Protected deterministic failure and `HUMAN_REQUIRED` take precedence over qualit
 
 Proof/recovery fingerprints are deterministic and replay-safe. Bounded worker reassignment evidence may be included, but the proof itself cannot acquire a worker lease, mutate source, accept lineage, invoke providers, route spending, transition an Engineering Run, merge, production-deploy, approve release, complete REVIEW or resolve a protected human boundary. Safe serialization excludes source bytes, patches, credentials, raw provider payloads, prompts, hidden reasoning, arbitrary commands and arbitrary URLs.
 
-S6 proves the accepted control-plane contracts and their evidence composition; it does not by itself activate those decisions in the ordinary production Engineering Runtime. Whole-product release audit therefore keeps Wave 6 production promotion blocked on #304 / P2-V0.19.7, which must attach the accepted agentic decision plane to the existing protected runtime without creating a second canonical writer or weakening the current source-lineage/validation/provider/REVIEW boundaries.
+S6 remains the permanent read-only reference/benchmark proof. W6-R1 now supplies the previously missing ordinary-runtime composition seam; S6 itself still owns no execution or mutation authority.
+
+## Wave 6 live agentic runtime activation
+
+W6-R1 / #304 / `P2-V0.19.7` is the accepted runtime-composition layer that activates S1-S5 decisions inside the ordinary protected Engineering Run path. It is validated and integrated on the Wave 6 integration branch, not deployed.
+
+At PLAN, `AutonomyCoordinator` may receive one injected server-owned planning runtime. That runtime derives exact Project/run/spec/acceptance/source-bound S2 evidence and persists it through the existing PLAN `EngineeringRunService.complete_stage` operation. There is no alternative durable PLAN state machine and no operator-managed agent roster in the normal build surface.
+
+Production agent adapters wrap the existing protected implementation-generation/model transport and emit S1-bound task/result evidence only. Agent labor is validated against the exact dispatched binding before it can contribute to a candidate. The runtime uses the existing durable worker record for dispatch checkpoints and recovery generation, not transient process memory as authority.
+
+Candidates are copied from the exact server-resolved accepted workspace into disposable validation roots. The safe implementation engine applies candidate patches only to those disposable roots for validation; no candidate validation operation can call lineage acceptance. Candidate BUILD/TEST/VERIFY must pass under the protected Sandbox registry before S3 can support it. Producer and evaluator identities remain structurally independent.
+
+S4 selects only among already-admissible strategies. In the initial W6-R1 production policy, multi-agent team size by itself cannot trigger extra candidate spend because no trustworthy material-quality-uncertainty signal is yet available. S5 still checks candidate eligibility and selection under its accepted policy; future competition-signal expansion requires separate governed evidence and cannot be inferred from agent count.
+
+The selected proposal enters `ProtectedImplementationRuntime.generate_protected` only as candidate evidence. The runtime then repeats exact acceptance validation and commit-time safe-patch validation on the current server-owned workspace, accepts lineage only through the existing lineage gateway/CAS, and marks IMPLEMENT passed only through the existing Engineering Run service. Controller evidence is bounded and rejects secret-bearing fields or claims that the controller accepted lineage, transitioned the run, completed REVIEW or deployed production.
+
+Process recreation after candidate selection is durable without duplicating canonical mutation. The exact selected candidate/controller envelope is private immutable content-addressed evidence; the worker checkpoint records its digest and moves to `READY_FOR_INTEGRATION`. A recreated runtime restores only an exact artifact with matching Project/run/spec/acceptance/plan/base-lineage/base-revision/source-context identities, checks its authority-denial fields and proposal digest, and revalidates the proposal against the current protected workspace. The accepted IMPLEMENT operation itself remains idempotent through existing run-attempt identity, and Preview delivery remains replay-safe through the existing durable delivery record.
+
+Activation is explicit server policy: exact `PARALLAX_AGENTIC_RUNTIME_ENABLED=1` selects this composition. If enabled while durable source lineage is unavailable, the route fails closed. Presence of the code or flag definition on a branch does not mean production is activated; deployment records must separately prove configuration and post-cutover behavior.
 
 ## Project-scoped tool authority
 
@@ -430,6 +506,8 @@ SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments thro
 
 Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads. Conversation and Project rows carry nullable `deleted_at` tombstones; active reads exclude tombstoned rows and conversations bound to tombstoned Projects. Owner-local Project slug/repository uniqueness is enforced by partial unique indexes over active rows only.
 
+W6-R1 adds no PostgreSQL schema. Selected-candidate replay artifacts use the existing private immutable object-store abstraction and the existing worker checkpoint JSON/evidence references; they do not add a table or redefine the source-lineage manifest/head schema.
+
 `engineering_run_events` is a Wave 4 optional observation schema and is not considered active production persistence until its migration and activation gate are both completed.
 
 Project foreign keys bind conversations and Engineering Runs where required. Source-lineage and worker-execution tables use RLS as defense in depth and revoke direct `anon` / `authenticated` table privileges. Server-owned control-plane tables intentionally require no direct-client policy; FastAPI remains the application authorization boundary.
@@ -465,6 +543,8 @@ The Vercel Sandbox execution plane, private Blob store and Vercel Connect connec
 
 Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover; production readiness then independently verifies the request-scoped runtime Connect exchange. Model-routing releases additionally require an authenticated exact-deployment request that exercises the hosted model path and verifies sanitized provider-transport evidence after cutover.
 
+Wave 6 production activation additionally requires explicit evidence that `PARALLAX_AGENTIC_RUNTIME_ENABLED=1` is configured on the accepted API deployment, private candidate-artifact persistence is available, an authenticated Project-bound run exercises agentic PLAN/IMPLEMENT through exact-lineage BUILD/TEST/VERIFY and Preview, the runtime stops at REVIEW, and replay/process recreation does not duplicate canonical mutation or publication. Source integration or environment intent alone is not deployment evidence.
+
 A green Preview is not production deployment evidence. Production-only preflights do not replace post-deploy smoke/observability checks.
 
 While Parallax remains effectively single-user, `PROJECT-CONSTITUTION.md` v1.4 provides standing authority to promote an already validated Parallax release/hotfix without another per-release approval request. The authority expires when additional real users begin relying on production and never waives the release gates above.
@@ -475,7 +555,7 @@ Parallel development is governed by `PROJECT-CONSTITUTION.md`, `PARALLEL-DEVELOP
 
 Workers develop concurrently on isolated branches. Interacting candidates are integrated serially at authoritative boundaries and cumulative protected gates are rerun after material composition changes.
 
-Source-integrated future-wave code must not be treated as deployed/active merely because it is present on an integration branch or `main`; migration, release and activation state remain separate authoritative facts.
+Source-integrated future-wave code must not be treated as deployed/active merely because it is present on an integration branch or `main`; migration, release, activation and deployment-verification state remain separate authoritative facts.
 
 ## Failure degradation
 
@@ -487,18 +567,21 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - conversation/Project deletion with a non-terminal Engineering Run: return conflict and preserve the active item/evidence;
 - historical unbound conversation deletion by a non-owner principal: return forbidden and mutate nothing while preserving compatibility read visibility;
 - deletion of a tombstoned conversation/Project through active read scope: resolve as not found rather than reviving hidden state;
+- agentic runtime enabled without durable source-lineage composition: return service-unavailable/fail closed; never silently fall back to an ungoverned agentic implementation path;
 - agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
 - team graph cycle, impossible capability coverage, unsafe coordination overlap or orchestration bound exhaustion: fail closed or return bounded HUMAN_REQUIRED evidence; do not create unbounded agents or parallelism;
 - evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
 - routing context/policy/dependency drift, deterministic/S3 rejection, untrusted/stale/invalid/cross-Project economic evidence or contradictory routing records: exclude the affected strategy before economics and return bounded fallback, insufficient evidence, policy rejection or HUMAN_REQUIRED; never optimize around a protected failure;
 - competition context/policy/candidate drift, deterministic candidate failure, producer/evaluator identity conflict, stale or ineligible routing evidence, cross-Project evidence, unvalidated synthesis or replay conflict: disqualify the affected candidate or stop with bounded fallback/no-selection/HUMAN_REQUIRED; never manufacture a winner;
 - integrated reference-proof identity/evidence drift, non-ready Preview evidence, benchmark guardrail regression or missing material improvement: return the bounded proof failure disposition; never convert benchmark evidence into execution, source acceptance, deployment or REVIEW authority;
+- selected-candidate artifact missing, corrupt, digest-mismatched, identity-drifted, authority-asserting or stale against the current protected workspace: reject replay and accept no canonical mutation;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
 - Sandbox unavailable/failure/timeout: persist failure evidence and do not advance as success;
 - expired/stale worker lease: reject checkpoint/mutation authority;
 - recoverable process loss: classify, stall and resume/reassign from the durable canonical checkpoint within bounds;
+- active competing worker during agentic dispatch: fail closed; do not steal the live lease;
 - true specification/authority/credential boundary: enter `HUMAN_REQUIRED` rather than disguising it as ordinary retry;
 - deterministic browser/accessibility/console/network/layout failure: block pass; visual or independent evaluator judgment cannot override it;
 - regressive/equal/no-progress/oscillating correction: preserve last-known-good and stop/retry only within protected bounds;
@@ -520,7 +603,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, routing/economic policy, competition/synthesis policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, hosted model endpoints/credentials, protected evaluation, run-event activation or deployment state.
+User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, agentic runtime activation policy, team-orchestration policy, evaluator policy, routing/economic policy, competition/synthesis policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, hosted model endpoints/credentials, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -529,24 +612,26 @@ Major trust boundaries are:
 3. approved Work Specification digest/acceptance map;
 4. durable Project/run source lineage and single accepted head;
 5. confined safe IMPLEMENT mutation;
-6. exact-lineage Sandbox execution;
+6. exact-lineage Sandbox execution plus non-canonical deny-all candidate validation;
 7. durable single-writer worker lease/checkpoint/recovery authority;
-8. deterministic browser/accessibility/console/network/layout evidence;
-9. bounded visual review and correction/LKG/convergence policy;
-10. server-owned optimization policy with non-authoritative speculation/reuse;
-11. exact-bound engineering-agent task identity plus bounded adapter/result/checkpoint evidence admission;
-12. server-owned bounded development-team eligibility/dependency/coordination/reassignment policy;
-13. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
-14. server-owned outcome-routing eligibility/economic policy with provenance-bound evidence and non-tradeable correctness floors;
-15. server-owned candidate-competition/synthesis policy with exact-lineage isolation and fresh-validation requirements;
-16. exact integrated S1-S5 reference-proof/benchmark identity with deterministic failure precedence, guardrail-parity requirements and no mutation/release authority;
-17. server-owned tool capability registry;
-18. server-owned provider target/credential registry, request-scoped runtime OIDC identity, fixed hosted model transport and encoded connector wire contract;
-19. persisted provider action/audit and replay identity;
-20. protected evaluation/promotion policy;
-21. optional non-authoritative run-event projection behind migration + exact activation flag;
-22. governed logical workspace deletion with retained protected evidence, authoritative Engineering Run terminality, owner-scoped destructive authority and external-provider separation;
-23. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
+8. server-owned live agentic PLAN/dispatch admission with no direct run/source authority;
+9. private immutable selected-candidate replay evidence with mandatory exact rebinding and commit-time revalidation;
+10. deterministic browser/accessibility/console/network/layout evidence;
+11. bounded visual review and correction/LKG/convergence policy;
+12. server-owned optimization policy with non-authoritative speculation/reuse;
+13. exact-bound engineering-agent task identity plus bounded adapter/result/checkpoint evidence admission;
+14. server-owned bounded development-team eligibility/dependency/coordination/reassignment policy;
+15. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
+16. server-owned outcome-routing eligibility/economic policy with provenance-bound evidence and non-tradeable correctness floors;
+17. server-owned candidate-competition/synthesis policy with exact-candidate isolation and fresh-validation requirements;
+18. exact integrated S1-S5 reference-proof/benchmark identity with deterministic failure precedence, guardrail-parity requirements and no mutation/release authority;
+19. server-owned tool capability registry;
+20. server-owned provider target/credential registry, request-scoped runtime OIDC identity, fixed hosted model transport and encoded connector wire contract;
+21. persisted provider action/audit and replay identity;
+22. protected evaluation/promotion policy;
+23. optional non-authoritative run-event projection behind migration + exact activation flag;
+24. governed logical workspace deletion with retained protected evidence, authoritative Engineering Run terminality, owner-scoped destructive authority and external-provider separation;
+25. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing/agentic-runtime verification.
 
 ## Inherited development-policy architecture
 
@@ -576,4 +661,4 @@ Deterministic failures are authoritative over visual judgment. The controller pr
 
 Worker states include `RUNNING`, `PROGRESSING`, `CHECKPOINTED`, `STALLED`, `RECOVERING`, `REASSIGNED`, `HUMAN_REQUIRED`, `READY_FOR_INTEGRATION` and terminal success/failure. Bounded leases, meaningful-progress checkpoints and single-writer recovery permit process loss/reassignment without duplicate mutation or corrupted lineage.
 
-The same protected architecture governs Parallax self-development and every Project Parallax develops. Wave 4 observation capability may extend visibility around this runtime, but it does not become authoritative over it.
+The same protected architecture governs Parallax self-development and every Project Parallax develops. Wave 4 observation capability may extend visibility around this runtime, but it does not become authoritative over it. Wave 6 runtime activation is integrated as an undeployed extension of this same authority model rather than a replacement for it.
