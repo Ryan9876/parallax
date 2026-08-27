@@ -15,32 +15,16 @@ jobs:
         with:
           ref: records/w6-production-infrastructure
           fetch-depth: 0
-      - name: Apply existing canonical record patch and self-remove
-        shell: python
+      - name: Apply robust authoritative record patch and self-remove
         run: |
+          python .github/reconcile_w6_production_infrastructure.py
+          python - <<'PY'
           from pathlib import Path
           import re
           import subprocess
 
-          workflow = Path('.github/workflows/reconcile-w6-production-infrastructure.yml')
-          source = workflow.read_text(encoding='utf-8').splitlines()
-          try:
-              shell_index = source.index('        shell: python')
-              run_index = source.index('        run: |', shell_index + 1)
-          except ValueError as exc:
-              raise SystemExit('canonical reconciliation Python block not found') from exc
-
-          code_lines = []
-          for line in source[run_index + 1:]:
-              if line and not line.startswith('          '):
-                  break
-              code_lines.append(line[10:] if line.startswith('          ') else '')
-          code = '\n'.join(code_lines) + '\n'
-          exec(compile(code, str(workflow), 'exec'), {'__name__': '__main__'})
-
-          # Existing CURRENT-STATE uses Markdown two-space hard breaks. Preserve
-          # unchanged historical lines, but normalize whitespace on lines changed
-          # by this reconciliation so git diff --check remains authoritative.
+          # Normalize trailing whitespace only on lines introduced/modified by
+          # this record patch. Historical untouched Markdown hard breaks remain.
           diff = subprocess.run(
               ['git', 'diff', '--unified=0', '--', 'CURRENT-STATE.md'],
               check=True,
@@ -52,19 +36,22 @@ jobs:
               start = int(match.group(1))
               count = int(match.group(2) or '1')
               changed.update(range(start, start + count))
-          state = Path('CURRENT-STATE.md')
-          lines = state.read_text(encoding='utf-8').splitlines()
+          path = Path('CURRENT-STATE.md')
+          lines = path.read_text(encoding='utf-8').splitlines()
           for number in changed:
               if 1 <= number <= len(lines):
                   lines[number - 1] = lines[number - 1].rstrip(' \t')
-          state.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-
-          subprocess.run(['git', 'diff', '--check'], check=True)
-          subprocess.run(['git', 'rm', '-f', str(workflow)], check=True)
-          subprocess.run(['git', 'rm', '-f', '.github/workflows/run-reconcile-w6-production-infrastructure.yml'], check=True)
-          subprocess.run(['git', 'add', 'CURRENT-STATE.md'], check=True)
-          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
-          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
-          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
-          subprocess.run(['git', 'commit', '-m', 'docs(state): record Wave 6 production infrastructure verification'], check=True)
-          subprocess.run(['git', 'push', 'origin', 'HEAD:records/w6-production-infrastructure'], check=True)
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          git diff --check
+          git rm -f \
+            .github/workflows/reconcile-w6-production-infrastructure.yml \
+            .github/workflows/run-reconcile-w6-production-infrastructure.yml \
+            .github/workflows/run-w6-record-reconciliation.yml \
+            .github/reconcile_w6_production_infrastructure.py
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(state): record Wave 6 production infrastructure verification'
+          git push origin HEAD:records/w6-production-infrastructure
