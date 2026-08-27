@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "**Immutable task request envelope with exact identity binding and bounded evidence**\n\n{architecture_decision}\n### 3.1 Canonical agent identity\n\n- **Agent ID**: immutable, bounded, validated for length/format/deterministic serialization\n- **Agent version**: immutable, bounded, validated for length/format/deterministic serialization\n- **Adapter ID/version**: immutable, bounded, validated for length/format/deterministic serialization\n- **Provider kind**: descriptive enum/string owned by Parallax configuration\n- **Declared work/capability evidence**: bounded normalized identifiers\n- **Optional model/runtime label**: non-authoritative evidence\n\n### 3.2 Immutable task request envelope\n\n- **Exact Project ID**: exact, immutable, validated for length/format/deterministic serialization\n- **Exact Engineering Run ID**: exact, immutable, validated for length/format/deterministic serialization\n- **Exact Work Specification ID/revision/digest**: exact, immutable, validated for length/format/deterministic serialization\n- **Exact stable acceptance IDs**: preserving order deterministically\n- **Stable operation/task ID and explicit attempt number/ID**: bounded, deterministic, validated for length/format/deterministic serialization\n- **Bounded task/work kind**: bounded, validated for length/format/deterministic serialization\n- **Source lineage/revision identity**: when source evidence is part of the task/work, validated for length/format/deterministic serialization"
+  ],
+  "work_items": [
+    "{work_item}"
+  ],
+  "validations": [
+    "{validation}",
+    "AC-01: validate protected requirement — Every canonical agent task includes exact Project ID, Engineering Run ID, Work Specification ID/revision/digest, stable acceptance IDs, operation/task ID, attempt identity and, when applicable, immutable source-lineage/revision identity. Construction rejects malformed identity, duplicate/empty acceptance IDs and invalid attempt/deadline metadata.",
+    "AC-02: validate protected requirement — Agent ID/version, adapter ID/version, provider kind, model/runtime label and declared capabilities/work kinds are deterministically serialized bounded evidence. None of these fields can create a Project capability grant, credential, tool, shell/network/provider scope, service binding, source acceptance, merge/deploy authority or REVIEW permission.",
+    "AC-03: validate protected requirement — At least two deterministic conforming reference adapters with materially different internal response shapes normalize into the same canonical request/result/failure evidence. Raw provider payloads, prompts, hidden reasoning and credential material are absent from canonical evidence and safe serialization.",
+    "AC-04: validate protected requirement — The task binds the stable acceptance IDs from the approved Work Specification. Agent claimed coverage is represented only as bounded evidence. Missing, added, replaced or mismatched acceptance identity causes admission failure and no agent result can alter evaluator thresholds or satisfy protected acceptance without existing validation/evaluation.",
+    "AC-05: validate protected requirement — Deterministic admission tests reject results/checkpoints with mismatched Project, run, Work Specification identity/revision/digest, acceptance projection, operation ID, source lineage, agent/adapter identity where bound, stale attempt or revoked/cancelled task. Rejection returns bounded reason codes and cannot transition Engineering Run state or accept source lineage.",
+    "AC-06: validate protected requirement — Stable task/operation and attempt identities distinguish exact replay from a new attempt. Re-admitting the same terminal evidence is duplicate-safe; stale or competing duplicates cannot replace the durable accepted worker evidence for the operation, trigger a second authority-bearing action or silently become a new task.",
+    "AC-07: validate protected requirement — A conforming reference adapter demonstrates recoverable failure plus bounded checkpoint/resume. Checkpoints are exact task/attempt/agent bound, contain no authority/credential/private-reasoning payload, and are resumable only when current canonical identity still matches. Existing durable worker lease/checkpoint/recovery remains authoritative.",
+    "AC-08: validate protected requirement — A conforming reference adapter demonstrates deterministic timeout/cancellation behavior. Cancellation/revocation wins over late completion, unsupported cancellation is represented explicitly, and unknown provider errors normalize to bounded non-success rather than success or autonomous retry authority.",
+    "AC-09: validate protected requirement — Time/token/request/cost evidence uses explicit availability state and provenance. Observed numeric values are finite/non-negative and carry required units/currency where applicable. Missing provider telemetry remains `UNAVAILABLE`/`UNKNOWN`, not zero or fabricated observed cost, and all observations remain task/attempt/agent bound.",
+    "AC-10: validate protected requirement — Deterministic serialization exposes only bounded safe identities, status/reason codes, safe summaries/references and metric provenance/availability. Tests prove it contains no raw credentials/secrets, provider request/response payloads, prompts, hidden reasoning, unrestricted logs, cross-Project private context or agent-supplied executable/network authority.",
+    "AC-11: validate protected requirement — S1 does not replace or weaken Engineering Run state, durable worker recovery, immutable accepted lineage, implementation/correction runtime, governed skills/service bindings, protected validation/evaluation, source delivery, authentication/session handling or REVIEW/HUMAN_REQUIRED. Relevant existing API/protected-autonomy regression suites remain green.",
+    "AC-12: validate protected requirement — `P2-V0.19.1` validates with authentic DSPy metadata before semantic implementation. Final S1 diff remains within issue #264 ownership; exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy. S2/S3 semantic implementation remains blocked until Control Tower accepts S1."
+  ],
+  "risks": [
+    "{risk}"
+  ],
+  "spec_id": "P2-V0.19.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact canonical task identity binding",
+      "protected_requirement": "Every canonical agent task includes exact Project ID, Engineering Run ID, Work Specification ID/revision/digest, stable acceptance IDs, operation/task ID, attempt identity and, when applicable, immutable source-lineage/revision identity. Construction rejects malformed identity, duplicate/empty acceptance IDs and invalid attempt/deadline metadata."
+    },
+    {
+      "id": "AC-02",
+      "title": "Agent and adapter identity is bounded evidence only",
+      "protected_requirement": "Agent ID/version, adapter ID/version, provider kind, model/runtime label and declared capabilities/work kinds are deterministically serialized bounded evidence. None of these fields can create a Project capability grant, credential, tool, shell/network/provider scope, service binding, source acceptance, merge/deploy authority or REVIEW permission."
+    },
+    {
+      "id": "AC-03",
+      "title": "Provider-specific payloads cannot become canonical truth",
+      "protected_requirement": "At least two deterministic conforming reference adapters with materially different internal response shapes normalize into the same canonical request/result/failure evidence. Raw provider payloads, prompts, hidden reasoning and credential material are absent from canonical evidence and safe serialization."
+    },
+    {
+      "id": "AC-04",
+      "title": "Exact acceptance contract cannot be redefined by an agent",
+      "protected_requirement": "The task binds the stable acceptance IDs from the approved Work Specification. Agent claimed coverage is represented only as bounded evidence. Missing, added, replaced or mismatched acceptance identity causes admission failure and no agent result can alter evaluator thresholds or satisfy protected acceptance without existing validation/evaluation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Result admission fails closed on identity mismatch or staleness",
+      "protected_requirement": "Deterministic admission tests reject results/checkpoints with mismatched Project, run, Work Specification identity/revision/digest, acceptance projection, operation ID, source lineage, agent/adapter identity where bound, stale attempt or revoked/cancelled task. Rejection returns bounded reason codes and cannot transition Engineering Run state or accept source lineage."
+    },
+    {
+      "id": "AC-06",
+      "title": "Replay and duplicate result handling is idempotent",
+      "protected_requirement": "Stable task/operation and attempt identities distinguish exact replay from a new attempt. Re-admitting the same terminal evidence is duplicate-safe; stale or competing duplicates cannot replace the durable accepted worker evidence for the operation, trigger a second authority-bearing action or silently become a new task."
+    },
+    {
+      "id": "AC-07",
+      "title": "Recoverable failure and checkpoint evidence preserves worker authority",
+      "protected_requirement": "A conforming reference adapter demonstrates recoverable failure plus bounded checkpoint/resume. Checkpoints are exact task/attempt/agent bound, contain no authority/credential/private-reasoning payload, and are resumable only when current canonical identity still matches. Existing durable worker lease/checkpoint/recovery remains authoritative."
+    },
+    {
+      "id": "AC-08",
+      "title": "Timeout and cancellation normalize without false success",
+      "protected_requirement": "A conforming reference adapter demonstrates deterministic timeout/cancellation behavior. Cancellation/revocation wins over late completion, unsupported cancellation is represented explicitly, and unknown provider errors normalize to bounded non-success rather than success or autonomous retry authority."
+    },
+    {
+      "id": "AC-09",
+      "title": "Usage, duration and cost observations preserve provenance and missingness",
+      "protected_requirement": "Time/token/request/cost evidence uses explicit availability state and provenance. Observed numeric values are finite/non-negative and carry required units/currency where applicable. Missing provider telemetry remains `UNAVAILABLE`/`UNKNOWN`, not zero or fabricated observed cost, and all observations remain task/attempt/agent bound."
+    },
+    {
+      "id": "AC-10",
+      "title": "Safe evidence serialization preserves privacy and authority boundaries",
+      "protected_requirement": "Deterministic serialization exposes only bounded safe identities, status/reason codes, safe summaries/references and metric provenance/availability. Tests prove it contains no raw credentials/secrets, provider request/response payloads, prompts, hidden reasoning, unrestricted logs, cross-Project private context or agent-supplied executable/network authority."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing protected runtime contracts remain authoritative and green",
+      "protected_requirement": "S1 does not replace or weaken Engineering Run state, durable worker recovery, immutable accepted lineage, implementation/correction runtime, governed skills/service bindings, protected validation/evaluation, source delivery, authentication/session handling or REVIEW/HUMAN_REQUIRED. Relevant existing API/protected-autonomy regression suites remain green."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact-head worker boundary and dependency gate",
+      "protected_requirement": "`P2-V0.19.1` validates with authentic DSPy metadata before semantic implementation. Final S1 diff remains within issue #264 ownership; exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy. S2/S3 semantic implementation remains blocked until Control Tower accepts S1."
+    }
+  ],
+  "critique": [
+    "finding: The foundational Wave 6 protocol for Parallax implementation is incomplete, lacking a clear specification for the exact canonical Project, Engineering Run, approved Work Specification revision/digest, acceptance IDs, source context, operation identity, adapter identity, and attempt."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
