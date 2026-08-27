@@ -1,0 +1,104 @@
+{
+  "architecture_decisions": [
+    "S2 Composes accepted S1 agent protocol with existing Parallax durable worker lease/checkpoint/recovery and single-writer source-lineage architecture."
+  ],
+  "work_items": [
+    "Work Item: Enable Parallax to determine whether an approved engineering objective should use one agent or a bounded multi-agent development team."
+  ],
+  "validations": [
+    "Validation: S2 forms the team and provides deterministic orchestration decisions and bounded evidence.",
+    "AC-01: validate protected requirement — Every orchestration plan binds exact Project, run, Work Specification ID/revision/digest, stable acceptance IDs, accepted S1 protocol version, server-owned policy digest, work-graph digest and admitted-roster digest. Malformed/mismatched identity or drift produces a bounded non-ready decision.",
+    "AC-02: validate protected requirement — Tests prove an agent is eligible only when its exact S1 identity declares the required work/capability and a server-owned policy admits that exact identity digest for it. Agent/provider/repository content cannot self-expand eligibility, tools, network/provider scope or credentials.",
+    "AC-03: validate protected requirement — Deterministic fixtures prove serial/overlapping work stays single-agent while materially independent dependency-ready work can form a bounded multi-agent team. Team size is capped, tie-breaking is deterministic and provider name/order is not implicit preference.",
+    "AC-04: validate protected requirement — Cycles, missing dependencies, duplicate work-unit IDs, acceptance IDs outside the approved contract, conflicting ownership and unknown/shared mutation overlap fail closed or serialize. Only proven dependency-ready non-conflicting work can be concurrent.",
+    "AC-05: validate protected requirement — Parallel assignments may produce isolated evidence/proposals but cannot create/advance source-lineage heads, bypass compare-and-swap, write canonical source, merge candidate fragments or represent agent output as accepted lineage. Work sharing a protected mutation domain is serialized.",
+    "AC-06: validate protected requirement — Each assignment binds plan/work-unit/agent/task/dependency/generation identity. Exact replay returns the same bounded assignment evidence without duplicate dispatch/canonical action; spec/graph/policy/roster drift is detected rather than silently replayed.",
+    "AC-07: validate protected requirement — S2 consumes authoritative worker lease/checkpoint/stall evidence plus S1-admitted evidence. It does not create a competing worker state machine. Failed/stalled labor can be reassigned while preserving canonical Project/run/spec/work-unit identity and incrementing an explicit assignment generation.",
+    "AC-08: validate protected requirement — Tests cover stale worker generation, stale assignment attempt, late result after reassignment, duplicate result, mismatched checkpoint and revoked assignment. None can displace the current assignment, resurrect old work, advance canonical source or create a second protected action.",
+    "AC-09: validate protected requirement — Server-owned limits cap team size, concurrency, per-work-unit reassignment and orchestration retry/no-progress behavior. Exhaustion deterministically stops or returns `HUMAN_REQUIRED`; S2 cannot recursively add agents, retry forever or weaken protected acceptance.",
+    "AC-10: validate protected requirement — Team/assignment/reassignment/dependency and S1 usage observations retain exact provenance and explicit missingness. S2 emits no fabricated quality/cost/time claims, implementer self-evaluation as acceptance, raw provider payloads, prompts, hidden reasoning, credentials, unbounded logs or cross-Project evidence.",
+    "AC-11: validate protected requirement — Given the same immutable plan/assignment evidence and current authoritative S1/worker facts, process recreation yields the same ready/waiting/blocked/reassigned state without provider-native session, local filesystem or in-memory agent state as authority. Changed generation/policy/roster/spec facts are explicitly detected.",
+    "AC-12: validate protected requirement — S1, Engineering Run, durable worker recovery, source lineage, governed skills/tools/service bindings, protected validation/evaluation, Preview delivery and REVIEW/HUMAN_REQUIRED semantics remain unchanged. Relevant API/protected-autonomy regression suites stay green.",
+    "AC-13: validate protected requirement — `P2-V0.19.2` validates with authentic DSPy metadata before semantic implementation. Final S2 diff remains within #265 ownership; exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy. S4/S5/S6 dependencies are not bypassed."
+  ],
+  "risks": [
+    "Risk: Multi-agent execution is bounded and only used when independent work can make meaningful progress without violating shared-path/single-writer constraints."
+  ],
+  "spec_id": "P2-V0.19.2",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact team-orchestration identity is canonical and fail-closed",
+      "protected_requirement": "Every orchestration plan binds exact Project, run, Work Specification ID/revision/digest, stable acceptance IDs, accepted S1 protocol version, server-owned policy digest, work-graph digest and admitted-roster digest. Malformed/mismatched identity or drift produces a bounded non-ready decision."
+    },
+    {
+      "id": "AC-02",
+      "title": "Agent eligibility requires both S1 declaration and server-owned admission",
+      "protected_requirement": "Tests prove an agent is eligible only when its exact S1 identity declares the required work/capability and a server-owned policy admits that exact identity digest for it. Agent/provider/repository content cannot self-expand eligibility, tools, network/provider scope or credentials."
+    },
+    {
+      "id": "AC-03",
+      "title": "Planner chooses the smallest adequate one-agent or multi-agent team",
+      "protected_requirement": "Deterministic fixtures prove serial/overlapping work stays single-agent while materially independent dependency-ready work can form a bounded multi-agent team. Team size is capped, tie-breaking is deterministic and provider name/order is not implicit preference."
+    },
+    {
+      "id": "AC-04",
+      "title": "Dependency graph validation prevents unsafe or ambiguous parallelism",
+      "protected_requirement": "Cycles, missing dependencies, duplicate work-unit IDs, acceptance IDs outside the approved contract, conflicting ownership and unknown/shared mutation overlap fail closed or serialize. Only proven dependency-ready non-conflicting work can be concurrent."
+    },
+    {
+      "id": "AC-05",
+      "title": "Canonical single-writer/source-lineage authority is preserved",
+      "protected_requirement": "Parallel assignments may produce isolated evidence/proposals but cannot create/advance source-lineage heads, bypass compare-and-swap, write canonical source, merge candidate fragments or represent agent output as accepted lineage. Work sharing a protected mutation domain is serialized."
+    },
+    {
+      "id": "AC-06",
+      "title": "Dispatch identities are deterministic, exact-bound and replay-safe",
+      "protected_requirement": "Each assignment binds plan/work-unit/agent/task/dependency/generation identity. Exact replay returns the same bounded assignment evidence without duplicate dispatch/canonical action; spec/graph/policy/roster drift is detected rather than silently replayed."
+    },
+    {
+      "id": "AC-07",
+      "title": "Recovery and reassignment compose with existing durable worker authority",
+      "protected_requirement": "S2 consumes authoritative worker lease/checkpoint/stall evidence plus S1-admitted evidence. It does not create a competing worker state machine. Failed/stalled labor can be reassigned while preserving canonical Project/run/spec/work-unit identity and incrementing an explicit assignment generation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Stale lease/result/checkpoint and late completion fail closed",
+      "protected_requirement": "Tests cover stale worker generation, stale assignment attempt, late result after reassignment, duplicate result, mismatched checkpoint and revoked assignment. None can displace the current assignment, resurrect old work, advance canonical source or create a second protected action."
+    },
+    {
+      "id": "AC-09",
+      "title": "Bounded recovery terminates no-progress and repeated failure",
+      "protected_requirement": "Server-owned limits cap team size, concurrency, per-work-unit reassignment and orchestration retry/no-progress behavior. Exhaustion deterministically stops or returns `HUMAN_REQUIRED`; S2 cannot recursively add agents, retry forever or weaken protected acceptance."
+    },
+    {
+      "id": "AC-10",
+      "title": "S2 evidence is provenance-bound and safe for S3/S4 without inventing quality",
+      "protected_requirement": "Team/assignment/reassignment/dependency and S1 usage observations retain exact provenance and explicit missingness. S2 emits no fabricated quality/cost/time claims, implementer self-evaluation as acceptance, raw provider payloads, prompts, hidden reasoning, credentials, unbounded logs or cross-Project evidence."
+    },
+    {
+      "id": "AC-11",
+      "title": "Process recreation preserves deterministic orchestration state",
+      "protected_requirement": "Given the same immutable plan/assignment evidence and current authoritative S1/worker facts, process recreation yields the same ready/waiting/blocked/reassigned state without provider-native session, local filesystem or in-memory agent state as authority. Changed generation/policy/roster/spec facts are explicitly detected."
+    },
+    {
+      "id": "AC-12",
+      "title": "Existing protected runtime and human/release ceilings remain authoritative",
+      "protected_requirement": "S1, Engineering Run, durable worker recovery, source lineage, governed skills/tools/service bindings, protected validation/evaluation, Preview delivery and REVIEW/HUMAN_REQUIRED semantics remain unchanged. Relevant API/protected-autonomy regression suites stay green."
+    },
+    {
+      "id": "AC-13",
+      "title": "Exact-head worker boundary and dependency handoff",
+      "protected_requirement": "`P2-V0.19.2` validates with authentic DSPy metadata before semantic implementation. Final S2 diff remains within #265 ownership; exact-head Workstream Spec Validation, P2 CI and Bounded Autonomy pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy. S4/S5/S6 dependencies are not bypassed."
+    }
+  ],
+  "critique": [
+    "One material implementation risk or omission in the approved software specification is the lack of explicit and deterministic explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit explicit"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
