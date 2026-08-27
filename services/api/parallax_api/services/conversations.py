@@ -62,6 +62,15 @@ class ConversationService:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
 
+    def delete(self, conversation_id: str) -> None:
+        conversation = self.get(conversation_id)
+        if self.repository.has_nonterminal_run(conversation.id):
+            raise HTTPException(
+                status_code=409,
+                detail="Conversation has active engineering work. Cancel or complete it before deleting the conversation.",
+            )
+        self.repository.soft_delete(conversation)
+
     def append_message(self, conversation_id: str, role: str, content: str):
         conversation = self.get(conversation_id)
         return self.repository.add_message(conversation, role, content)

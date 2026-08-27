@@ -13,6 +13,10 @@ class ProjectValidationError(ValueError):
     pass
 
 
+class ProjectDeleteConflictError(RuntimeError):
+    pass
+
+
 class ProjectService:
     def __init__(self, repository: ProjectRepository):
         self.repository = repository
@@ -42,9 +46,18 @@ class ProjectService:
             raise ProjectNotFoundError("Project not found")
         return project
 
+    def delete(self, *, project_id: str, owner_subject: str) -> None:
+        project = self.get(project_id=project_id, owner_subject=owner_subject)
+        if self.repository.has_nonterminal_run(project.id):
+            raise ProjectDeleteConflictError(
+                "Project has active engineering work. Cancel or complete it before deleting the Project."
+            )
+        self.repository.soft_delete(project)
+
 
 __all__ = [
     "ProjectConflictError",
+    "ProjectDeleteConflictError",
     "ProjectNotFoundError",
     "ProjectService",
     "ProjectValidationError",

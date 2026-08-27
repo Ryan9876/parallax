@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..models import Conversation, Message, utcnow
+from ..models import Conversation, EngineeringRun, Message, utcnow
 from ..projects.model import Project
+
+
+TERMINAL_RUN_STATES = ("COMPLETE", "CANCELLED")
 
 
 class ConversationRepository:
@@ -27,6 +30,14 @@ class ConversationRepository:
     def list(self) -> list[Conversation]:
         statement = (
             select(Conversation)
+            .outerjoin(Project, Conversation.project_id == Project.id)
+            .where(
+                Conversation.deleted_at.is_(None),
+                or_(
+                    Conversation.project_id.is_(None),
+                    Project.deleted_at.is_(None),
+                ),
+            )
             .options(selectinload(Conversation.messages))
             .order_by(Conversation.updated_at.desc())
         )
@@ -37,10 +48,14 @@ class ConversationRepository:
             select(Conversation)
             .outerjoin(Project, Conversation.project_id == Project.id)
             .where(
+                Conversation.deleted_at.is_(None),
                 or_(
                     Conversation.project_id.is_(None),
-                    Project.owner_subject == owner_subject,
-                )
+                    and_(
+                        Project.owner_subject == owner_subject,
+                        Project.deleted_at.is_(None),
+                    ),
+                ),
             )
             .options(selectinload(Conversation.messages))
             .order_by(Conversation.updated_at.desc())
@@ -50,7 +65,15 @@ class ConversationRepository:
     def get(self, conversation_id: str) -> Conversation | None:
         statement = (
             select(Conversation)
-            .where(Conversation.id == conversation_id)
+            .outerjoin(Project, Conversation.project_id == Project.id)
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.deleted_at.is_(None),
+                or_(
+                    Conversation.project_id.is_(None),
+                    Project.deleted_at.is_(None),
+                ),
+            )
             .options(selectinload(Conversation.messages))
         )
         return self.session.scalar(statement)
@@ -61,14 +84,35 @@ class ConversationRepository:
             .outerjoin(Project, Conversation.project_id == Project.id)
             .where(
                 Conversation.id == conversation_id,
+                Conversation.deleted_at.is_(None),
                 or_(
                     Conversation.project_id.is_(None),
-                    Project.owner_subject == owner_subject,
+                    and_(
+                        Project.owner_subject == owner_subject,
+                        Project.deleted_at.is_(None),
+                    ),
                 ),
             )
             .options(selectinload(Conversation.messages))
         )
         return self.session.scalar(statement)
+
+    def has_nonterminal_run(self, conversation_id: str) -> bool:
+        statement = (
+            select(EngineeringRun.id)
+            .where(
+                EngineeringRun.conversation_id == conversation_id,
+                EngineeringRun.state.notin_(TERMINAL_RUN_STATES),
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement) is not None
+
+    def soft_delete(self, conversation: Conversation) -> None:
+        conversation.deleted_at = utcnow()
+        conversation.updated_at = conversation.deleted_at
+        self.session.add(conversation)
+        self.session.commit()
 
     def add_message(self, conversation: Conversation, role: str, content: str) -> Message:
         message = Message(conversation_id=conversation.id, role=role, content=content)
