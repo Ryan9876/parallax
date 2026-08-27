@@ -2,7 +2,7 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / CURRENT PRODUCTION MAIN SYNCHRONIZED IN PR #298 CANDIDATE / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE EXACT-HEAD GATES**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / CURRENT PRODUCTION MAIN SYNCHRONIZED / CUMULATIVE S1-S5 CHECKPOINT ACCEPTED / WAVE 6 NOT DEPLOYED / S6 SPEC-FIRST WORK AUTHORIZED / S6 SEMANTIC IMPLEMENTATION BLOCKED PENDING APPROVED SPEC + AUTHENTIC DSPY EVIDENCE**
 
 ## Current production truth
 
@@ -12,7 +12,7 @@ Safe conversation/Project deletion originated in #290 / PR #291 and is present i
 
 The corrective release is **production-deployed and infrastructure-verified but not yet accepted as fully deployment-verified feature behavior** because the final authenticated post-cutover deletion smoke cannot be executed by the available connector without an application user session. No destructive smoke will be performed against real user content merely to manufacture release evidence.
 
-Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. Control Tower PR #298 is the conflict-resolved cumulative synchronization candidate that combines accepted S1-S5 head `9fe751a96ec050545abdcfbb016c668cd4c7336f` with current production `main` baseline `a455b223ad4707aa7fe2ccd3470a5e7640c40da2`. Its two-parent merge ancestor is `2855331cf5443181b3766fd24abe47c62553dfa9`. Tree comparison against current `main` proves the candidate differs only by the accepted Wave 6 S1-S5 code/tests/specs/compiled-plan paths. The authoritative integration branch must not advance to this candidate until fresh exact-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass.
+Wave 6 S1-S5 remain accepted development architecture and are **not** production deployments. Control Tower PR #298 reconciled accepted S1-S5 head `9fe751a96ec050545abdcfbb016c668cd4c7336f` with current production `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`. The final conflict-resolved and record-reconciled candidate `f8b5bcd9b40f13777c16e3d323030b814dc4fa86` passed fresh cumulative exact-head validation and was advanced without force to `integration/wave6-agentic-control-plane`. Validation-only PR #299 was closed without merge to `main`; production remains unchanged.
 
 ### Safe-deletion release identity
 
@@ -146,13 +146,22 @@ Control Tower #215 completed generalized application delivery through #216-#221 
 
 Control Tower: #263.  
 Authoritative integration branch: `integration/wave6-agentic-control-plane`.  
-Current accepted S1-S5 functional integration head before production-baseline synchronization: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
-Conflict-resolved cumulative synchronization PR: #298.  
-Two-parent production + S1-S5 merge ancestor: `2855331cf5443181b3766fd24abe47c62553dfa9`.  
-Current production baseline included by that merge: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
+Accepted S1-S5 functional integration head before production-baseline synchronization: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
+Accepted cumulative production-synchronized S1-S5 checkpoint: `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`.  
+Conflict-resolved cumulative synchronization PR: #298 — **MERGED TO INTEGRATION ONLY**.  
+Validation-only PR #299: **CLOSED WITHOUT MERGE TO MAIN**.  
+Current production baseline included by the checkpoint: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
 Wave 6 production deployment: **none**.
 
-Accepted/integrated semantic state remains:
+Cumulative checkpoint evidence on exact `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`:
+
+- Parallax Workstream Spec Validation #475 / run `33102583272` — **PASS**;
+- Bounded Autonomy Pilot #682 / run `33102569123` — **PASS**;
+- Parallax P2 CI #1086 / run `33102583280` — **PASS**;
+- tree comparison against current `main` showed only accepted Wave 6 S1-S5 paths beyond production;
+- integration ref advancement was a non-force fast-forward to the exact validated checkpoint.
+
+Accepted/integrated semantic state:
 
 1. #264 / S1 Agent Adapter & Evidence Protocol — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / S2 Dynamic Development Team Orchestration — **COMPLETE / ACCEPTED / INTEGRATED**;
@@ -160,11 +169,11 @@ Accepted/integrated semantic state remains:
 4. #267 / S4 Outcome Routing & Development Economics — **COMPLETE / ACCEPTED / INTEGRATED**;
 5. #281 repository source-tree capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
 6. #268 / S5 Candidate Competition & Synthesis — **COMPLETE / ACCEPTED / INTEGRATED**;
-7. #269 / S6 — **BLOCKED until PR #298's current exact head passes fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI and the authoritative integration branch is advanced to that validated checkpoint**.
+7. #269 / S6 Agentic Development Integrated Reference Proof — **SPEC-FIRST ENTRY AUTHORIZED** from the accepted cumulative checkpoint. Semantic implementation remains blocked until `P2-V0.19.6` validates with stable acceptance IDs, authentic DSPy SpecCritic + SpecCompiler evidence is committed, the protected `--require-dspy` plan gate passes, temporary development-workflow changes are restored, and Control Tower explicitly releases the semantic-development gate.
 
-The synchronization candidate was manually conflict-resolved because direct `main` -> integration PR #297 was not mergeable. The conflict-resolved tree preserves all accepted S1-S5 implementation/test/spec/compiled-plan paths while overlaying the current production changes and production-authoritative records. A comparison from current `main` to the merge candidate shows only the accepted Wave 6 S1-S5 paths as remaining differences; this is the required whole-product composition before S6 begins.
+The production-baseline synchronization was manually conflict-resolved because direct `main` -> integration PR #297 was not mergeable. The accepted tree preserves all accepted S1-S5 implementation/test/spec/compiled-plan paths while overlaying current production changes and production-authoritative records. This whole-product composition is now the governed S6 starting dependency baseline.
 
-PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. PR #297 is closed as superseded by #298. Safe-deletion/model-transport production changes included in #298 do not deploy or activate Wave 6 code.
+PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. PR #297 is closed as superseded. Safe-deletion/model-transport production changes incorporated into the integration branch do not deploy or activate Wave 6 code.
 
 ## Rollback
 
@@ -228,8 +237,8 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.7 — current production architecture plus accepted Wave 6 S1-S5 durable architecture; no new architectural contract is introduced by the branch synchronization itself.
-- `DESIGN-SYSTEM.md` v3.1 — current production design system; no new design contract is introduced by the branch synchronization.
-- `CURRENT-STATE.md` — reconciled on the Wave 6 cumulative-sync candidate to record current production truth, accepted S1-S5 state, conflict-resolved PR #298, and the exact cumulative validation gate that still blocks S6.
+- `ARCHITECTURE.md` v3.7 — current production architecture plus accepted Wave 6 S1-S5 durable architecture; the synchronization/release decision introduces no new durable architecture contract.
+- `DESIGN-SYSTEM.md` v3.1 — current production design system; the synchronization/release decision introduces no new design contract.
+- `CURRENT-STATE.md` — updated after cumulative S1-S5 validation and non-force integration advancement to record the accepted checkpoint, exact gate evidence, unchanged production state and S6 spec-first release boundary.
 
-Wave 6 remains not deployed. Safe deletion corrective code is serving in production; final safe-deletion feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target. S6 remains blocked until the conflict-resolved cumulative Wave 6 candidate passes fresh exact-head gates and becomes the authoritative integration checkpoint.
+Wave 6 remains not deployed. Safe deletion corrective code is serving in production; final safe-deletion feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target. S6 may begin spec-first work, but semantic implementation remains gated by an approved `P2-V0.19.6` and authentic DSPy compiled evidence.
