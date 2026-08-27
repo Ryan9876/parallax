@@ -22,5 +22,7 @@ def _tree_bound(path: Path) -> int:
 
 
 def test_production_preflight_tree_bounds_match_runtime_provider_contract() -> None:
+    # Production release gates must track the server-owned provider capacity;
+    # a stale stricter copy can block a valid runtime release before cutover.
     assert MAX_TREE_ENTRIES == 1024
     assert {_tree_bound(path) for path in PREFLIGHTS} == {MAX_TREE_ENTRIES}
