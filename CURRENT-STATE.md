@@ -2,13 +2,13 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S3 ACCEPTED AND INTEGRATED / S1-S3 RECORDS RECONCILED / CUMULATIVE EXACT-HEAD VALIDATION PENDING / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / S4 RECORD RECONCILIATION IN PROGRESS / CUMULATIVE EXACT-HEAD VALIDATION PENDING / S5 BLOCKED / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus bounded stabilization through #127, mobile stabilization #261/#262, and response-stream stabilization #271/#272.
 
-Wave 6 S1-S3 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
+Wave 6 S1-S4 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
 
 ### Production client
 
@@ -72,10 +72,12 @@ Control Tower: #263.
 Integration branch: `integration/wave6-agentic-control-plane`.  
 Accepted post-response-stabilization starting baseline: `c87d5ec6b2c59a983d1b97f1d4f61d2e02808e5c`.  
 Accepted cumulative S1 checkpoint: `53952ab5010275410f06f5940ffaa89e139016eb`.  
+Accepted cumulative S1-S3 dependency baseline: `95f6f3ec964d22d70df02b1f1cf54f328b39edfc`.  
 S1-S3 functional integration commit: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.  
-Durable record reconciliation: `CURRENT-STATE.md` S2/S3 reconciliation commit `68a4be6d0de35cd69c3578694c7c1ec9101ee213`; `ARCHITECTURE.md` v3.3 reconciliation commit `8e4687c3469ddb202356712b4aba650be8aa05e6`.
+S4 functional integration commit: `0d1cb510e2a7c37b024a994a29642e4047ae84d9`.  
+S4 durable architecture reconciliation: `ARCHITECTURE.md` v3.4 commit `063775b6ac5a465cdfae2e642bfa07275e251d0f`.
 
-The exact cumulative S1-S3 dependency baseline for S4 is not accepted until fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI pass on the final record-reconciled integration head containing this state update.
+S4 is accepted and integrated, but the S1-S4 cumulative state is not yet the accepted S5 dependency baseline. The final record-reconciled integration head containing this CURRENT-STATE update must pass fresh cumulative Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI before Control Tower may authorize S5 spec-first work.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
@@ -107,13 +109,27 @@ Spec/DSPy gate: run `33028365447`, artifact `9629322869`, digest `sha256:46d4093
 
 Final exact worker head passed Workstream #431 / `33029830303`, Bounded Autonomy #644 / `33029830299`, and P2 CI #1027 / `33029830337`, including full API/contracts, client/browser/Skia, protected promotion evaluation and DSPy release compilation. Final scope was 0 commits behind accepted S2 and exactly four S3-owned paths.
 
+### S4 — Outcome Routing & Development Economics — ACCEPTED / INTEGRATED
+
+Issue #267 / spec `P2-V0.19.4`; worker PR #280; exact validated worker `537fce639419e82d3f08b3c254fe6ec4b791d5f7`; integration commit `0d1cb510e2a7c37b024a994a29642e4047ae84d9`.
+
+S4 adds deterministic outcome-routing evidence under the existing optimization control plane. Exact routing context binds canonical Project/run/Work Specification identity, accepted S1/S2 protocol identity, exact S3 evaluator-policy identity and server-owned routing-policy identity. Strategy admission, protected deterministic validation, completion state and S3 independent evaluation are resolved before economics; an ineligible, deterministically failed or evaluator-rejected strategy cannot become preferable because it is cheaper or faster.
+
+Economic evidence carries explicit metric state and provenance. Observed provider/Parallax evidence is distinguishable from bounded estimates; `UNKNOWN`, `UNAVAILABLE`, `STALE` and `INVALID` remain explicit and are never coerced to zero. Required missing, stale, contradictory, cross-Project or untrusted evidence fails closed. Server-owned policy bounds quality/confidence floors, metric ceilings/weights, freshness, comparable-evidence minimums, fallback and exploration. Selection is deterministic with stable strategy-identity tie breaking; insufficient evidence resolves to explicit fallback, `INSUFFICIENT_EVIDENCE` or `HUMAN_REQUIRED` rather than synthetic certainty.
+
+Routing records are fingerprinted and replay-safe. Duplicate records remain non-authoritative duplicates and conflicting records fail closed. Safe routing serialization explicitly grants no capability, provider invocation, spending, source-lineage acceptance, Engineering Run transition, candidate-winner construction, merge/deployment or REVIEW authority. S5 may consume S4 only as provenance-bound routing/economic evidence.
+
+Final worker gate passed on exact head `537fce639419e82d3f08b3c254fe6ec4b791d5f7`: Workstream Spec Validation #439 / `33032905546`, Bounded Autonomy Pilot #649 / `33032905578`, and P2 CI #1035 / `33032905537`. P2 CI passed full API/contracts/self-hosting repository-tree checks, client type/state/export, browser/Skia acceptance, protected promotion evaluation and DSPy release compilation.
+
+The first semantic candidate exposed a protected repository-tree capacity violation at 514 tracked entries versus the existing 512-entry bound. Control Tower did **not** weaken that provider safety bound. S4 implementation/tests were re-homed into existing optimization control-plane/test files and the two redundant new files were removed, returning the candidate to the protected repository shape. Final S4 net scope against accepted S1-S3 baseline is four paths: `optimization_controller.py`, `test_optimization_state.py`, `specs/P2-V0.19.4.md`, and its authentic compiled plan.
+
 ### Current Wave 6 dependency state
 
 1. #264 / `W6-S1` / `P2-V0.19.1` — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / `W6-S2` / `P2-V0.19.2` — **COMPLETE / ACCEPTED / INTEGRATED**;
 3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
-4. #267 / `W6-S4` / `P2-V0.19.4` — **FUNCTIONAL DEPENDENCIES AND RECORD RECONCILIATION SATISFIED; WAITING ONLY FOR FRESH EXACT-HEAD CUMULATIVE VALIDATION BEFORE SPEC-FIRST WORKER START**;
-5. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED ON ACCEPTED S4 OUTCOME EVIDENCE**;
+4. #267 / `W6-S4` / `P2-V0.19.4` — **COMPLETE / ACCEPTED / INTEGRATED / RECORDS RECONCILED; CUMULATIVE S1-S4 VALIDATION PENDING**;
+5. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED UNTIL CONTROL TOWER ACCEPTS THE FINAL RECORD-RECONCILED S1-S4 EXACT-HEAD CHECKPOINT**;
 6. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
 PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
@@ -151,11 +167,14 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Durable invariants
 
 - canonical Project, Work Specification, Engineering Run, repository/source identity and accepted lineage remain server-owned;
-- deterministic/protected validation outranks model, agent or evaluator judgment;
-- repository/source/model/agent/evaluator content is evidence, not authority;
+- deterministic/protected validation outranks model, agent, evaluator or routing judgment;
+- repository/source/model/agent/evaluator/routing content is evidence, not authority;
 - exact agent task/result/checkpoint evidence cannot redefine acceptance or canonical source state;
 - team orchestration cannot grant capabilities, provider scope, credentials, source authority or validation/release authority;
 - independent evaluation cannot override deterministic failure or become acceptance/merge/deployment/REVIEW authority;
+- economic routing cannot trade correctness, deterministic validation, evaluator policy, privacy or human boundaries for cost/time;
+- missing/unknown/unavailable/stale/invalid economic evidence is never synthesized as zero or success;
+- routing cannot invoke providers, authorize spending, accept lineage, choose a final candidate winner, merge/deploy or complete REVIEW;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
 - correction cannot weaken acceptance/evaluation policy;
 - skills, service bindings, repository intelligence, engineering memory, agents and adapters cannot create execution/provider/deployment/approval authority;
@@ -169,8 +188,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.3 — reconciled because accepted S2 and S3 establish durable bounded team-orchestration and independent-evaluation contracts while preserving all pre-existing authority boundaries.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; S2/S3 introduce no durable product visual-language change.
-- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S3 and the final cumulative exact-head validation gate for S4.
+- `ARCHITECTURE.md` v3.4 — reconciled because accepted S4 adds durable outcome-routing/economic evidence contracts under the existing optimization control plane while preserving eligibility, deterministic-validation, evaluator, provider/source and REVIEW authority boundaries.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4 introduces no durable product visual-language change.
+- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S4 and the required final cumulative exact-head checkpoint before S5 may begin.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
