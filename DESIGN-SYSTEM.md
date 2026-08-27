@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 3.0
+Version: 3.1
 Status: Authoritative
 
 ## Design direction
@@ -400,6 +400,19 @@ May show Project, model/runtime identity, context count, repository/branch/ref, 
 ### Recent Alerts / Activity
 
 Use bounded event-derived warnings/info/success items with timestamp and subsystem. Do not persist or render secret-bearing diagnostics.
+
+## Destructive cleanup actions
+
+Conversation and Project cleanup is a deliberate workspace-management action, not an ordinary navigation affordance.
+
+- `Delete` must require an explicit second confirmation before the request is sent.
+- The destructive action uses danger/rust treatment distinct from normal primary creation controls and always includes readable destructive wording; color alone is insufficient.
+- The confirmation copy must state the user-visible scope: the item disappears from active Parallax workspace/history.
+- For Projects, confirmation must also make the retained boundary clear: protected engineering evidence remains and linked GitHub repositories or Vercel deployments are not deleted by the workspace action.
+- A non-terminal Engineering Run may block deletion. The UI must preserve the item and show the protected server reason instead of optimistically hiding it.
+- Current active context should not expose a casual one-tap delete affordance. Cleanup belongs in recent-history/Project-management context or an equivalently deliberate management surface.
+- Desktop and compact/mobile layouts must provide semantically equivalent confirmation and error behavior even when the exact control placement differs.
+- Successful deletion updates the active list without presenting audit/evidence purge as having occurred.
 
 ## Mobile and narrow layouts
 
