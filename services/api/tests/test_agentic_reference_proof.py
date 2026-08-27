@@ -338,7 +338,7 @@ def _delivery(*, lineage: str = LINEAGE, status: str = "READY", replayed: bool =
         lineage_digest=CONTENT_DIGEST,
         result_identity="dpl_s6_reference",
         result_status=status,
-        safe_url="https://preview.example.invalid",
+        safe_url="https://s6-reference.vercel.app",
     )
     request_id = "request:s6-preview-read"
     audit = ToolAuditRecord(
@@ -371,7 +371,7 @@ def _delivery(*, lineage: str = LINEAGE, status: str = "READY", replayed: bool =
         pull_request_url="https://example.invalid/pr/301",
         preview_deployment_id="dpl_s6_reference",
         preview_status=status,
-        preview_url="https://preview.example.invalid",
+        preview_url="https://s6-reference.vercel.app",
         actions=(pair,),
         replayed=replayed,
     )
