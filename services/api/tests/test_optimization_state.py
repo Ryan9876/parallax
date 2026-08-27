@@ -819,7 +819,7 @@ def test_s5_cross_project_s4_evidence_is_disqualified_before_scoring():
 
 def test_s5_missing_or_stale_signal_never_becomes_free_competition():
     policy = make_comp_policy()
-    ctx = make_comp_context(policy, sequence=50)
+    ctx = make_comp_context(policy, sequence=20)
     alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
     bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64)
     no_signal = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo)))
