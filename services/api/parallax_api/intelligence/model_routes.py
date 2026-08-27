@@ -24,6 +24,7 @@ _ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,127}$")
 _RESERVED_CREDENTIAL_ENVS = {
     "ACCESS_TOKEN",
     "AI_GATEWAY_API_KEY",
+    "DSPY_API_KEY",
     "OPENAI_API_KEY",
     "PARALLAX_ACCESS_TOKEN",
     "VERCEL_AI_GATEWAY_API_KEY",
@@ -46,6 +47,10 @@ class ModelRoute:
 def _env_bool(name: str) -> bool:
     value = os.getenv(name)
     return value is not None and value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _explicit_dspy_override() -> bool:
+    return "DSPY_API_BASE" in os.environ or "DSPY_API_KEY" in os.environ
 
 
 def _is_loopback_host(hostname: str) -> bool:
@@ -78,7 +83,10 @@ def _validate_api_base(raw: str) -> str:
 
 
 def _local_route() -> ModelRoute | None:
-    if not _env_bool(_LOCAL_ENABLED_ENV):
+    # Preserve the accepted compatibility contract: an explicit DSPy transport
+    # override owns the whole model transport/order path and is not combined
+    # with local-first provider routing.
+    if _explicit_dspy_override() or not _env_bool(_LOCAL_ENABLED_ENV):
         return None
 
     model = (os.getenv(_LOCAL_MODEL_ENV) or "").strip()
