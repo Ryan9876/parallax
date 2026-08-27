@@ -1,26 +1,26 @@
 # Parallax 2.0 Current State
 
-Date: 2026-08-26
+Date: 2026-08-27
 
-Status: **WAVE 5 RELEASED / MOBILE STABILIZATION #261/#262 RELEASED AND PRODUCTION-VERIFIED / RESPONSE-STREAM STABILIZATION #271/#272 RELEASED AND PRODUCTION-VERIFIED / CLIENT READY / API READY / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / WAVE 6 CONTROL #263 ACTIVE / S1 PAUSED ONLY FOR THIS RECORD RECONCILIATION**
+Status: **WAVE 5 RELEASED / MOBILE STABILIZATION #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM STABILIZATION #271/#272 PRODUCTION-VERIFIED / AI GATEWAY PROVIDER STABILIZATION #284/#287 DEPLOYED AND INFRASTRUCTURE-VERIFIED / CAPTURE SPEC OPERATOR SMOKE PENDING / CLIENT READY / API READY / HUMAN REVIEW BOUNDARY PRESERVED / ROLLBACK AVAILABLE / WAVE 6 CONTROL #263 ACTIVE**
 
 ## Current production truth
 
-Parallax is running the deployment-verified Wave 5 generalized application-delivery platform, bounded production stabilization through #127, the deployment-verified pre–Wave 6 mobile interaction stabilization from issue #261 / PR #262, and the deployment-verified response-stream provider-capacity recovery from issue #271 / PR #272.
+Parallax is running the deployment-verified Wave 5 generalized application-delivery platform, bounded production stabilization through #127, the deployment-verified mobile interaction stabilization from issue #261 / PR #262, the deployment-verified response-stream provider-capacity recovery from issue #271 / PR #272, and the newly deployed API provider-boundary correction from issue #284 / PR #287.
 
-Production state remains intentionally component-specific. Repository/documentation HEAD is coordination identity; each deployed application component retains its own exact deployment identity.
+Production state remains intentionally component-specific. Repository/documentation HEAD is coordination identity; each deployed application component retains its own exact deployment identity. The #284/#287 API release is deployed and infrastructure/readiness verified, but authenticated end-to-end Capture Spec verification is still pending one operator smoke request and is not yet claimed complete.
 
 ### Repository and current application release
 
 - mobile Work Specification: `P2-V0.18.7`;
 - response-stream stabilization Work Specification: `P2-V0.18.8`;
-- response-stream worker branch: `ws/response-rate-limit-recovery`;
-- exact validated response-stream worker head: `f26f9a9c308d7d72ca5f2aab824d217767a4bcfa`;
-- PR #272 merged with expected-head protection;
-- exact response-stream application merge on `main`: `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
-- #271 is the authoritative bounded production-stabilization record;
-- Wave 6 Control Tower #263 and shells #264–#269 remain authoritative for the Agentic Development Control Plane;
-- Wave 6 S1 remains paused only until this production-state reconciliation is merged and Control Tower records the resulting accepted post-stabilization repository baseline.
+- AI Gateway provider-boundary Work Specification: `P2-V0.18.9`;
+- #284 worker branch: `p2/provider-gateway-stabilization`;
+- exact validated #284 worker head: `37f20330f03072532eebd7eca5ec9cd1f9efab4f`;
+- PR #287 merged with expected-head protection;
+- exact current API application merge on `main`: `74a027a69dbc6f983e2023e9e5367f2d5fd0bd7b`;
+- #284 is the authoritative provider-boundary stabilization record and remains open until authenticated Capture Spec smoke plus final record reconciliation complete;
+- Wave 6 Control Tower #263 remains authoritative for the Agentic Development Control Plane; its live dependency/integration state is controlled by #263 and is not superseded by this production record.
 
 ### Production client
 
@@ -32,19 +32,67 @@ Production state remains intentionally component-specific. Repository/documentat
 - commit verification: verified;
 - aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`.
 
-The #272 client-side runtime behavior is unchanged by the stabilization implementation; the client change in the workstream is bounded acceptance coverage. The production rebuild is nevertheless bound to the same exact application merge as the API release.
+The #284/#287 stabilization is API-only. Vercel intentionally canceled/ignored the corresponding client production rebuild because no deployable client path changed, so the existing deployment-verified client artifact remains authoritative.
 
 ### Production API
 
 - project: `parallax-api`;
-- production deployment: `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y`;
+- production deployment: `dpl_C5sdDZgnwq8uSKFkA7DkJc4rCW82`;
 - state: `READY`;
 - target: `production`;
-- exact application/API Git SHA: `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
+- exact application/API Git SHA: `74a027a69dbc6f983e2023e9e5367f2d5fd0bd7b`;
 - commit verification: verified;
 - aliases include `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, and `parallax-api-git-main-lew7.vercel.app`.
 
-The API now truthfully distinguishes sanitized provider-capacity exhaustion from protected scope/reason validation failure without changing provider/model order, credential scope, Project/spec authority, source-lineage authority, conversation persistence, REVIEW/HUMAN_REQUIRED, merge authority, or deployment authority.
+The API now selects Vercel AI Gateway as the hosted DSPy transport boundary whenever bounded Gateway authentication is available, while preserving canonical Parallax model identity/order, explicit trusted DSPy development overrides, protected validation, conversation persistence, Project/spec/source-lineage authority, REVIEW/HUMAN_REQUIRED, merge authority, and deployment authority.
+
+## AI Gateway provider-boundary stabilization #284 / PR #287
+
+### Production observation and diagnosis
+
+An authenticated Capture Spec request returned HTTP 429 after Luna -> Terra -> Sol each ended in sanitized `LMRateLimitError`. Operator checks established that Vercel AI Credit remained available, Anthropic Claude succeeded through the Vercel AI Gateway playground, and OpenAI GPT-5.6 Terra also succeeded through that same Gateway. The differentiator was therefore the Parallax application transport path rather than a general Gateway, credit, or Terra outage.
+
+The accepted diagnosis was that `build_lm()` constructed DSPy/LiteLLM models using canonical `openai/...` identities without deterministically selecting the Vercel AI Gateway provider namespace in hosted production. Unless an explicit DSPy endpoint override happened to exist, LiteLLM could therefore use the direct OpenAI provider path even though Parallax production is hosted on Vercel and the operator's usable AI credit is on Vercel AI Gateway.
+
+### Accepted correction
+
+The #284/#287 correction:
+
+- preserves canonical `ModelRouter.MODEL_ORDER` exactly as Luna -> Terra -> Sol;
+- preserves canonical public/evidence model identities as `openai/gpt-5.6-*`;
+- keeps explicit `DSPY_API_BASE` / `DSPY_API_KEY` as the highest-priority trusted development/CI override;
+- otherwise resolves hosted Gateway authentication in deterministic order: `AI_GATEWAY_API_KEY`, `VERCEL_AI_GATEWAY_API_KEY`, then `VERCEL_OIDC_TOKEN`;
+- internally maps hosted OpenAI transport to LiteLLM's documented `vercel_ai_gateway/openai/...` namespace;
+- preserves existing direct/local behavior if neither an explicit DSPy override nor Gateway authentication exists;
+- does not log, persist, serialize, expose to prompts, or return the selected credential;
+- adds no Anthropic/Google fallback and changes no provider/model order, retry authority, Project/spec/source-lineage authority, REVIEW boundary, merge authority, or deployment authority.
+
+### Spec-first and exact-head evidence
+
+`P2-V0.18.9` was established before semantic implementation with stable AC-01 through AC-12. Authentic DSPy SpecCritic + SpecCompiler development evidence completed successfully in run `33037450807`; protected `--require-dspy` validation passed. Evidence artifact `9632572627` has digest `sha256:20ea10e0aa5d8657d6c173370fdd3acb078957243b994fbc6629d041c368ce33`. The exact compiled plan byte digest is `sha256:495eda192b82f5c85a9ead5bd2e8b8b5d2575a7ee1c6da4530d78427d272338e`. The temporary branch-local DSPy workflow change was restored byte-for-byte and is absent from the final application diff.
+
+Exact worker head `37f20330f03072532eebd7eca5ec9cd1f9efab4f` passed:
+
+- Workstream Spec Validation #454 / run `33037858893` — success;
+- Bounded Autonomy #660 / run `33037858820` — success;
+- P2 CI #1050 / run `33037858812` — success, including focused Gateway routing tests, full API/contracts, client/browser/Skia, protected promotion evaluation and DSPy release compilation;
+- Vercel `parallax` and `parallax-api` Preview commit statuses — success;
+- exact API Preview `dpl_7YQRgZSfNgEduoEPmY5z9JqCiMs5` — `READY`, bound to the exact worker head.
+
+PR #287 merged with expected-head protection as application merge `74a027a69dbc6f983e2023e9e5367f2d5fd0bd7b`.
+
+### Production deployment verification completed so far
+
+Post-cutover evidence establishes:
+
+- production API deployment `dpl_C5sdDZgnwq8uSKFkA7DkJc4rCW82` is `READY`, target `production`, and bound to exact application merge `74a027a69dbc6f983e2023e9e5367f2d5fd0bd7b`;
+- production build provider, delivery-permission, projected-source, private-Blob, lineage-composition, bootstrap, execution-snapshot and run-event schema preflights passed;
+- API `GET /health` returned HTTP 200 with `status=ok`;
+- API `GET /ready` returned HTTP 200 with database `ok`, providers `ok`, and one provider target;
+- exact-deployment API error/fatal scan after cutover returned no matching logs;
+- the production client remains the prior deployment-verified artifact because this release changed no client path.
+
+Authenticated Capture Spec has not yet been replayed after this cutover. Therefore this record intentionally distinguishes **deployed + infrastructure/readiness verified** from **Capture Spec end-to-end production-verified**. One authenticated operator smoke request and corresponding exact-deployment log inspection are still required before #284 closes and before the provider-boundary correction is described as fully production-verified.
 
 ## Response-stream stabilization #271 / PR #272
 
@@ -59,7 +107,7 @@ The accepted correction:
 - preserves an already-established protected scope decision if later reason routing fails;
 - never fabricates scope, answer, Work Specification, Engineering Run, source mutation, approval, or REVIEW state;
 - preserves the durably submitted user turn and tells the operator that the message is saved rather than encouraging an identical resend;
-- exposes no raw provider response, credential, prompt, hidden reasoning, quota/billing inference, filesystem path, or invented retry interval;
+- exposes no raw provider response, credential, prompt, hidden reasoning, quota/billing inference, filesystem path, or invented Retry-After interval;
 - changes no provider, model, model order, retry authority, credential scope, repository target, approval boundary, or production authority.
 
 ## Response-stream validation and release evidence
@@ -89,11 +137,11 @@ PR #272 merged with expected-head protection as `9767b2520d74c70bd1a2ec2e951480d
 
 No gate was waived to promote the response-stream stabilization.
 
-## Production verification
+## Historical #271 production verification
 
 Post-cutover evidence for #271/#272 established:
 
-- production API deployment `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y` is `READY`, target `production`, and bound to exact application merge `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
+- production API deployment `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y` was `READY`, target `production`, and bound to exact application merge `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
 - production client deployment `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` is `READY`, target `production`, and bound to the same exact application merge;
 - public production client alias `parallax-ashy-one-20.vercel.app` returned HTTP 200 and served the Parallax 2.0 client document;
 - API `GET /health` returned HTTP 200 with `status=ok`;
@@ -102,9 +150,7 @@ Post-cutover evidence for #271/#272 established:
 - exact-deployment client error/fatal scan after cutover returned no matching logs;
 - no source, provider, model, credential, Project, Work Specification, approval, REVIEW/HUMAN_REQUIRED, or deployment boundary changed.
 
-The actual external provider rate-limit condition is transient and was not artificially reproduced in production after cutover. The production-equivalent all-model exhaustion behavior is covered by deterministic protected coordinator/API acceptance on the exact validated and merge-tested code. Production verification therefore establishes exact release identity, service readiness, clean runtime observation, and preservation of authority boundaries without manufacturing provider failure traffic.
-
-This satisfies the production-promotion and post-cutover verification conditions of #271. #271 remains open only until this authoritative reconciliation is merged; its earlier automatic closure from the PR linkage was explicitly reversed because the issue contract requires `CURRENT-STATE.md` reconciliation before final closure.
+The actual external provider rate-limit condition was transient and was not artificially reproduced after that cutover. Production-equivalent all-model exhaustion behavior was covered by deterministic protected coordinator/API acceptance on exact validated and merge-tested code. Issue #271 is closed completed.
 
 ## Mobile stabilization #261 / PR #262
 
@@ -145,38 +191,27 @@ Final Wave 5 release merge `c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains th
 
 ## Wave 6 control state
 
-Wave 6 Control Tower #263 — **Agentic Development Control Plane** — is active with workstreams:
+Wave 6 Control Tower #263 — **Agentic Development Control Plane** — remains active with workstreams #264 through #269. Its live accepted dependency and integration state is governed by #263 and the Wave 6 integration branch, not by stale snapshots in this production record.
 
-1. #264 / `W6-S1` / `P2-V0.19.1` — Agent Adapter & Evidence Protocol;
-2. #265 / `W6-S2` / `P2-V0.19.2` — Dynamic Development Team Orchestration;
-3. #266 / `W6-S3` / `P2-V0.19.3` — Independent Evaluation & Quality Judgment;
-4. #267 / `W6-S4` / `P2-V0.19.4` — Outcome Routing & Development Economics;
-5. #268 / `W6-S5` / `P2-V0.19.5` — Candidate Competition & Synthesis;
-6. #269 / `W6-S6` / `P2-V0.19.6` — Agentic Development Integrated Reference Proof.
-
-Wave 6 originally entered implementation from the deployment-verified post-mobile baseline recorded by #263. When #271 exposed a production stabilization defect, S1 was deliberately paused at the spec-first boundary rather than allowing Wave 6 implementation to proceed across a known broken production recovery path.
-
-The #271 runtime correction is now deployment-verified. Once this record-only reconciliation is merged, #263 must record the exact resulting `main` SHA as the accepted post-stabilization repository baseline and may resume S1 from a dependency-correct state. S2–S6 remain dependency-governed by #263 and are not unblocked merely by closing #271.
+At this reconciliation, Control Tower has recorded accepted/integrated S1-S4 and has released S5 semantic development under #268; S6 remains dependency-governed and no Wave 6 production deployment has occurred. Before any Wave 6 production promotion, the integration branch must reconcile the accepted #284/#287 provider-boundary correction from `main` so Wave 6 cannot regress production model transport back to the direct OpenAI path.
 
 Wave 6 does not transfer authority to engineering agents. Agents remain bounded labor. Canonical Project identity, approved Work Specification binding, accepted source lineage, protected validation, acceptance, REVIEW/HUMAN_REQUIRED, and release governance remain Parallax-owned.
 
 ## Rollback
 
-Immediate rollback points for the current response-stream stabilization are:
+Immediate rollback points for the current API provider-boundary stabilization are:
 
 ### API rollback
 
-- prior deployment: `dpl_7oaehRqtRnJmNa2Y4AzVkkez8Z1Q`;
-- state: `READY`;
-- exact API Git SHA: `5ec7eabc046b9995c8d11d5081df15b986a558fe`;
-- this is the deployment-verified API state immediately preceding #272.
+- prior production deployment: `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y`;
+- state: `READY` at its release time;
+- exact API Git SHA: `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
+- this is the deployment-verified API state immediately preceding #287 and remains the immediate application rollback identity if the new Gateway transport fails authenticated smoke verification.
 
 ### Client rollback
 
-- prior mobile deployment: `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK`;
-- state: `READY`;
-- exact client Git SHA: `2bd677c3532df9fc436cac39cd23c4ca86f6e26d`;
-- this is the deployment-verified mobile client state immediately preceding the #272 production rebuild.
+- current production client remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b2520d74c70bd1a2ec2e951480da223b45f7` because #287 was API-only;
+- prior mobile deployment `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK` at `2bd677c3532df9fc436cac39cd23c4ca86f6e26d` remains the broader mobile rollback point.
 
 The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezAYrJbuANXZn` / `8065d124145686e6a93cfdc6c4b2cec4dfc3f5a5` and the prior full API/client pair from #245 remain broader historical rollback references.
 
@@ -203,7 +238,7 @@ Rollback remains non-destructive and follows the existing governed release/flag-
 - skills, service bindings, repository intelligence, engineering memory, agents, and adapters cannot create execution/provider/deployment/approval authority;
 - cross-Project privacy boundaries remain strict;
 - replay/idempotency and durable worker lease/checkpoint/recovery semantics remain authoritative;
-- no silent repository switching, credential refresh, session extension, approval, merge or deployment authority is introduced by the mobile release, #271/#272, or Wave 6 planning;
+- no silent repository switching, credential refresh, session extension, approval, merge or deployment authority is introduced by the mobile release, #271/#272, #284/#287, or Wave 6 planning;
 - Preview remains the ordinary autonomous delivery ceiling;
 - `REVIEW` / `HUMAN_REQUIRED` remains the autonomous authority ceiling;
 - no deployment is recorded as production-verified without exact release identity and post-cutover evidence.
@@ -211,8 +246,8 @@ Rollback remains non-destructive and follows the existing governed release/flag-
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.1 — unchanged by #271/#272; existing provider routing, protected validation, conversation persistence, and server-owned authority boundaries are preserved. Wave 6 durable architecture changes will be recorded only when accepted.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; #271/#272 corrects truthful recovery semantics without changing the durable product visual language or interaction model.
-- `CURRENT-STATE.md` — updated by this reconciliation because a material production defect was diagnosed, a bounded runtime correction was validated and merged, both application components were promoted on an exact release identity, post-cutover verification completed, rollback identities changed, and Wave 6 S1's stabilization dependency became satisfied.
+- `ARCHITECTURE.md` v3.1 — pending durable provider-boundary reconciliation after authenticated Capture Spec smoke confirms the deployed transport behavior; no architectural record is being changed merely from a deployment that still has one required functional verification outstanding.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; #284/#287 changes no durable visual language or interaction model.
+- `CURRENT-STATE.md` — updated by this reconciliation because #284/#287 is now generated, validated, merged, deployed, health/readiness verified and rollback-bound, while truthfully recording that authenticated Capture Spec end-to-end verification remains pending.
 
-This record-only reconciliation does not redefine the client/API deployment identities above. Its resulting merge SHA is the repository baseline that Wave 6 Control Tower #263 must record before S1 implementation resumes.
+This record-only reconciliation does not redefine the component deployment identities above. A final authenticated Capture Spec smoke, exact-deployment log confirmation, #284 closure and durable architecture reconciliation remain the next release-record actions.
