@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.3
+Version: 3.4
 Status: Authoritative
 
 ## System shape
@@ -30,6 +30,7 @@ FastAPI intelligence service
   ├─ governed engineering-agent adapter + evidence protocol
   ├─ bounded development-team orchestration
   ├─ independent evaluation + quality evidence
+  ├─ bounded outcome routing + development economics
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -72,7 +73,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S3 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S4 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -298,6 +299,22 @@ Evaluation replay uses a deterministic fingerprint over exact candidate, produce
 
 S4 may consume S3 output only as quality evidence combined with S1/S2 and protected deterministic facts. S5 candidate competition remains a later bounded policy layer and cannot inherit acceptance authority merely from S3 support.
 
+## Wave 6 outcome routing and development economics
+
+Wave 6 S4 extends the existing development optimization controller with deterministic, provenance-bound routing evidence for already-admissible engineering strategies. It is accepted on the Wave 6 integration branch and remains an evidence/decision layer rather than a new execution, source-lineage, provider or release authority path.
+
+`RoutingContext` binds canonical Project and Engineering Run identity, exact Work Specification ID/revision/digest and acceptance IDs, accepted S1/S2/S3 protocol/policy identity, exact server-owned S4 routing-policy identity/version/digest and a bounded decision sequence. `DevelopmentStrategy` binds an already-possible single-agent or bounded-team strategy to exact admitted agent/team identities, work profile and descriptive capability/provider/model classes; those declarations cannot create authority.
+
+Outcome evidence preserves protected deterministic-validation status, exact S3 evaluation-record identity, completion state and bounded economic observations such as duration, cost, retry/reassignment/replan and human-intervention burden. Evidence states distinguish observed, estimated, unavailable, unknown, stale and invalid values. Trusted observed evidence requires admitted provider/Parallax provenance; agent/model/repository self-report cannot promote itself into an observed fact. Unknown or unavailable evidence remains explicit and is never treated as zero, free, fast or successful.
+
+Eligibility is structurally computed before economics. Project/run/spec/acceptance drift, S1/S2 dependency drift, missing capability/authority admission, protected deterministic failure, rejected or insufficient S3 evaluation, unresolved `HUMAN_REQUIRED`, stale/invalid mandatory telemetry, cross-Project private evidence or server-policy mismatch excludes a strategy before cost/time scoring. A cheaper or faster strategy cannot purchase correctness, safety, privacy or evaluator-policy admission.
+
+Only eligible strategies are normalized under immutable server-owned economic policy. Quality/confidence floors are non-tradeable; scoring components remain inspectable; estimates are explicitly discounted/controlled; deterministic strategy identity breaks ties. Missing or contradictory evidence produces a bounded conservative fallback, bounded exploration only among already-admissible strategies, `INSUFFICIENT_EVIDENCE`, `POLICY_REJECTED` or `HUMAN_REQUIRED` according to policy rather than fabricated certainty.
+
+Routing decisions are fingerprinted over the exact context, policy, strategies and admitted evidence. Exact replay is duplicate-safe; policy/evidence/strategy drift yields a distinguishable decision; competing records fail closed. Safe downstream serialization for S5/S6 exposes bounded provenance, eligibility reasons, components, selected/fallback strategy identity and decision fingerprints while structurally exposing no provider invocation, spending, capability grant, source-lineage acceptance, Engineering Run transition, merge/deploy, REVIEW completion or candidate-winner authority.
+
+S4 was deliberately re-homed into the existing optimization-controller/test surfaces after final validation exposed the protected 512-entry repository-tree ceiling. The accepted correction preserved that fail-closed provider/source projection bound rather than weakening it. S5 may consume S4 only as accepted routing/outcome evidence and must independently preserve candidate lineage, validation and evaluator authority boundaries.
+
 ## Project-scoped tool authority
 
 The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
@@ -425,6 +442,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
 - team graph cycle, impossible capability coverage, unsafe coordination overlap or orchestration bound exhaustion: fail closed or return bounded HUMAN_REQUIRED evidence; do not create unbounded agents or parallelism;
 - evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
+- routing context/policy/dependency drift, deterministic/S3 rejection, untrusted/stale/invalid/cross-Project economic evidence or contradictory routing records: exclude the affected strategy before economics and return bounded fallback, insufficient evidence, policy rejection or HUMAN_REQUIRED; never optimize around a protected failure;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
@@ -451,7 +469,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
+User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, routing/economic policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -468,12 +486,13 @@ Major trust boundaries are:
 11. exact-bound engineering-agent task identity plus bounded adapter/result/checkpoint evidence admission;
 12. server-owned bounded development-team eligibility/dependency/coordination/reassignment policy;
 13. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
-14. server-owned tool capability registry;
-15. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
-16. persisted provider action/audit and replay identity;
-17. protected evaluation/promotion policy;
-18. optional non-authoritative run-event projection behind migration + exact activation flag;
-19. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
+14. server-owned outcome-routing eligibility/economic policy with provenance-bound evidence and non-tradeable correctness floors;
+15. server-owned tool capability registry;
+16. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
+17. persisted provider action/audit and replay identity;
+18. protected evaluation/promotion policy;
+19. optional non-authoritative run-event projection behind migration + exact activation flag;
+20. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
 
 ## Inherited development-policy architecture
 
