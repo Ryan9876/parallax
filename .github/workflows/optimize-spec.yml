@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
-      - run: python scripts/validate_spec.py "$SPEC_PATH"
+      - run: python scripts/validate_spec.py "$SPEC_PATH" --spec-only
 
       - id: credentials
         name: Select DSPy development model
