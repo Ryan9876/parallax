@@ -32,7 +32,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
-      - run: python scripts/validate_spec.py "$SPEC_PATH" --spec-only
+      - name: Validate approved spec contract before DSPy compilation
+        run: python scripts/validate_spec.py "$SPEC_PATH" --spec-only
 
       - id: credentials
         name: Select DSPy development model
@@ -43,14 +44,13 @@ jobs:
             echo "provider=true" >> "$GITHUB_OUTPUT"
             echo "model=openai/gpt-5.6-sol" >> "$GITHUB_OUTPUT"
             echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
-            echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
             echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
             echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
-            echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
           fi
 
       - name: Install local Ollama development LM
@@ -68,6 +68,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py "$SPEC_PATH"
+
+      - name: Validate authentic compiled plan
+        run: python scripts/validate_spec.py "$SPEC_PATH" --require-dspy
 
       - name: Optimize SpecCompiler with MIPROv2
         if: steps.credentials.outputs.provider == 'true'
@@ -98,14 +101,14 @@ jobs:
               'compiler_artifact': 'P2-V0.19.6.plan.json',
               'optimizer_artifact': 'optimized-program.json' if provider else None,
               'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
-              'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
+              'purpose': 'Wave 6 S6 development-method evidence; protected metrics still gate semantic implementation and promotion.'
           }, indent=2) + '\n', encoding='utf-8')
           PY
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dspy-spec-evidence
+          name: dspy-spec-evidence-P2-V0.19.6
           path: |
             specs/compiled/P2-V0.19.6.plan.json
             specs/compiled/optimized-program.json
