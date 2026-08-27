@@ -2,7 +2,7 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 / PR #294 MERGED / CORRECTIVE API PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / CURRENT PRODUCTION MAIN SYNCHRONIZED IN PR #298 CANDIDATE / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE EXACT-HEAD GATES**
 
 ## Current production truth
 
@@ -12,7 +12,7 @@ Safe conversation/Project deletion originated in #290 / PR #291 and is present i
 
 The corrective release is **production-deployed and infrastructure-verified but not yet accepted as fully deployment-verified feature behavior** because the final authenticated post-cutover deletion smoke cannot be executed by the available connector without an application user session. No destructive smoke will be performed against real user content merely to manufacture release evidence.
 
-Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. The deletion workstream remains on the current production line and does not activate Wave 6.
+Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. Control Tower PR #298 is the conflict-resolved cumulative synchronization candidate that combines accepted S1-S5 head `9fe751a96ec050545abdcfbb016c668cd4c7336f` with current production `main` baseline `a455b223ad4707aa7fe2ccd3470a5e7640c40da2`. Its two-parent merge ancestor is `2855331cf5443181b3766fd24abe47c62553dfa9`. Tree comparison against current `main` proves the candidate differs only by the accepted Wave 6 S1-S5 code/tests/specs/compiled-plan paths. The authoritative integration branch must not advance to this candidate until fresh exact-head Workstream Spec Validation, Bounded Autonomy and P2 CI pass.
 
 ### Safe-deletion release identity
 
@@ -145,11 +145,14 @@ Control Tower #215 completed generalized application delivery through #216-#221 
 ## Wave 6 — Agentic Development Control Plane
 
 Control Tower: #263.  
-Integration branch: `integration/wave6-agentic-control-plane`.  
-Current accepted S1-S5 functional integration head: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
+Authoritative integration branch: `integration/wave6-agentic-control-plane`.  
+Current accepted S1-S5 functional integration head before production-baseline synchronization: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
+Conflict-resolved cumulative synchronization PR: #298.  
+Two-parent production + S1-S5 merge ancestor: `2855331cf5443181b3766fd24abe47c62553dfa9`.  
+Current production baseline included by that merge: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
 Wave 6 production deployment: **none**.
 
-Accepted/integrated state remains:
+Accepted/integrated semantic state remains:
 
 1. #264 / S1 Agent Adapter & Evidence Protocol — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / S2 Dynamic Development Team Orchestration — **COMPLETE / ACCEPTED / INTEGRATED**;
@@ -157,9 +160,11 @@ Accepted/integrated state remains:
 4. #267 / S4 Outcome Routing & Development Economics — **COMPLETE / ACCEPTED / INTEGRATED**;
 5. #281 repository source-tree capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
 6. #268 / S5 Candidate Competition & Synthesis — **COMPLETE / ACCEPTED / INTEGRATED**;
-7. #269 / S6 — **BLOCKED pending authoritative S5 record reconciliation on the integration branch plus a fresh cumulative exact-head S1-S5 gate**.
+7. #269 / S6 — **BLOCKED until PR #298's current exact head passes fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI and the authoritative integration branch is advanced to that validated checkpoint**.
 
-PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. Safe-deletion hardening does not deploy or activate Wave 6 code.
+The synchronization candidate was manually conflict-resolved because direct `main` -> integration PR #297 was not mergeable. The conflict-resolved tree preserves all accepted S1-S5 implementation/test/spec/compiled-plan paths while overlaying the current production changes and production-authoritative records. A comparison from current `main` to the merge candidate shows only the accepted Wave 6 S1-S5 paths as remaining differences; this is the required whole-product composition before S6 begins.
+
+PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. PR #297 is closed as superseded by #298. Safe-deletion/model-transport production changes included in #298 do not deploy or activate Wave 6 code.
 
 ## Rollback
 
@@ -197,6 +202,7 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 - semantic AI/runtime work remains spec-first with stable acceptance IDs and authentic compiled DSPy evidence;
 - workers develop on isolated branches and stop at governed integration boundaries;
 - interacting production workstreams are serialized at shared lifecycle/record boundaries;
+- a production-baseline sync into an undeployed future-wave integration branch must preserve accepted future-wave semantics, use current production records for production truth, and pass fresh cumulative exact-head gates before becoming the new integration checkpoint;
 - standing single-user production-promotion authority never waives exact-head gates, rollback, least privilege, post-cutover evidence or Preview/REVIEW boundaries;
 - path-aware ignored builds may preserve a previously verified component artifact when a release has no changes under that component root;
 - deployed/infrastructure-ready is not equivalent to deployment-verified feature behavior when a required post-cutover feature smoke is still absent;
@@ -222,8 +228,8 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.7 — updated for authoritative protected `TERMINAL_STAGES` deletion parity and owner-only destructive authority for historical unbound conversations.
-- `DESIGN-SYSTEM.md` v3.1 — unchanged; the corrective release changes server lifecycle/authorization behavior, not destructive-interaction design.
-- `CURRENT-STATE.md` — updated after corrective merge/deployment to record exact API production identity, successful health/readiness/error/auth-boundary evidence, expected ignored client build behavior, and the one remaining authenticated post-cutover smoke required before #290 can close.
+- `ARCHITECTURE.md` v3.7 — current production architecture plus accepted Wave 6 S1-S5 durable architecture; no new architectural contract is introduced by the branch synchronization itself.
+- `DESIGN-SYSTEM.md` v3.1 — current production design system; no new design contract is introduced by the branch synchronization.
+- `CURRENT-STATE.md` — reconciled on the Wave 6 cumulative-sync candidate to record current production truth, accepted S1-S5 state, conflict-resolved PR #298, and the exact cumulative validation gate that still blocks S6.
 
-Wave 6 remains not deployed. Safe deletion corrective code is serving in production; final feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target.
+Wave 6 remains not deployed. Safe deletion corrective code is serving in production; final safe-deletion feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target. S6 remains blocked until the conflict-resolved cumulative Wave 6 candidate passes fresh exact-head gates and becomes the authoritative integration checkpoint.
