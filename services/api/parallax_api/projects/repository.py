@@ -6,12 +6,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..code.domain import TERMINAL_STAGES
 from ..models import EngineeringRun, utcnow
 from .model import Project
 
 
-TERMINAL_RUN_STATES = frozenset(stage.value for stage in TERMINAL_STAGES)
+def terminal_run_states() -> frozenset[str]:
+    # Import lazily because parallax_api.code exports EngineeringRunService,
+    # which itself composes ProjectRepository during package initialization.
+    from ..code.domain import TERMINAL_STAGES
+
+    return frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ProjectConflictError(RuntimeError):
@@ -75,7 +79,7 @@ class ProjectRepository:
             select(EngineeringRun.id)
             .where(
                 EngineeringRun.project_id == project_id,
-                EngineeringRun.state.notin_(TERMINAL_RUN_STATES),
+                EngineeringRun.state.notin_(terminal_run_states()),
             )
             .limit(1)
         )
