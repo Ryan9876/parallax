@@ -1,0 +1,43 @@
+name: Fix W6 record head label
+
+on:
+  pull_request:
+    branches:
+      - integration/wave6-agentic-control-plane
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'records/w6-runtime-activation'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: records/w6-runtime-activation
+          fetch-depth: 0
+      - name: Make runtime head wording self-stable
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+          replacements = {
+              'EXACT INTEGRATION HEAD 07F45319 VALIDATED': 'EXACT RUNTIME APPLICATION HEAD 07F45319 VALIDATED',
+              'Current accepted integration head: `07f45319d166d52298b2b056cdab4c48c1accf25`.': 'Current accepted runtime/application head: `07f45319d166d52298b2b056cdab4c48c1accf25`.'
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one occurrence: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          git rm .github/workflows/fix-w6-record-head-label.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git commit -m "docs: distinguish runtime head from record head"
+          git push origin HEAD:records/w6-runtime-activation
