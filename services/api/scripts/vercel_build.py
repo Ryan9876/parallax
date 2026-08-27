@@ -7,6 +7,10 @@ import subprocess
 import sys
 
 
+_SCRIPT_ROOT = Path(__file__).resolve().parent
+_API_ROOT = _SCRIPT_ROOT.parent
+
+
 def _run(*args: str) -> None:
     subprocess.run([sys.executable, *args], check=True)
 
@@ -36,6 +40,31 @@ def _run_isolated_preflight(script: str) -> None:
     )
 
 
+def _run_service_preflight(script: str) -> None:
+    uv = shutil.which("uv")
+    if uv is None:
+        raise RuntimeError("production service-runtime preflight requires uv")
+    script_path = (_API_ROOT / script).resolve()
+    if script_path.parent != _SCRIPT_ROOT or script_path.suffix != ".py":
+        raise RuntimeError("production service-runtime preflight script is outside the trusted scripts root")
+    subprocess.run(
+        [
+            uv,
+            "run",
+            "--isolated",
+            "--no-progress",
+            "--no-python-downloads",
+            "--no-dev",
+            "--project",
+            str(_API_ROOT),
+            "python",
+            str(script_path),
+        ],
+        check=True,
+        cwd=_API_ROOT,
+    )
+
+
 def main() -> None:
     _run("scripts/production_provider_preflight.py")
     _run("scripts/production_delivery_permission_preflight.py")
@@ -45,12 +74,10 @@ def main() -> None:
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
-        # W6 agentic activation uses the service's installed runtime dependencies
-        # plus the same private immutable Blob substrate proven above. This canary
-        # exercises the exact selected-candidate artifact persist/restore contract
-        # before production cutover and fails closed if activation/configuration is
-        # incomplete.
-        _run("scripts/production_agentic_runtime_preflight.py")
+        # W6 agentic activation imports the actual service control-plane runtime,
+        # so its build canary must execute against the service project's declared
+        # runtime dependencies rather than a duplicated ad hoc dependency list.
+        _run_service_preflight("scripts/production_agentic_runtime_preflight.py")
         _run_isolated_preflight("scripts/production_projected_bootstrap_preflight.py")
         _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")
         _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
