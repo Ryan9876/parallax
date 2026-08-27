@@ -20,6 +20,7 @@ jobs:
       - name: Reconcile records and remove temporary automation
         shell: bash
         run: |
+          sed -i 's/[[:blank:]]\+$//' scripts/reconcile_w6_runtime_records.py
           python scripts/reconcile_w6_runtime_records.py
           git rm .github/workflows/reconcile-w6-runtime-records.yml
           git rm .github/workflows/reconcile-w6-runtime-records-pr.yml
