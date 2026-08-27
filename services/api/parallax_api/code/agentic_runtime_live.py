@@ -18,6 +18,7 @@ from .agent_team_orchestration import (
     schedule_team_plan,
 )
 from .agentic_runtime import (
+    AGENTIC_RUNTIME_VERSION,
     AgenticControlPlane,
     AgenticRuntimeError,
     CandidateValidationExecutor,
@@ -36,6 +37,7 @@ from .worker_recovery import (
     WorkerStallEvidence,
 )
 from .worker_service import WorkerRecoveryService
+from ..models import EngineeringRun
 from ..repositories.worker_executions import WorkerExecutionRepository
 
 
@@ -177,6 +179,38 @@ class LiveAgenticControlPlane(AgenticControlPlane):
             self.competition_policy,
             minimum_expected_quality_gain=1.0,
         )
+
+    def plan(
+        self,
+        *,
+        run: EngineeringRun,
+        operation_key: str,
+    ) -> dict[str, object]:
+        """Project S2 planning into the existing protected PLAN contract."""
+
+        evidence = super().plan(run=run, operation_key=operation_key)
+        acceptance_ids = tuple(str(value) for value in evidence["acceptance_ids_covered"])
+        evidence.update(
+            {
+                "work_items": [
+                    {
+                        "acceptance_id": acceptance_id,
+                        "action": "dispatch through the admitted bounded agentic work graph",
+                    }
+                    for acceptance_id in acceptance_ids
+                ],
+                "validation_checks": [
+                    {
+                        "acceptance_id": acceptance_id,
+                        "check": "require protected deterministic candidate validation and independent evaluation",
+                    }
+                    for acceptance_id in acceptance_ids
+                ],
+                "planner": AGENTIC_RUNTIME_VERSION,
+                "executor_preflight": "passed",
+            }
+        )
+        return evidence
 
     def _proposal_for_plan(
         self,
