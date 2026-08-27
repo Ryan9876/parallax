@@ -18,6 +18,9 @@ jobs:
       - name: Apply authoritative state patch
         run: |
           python .github/reconcile_w6_production_state.py
+          sed -i '/^Current production baseline:/s/  $//' CURRENT-STATE.md
+          sed -i '/^Wave 6 production deployment:/s/  $//' CURRENT-STATE.md
+          sed -i '/^Production activation flag state:/s/  $//' CURRENT-STATE.md
           git diff --check
           git rm -f .github/workflows/apply-w6-production-infrastructure-state.yml
           git rm -f .github/workflows/run-w6-record-reconcile.yml
