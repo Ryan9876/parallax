@@ -1,0 +1,38 @@
+name: Correct Wave 6 record closing summary
+
+on:
+  push:
+    branches: [records/w6-production-infrastructure]
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: records/w6-production-infrastructure
+          fetch-depth: 0
+      - name: Replace stale closing summary and self-remove
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+          old = "Wave 6 is validated and integrated through W6-R1 at `07f45319d166d52298b2b056cdab4c48c1accf25` but remains undeployed. Safe deletion corrective code is serving in production; final safe-deletion feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target. The next Wave 6 step is a separately governed production-release candidate and verification sequence."
+          new = "Wave 6 is production-deployed and infrastructure-verified at application source `831fef94aa1c94ff1178b1a325e8774d49fd8752` / API deployment `dpl_Ag7tavEunrhQRGb3q8CxBTVVaQQw`; #312 remains deliberately open until the authenticated disposable Project-bound Engineering Run proves the live REVIEW-stop and idempotency contract. Safe-deletion final feature acceptance likewise remains open until authenticated post-cutover deletion behavior is exercised against a disposable test target."
+          if old not in text:
+              raise SystemExit('stale Wave 6 closing summary anchor not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          git rm -f .github/workflows/fix-w6-record-tail.yml
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(state): correct Wave 6 production closing summary'
+          git push origin HEAD:records/w6-production-infrastructure
