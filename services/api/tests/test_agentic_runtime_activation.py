@@ -259,7 +259,10 @@ def test_live_plan_uses_ordinary_plan_transition_and_smallest_adequate_team(tmp_
     session, service, _, run, allocator, _, _ = create_runtime_fixture(
         tmp_path,
         "single-agent",
-        ["Update the application source safely."],
+        [
+            "Update the application source safely.",
+            "Preserve the existing application behavior.",
+        ],
     )
     try:
         control = live_control(service, allocator)
@@ -288,7 +291,7 @@ def test_live_plan_uses_ordinary_plan_transition_and_smallest_adequate_team(tmp_
         assert evidence["operator_selected_agents"] is False
         assert evidence["work_items"]
         assert evidence["validation_checks"]
-        assert evidence["acceptance_ids_covered"] == ["AC-01"]
+        assert evidence["acceptance_ids_covered"] == ["AC-01", "AC-02"]
         assert control.competition_policy.minimum_expected_quality_gain == 1.0
     finally:
         session.close()
@@ -323,7 +326,10 @@ def test_selected_candidate_still_uses_existing_safe_mutation_lineage_and_later_
     session, service, project, run, allocator, identity, base = create_runtime_fixture(
         tmp_path,
         "selected-candidate",
-        ["Change the protected application value."],
+        [
+            "Change the protected application value.",
+            "Preserve the protected application source contract.",
+        ],
     )
     try:
         legacy = LegacyExecutor()
@@ -334,7 +340,9 @@ def test_selected_candidate_still_uses_existing_safe_mutation_lineage_and_later_
             legacy,
             lineage_executor=lineage_executor,
         )
-        selected = SelectedCandidateGenerator(proposal_for_value_change(["AC-01"]))
+        selected = SelectedCandidateGenerator(
+            proposal_for_value_change(["AC-01", "AC-02"])
+        )
         runtime.implementation_runtime.generator = selected
 
         result = runtime.run(
