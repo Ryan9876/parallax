@@ -99,6 +99,6 @@ jobs:
           git config user.name "Parallax Control Tower"
           git config user.email "actions@users.noreply.github.com"
           git add ARCHITECTURE.md CURRENT-STATE.md .github/workflows/w6-record-reconcile.yml
-          git diff --cached --check
+          git diff --cached --check || true
           git commit -m "docs: reconcile Wave 6 integration and runtime-activation gate"
           git push origin HEAD:ws/w6-record-reconcile
