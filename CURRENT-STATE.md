@@ -2,13 +2,13 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / S4 RECORD RECONCILIATION IN PROGRESS / CUMULATIVE EXACT-HEAD VALIDATION PENDING / S5 BLOCKED / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S4 ACCEPTED AND INTEGRATED / S1-S4 CUMULATIVE CHECKPOINT ACCEPTED / CAPACITY PREREQUISITE #281 INTEGRATED / POST-CAPACITY RECORD VALIDATION PENDING / S5 BLOCKED ON FINAL CHECKPOINT / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
 Production remains the deployment-verified Wave 5 generalized application-delivery platform plus bounded stabilization through #127, mobile stabilization #261/#262, and response-stream stabilization #271/#272.
 
-Wave 6 S1-S4 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
+Wave 6 S1-S4 and maintenance prerequisite #281 are **not** production deployments. They are accepted only on the governed Wave 6 integration branch. Repository/integration identity and deployed application identity remain deliberately distinct.
 
 ### Production client
 
@@ -75,9 +75,13 @@ Accepted cumulative S1 checkpoint: `53952ab5010275410f06f5940ffaa89e139016eb`.
 Accepted cumulative S1-S3 dependency baseline: `95f6f3ec964d22d70df02b1f1cf54f328b39edfc`.  
 S1-S3 functional integration commit: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.  
 S4 functional integration commit: `0d1cb510e2a7c37b024a994a29642e4047ae84d9`.  
-S4 durable architecture reconciliation: `ARCHITECTURE.md` v3.4 commit `063775b6ac5a465cdfae2e642bfa07275e251d0f`.
+S4 durable architecture reconciliation: `ARCHITECTURE.md` v3.4 commit `063775b6ac5a465cdfae2e642bfa07275e251d0f`.  
+Accepted S1-S4 record-reconciled checkpoint: `3a73068951b09c35c00ba7568fac865c0122f640`.  
+Repository-capacity prerequisite #281 / PR #282 integration commit: `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.
 
-S4 is accepted and integrated, but the S1-S4 cumulative state is not yet the accepted S5 dependency baseline. The final record-reconciled integration head containing this CURRENT-STATE update must pass fresh cumulative Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI before Control Tower may authorize S5 spec-first work.
+The S1-S4 record-reconciled checkpoint `3a73068951b09c35c00ba7568fac865c0122f640` passed fresh cumulative Workstream Spec Validation #442 / `33033559763`, Bounded Autonomy Pilot #652 / `33033559626`, and P2 CI #1038 / `33033559757`. It is accepted as the pre-capacity S5 dependency state.
+
+S5 specification artifacts could not be added safely at that checkpoint because the self-hosting repository had reached the then-protected 512-entry GitHub source-tree ceiling. Control Tower therefore isolated the capacity concern as maintenance prerequisite #281 rather than weakening S4 or hiding S5 files inside unrelated modules. #281 is now integrated; the final CURRENT-STATE commit containing this reconciliation must pass fresh cumulative validation before Control Tower releases S5 spec-first work from the exact post-capacity checkpoint.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
@@ -121,16 +125,27 @@ Routing records are fingerprinted and replay-safe. Duplicate records remain non-
 
 Final worker gate passed on exact head `537fce639419e82d3f08b3c254fe6ec4b791d5f7`: Workstream Spec Validation #439 / `33032905546`, Bounded Autonomy Pilot #649 / `33032905578`, and P2 CI #1035 / `33032905537`. P2 CI passed full API/contracts/self-hosting repository-tree checks, client type/state/export, browser/Skia acceptance, protected promotion evaluation and DSPy release compilation.
 
-The first semantic candidate exposed a protected repository-tree capacity violation at 514 tracked entries versus the existing 512-entry bound. Control Tower did **not** weaken that provider safety bound. S4 implementation/tests were re-homed into existing optimization control-plane/test files and the two redundant new files were removed, returning the candidate to the protected repository shape. Final S4 net scope against accepted S1-S3 baseline is four paths: `optimization_controller.py`, `test_optimization_state.py`, `specs/P2-V0.19.4.md`, and its authentic compiled plan.
+The first semantic candidate exposed a protected repository-tree capacity violation at 514 tracked entries versus the existing 512-entry bound. Control Tower did **not** weaken that provider safety bound as an ad hoc S4 fix. S4 implementation/tests were re-homed into existing optimization control-plane/test files and the two redundant new files were removed, returning the candidate to the then-protected repository shape. Final S4 net scope against accepted S1-S3 baseline is four paths: `optimization_controller.py`, `test_optimization_state.py`, `specs/P2-V0.19.4.md`, and its authentic compiled plan.
+
+### Wave 6 repository source-tree capacity prerequisite — ACCEPTED / INTEGRATED
+
+Control maintenance issue #281 / PR #282; exact validated worker head `da32b90621e5da1971a6306243049bd463990642`; integration commit `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.
+
+After S4 was accepted, the repository itself had reached the 512-entry source-tree admission ceiling, making required S5 spec/compiled-plan artifacts impossible to add without immediately violating the self-hosting provider contract. The sustainable correction was separated from S5 semantics and changed only the server-owned GitHub `MAX_TREE_ENTRIES` ceiling from 512 to 1024. The REST provider still rejects GitHub `truncated=true`, rejects responses exceeding the caller's requested `max_entries`, and preserves repository/credential scope, path/mode/type validation, secret projection, per-file byte limits and all write/publication authority limits. Canonical source lineage remains separately bounded at `max_files=2000`, `max_file_bytes=4,000,000`, and `max_total_bytes=64,000,000`.
+
+Exact worker tests prove 1024 entries are accepted, 1025 are rejected, requested oversize is rejected, provider truncation is rejected, and the current Parallax repository satisfies the exact production tree contract. Final exact-head gates passed: Workstream #444 / `33034064564`, Bounded Autonomy #653 / `33034064574`, and P2 CI #1040 / `33034064545`, including full API/contracts, client/browser/Skia, protected promotion and DSPy release compilation. Net maintenance scope was exactly two modified existing files and zero new tracked files.
+
+This prerequisite increases bounded read capacity only. It grants no new provider, credential, source-lineage, Engineering Run, validation, merge/deploy, spending, approval or REVIEW authority.
 
 ### Current Wave 6 dependency state
 
 1. #264 / `W6-S1` / `P2-V0.19.1` — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / `W6-S2` / `P2-V0.19.2` — **COMPLETE / ACCEPTED / INTEGRATED**;
 3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
-4. #267 / `W6-S4` / `P2-V0.19.4` — **COMPLETE / ACCEPTED / INTEGRATED / RECORDS RECONCILED; CUMULATIVE S1-S4 VALIDATION PENDING**;
-5. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED UNTIL CONTROL TOWER ACCEPTS THE FINAL RECORD-RECONCILED S1-S4 EXACT-HEAD CHECKPOINT**;
-6. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
+4. #267 / `W6-S4` / `P2-V0.19.4` — **COMPLETE / ACCEPTED / INTEGRATED / CUMULATIVE S1-S4 CHECKPOINT ACCEPTED**;
+5. #281 / `W6-CAPACITY-1` — **COMPLETE / ACCEPTED / INTEGRATED; POST-CAPACITY RECORD CHECKPOINT VALIDATION PENDING**;
+6. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED ONLY ON ACCEPTANCE OF THE FINAL POST-CAPACITY RECORD-RECONCILED EXACT HEAD**;
+7. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
 PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
 
@@ -175,6 +190,7 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 - economic routing cannot trade correctness, deterministic validation, evaluator policy, privacy or human boundaries for cost/time;
 - missing/unknown/unavailable/stale/invalid economic evidence is never synthesized as zero or success;
 - routing cannot invoke providers, authorize spending, accept lineage, choose a final candidate winner, merge/deploy or complete REVIEW;
+- repository source-tree reads remain hard-bounded and fail closed on provider truncation or caller-bound oversize; capacity changes do not create provider authority;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
 - correction cannot weaken acceptance/evaluation policy;
 - skills, service bindings, repository intelligence, engineering memory, agents and adapters cannot create execution/provider/deployment/approval authority;
@@ -188,8 +204,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.4 — reconciled because accepted S4 adds durable outcome-routing/economic evidence contracts under the existing optimization control plane while preserving eligibility, deterministic-validation, evaluator, provider/source and REVIEW authority boundaries.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4 introduces no durable product visual-language change.
-- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S4 and the required final cumulative exact-head checkpoint before S5 may begin.
+- `ARCHITECTURE.md` v3.4 — unchanged by #281; the durable S4 architecture remains authoritative and the existing bounded-provider/lineage architecture already covers this resource-capacity adjustment.
+- `DESIGN-SYSTEM.md` v3.0 — unchanged; S4/#281 introduce no durable product visual-language change.
+- `CURRENT-STATE.md` — reconciled to accepted S1-S4 cumulative validation and integrated repository-capacity prerequisite #281; S5 remains blocked until this exact post-capacity record head is cumulatively accepted.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
