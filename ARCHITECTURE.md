@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.1
+Version: 3.2
 Status: Authoritative
 
 ## System shape
@@ -27,6 +27,7 @@ FastAPI intelligence service
   ├─ bounded repository intelligence + compatibility profiles
   ├─ exact-digest governed skill + Project service-binding registries
   ├─ objective-to-application orchestration + validated engineering memory
+  ├─ governed engineering-agent adapter + evidence protocol
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -69,7 +70,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1 is accepted on the governed Wave 6 integration branch but is not yet a production deployment. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -251,6 +252,20 @@ Validated engineering memory is immutable provenance-bound evidence. Project-pri
 
 The permanent Wave 5 generalization proof composes these accepted S1-S5 layers with the existing protected reference runtime and correction controller across materially different static/client-web, Python-service and workspace/monorepo shapes plus ambiguous and malicious negative fixtures. The proof verifies exact-lineage IMPLEMENT/BUILD/TEST/VERIFY, bounded fresh-lineage correction, governed GitHub/Vercel Preview delivery, process/delivery replay idempotency, privacy-safe reuse and the explicit `REVIEW` / `HUMAN_REQUIRED` ceiling. The S6 proof/evaluation layer itself is read-only evidence logic and owns no filesystem, source, command, provider, deployment or approval mutation surface.
 
+## Wave 6 agent adapter and evidence protocol
+
+Wave 6 S1 adds a provider-neutral engineering-agent protocol as a bounded evidence/admission layer in front of existing Parallax worker, source-lineage, validation and release authority. S1 is accepted on the Wave 6 integration branch; this section records its durable contract without claiming production deployment.
+
+`AgentIdentity` binds an agent ID/version, adapter ID/version, provider kind and declared work/capability evidence. Declarations are descriptive evidence only; they cannot create server capabilities, credentials, network access, shell authority, source acceptance, validation authority, merge/deployment authority, approval or REVIEW authority.
+
+`AgentTaskBinding` binds each task attempt to canonical Project ID, Engineering Run ID, exact Work Specification ID/revision/digest, exact server-owned acceptance IDs, operation/request identity, monotonically bounded attempt identity, exact agent-identity digest and optional source-lineage context. Result or checkpoint evidence that drifts from those bindings fails closed.
+
+The protocol normalizes lifecycle states including accepted, started, running, checkpointed, completed, recoverable failure, terminal failure, timeout, cancellation and rejection. Admission explicitly distinguishes accepted, duplicate, identity mismatch, acceptance mismatch, source-context mismatch, stale attempt, revoked result, competing terminal result and invalid evidence. Duplicate/replay handling may recognize the same immutable evidence but cannot make a conflicting terminal result authoritative.
+
+Agent evidence references are bounded typed references with optional exact digests. Usage observations distinguish `OBSERVED`, `UNAVAILABLE` and `UNKNOWN`; provenance distinguishes provider-observed, Parallax-observed and bounded estimates. Missing cost, token, request or duration evidence remains missing rather than being fabricated. Raw provider payloads, arbitrary URLs, credentials, secret handles, prompts, hidden reasoning and unbounded diagnostic content are not canonical agent evidence.
+
+Reference adapters prove interchangeability and recovery semantics without adding provider authority. Adapter invocation is therefore labor orchestration input/output, not a second Engineering Run, worker lease, source-lineage, validation or release state machine. S2 and later orchestration layers must compose with this protocol and the existing durable worker lease/checkpoint/recovery system rather than supersede it.
+
 ## Project-scoped tool authority
 
 The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
@@ -366,7 +381,7 @@ Parallel development is governed by `PROJECT-CONSTITUTION.md`, `PARALLEL-DEVELOP
 
 Workers develop concurrently on isolated branches. Interacting candidates are integrated serially at authoritative boundaries and cumulative protected gates are rerun after material composition changes.
 
-Source-integrated future-wave code must not be treated as deployed/active merely because it is present on `main`; migration and activation state remain separate authoritative facts.
+Source-integrated future-wave code must not be treated as deployed/active merely because it is present on an integration branch or `main`; migration, release and activation state remain separate authoritative facts.
 
 ## Failure degradation
 
@@ -375,6 +390,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - no approved Work Specification: block Code activation;
 - Project lookup outside authenticated owner scope: fail as not found;
 - Project/spec/run/source-lineage mismatch: block protected progress;
+- agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
@@ -401,7 +417,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
+User/model/agent content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -415,12 +431,13 @@ Major trust boundaries are:
 8. deterministic browser/accessibility/console/network/layout evidence;
 9. bounded visual review and correction/LKG/convergence policy;
 10. server-owned optimization policy with non-authoritative speculation/reuse;
-11. server-owned tool capability registry;
-12. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
-13. persisted provider action/audit and replay identity;
-14. protected evaluation/promotion policy;
-15. optional non-authoritative run-event projection behind migration + exact activation flag;
-16. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
+11. exact-bound engineering-agent task identity plus bounded adapter/result/checkpoint evidence admission;
+12. server-owned tool capability registry;
+13. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
+14. persisted provider action/audit and replay identity;
+15. protected evaluation/promotion policy;
+16. optional non-authoritative run-event projection behind migration + exact activation flag;
+17. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
 
 ## Inherited development-policy architecture
 
