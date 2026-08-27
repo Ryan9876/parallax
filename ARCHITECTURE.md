@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.2
+Version: 3.3
 Status: Authoritative
 
 ## System shape
@@ -28,6 +28,8 @@ FastAPI intelligence service
   ├─ exact-digest governed skill + Project service-binding registries
   ├─ objective-to-application orchestration + validated engineering memory
   ├─ governed engineering-agent adapter + evidence protocol
+  ├─ bounded development-team orchestration
+  ├─ independent evaluation + quality evidence
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -70,7 +72,7 @@ FastAPI intelligence service
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1 is accepted on the governed Wave 6 integration branch but is not yet a production deployment. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S3 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -266,6 +268,36 @@ Agent evidence references are bounded typed references with optional exact diges
 
 Reference adapters prove interchangeability and recovery semantics without adding provider authority. Adapter invocation is therefore labor orchestration input/output, not a second Engineering Run, worker lease, source-lineage, validation or release state machine. S2 and later orchestration layers must compose with this protocol and the existing durable worker lease/checkpoint/recovery system rather than supersede it.
 
+## Wave 6 dynamic development-team orchestration
+
+Wave 6 S2 composes accepted S1 agent evidence into deterministic bounded team formation and scheduling. It remains subordinate to the canonical Project, Work Specification, Engineering Run, worker lease/checkpoint/recovery, source-lineage, validation, provider and release authorities.
+
+Server-owned team policy admits only exact S1-conforming agent identities whose declared work/capability evidence satisfies the required task domains. The planner chooses the smallest adequate team: one agent when one eligible agent covers the objective, otherwise a bounded multi-agent team only when decomposition is valid and within configured limits. Agent declarations never create capabilities or authorization.
+
+Work is represented as bounded dependency-aware assignments. Cycles, unknown dependencies, duplicate identities, impossible coverage and unsafe graph construction fail closed. Tasks that share a server-derived coordination domain are conservatively serialized even when their declared file hints appear disjoint; parallelism is allowed only where dependency and coordination evidence support it.
+
+Assignment, dispatch and replay identity are deterministic. Every dispatched unit composes the accepted S1 `AgentTaskBinding`/result-admission contract rather than inventing a second task/result authority path. A team result can preserve bounded agent outcome and usage evidence but cannot accept canonical source lineage, advance an Engineering Run, satisfy protected validation, or decide final candidate quality.
+
+Recovery/reassignment is driven by Parallax-owned durable worker evidence rather than agent self-report. Reassignment preserves the logical assignment while advancing an explicit generation so stale generations fail closed. Team size, parallelism, retry, replan, reassignment and no-progress behavior are bounded; exhaustion produces explicit bounded failure/HUMAN_REQUIRED evidence rather than unbounded agent creation or looping.
+
+S2 creates no credential, provider, tool, filesystem, source-mutation, merge/deployment, approval or REVIEW authority. S4/S5 may consume orchestration evidence, but cannot treat team formation or successful labor completion as canonical acceptance.
+
+## Wave 6 independent evaluation and quality judgment
+
+Wave 6 S3 establishes an independent, provenance-bound quality-evidence layer for agent-produced candidates. It is structurally below protected deterministic validation and above no canonical acceptance boundary.
+
+`CandidateBinding`-equivalent identity binds exact Project ID, Engineering Run ID, Work Specification ID/revision/digest, stable acceptance IDs, candidate/source-lineage digest, candidate revision/attempt identity and producer-agent identity digest. Protected validation evidence must bind the same exact candidate and acceptance map. Missing, failed, stale, mismatched or cross-Project protected evidence blocks support before qualitative judgment is considered.
+
+Evaluator identity is explicit and structurally distinct from producer identity. Exact self-evaluation cannot satisfy independence. A server-owned immutable evaluator policy binds policy ID/version/digest, admitted evaluator identities, approved qualitative dimensions, allowed evidence kinds, bounded evidence counts, score rules/floors and human-escalation behavior. Repository, source, agent and model text cannot change this policy or acceptance IDs.
+
+Qualitative evidence is bounded to typed references and concise safe findings. Canonical evaluator evidence excludes raw provider payloads, credentials, prompts, hidden reasoning, arbitrary URLs, executable commands and authority-bearing instructions. Project-private evidence cannot cross a Project boundary unless it was already admitted through a separate sanitized/generalized-memory authority.
+
+Final S3 outcomes are bounded to `SUPPORTED`, `DETERMINISTIC_BLOCKED`, `NOT_INDEPENDENT`, `INSUFFICIENT_EVIDENCE`, `POLICY_REJECTED` and `HUMAN_REQUIRED`. `SUPPORTED` means only that independent evidence supports the exact candidate under the exact bound evaluator policy; it does not accept lineage, complete REVIEW, select a provider or candidate winner, authorize spending, merge, deploy or mutate protected run state.
+
+Evaluation replay uses a deterministic fingerprint over exact candidate, producer/evaluator identity, policy and admitted evidence. Exact replay is duplicate-safe. Changed evidence/candidate/evaluator/policy creates a distinguishable identity. Competing records for one fingerprint fail closed rather than silently choosing a winner.
+
+S4 may consume S3 output only as quality evidence combined with S1/S2 and protected deterministic facts. S5 candidate competition remains a later bounded policy layer and cannot inherit acceptance authority merely from S3 support.
+
 ## Project-scoped tool authority
 
 The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
@@ -391,6 +423,8 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - Project lookup outside authenticated owner scope: fail as not found;
 - Project/spec/run/source-lineage mismatch: block protected progress;
 - agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
+- team graph cycle, impossible capability coverage, unsafe coordination overlap or orchestration bound exhaustion: fail closed or return bounded HUMAN_REQUIRED evidence; do not create unbounded agents or parallelism;
+- evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
@@ -398,7 +432,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - expired/stale worker lease: reject checkpoint/mutation authority;
 - recoverable process loss: classify, stall and resume/reassign from the durable canonical checkpoint within bounds;
 - true specification/authority/credential boundary: enter `HUMAN_REQUIRED` rather than disguising it as ordinary retry;
-- deterministic browser/accessibility/console/network/layout failure: block pass; visual judgment cannot override it;
+- deterministic browser/accessibility/console/network/layout failure: block pass; visual or independent evaluator judgment cannot override it;
 - regressive/equal/no-progress/oscillating correction: preserve last-known-good and stop/retry only within protected bounds;
 - unknown change impact or incomplete reuse/cache provenance: discard optimization and run the conservative/full path;
 - capability unknown/disabled/mismatched/unapproved: deny before provider action;
@@ -417,7 +451,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model/agent content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
+User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -432,12 +466,14 @@ Major trust boundaries are:
 9. bounded visual review and correction/LKG/convergence policy;
 10. server-owned optimization policy with non-authoritative speculation/reuse;
 11. exact-bound engineering-agent task identity plus bounded adapter/result/checkpoint evidence admission;
-12. server-owned tool capability registry;
-13. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
-14. persisted provider action/audit and replay identity;
-15. protected evaluation/promotion policy;
-16. optional non-authoritative run-event projection behind migration + exact activation flag;
-17. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
+12. server-owned bounded development-team eligibility/dependency/coordination/reassignment policy;
+13. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
+14. server-owned tool capability registry;
+15. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
+16. persisted provider action/audit and replay identity;
+17. protected evaluation/promotion policy;
+18. optional non-authoritative run-event projection behind migration + exact activation flag;
+19. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
 
 ## Inherited development-policy architecture
 
