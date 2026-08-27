@@ -3,10 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import os
+from pathlib import Path
 import re
 import sys
 from time import monotonic
 from uuid import NAMESPACE_URL, uuid5
+
+
+_SCRIPT_ROOT = Path(__file__).resolve().parent
+_API_ROOT = _SCRIPT_ROOT.parent
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
 
 from parallax_api.code.agentic_runtime_live import DurableCandidateArtifactStore
 from parallax_api.code.source_context import SourceContextSnapshot
