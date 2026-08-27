@@ -2,7 +2,7 @@
 
 Date: 2026-08-26
 
-Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S3 ACCEPTED AND INTEGRATED / S4 CUMULATIVE-BASELINE GATE PENDING / WAVE 6 NOT DEPLOYED**
+Status: **WAVE 5 RELEASED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S3 ACCEPTED AND INTEGRATED / S1-S3 RECORDS RECONCILED / CUMULATIVE EXACT-HEAD VALIDATION PENDING / WAVE 6 NOT DEPLOYED**
 
 ## Current production truth
 
@@ -72,7 +72,10 @@ Control Tower: #263.
 Integration branch: `integration/wave6-agentic-control-plane`.  
 Accepted post-response-stabilization starting baseline: `c87d5ec6b2c59a983d1b97f1d4f61d2e02808e5c`.  
 Accepted cumulative S1 checkpoint: `53952ab5010275410f06f5940ffaa89e139016eb`.  
-Current raw S1-S3 integration commit before record reconciliation: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.
+S1-S3 functional integration commit: `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.  
+Durable record reconciliation: `CURRENT-STATE.md` S2/S3 reconciliation commit `68a4be6d0de35cd69c3578694c7c1ec9101ee213`; `ARCHITECTURE.md` v3.3 reconciliation commit `8e4687c3469ddb202356712b4aba650be8aa05e6`.
+
+The exact cumulative S1-S3 dependency baseline for S4 is not accepted until fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI pass on the final record-reconciled integration head containing this state update.
 
 ### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
 
@@ -109,11 +112,11 @@ Final exact worker head passed Workstream #431 / `33029830303`, Bounded Autonomy
 1. #264 / `W6-S1` / `P2-V0.19.1` — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / `W6-S2` / `P2-V0.19.2` — **COMPLETE / ACCEPTED / INTEGRATED**;
 3. #266 / `W6-S3` / `P2-V0.19.3` — **COMPLETE / ACCEPTED / INTEGRATED**;
-4. #267 / `W6-S4` / `P2-V0.19.4` — **FUNCTIONAL DEPENDENCIES SATISFIED; WAITING FOR RECONCILED + EXACT-VALIDATED CUMULATIVE S1-S3 INTEGRATION BASELINE BEFORE SPEC-FIRST WORKER START**;
+4. #267 / `W6-S4` / `P2-V0.19.4` — **FUNCTIONAL DEPENDENCIES AND RECORD RECONCILIATION SATISFIED; WAITING ONLY FOR FRESH EXACT-HEAD CUMULATIVE VALIDATION BEFORE SPEC-FIRST WORKER START**;
 5. #268 / `W6-S5` / `P2-V0.19.5` — **BLOCKED ON ACCEPTED S4 OUTCOME EVIDENCE**;
 6. #269 / `W6-S6` / `P2-V0.19.6` — **BLOCKED ON ACCEPTED S1-S5**.
 
-Control Tower must reconcile durable architecture/current-state records for S2/S3 and obtain fresh cumulative Workstream Spec Validation, Bounded Autonomy and P2 CI on the resulting exact integration head before recording the S4 worker baseline. PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
+PR #275 remains the do-not-merge integration validation surface. No Wave 6 production promotion has occurred.
 
 ## Rollback
 
@@ -166,8 +169,8 @@ The earlier stabilization-through-#127 client deployment `dpl_642fFKXWzZfA7pkezA
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` — requires S2/S3 durable-contract reconciliation before the cumulative S1-S3 checkpoint can be accepted for S4.
+- `ARCHITECTURE.md` v3.3 — reconciled because accepted S2 and S3 establish durable bounded team-orchestration and independent-evaluation contracts while preserving all pre-existing authority boundaries.
 - `DESIGN-SYSTEM.md` v3.0 — unchanged; S2/S3 introduce no durable product visual-language change.
-- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S3 and the S4 cumulative-baseline gate.
+- `CURRENT-STATE.md` — reconciled to accepted/integrated S1-S3 and the final cumulative exact-head validation gate for S4.
 
 No Wave 6 production deployment has occurred. Production client/API identities and rollback points remain those recorded above.
