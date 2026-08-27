@@ -24,7 +24,7 @@ jobs:
           python scripts/reconcile_w6_runtime_records.py
           git rm .github/workflows/reconcile-w6-runtime-records.yml
           git rm .github/workflows/reconcile-w6-runtime-records-pr.yml
-          git rm scripts/reconcile_w6_runtime_records.py
+          git rm -f scripts/reconcile_w6_runtime_records.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ARCHITECTURE.md CURRENT-STATE.md
