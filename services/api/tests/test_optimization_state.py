@@ -509,3 +509,454 @@ def test_malformed_identity_and_duplicate_acceptance_fail_closed():
         replace(ctx, project_id="not-a-uuid")
     with pytest.raises(OutcomeRoutingError):
         replace(ctx, acceptance_ids=("AC-01", "AC-01"))
+
+# Wave 6 S5 candidate competition and synthesis tests.
+from parallax_api.code.optimization_controller import (
+    CandidateCompetitionEligibility,
+    CompetitionAdmissionReason,
+    CompetitionCandidate,
+    CompetitionContext,
+    CompetitionDisposition,
+    CompetitionPolicy,
+    CompetitionRequest,
+    CompetitionSignal,
+    CompetitionTriggerDisposition,
+    SynthesisRequest,
+    admit_competition_record,
+    decide_candidate_competition,
+    safe_competition_json,
+)
+from parallax_api.evaluation.agent_judgment import ProtectedValidationEvidence
+
+
+COMP_ROUTING_DIGEST = "a" * 64
+
+
+def make_comp_policy(
+    *,
+    required_candidates=1,
+    winner_quality=0.75,
+    max_synthesis=0,
+    max_no_progress=2,
+    max_cost=10.0,
+    max_duration=120.0,
+):
+    return CompetitionPolicy(
+        policy_id="candidate-competition",
+        policy_version="1.0.0",
+        max_candidates=4,
+        minimum_candidates_for_comparison=2,
+        required_candidate_count=required_candidates,
+        eligibility_quality_floor=0.5,
+        winner_quality_floor=winner_quality,
+        winner_confidence_floor=0.6,
+        minimum_expected_quality_gain=0.05,
+        max_extra_cost=max_cost,
+        max_extra_duration=max_duration,
+        max_routing_sequence_age=10,
+        economic_metric_policies=(
+            EconomicMetricPolicy(RoutingMetricName.COST, 0.5, 10.0, required=True),
+            EconomicMetricPolicy(RoutingMetricName.DURATION, 0.5, 100.0),
+        ),
+        max_synthesis_attempts=max_synthesis,
+        max_synthesis_parents=2,
+        max_rounds=4,
+        max_no_progress_rounds=max_no_progress,
+        synthesis_budget_class="bounded",
+        human_required_on_ambiguity=False,
+    )
+
+
+def make_comp_context(policy, *, sequence=10):
+    return CompetitionContext(
+        project_id=PROJECT,
+        run_id=RUN,
+        work_specification_id=SPEC,
+        work_specification_revision=3,
+        work_specification_digest=SPEC_DIGEST,
+        acceptance_ids=ACCEPTANCE,
+        orchestration_identity_digest=ORCHESTRATION_DIGEST,
+        evaluation_policy_id="independent-evaluation",
+        evaluation_policy_version="1.0.0",
+        evaluation_policy_digest=EVALUATION_POLICY_DIGEST,
+        routing_evidence_digest=COMP_ROUTING_DIGEST,
+        competition_policy_id=policy.policy_id,
+        competition_policy_version=policy.policy_version,
+        competition_policy_digest=policy.digest,
+        operation_id="competition:round-1",
+        operation_sequence=sequence,
+    )
+
+
+def make_comp_signal(
+    *,
+    project=PROJECT,
+    routing_digest=COMP_ROUTING_DIGEST,
+    sequence=10,
+    uncertain=True,
+    gain=0.10,
+    cost=2.0,
+    duration=30.0,
+):
+    return CompetitionSignal(
+        routing_evidence_digest=routing_digest,
+        project_id=project,
+        sequence=sequence,
+        material_quality_uncertainty=uncertain,
+        expected_quality_gain=gain,
+        estimated_extra_cost=cost,
+        estimated_extra_duration=duration,
+    )
+
+
+def make_comp_candidate(
+    ctx,
+    name,
+    agent,
+    *,
+    lineage,
+    score=0.9,
+    confidence=0.85,
+    validation_passed=True,
+    evaluation_outcome=EvaluationOutcome.SUPPORTED,
+    evaluator_digest="5" * 64,
+    routing_project=PROJECT,
+    routing_cost=5.0,
+    routing_duration=50.0,
+):
+    strategy = make_strategy(name, agent)
+    binding = CandidateBinding(
+        project_id=PROJECT,
+        run_id=RUN,
+        work_specification_id=SPEC,
+        work_specification_revision=3,
+        work_specification_digest=SPEC_DIGEST,
+        acceptance_ids=ACCEPTANCE,
+        candidate_lineage_digest=lineage,
+        candidate_revision_id=f"revision:{name}",
+        candidate_attempt_id=f"attempt:{name}",
+        producer_identity_digest=agent,
+    )
+    protected_ref = EvaluationEvidenceReference(
+        kind=EvidenceKind.TEST,
+        reference_id=f"test:protected:{name}",
+        digest=("1" if name == "alpha" else "2") * 64,
+        project_id=PROJECT,
+    )
+    validation = ProtectedValidationEvidence(
+        candidate=binding,
+        validation_id=f"validation:{name}",
+        passed=validation_passed,
+        acceptance_ids=ACCEPTANCE,
+        evidence_refs=(protected_ref,),
+        failure_codes=() if validation_passed else ("PROTECTED_TEST_FAILED",),
+    )
+    eval_ref = EvaluationEvidenceReference(
+        kind=EvidenceKind.DIAGNOSTIC,
+        reference_id=f"diagnostic:competition:{name}",
+        digest=("3" if name == "alpha" else "4") * 64,
+        project_id=PROJECT,
+    )
+    dimension = DimensionJudgment(
+        dimension="maintainability",
+        verdict=DimensionVerdict.SUPPORT if evaluation_outcome is EvaluationOutcome.SUPPORTED else DimensionVerdict.CONCERN,
+        finding="bounded independent competition quality evidence",
+        evidence_refs=(eval_ref,),
+        confidence=confidence,
+        score=score,
+    )
+    evaluation = EvaluationRecord(
+        candidate=binding,
+        evaluator_identity_digest=evaluator_digest,
+        evaluator_id="independent-evaluator",
+        evaluator_version="1.0.0",
+        policy_id="independent-evaluation",
+        policy_version="1.0.0",
+        policy_digest=EVALUATION_POLICY_DIGEST,
+        protected_validation_digest=validation.digest,
+        fingerprint=("6" if name == "alpha" else "7") * 64,
+        outcome=evaluation_outcome,
+        reason_code="SUPPORTED_BY_POLICY" if evaluation_outcome is EvaluationOutcome.SUPPORTED else "POLICY_REJECTED",
+        dimensions=(dimension,),
+        evidence_refs=(eval_ref,),
+    )
+    routing = StrategyOutcomeEvidence(
+        context_digest=COMP_ROUTING_DIGEST,
+        strategy_digest=strategy.digest,
+        project_id=PROJECT,
+        protected_validation_passed=validation_passed,
+        protected_validation_digest=validation.digest,
+        evaluation_record=evaluation,
+        completion=CompletionObservation(
+            state=CompletionState.COMPLETED,
+            source_ref=f"completion:competition:{name}",
+            source_digest="9" * 64,
+            project_id=PROJECT,
+        ),
+        metrics=(
+            make_metric(RoutingMetricName.COST, routing_cost, project=routing_project),
+            make_metric(RoutingMetricName.DURATION, routing_duration, project=routing_project),
+        ),
+    )
+    return CompetitionCandidate(
+        candidate_id=name,
+        binding=binding,
+        strategy=strategy,
+        producer_identity_digests=(agent,),
+        protected_validation=validation,
+        evaluation_record=evaluation,
+        routing_outcome=routing,
+    )
+
+
+def make_comp_request(ctx, policy, candidates, *, signal=None, gaps=(), synthesis_used=0, round_number=1, no_progress=0):
+    return CompetitionRequest(
+        context=ctx,
+        policy=policy,
+        candidates=tuple(candidates),
+        signal=signal,
+        synthesis_gap_refs=tuple(gaps),
+        synthesis_attempts_used=synthesis_used,
+        competition_round=round_number,
+        no_progress_rounds=no_progress,
+    )
+
+
+def test_s5_exact_identity_replay_and_multiple_candidates_alone_do_not_force_competition():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64, score=0.90)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64, score=0.80)
+    request = make_comp_request(ctx, policy, (bravo, alpha))
+    first = decide_candidate_competition(request)
+    second = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo)))
+    assert first.trigger is CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT
+    assert first.disposition is CompetitionDisposition.SINGLE_CANDIDATE_SUFFICIENT
+    assert first.selected_candidate_id == "alpha"
+    assert first.digest == second.digest
+    assert request.fingerprint == make_comp_request(ctx, policy, (alpha, bravo)).fingerprint
+
+
+def test_s5_bounded_signal_can_justify_competition_and_stable_winner_is_order_independent():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64, score=0.88, routing_cost=6)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64, score=0.92, routing_cost=8)
+    signal = make_comp_signal()
+    first = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo), signal=signal))
+    second = decide_candidate_competition(make_comp_request(ctx, policy, (bravo, alpha), signal=signal))
+    assert first.trigger is CompetitionTriggerDisposition.COMPETE
+    assert first.disposition is CompetitionDisposition.WINNER_SUPPORTED
+    assert first.selected_candidate_id == "bravo"
+    assert first.digest == second.digest
+
+
+def test_s5_failed_validation_cannot_be_purchased_by_lower_cost():
+    policy = make_comp_policy(required_candidates=2)
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(
+        ctx,
+        "alpha",
+        AGENT_A,
+        lineage="a" * 64,
+        score=0.99,
+        validation_passed=False,
+        evaluation_outcome=EvaluationOutcome.POLICY_REJECTED,
+        routing_cost=0.01,
+        routing_duration=1,
+    )
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64, score=0.90, routing_cost=9)
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo)))
+    blocked = next(item for item in record.eligibility if item.candidate_id == "alpha")
+    assert not blocked.eligible
+    assert "PROTECTED_VALIDATION_REQUIRED" in {reason.value for reason in blocked.reasons}
+    assert record.disposition is CompetitionDisposition.INSUFFICIENT_EVIDENCE
+    assert record.selected_candidate_id is None
+
+
+def test_s5_implementer_self_evaluation_is_never_comparison_authority():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(
+        ctx,
+        "alpha",
+        AGENT_A,
+        lineage="a" * 64,
+        evaluator_digest=AGENT_A,
+    )
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha,)))
+    item = record.eligibility[0]
+    assert not item.eligible
+    assert "SELF_EVALUATION" in {reason.value for reason in item.reasons}
+    assert record.disposition is CompetitionDisposition.NO_ELIGIBLE_CANDIDATE
+
+
+def test_s5_same_lineage_cannot_masquerade_as_two_candidates():
+    policy = make_comp_policy(required_candidates=2)
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="a" * 64)
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo)))
+    assert record.disposition is CompetitionDisposition.POLICY_REJECTED
+    assert record.reason_code == "DUPLICATE_LINEAGE_ALTERNATIVE"
+
+
+def test_s5_cross_project_s4_evidence_is_disqualified_before_scoring():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(
+        ctx,
+        "alpha",
+        AGENT_A,
+        lineage="a" * 64,
+        routing_project=OTHER_PROJECT,
+    )
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha,)))
+    item = record.eligibility[0]
+    assert not item.eligible
+    assert "CROSS_PROJECT_EVIDENCE" in {reason.value for reason in item.reasons}
+
+
+def test_s5_missing_or_stale_signal_never_becomes_free_competition():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy, sequence=50)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64)
+    no_signal = decide_candidate_competition(make_comp_request(ctx, policy, (alpha, bravo)))
+    assert no_signal.trigger is CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT
+    stale = decide_candidate_competition(
+        make_comp_request(ctx, policy, (alpha, bravo), signal=make_comp_signal(sequence=1))
+    )
+    assert stale.trigger is CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE
+    assert stale.disposition is CompetitionDisposition.INSUFFICIENT_EVIDENCE
+
+
+def test_s5_signal_budget_bounds_block_extra_competition_without_weakening_quality():
+    policy = make_comp_policy(max_cost=1.0, max_duration=10.0)
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64)
+    record = decide_candidate_competition(
+        make_comp_request(ctx, policy, (alpha, bravo), signal=make_comp_signal(cost=2.0, duration=30.0))
+    )
+    assert record.trigger is CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT
+    assert record.selected_candidate_id in {"alpha", "bravo"}
+
+
+def test_s5_synthesis_is_new_attempt_evidence_and_requires_fresh_validation_and_evaluation():
+    policy = make_comp_policy(winner_quality=0.95, max_synthesis=1)
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64, score=0.80)
+    bravo = make_comp_candidate(ctx, "bravo", AGENT_B, lineage="b" * 64, score=0.82)
+    gap = EvaluationEvidenceReference(
+        kind=EvidenceKind.DIAGNOSTIC,
+        reference_id="gap:acceptance-quality",
+        digest="c" * 64,
+        project_id=PROJECT,
+    )
+    record = decide_candidate_competition(
+        make_comp_request(ctx, policy, (alpha, bravo), signal=make_comp_signal(), gaps=(gap,))
+    )
+    assert record.disposition is CompetitionDisposition.SYNTHESIS_REQUESTED
+    synthesis = record.synthesis_request
+    assert isinstance(synthesis, SynthesisRequest)
+    assert synthesis.fresh_validation_required is True
+    assert synthesis.fresh_independent_evaluation_required is True
+    assert set(synthesis.parent_lineage_digests) == {"a" * 64, "b" * 64}
+    assert synthesis.request_id.startswith("synthesis:")
+    assert synthesis.as_dict()["invokes_provider"] is False
+    assert synthesis.as_dict()["routes_spending"] is False
+
+
+def test_s5_parent_validation_cannot_be_reused_for_new_synthesis_lineage():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    parent = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    new_binding = replace(
+        parent.binding,
+        candidate_lineage_digest="d" * 64,
+        candidate_revision_id="revision:synthesized",
+        candidate_attempt_id="attempt:synthesized",
+    )
+    forged = replace(parent, candidate_id="synthesized", binding=new_binding)
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (forged,)))
+    item = record.eligibility[0]
+    assert not item.eligible
+    assert "PROTECTED_VALIDATION_MISMATCH" in {reason.value for reason in item.reasons}
+    assert "EVALUATION_IDENTITY_MISMATCH" in {reason.value for reason in item.reasons}
+
+
+def test_s5_bounds_exhaustion_preserves_human_boundary():
+    policy = make_comp_policy(max_no_progress=1)
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha,), no_progress=2))
+    assert record.trigger is CompetitionTriggerDisposition.HUMAN_REQUIRED
+    assert record.disposition is CompetitionDisposition.HUMAN_REQUIRED
+    assert record.selected_candidate_id is None
+
+
+def test_s5_record_admission_is_duplicate_safe_and_conflict_fail_closed():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    request = make_comp_request(ctx, policy, (alpha,))
+    record = decide_candidate_competition(request)
+    accepted = admit_competition_record(
+        record,
+        expected_context=ctx,
+        expected_policy=policy,
+        expected_fingerprint=request.fingerprint,
+    )
+    assert accepted.admitted and accepted.reason is CompetitionAdmissionReason.ACCEPTED
+    duplicate = admit_competition_record(
+        record,
+        expected_context=ctx,
+        expected_policy=policy,
+        expected_fingerprint=request.fingerprint,
+        existing=record,
+    )
+    assert duplicate.duplicate and duplicate.reason is CompetitionAdmissionReason.DUPLICATE
+    competing = replace(record, reason_code="ALTERNATE_RECORD")
+    conflict = admit_competition_record(
+        competing,
+        expected_context=ctx,
+        expected_policy=policy,
+        expected_fingerprint=request.fingerprint,
+        existing=record,
+    )
+    assert conflict.reason is CompetitionAdmissionReason.COMPETING_RECORD
+
+
+def test_s5_safe_serialization_is_evidence_only_and_has_no_execution_surface():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    payload = json.loads(safe_competition_json(decide_candidate_competition(make_comp_request(ctx, policy, (alpha,)))))
+    for key in (
+        "grants_capabilities",
+        "invokes_provider",
+        "routes_spending",
+        "accepts_source_lineage",
+        "transitions_engineering_run",
+        "performs_merge",
+        "performs_deployment",
+        "completes_review",
+        "resolves_human_required",
+    ):
+        assert payload[key] is False
+    rendered = json.dumps(payload).lower()
+    assert "api_key" not in rendered and "authorization:" not in rendered
+    assert "http://" not in rendered and "https://" not in rendered
+
+
+def test_s5_malformed_policy_and_signal_context_fail_closed():
+    policy = make_comp_policy()
+    ctx = make_comp_context(policy)
+    alpha = make_comp_candidate(ctx, "alpha", AGENT_A, lineage="a" * 64)
+    changed = replace(policy, winner_quality_floor=0.99)
+    mismatch = decide_candidate_competition(make_comp_request(ctx, changed, (alpha,)))
+    assert mismatch.disposition is CompetitionDisposition.POLICY_REJECTED
+    wrong_signal = make_comp_signal(project=OTHER_PROJECT)
+    signal_record = decide_candidate_competition(make_comp_request(ctx, policy, (alpha,), signal=wrong_signal))
+    assert signal_record.disposition is CompetitionDisposition.POLICY_REJECTED

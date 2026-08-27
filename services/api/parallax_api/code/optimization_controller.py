@@ -1058,3 +1058,1090 @@ def _unit(value: float | int, field: str) -> float:
     if result > 1:
         raise OutcomeRoutingError(f"{field} must be between 0 and 1")
     return result
+
+# Wave 6 S5 candidate competition and synthesis. Kept in this established module
+# to preserve the repository's protected self-hosting tree-entry bound.
+
+from parallax_api.evaluation.agent_judgment import (
+    CandidateBinding as _CompetitionCandidateBinding,
+    EvaluationEvidenceReference as _CompetitionEvidenceReference,
+    ProtectedValidationEvidence as _CompetitionProtectedValidationEvidence,
+)
+
+COMPETITION_PROTOCOL_VERSION = 1
+_MAX_COMPETITION_CANDIDATES = 16
+_MAX_COMPETITION_EVIDENCE_REFS = 32
+
+
+class CompetitionError(ValueError):
+    pass
+
+
+class CompetitionTriggerDisposition(StrEnum):
+    COMPETE = "COMPETE"
+    SINGLE_CANDIDATE_SUFFICIENT = "SINGLE_CANDIDATE_SUFFICIENT"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    POLICY_REJECTED = "POLICY_REJECTED"
+    HUMAN_REQUIRED = "HUMAN_REQUIRED"
+
+
+class CompetitionDisposition(StrEnum):
+    WINNER_SUPPORTED = "WINNER_SUPPORTED"
+    SINGLE_CANDIDATE_SUFFICIENT = "SINGLE_CANDIDATE_SUFFICIENT"
+    SYNTHESIS_REQUESTED = "SYNTHESIS_REQUESTED"
+    NO_ELIGIBLE_CANDIDATE = "NO_ELIGIBLE_CANDIDATE"
+    NO_CLEAR_WINNER = "NO_CLEAR_WINNER"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    POLICY_REJECTED = "POLICY_REJECTED"
+    HUMAN_REQUIRED = "HUMAN_REQUIRED"
+
+
+class CompetitionEligibilityReason(StrEnum):
+    ELIGIBLE = "ELIGIBLE"
+    CONTEXT_MISMATCH = "CONTEXT_MISMATCH"
+    STRATEGY_NOT_PERMITTED = "STRATEGY_NOT_PERMITTED"
+    PRODUCER_IDENTITY_MISMATCH = "PRODUCER_IDENTITY_MISMATCH"
+    PROTECTED_VALIDATION_REQUIRED = "PROTECTED_VALIDATION_REQUIRED"
+    PROTECTED_VALIDATION_MISMATCH = "PROTECTED_VALIDATION_MISMATCH"
+    EVALUATION_POLICY_MISMATCH = "EVALUATION_POLICY_MISMATCH"
+    EVALUATION_IDENTITY_MISMATCH = "EVALUATION_IDENTITY_MISMATCH"
+    EVALUATION_REJECTED = "EVALUATION_REJECTED"
+    SELF_EVALUATION = "SELF_EVALUATION"
+    HUMAN_REQUIRED = "HUMAN_REQUIRED"
+    CROSS_PROJECT_EVIDENCE = "CROSS_PROJECT_EVIDENCE"
+    ROUTING_EVIDENCE_MISMATCH = "ROUTING_EVIDENCE_MISMATCH"
+    ROUTING_EVIDENCE_STALE = "ROUTING_EVIDENCE_STALE"
+    ROUTING_EVIDENCE_INVALID = "ROUTING_EVIDENCE_INVALID"
+    QUALITY_EVIDENCE_INSUFFICIENT = "QUALITY_EVIDENCE_INSUFFICIENT"
+    QUALITY_FLOOR_FAILED = "QUALITY_FLOOR_FAILED"
+
+
+class CompetitionAdmissionReason(StrEnum):
+    ACCEPTED = "ACCEPTED"
+    DUPLICATE = "DUPLICATE"
+    FINGERPRINT_MISMATCH = "FINGERPRINT_MISMATCH"
+    CONTEXT_MISMATCH = "CONTEXT_MISMATCH"
+    POLICY_MISMATCH = "POLICY_MISMATCH"
+    COMPETING_RECORD = "COMPETING_RECORD"
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionContext:
+    project_id: str
+    run_id: str
+    work_specification_id: str
+    work_specification_revision: int
+    work_specification_digest: str
+    acceptance_ids: tuple[str, ...]
+    orchestration_identity_digest: str
+    evaluation_policy_id: str
+    evaluation_policy_version: str
+    evaluation_policy_digest: str
+    routing_evidence_digest: str
+    competition_policy_id: str
+    competition_policy_version: str
+    competition_policy_digest: str
+    operation_id: str
+    operation_sequence: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "project_id", _uuid(self.project_id, "project_id"))
+        object.__setattr__(self, "run_id", _uuid(self.run_id, "run_id"))
+        object.__setattr__(self, "work_specification_id", _uuid(self.work_specification_id, "work_specification_id"))
+        object.__setattr__(
+            self,
+            "work_specification_revision",
+            _integer(self.work_specification_revision, 1, 1_000_000_000, "work_specification_revision"),
+        )
+        object.__setattr__(self, "work_specification_digest", _sha(self.work_specification_digest, "work_specification_digest"))
+        object.__setattr__(self, "acceptance_ids", _acceptance_ids(self.acceptance_ids))
+        object.__setattr__(self, "orchestration_identity_digest", _sha(self.orchestration_identity_digest, "orchestration_identity_digest"))
+        object.__setattr__(self, "evaluation_policy_id", _token(self.evaluation_policy_id, "evaluation_policy_id"))
+        object.__setattr__(self, "evaluation_policy_version", _version(self.evaluation_policy_version, "evaluation_policy_version"))
+        object.__setattr__(self, "evaluation_policy_digest", _sha(self.evaluation_policy_digest, "evaluation_policy_digest"))
+        object.__setattr__(self, "routing_evidence_digest", _sha(self.routing_evidence_digest, "routing_evidence_digest"))
+        object.__setattr__(self, "competition_policy_id", _token(self.competition_policy_id, "competition_policy_id"))
+        object.__setattr__(self, "competition_policy_version", _version(self.competition_policy_version, "competition_policy_version"))
+        object.__setattr__(self, "competition_policy_digest", _sha(self.competition_policy_digest, "competition_policy_digest"))
+        object.__setattr__(self, "operation_id", _reference(self.operation_id, "operation_id"))
+        object.__setattr__(self, "operation_sequence", _integer(self.operation_sequence, 0, 1_000_000_000, "operation_sequence"))
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict())
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "competition_protocol_version": COMPETITION_PROTOCOL_VERSION,
+            "project_id": self.project_id,
+            "run_id": self.run_id,
+            "work_specification_id": self.work_specification_id,
+            "work_specification_revision": self.work_specification_revision,
+            "work_specification_digest": self.work_specification_digest,
+            "acceptance_ids": list(self.acceptance_ids),
+            "orchestration_identity_digest": self.orchestration_identity_digest,
+            "evaluation_policy_id": self.evaluation_policy_id,
+            "evaluation_policy_version": self.evaluation_policy_version,
+            "evaluation_policy_digest": self.evaluation_policy_digest,
+            "routing_evidence_digest": self.routing_evidence_digest,
+            "competition_policy_id": self.competition_policy_id,
+            "competition_policy_version": self.competition_policy_version,
+            "competition_policy_digest": self.competition_policy_digest,
+            "operation_id": self.operation_id,
+            "operation_sequence": self.operation_sequence,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionSignal:
+    routing_evidence_digest: str
+    project_id: str
+    sequence: int
+    material_quality_uncertainty: bool
+    expected_quality_gain: float | None = None
+    estimated_extra_cost: float | None = None
+    estimated_extra_duration: float | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "routing_evidence_digest", _sha(self.routing_evidence_digest, "routing_evidence_digest"))
+        object.__setattr__(self, "project_id", _uuid(self.project_id, "project_id"))
+        object.__setattr__(self, "sequence", _integer(self.sequence, 0, 1_000_000_000, "signal_sequence"))
+        if not isinstance(self.material_quality_uncertainty, bool):
+            raise CompetitionError("material_quality_uncertainty must be bool")
+        for field in ("expected_quality_gain", "estimated_extra_cost", "estimated_extra_duration"):
+            value = getattr(self, field)
+            if value is not None:
+                object.__setattr__(self, field, _number(value, field))
+        if self.expected_quality_gain is not None and self.expected_quality_gain > 1:
+            raise CompetitionError("expected_quality_gain must be between 0 and 1")
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict())
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "routing_evidence_digest": self.routing_evidence_digest,
+            "project_id": self.project_id,
+            "sequence": self.sequence,
+            "material_quality_uncertainty": self.material_quality_uncertainty,
+            "expected_quality_gain": self.expected_quality_gain,
+            "estimated_extra_cost": self.estimated_extra_cost,
+            "estimated_extra_duration": self.estimated_extra_duration,
+            "provenance": "S4_ROUTING",
+            "server_owned_projection": True,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionPolicy:
+    policy_id: str
+    policy_version: str
+    max_candidates: int = 4
+    minimum_candidates_for_comparison: int = 2
+    required_candidate_count: int = 1
+    permitted_strategy_kinds: tuple[StrategyKind, ...] = (StrategyKind.SINGLE_AGENT, StrategyKind.TEAM)
+    eligibility_quality_floor: float = 0.0
+    winner_quality_floor: float = 0.0
+    winner_confidence_floor: float = 0.0
+    minimum_expected_quality_gain: float = 0.05
+    max_extra_cost: float | None = None
+    max_extra_duration: float | None = None
+    max_routing_sequence_age: int = 100
+    economic_metric_policies: tuple[EconomicMetricPolicy, ...] = ()
+    max_synthesis_attempts: int = 0
+    max_synthesis_parents: int = 2
+    max_rounds: int = 4
+    max_no_progress_rounds: int = 2
+    synthesis_budget_class: str = "bounded"
+    human_required_on_ambiguity: bool = True
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "policy_id", _token(self.policy_id, "policy_id"))
+        object.__setattr__(self, "policy_version", _version(self.policy_version, "policy_version"))
+        object.__setattr__(self, "max_candidates", _integer(self.max_candidates, 1, _MAX_COMPETITION_CANDIDATES, "max_candidates"))
+        object.__setattr__(
+            self,
+            "minimum_candidates_for_comparison",
+            _integer(self.minimum_candidates_for_comparison, 2, self.max_candidates, "minimum_candidates_for_comparison"),
+        )
+        object.__setattr__(
+            self,
+            "required_candidate_count",
+            _integer(self.required_candidate_count, 1, self.max_candidates, "required_candidate_count"),
+        )
+        kinds = tuple(sorted(
+            {value if isinstance(value, StrategyKind) else StrategyKind(value) for value in self.permitted_strategy_kinds},
+            key=lambda value: value.value,
+        ))
+        if not kinds:
+            raise CompetitionError("permitted_strategy_kinds cannot be empty")
+        object.__setattr__(self, "permitted_strategy_kinds", kinds)
+        for field in (
+            "eligibility_quality_floor",
+            "winner_quality_floor",
+            "winner_confidence_floor",
+            "minimum_expected_quality_gain",
+        ):
+            object.__setattr__(self, field, _unit(getattr(self, field), field))
+        if self.winner_quality_floor < self.eligibility_quality_floor:
+            raise CompetitionError("winner_quality_floor cannot weaken eligibility_quality_floor")
+        for field in ("max_extra_cost", "max_extra_duration"):
+            value = getattr(self, field)
+            if value is not None:
+                object.__setattr__(self, field, _number(value, field))
+        object.__setattr__(
+            self,
+            "max_routing_sequence_age",
+            _integer(self.max_routing_sequence_age, 0, 1_000_000, "max_routing_sequence_age"),
+        )
+        metrics = tuple(self.economic_metric_policies)
+        if len(metrics) > 8 or any(not isinstance(value, EconomicMetricPolicy) for value in metrics):
+            raise CompetitionError("economic_metric_policies must be bounded S4 policy values")
+        if len({value.metric for value in metrics}) != len(metrics):
+            raise CompetitionError("economic_metric_policies must be unique")
+        object.__setattr__(self, "economic_metric_policies", tuple(sorted(metrics, key=lambda value: value.metric.value)))
+        object.__setattr__(
+            self,
+            "max_synthesis_attempts",
+            _integer(self.max_synthesis_attempts, 0, 8, "max_synthesis_attempts"),
+        )
+        object.__setattr__(
+            self,
+            "max_synthesis_parents",
+            _integer(self.max_synthesis_parents, 1, min(4, self.max_candidates), "max_synthesis_parents"),
+        )
+        object.__setattr__(self, "max_rounds", _integer(self.max_rounds, 1, 16, "max_rounds"))
+        object.__setattr__(
+            self,
+            "max_no_progress_rounds",
+            _integer(self.max_no_progress_rounds, 0, self.max_rounds, "max_no_progress_rounds"),
+        )
+        object.__setattr__(self, "synthesis_budget_class", _token(self.synthesis_budget_class, "synthesis_budget_class"))
+        if not isinstance(self.human_required_on_ambiguity, bool):
+            raise CompetitionError("human_required_on_ambiguity must be bool")
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict(include_digest=False))
+
+    def as_dict(self, *, include_digest: bool = True) -> dict[str, object]:
+        data: dict[str, object] = {
+            "policy_id": self.policy_id,
+            "policy_version": self.policy_version,
+            "max_candidates": self.max_candidates,
+            "minimum_candidates_for_comparison": self.minimum_candidates_for_comparison,
+            "required_candidate_count": self.required_candidate_count,
+            "permitted_strategy_kinds": [value.value for value in self.permitted_strategy_kinds],
+            "eligibility_quality_floor": self.eligibility_quality_floor,
+            "winner_quality_floor": self.winner_quality_floor,
+            "winner_confidence_floor": self.winner_confidence_floor,
+            "minimum_expected_quality_gain": self.minimum_expected_quality_gain,
+            "max_extra_cost": self.max_extra_cost,
+            "max_extra_duration": self.max_extra_duration,
+            "max_routing_sequence_age": self.max_routing_sequence_age,
+            "economic_metric_policies": [value.as_dict() for value in self.economic_metric_policies],
+            "max_synthesis_attempts": self.max_synthesis_attempts,
+            "max_synthesis_parents": self.max_synthesis_parents,
+            "max_rounds": self.max_rounds,
+            "max_no_progress_rounds": self.max_no_progress_rounds,
+            "synthesis_budget_class": self.synthesis_budget_class,
+            "human_required_on_ambiguity": self.human_required_on_ambiguity,
+            "comparison_order": [
+                "protected_validation",
+                "independent_evaluation",
+                "quality",
+                "confidence",
+                "permitted_economics",
+                "candidate_id",
+            ],
+            "server_owned": True,
+            "can_change_acceptance": False,
+            "can_weaken_validation": False,
+            "can_authorize_spending": False,
+            "can_accept_source_lineage": False,
+        }
+        if include_digest:
+            data["policy_digest"] = self.digest
+        return data
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionCandidate:
+    candidate_id: str
+    binding: _CompetitionCandidateBinding
+    strategy: DevelopmentStrategy
+    producer_identity_digests: tuple[str, ...]
+    protected_validation: _CompetitionProtectedValidationEvidence
+    evaluation_record: EvaluationRecord
+    routing_outcome: StrategyOutcomeEvidence | None = None
+    assignment_or_team_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "candidate_id", _token(self.candidate_id, "candidate_id"))
+        if not isinstance(self.binding, _CompetitionCandidateBinding):
+            raise CompetitionError("binding must be accepted S3 CandidateBinding")
+        if not isinstance(self.strategy, DevelopmentStrategy):
+            raise CompetitionError("strategy must be accepted S4 DevelopmentStrategy")
+        producers = tuple(sorted(_sha(value, "producer_identity_digest") for value in self.producer_identity_digests))
+        if not producers or len(producers) > 16 or len(set(producers)) != len(producers):
+            raise CompetitionError("producer_identity_digests must be bounded and unique")
+        object.__setattr__(self, "producer_identity_digests", producers)
+        if not isinstance(self.protected_validation, _CompetitionProtectedValidationEvidence):
+            raise CompetitionError("protected_validation must be accepted S3 evidence")
+        if not isinstance(self.evaluation_record, EvaluationRecord):
+            raise CompetitionError("evaluation_record must be accepted S3 record")
+        if self.routing_outcome is not None and not isinstance(self.routing_outcome, StrategyOutcomeEvidence):
+            raise CompetitionError("routing_outcome must be accepted S4 evidence")
+        if self.assignment_or_team_digest is not None:
+            object.__setattr__(
+                self,
+                "assignment_or_team_digest",
+                _sha(self.assignment_or_team_digest, "assignment_or_team_digest"),
+            )
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict())
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "candidate_id": self.candidate_id,
+            "candidate_binding_digest": self.binding.digest,
+            "candidate_lineage_digest": self.binding.candidate_lineage_digest,
+            "candidate_revision_id": self.binding.candidate_revision_id,
+            "candidate_attempt_id": self.binding.candidate_attempt_id,
+            "producer_identity_digests": list(self.producer_identity_digests),
+            "strategy_id": self.strategy.strategy_id,
+            "strategy_digest": self.strategy.digest,
+            "protected_validation_digest": self.protected_validation.digest,
+            "protected_validation_passed": self.protected_validation.passed,
+            "evaluation_record_digest": self.evaluation_record.digest,
+            "evaluation_outcome": self.evaluation_record.outcome.value,
+            "routing_outcome_digest": self.routing_outcome.digest if self.routing_outcome else None,
+            "assignment_or_team_digest": self.assignment_or_team_digest,
+            "contains_source_bytes": False,
+            "contains_credentials": False,
+            "grants_capabilities": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateCompetitionEligibility:
+    candidate_id: str
+    candidate_digest: str
+    candidate_lineage_digest: str
+    eligible: bool
+    reasons: tuple[CompetitionEligibilityReason, ...]
+    quality_score: float | None
+    quality_confidence: float | None
+    economic_score: float | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "candidate_id": self.candidate_id,
+            "candidate_digest": self.candidate_digest,
+            "candidate_lineage_digest": self.candidate_lineage_digest,
+            "eligible": self.eligible,
+            "reasons": [value.value for value in self.reasons],
+            "quality_score": self.quality_score,
+            "quality_confidence": self.quality_confidence,
+            "economic_score": self.economic_score,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SynthesisRequest:
+    competition_fingerprint: str
+    parent_candidate_ids: tuple[str, ...]
+    parent_lineage_digests: tuple[str, ...]
+    parent_evaluation_digests: tuple[str, ...]
+    gap_evidence_refs: tuple[_CompetitionEvidenceReference, ...]
+    target_acceptance_ids: tuple[str, ...]
+    synthesis_policy_id: str
+    synthesis_policy_version: str
+    synthesis_policy_digest: str
+    request_id: str
+    attempt_number: int
+    budget_class: str
+    fresh_validation_required: bool = True
+    fresh_independent_evaluation_required: bool = True
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "competition_fingerprint", _sha(self.competition_fingerprint, "competition_fingerprint"))
+        parents = tuple(self.parent_candidate_ids)
+        if not parents or len(parents) > 4 or len(set(parents)) != len(parents):
+            raise CompetitionError("synthesis parents must be bounded and unique")
+        object.__setattr__(self, "parent_candidate_ids", tuple(_token(value, "parent_candidate_id") for value in parents))
+        lineages = tuple(_sha(value, "parent_lineage_digest") for value in self.parent_lineage_digests)
+        evaluations = tuple(_sha(value, "parent_evaluation_digest") for value in self.parent_evaluation_digests)
+        if len(lineages) != len(parents) or len(evaluations) != len(parents):
+            raise CompetitionError("synthesis parent evidence must align")
+        object.__setattr__(self, "parent_lineage_digests", lineages)
+        object.__setattr__(self, "parent_evaluation_digests", evaluations)
+        refs = tuple(self.gap_evidence_refs)
+        if not refs or len(refs) > _MAX_COMPETITION_EVIDENCE_REFS:
+            raise CompetitionError("synthesis requires bounded gap evidence")
+        if any(not isinstance(value, _CompetitionEvidenceReference) for value in refs):
+            raise CompetitionError("gap evidence must use accepted S3 evidence references")
+        object.__setattr__(self, "gap_evidence_refs", refs)
+        object.__setattr__(self, "target_acceptance_ids", _acceptance_ids(self.target_acceptance_ids))
+        object.__setattr__(self, "synthesis_policy_id", _token(self.synthesis_policy_id, "synthesis_policy_id"))
+        object.__setattr__(self, "synthesis_policy_version", _version(self.synthesis_policy_version, "synthesis_policy_version"))
+        object.__setattr__(self, "synthesis_policy_digest", _sha(self.synthesis_policy_digest, "synthesis_policy_digest"))
+        object.__setattr__(self, "request_id", _reference(self.request_id, "request_id"))
+        object.__setattr__(self, "attempt_number", _integer(self.attempt_number, 1, 8, "attempt_number"))
+        object.__setattr__(self, "budget_class", _token(self.budget_class, "budget_class"))
+        if self.fresh_validation_required is not True or self.fresh_independent_evaluation_required is not True:
+            raise CompetitionError("synthesis must require fresh validation and independent evaluation")
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict())
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "competition_fingerprint": self.competition_fingerprint,
+            "parent_candidate_ids": list(self.parent_candidate_ids),
+            "parent_lineage_digests": list(self.parent_lineage_digests),
+            "parent_evaluation_digests": list(self.parent_evaluation_digests),
+            "gap_evidence_refs": [
+                {"kind": value.kind.value, "reference_id": value.reference_id, "digest": value.digest}
+                for value in self.gap_evidence_refs
+            ],
+            "target_acceptance_ids": list(self.target_acceptance_ids),
+            "synthesis_policy_id": self.synthesis_policy_id,
+            "synthesis_policy_version": self.synthesis_policy_version,
+            "synthesis_policy_digest": self.synthesis_policy_digest,
+            "request_id": self.request_id,
+            "attempt_number": self.attempt_number,
+            "budget_class": self.budget_class,
+            "fresh_validation_required": True,
+            "fresh_independent_evaluation_required": True,
+            "contains_source_bytes": False,
+            "contains_patch": False,
+            "contains_commands": False,
+            "contains_credentials": False,
+            "invokes_provider": False,
+            "routes_spending": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionRequest:
+    context: CompetitionContext
+    policy: CompetitionPolicy
+    candidates: tuple[CompetitionCandidate, ...]
+    signal: CompetitionSignal | None = None
+    synthesis_gap_refs: tuple[_CompetitionEvidenceReference, ...] = ()
+    synthesis_attempts_used: int = 0
+    competition_round: int = 1
+    no_progress_rounds: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.context, CompetitionContext) or not isinstance(self.policy, CompetitionPolicy):
+            raise CompetitionError("canonical competition context and policy are required")
+        candidates = tuple(self.candidates)
+        if not candidates or len(candidates) > _MAX_COMPETITION_CANDIDATES:
+            raise CompetitionError("candidate roster must be bounded and non-empty")
+        if any(not isinstance(value, CompetitionCandidate) for value in candidates):
+            raise CompetitionError("invalid competition candidate")
+        object.__setattr__(self, "candidates", candidates)
+        if self.signal is not None and not isinstance(self.signal, CompetitionSignal):
+            raise CompetitionError("signal must be CompetitionSignal")
+        refs = tuple(self.synthesis_gap_refs)
+        if len(refs) > _MAX_COMPETITION_EVIDENCE_REFS or any(
+            not isinstance(value, _CompetitionEvidenceReference) for value in refs
+        ):
+            raise CompetitionError("synthesis_gap_refs must be bounded S3 evidence references")
+        object.__setattr__(self, "synthesis_gap_refs", refs)
+        object.__setattr__(
+            self,
+            "synthesis_attempts_used",
+            _integer(self.synthesis_attempts_used, 0, 8, "synthesis_attempts_used"),
+        )
+        object.__setattr__(self, "competition_round", _integer(self.competition_round, 1, 16, "competition_round"))
+        object.__setattr__(self, "no_progress_rounds", _integer(self.no_progress_rounds, 0, 16, "no_progress_rounds"))
+
+    @property
+    def fingerprint(self) -> str:
+        return _digest({
+            "context": self.context.as_dict(),
+            "policy": self.policy.as_dict(),
+            "candidates": [
+                value.digest
+                for value in sorted(self.candidates, key=lambda item: (item.candidate_id, item.digest))
+            ],
+            "signal_digest": self.signal.digest if self.signal else None,
+            "synthesis_gap_refs": sorted(
+                (value.kind.value, value.reference_id, value.digest)
+                for value in self.synthesis_gap_refs
+            ),
+            "synthesis_attempts_used": self.synthesis_attempts_used,
+            "competition_round": self.competition_round,
+            "no_progress_rounds": self.no_progress_rounds,
+        })
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionDecisionRecord:
+    context: CompetitionContext
+    policy_id: str
+    policy_version: str
+    policy_digest: str
+    fingerprint: str
+    trigger: CompetitionTriggerDisposition
+    disposition: CompetitionDisposition
+    reason_code: str
+    selected_candidate_id: str | None
+    eligibility: tuple[CandidateCompetitionEligibility, ...]
+    synthesis_request: SynthesisRequest | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "policy_id", _token(self.policy_id, "policy_id"))
+        object.__setattr__(self, "policy_version", _version(self.policy_version, "policy_version"))
+        object.__setattr__(self, "policy_digest", _sha(self.policy_digest, "policy_digest"))
+        object.__setattr__(self, "fingerprint", _sha(self.fingerprint, "fingerprint"))
+        try:
+            object.__setattr__(
+                self,
+                "trigger",
+                self.trigger if isinstance(self.trigger, CompetitionTriggerDisposition) else CompetitionTriggerDisposition(self.trigger),
+            )
+            object.__setattr__(
+                self,
+                "disposition",
+                self.disposition if isinstance(self.disposition, CompetitionDisposition) else CompetitionDisposition(self.disposition),
+            )
+        except (TypeError, ValueError) as exc:
+            raise CompetitionError("invalid competition disposition") from exc
+        object.__setattr__(self, "reason_code", _reason(self.reason_code))
+        if self.selected_candidate_id is not None:
+            object.__setattr__(self, "selected_candidate_id", _token(self.selected_candidate_id, "selected_candidate_id"))
+        selected = self.disposition in {
+            CompetitionDisposition.WINNER_SUPPORTED,
+            CompetitionDisposition.SINGLE_CANDIDATE_SUFFICIENT,
+        }
+        if selected != (self.selected_candidate_id is not None):
+            raise CompetitionError("selection disposition and candidate identity mismatch")
+        if self.disposition is CompetitionDisposition.SYNTHESIS_REQUESTED:
+            if self.synthesis_request is None:
+                raise CompetitionError("synthesis disposition requires synthesis request")
+        elif self.synthesis_request is not None:
+            raise CompetitionError("synthesis request is only valid for synthesis disposition")
+
+    @property
+    def digest(self) -> str:
+        return _digest(self.as_dict())
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "competition_protocol_version": COMPETITION_PROTOCOL_VERSION,
+            "context": self.context.as_dict(),
+            "policy_id": self.policy_id,
+            "policy_version": self.policy_version,
+            "policy_digest": self.policy_digest,
+            "fingerprint": self.fingerprint,
+            "trigger": self.trigger.value,
+            "disposition": self.disposition.value,
+            "reason_code": self.reason_code,
+            "selected_candidate_id": self.selected_candidate_id,
+            "eligibility": [value.as_dict() for value in self.eligibility],
+            "synthesis_request": self.synthesis_request.as_dict() if self.synthesis_request else None,
+            "grants_capabilities": False,
+            "invokes_provider": False,
+            "routes_spending": False,
+            "accepts_source_lineage": False,
+            "transitions_engineering_run": False,
+            "performs_merge": False,
+            "performs_deployment": False,
+            "completes_review": False,
+            "resolves_human_required": False,
+            "contains_source_bytes": False,
+            "contains_patch": False,
+            "contains_credentials": False,
+            "contains_provider_payload": False,
+            "contains_hidden_reasoning": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionAdmissionDecision:
+    admitted: bool
+    reason: CompetitionAdmissionReason
+    record_digest: str
+    duplicate: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.admitted, bool) or not isinstance(self.duplicate, bool):
+            raise CompetitionError("admission flags must be bool")
+        try:
+            object.__setattr__(
+                self,
+                "reason",
+                self.reason if isinstance(self.reason, CompetitionAdmissionReason) else CompetitionAdmissionReason(self.reason),
+            )
+        except (TypeError, ValueError) as exc:
+            raise CompetitionError("invalid admission reason") from exc
+        object.__setattr__(self, "record_digest", _sha(self.record_digest, "record_digest"))
+        if self.duplicate and (self.admitted or self.reason is not CompetitionAdmissionReason.DUPLICATE):
+            raise CompetitionError("duplicate admission cannot be authoritative")
+
+
+def decide_candidate_competition(request: CompetitionRequest) -> CompetitionDecisionRecord:
+    context, policy = request.context, request.policy
+    if (
+        context.competition_policy_id,
+        context.competition_policy_version,
+        context.competition_policy_digest,
+    ) != (policy.policy_id, policy.policy_version, policy.digest):
+        return _competition_record(
+            request,
+            CompetitionTriggerDisposition.POLICY_REJECTED,
+            CompetitionDisposition.POLICY_REJECTED,
+            "COMPETITION_POLICY_MISMATCH",
+            None,
+            (),
+        )
+    if len(request.candidates) > policy.max_candidates:
+        return _competition_record(
+            request,
+            CompetitionTriggerDisposition.POLICY_REJECTED,
+            CompetitionDisposition.POLICY_REJECTED,
+            "CANDIDATE_BOUND_EXCEEDED",
+            None,
+            (),
+        )
+    ids: dict[str, str] = {}
+    lineages: dict[str, str] = {}
+    for candidate in request.candidates:
+        prior = ids.get(candidate.candidate_id)
+        if prior is not None and prior != candidate.digest:
+            return _competition_record(
+                request,
+                CompetitionTriggerDisposition.POLICY_REJECTED,
+                CompetitionDisposition.POLICY_REJECTED,
+                "CONFLICTING_CANDIDATE_ID",
+                None,
+                (),
+            )
+        ids[candidate.candidate_id] = candidate.digest
+        prior_lineage = lineages.get(candidate.binding.candidate_lineage_digest)
+        if prior_lineage is not None and prior_lineage != candidate.candidate_id:
+            return _competition_record(
+                request,
+                CompetitionTriggerDisposition.POLICY_REJECTED,
+                CompetitionDisposition.POLICY_REJECTED,
+                "DUPLICATE_LINEAGE_ALTERNATIVE",
+                None,
+                (),
+            )
+        lineages[candidate.binding.candidate_lineage_digest] = candidate.candidate_id
+    if request.competition_round > policy.max_rounds:
+        return _competition_record(
+            request,
+            CompetitionTriggerDisposition.HUMAN_REQUIRED,
+            CompetitionDisposition.HUMAN_REQUIRED,
+            "COMPETITION_ROUND_BOUND_EXHAUSTED",
+            None,
+            (),
+        )
+    if request.no_progress_rounds > policy.max_no_progress_rounds:
+        return _competition_record(
+            request,
+            CompetitionTriggerDisposition.HUMAN_REQUIRED,
+            CompetitionDisposition.HUMAN_REQUIRED,
+            "NO_PROGRESS_BOUND_EXHAUSTED",
+            None,
+            (),
+        )
+
+    results = tuple(
+        _evaluate_competition_candidate(context, policy, candidate)
+        for candidate in sorted(request.candidates, key=lambda value: value.candidate_id)
+    )
+    eligible = [
+        (candidate, result)
+        for candidate, result in zip(sorted(request.candidates, key=lambda value: value.candidate_id), results)
+        if result.eligible
+    ]
+    if not eligible:
+        human = any(CompetitionEligibilityReason.HUMAN_REQUIRED in result.reasons for result in results)
+        return _competition_record(
+            request,
+            CompetitionTriggerDisposition.HUMAN_REQUIRED if human else CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE,
+            CompetitionDisposition.HUMAN_REQUIRED if human else CompetitionDisposition.NO_ELIGIBLE_CANDIDATE,
+            "HUMAN_BOUNDARY" if human else "NO_ELIGIBLE_CANDIDATE",
+            None,
+            results,
+        )
+
+    trigger, trigger_reason = should_compete(request, tuple(result for _, result in eligible))
+    ranked = _rank_competition_candidates(eligible)
+    best_candidate, best_result = ranked[0]
+
+    if trigger is CompetitionTriggerDisposition.POLICY_REJECTED:
+        return _competition_record(request, trigger, CompetitionDisposition.POLICY_REJECTED, trigger_reason, None, results)
+    if trigger is CompetitionTriggerDisposition.HUMAN_REQUIRED:
+        return _competition_record(request, trigger, CompetitionDisposition.HUMAN_REQUIRED, trigger_reason, None, results)
+    if trigger is CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE:
+        return _competition_record(request, trigger, CompetitionDisposition.INSUFFICIENT_EVIDENCE, trigger_reason, None, results)
+
+    winner_supported = (
+        best_result.quality_score is not None
+        and best_result.quality_score >= policy.winner_quality_floor
+        and best_result.quality_confidence is not None
+        and best_result.quality_confidence >= policy.winner_confidence_floor
+    )
+    if trigger is CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT and winner_supported:
+        return _competition_record(
+            request,
+            trigger,
+            CompetitionDisposition.SINGLE_CANDIDATE_SUFFICIENT,
+            trigger_reason,
+            best_candidate.candidate_id,
+            results,
+        )
+    if trigger is CompetitionTriggerDisposition.COMPETE:
+        if len(eligible) < policy.minimum_candidates_for_comparison:
+            return _competition_record(
+                request,
+                trigger,
+                CompetitionDisposition.INSUFFICIENT_EVIDENCE,
+                "COMPETITION_WARRANTED_MORE_CANDIDATES_REQUIRED",
+                None,
+                results,
+            )
+        if winner_supported:
+            return _competition_record(
+                request,
+                trigger,
+                CompetitionDisposition.WINNER_SUPPORTED,
+                "DETERMINISTIC_COMPETITION_WINNER",
+                best_candidate.candidate_id,
+                results,
+            )
+
+    synthesis = _build_synthesis_request(request, ranked)
+    if synthesis is not None:
+        return _competition_record(
+            request,
+            trigger,
+            CompetitionDisposition.SYNTHESIS_REQUESTED,
+            "BOUNDED_SYNTHESIS_REQUIRED",
+            None,
+            results,
+            synthesis,
+        )
+    return _competition_record(
+        request,
+        trigger,
+        CompetitionDisposition.HUMAN_REQUIRED if policy.human_required_on_ambiguity else CompetitionDisposition.NO_CLEAR_WINNER,
+        "HUMAN_BOUNDARY" if policy.human_required_on_ambiguity else "NO_CLEAR_WINNER",
+        None,
+        results,
+    )
+
+
+def should_compete(
+    request: CompetitionRequest,
+    eligible: tuple[CandidateCompetitionEligibility, ...],
+) -> tuple[CompetitionTriggerDisposition, str]:
+    policy, context = request.policy, request.context
+    if policy.required_candidate_count > 1:
+        return CompetitionTriggerDisposition.COMPETE, "POLICY_REQUIRES_MULTIPLE_CANDIDATES"
+    if not eligible:
+        return CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE, "NO_ELIGIBLE_CANDIDATE"
+    signal = request.signal
+    if signal is None:
+        return CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT, "NO_COMPETITION_SIGNAL"
+    if signal.project_id != context.project_id or signal.routing_evidence_digest != context.routing_evidence_digest:
+        return CompetitionTriggerDisposition.POLICY_REJECTED, "COMPETITION_SIGNAL_CONTEXT_MISMATCH"
+    age = context.operation_sequence - signal.sequence
+    if age < 0 or age > policy.max_routing_sequence_age:
+        return CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE, "COMPETITION_SIGNAL_STALE"
+    if not signal.material_quality_uncertainty:
+        return CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT, "NO_MATERIAL_QUALITY_UNCERTAINTY"
+    if signal.expected_quality_gain is None:
+        return CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE, "EXPECTED_QUALITY_GAIN_MISSING"
+    if signal.expected_quality_gain < policy.minimum_expected_quality_gain:
+        return CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT, "EXPECTED_QUALITY_GAIN_BELOW_THRESHOLD"
+    if policy.max_extra_cost is not None:
+        if signal.estimated_extra_cost is None:
+            return CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE, "EXTRA_COST_EVIDENCE_MISSING"
+        if signal.estimated_extra_cost > policy.max_extra_cost:
+            return CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT, "EXTRA_COST_BOUND_EXCEEDED"
+    if policy.max_extra_duration is not None:
+        if signal.estimated_extra_duration is None:
+            return CompetitionTriggerDisposition.INSUFFICIENT_EVIDENCE, "EXTRA_DURATION_EVIDENCE_MISSING"
+        if signal.estimated_extra_duration > policy.max_extra_duration:
+            return CompetitionTriggerDisposition.SINGLE_CANDIDATE_SUFFICIENT, "EXTRA_DURATION_BOUND_EXCEEDED"
+    return CompetitionTriggerDisposition.COMPETE, "BOUNDED_COMPETITION_JUSTIFIED"
+
+
+def admit_competition_record(
+    record: CompetitionDecisionRecord,
+    *,
+    expected_context: CompetitionContext,
+    expected_policy: CompetitionPolicy,
+    expected_fingerprint: str,
+    existing: CompetitionDecisionRecord | None = None,
+) -> CompetitionAdmissionDecision:
+    if record.context.digest != expected_context.digest:
+        return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.CONTEXT_MISMATCH, record.digest)
+    if record.policy_digest != expected_policy.digest:
+        return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.POLICY_MISMATCH, record.digest)
+    if record.fingerprint != expected_fingerprint:
+        return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.FINGERPRINT_MISMATCH, record.digest)
+    if existing is None:
+        return CompetitionAdmissionDecision(True, CompetitionAdmissionReason.ACCEPTED, record.digest)
+    if existing.fingerprint != record.fingerprint or existing.context.digest != record.context.digest:
+        return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.COMPETING_RECORD, record.digest)
+    if existing.digest == record.digest:
+        return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.DUPLICATE, record.digest, True)
+    return CompetitionAdmissionDecision(False, CompetitionAdmissionReason.COMPETING_RECORD, record.digest)
+
+
+def safe_competition_json(record: CompetitionDecisionRecord) -> str:
+    return json.dumps(record.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _evaluate_competition_candidate(
+    context: CompetitionContext,
+    policy: CompetitionPolicy,
+    candidate: CompetitionCandidate,
+) -> CandidateCompetitionEligibility:
+    reasons: list[CompetitionEligibilityReason] = []
+    binding = candidate.binding
+    if (
+        binding.project_id,
+        binding.run_id,
+        binding.work_specification_id,
+        binding.work_specification_revision,
+        binding.work_specification_digest,
+        binding.acceptance_ids,
+    ) != (
+        context.project_id,
+        context.run_id,
+        context.work_specification_id,
+        context.work_specification_revision,
+        context.work_specification_digest,
+        context.acceptance_ids,
+    ):
+        reasons.append(CompetitionEligibilityReason.CONTEXT_MISMATCH)
+    if candidate.strategy.kind not in policy.permitted_strategy_kinds:
+        reasons.append(CompetitionEligibilityReason.STRATEGY_NOT_PERMITTED)
+    if (
+        tuple(candidate.strategy.agent_identity_digests) != tuple(candidate.producer_identity_digests)
+        or binding.producer_identity_digest not in candidate.producer_identity_digests
+    ):
+        reasons.append(CompetitionEligibilityReason.PRODUCER_IDENTITY_MISMATCH)
+
+    validation = candidate.protected_validation
+    if not validation.passed:
+        reasons.append(CompetitionEligibilityReason.PROTECTED_VALIDATION_REQUIRED)
+    if (
+        validation.candidate != binding
+        or validation.acceptance_ids != context.acceptance_ids
+        or not validation.evidence_refs
+    ):
+        reasons.append(CompetitionEligibilityReason.PROTECTED_VALIDATION_MISMATCH)
+    elif not _competition_evidence_matches_project(validation.evidence_refs, context.project_id):
+        reasons.append(CompetitionEligibilityReason.CROSS_PROJECT_EVIDENCE)
+
+    evaluation = candidate.evaluation_record
+    if (
+        evaluation.policy_id,
+        evaluation.policy_version,
+        evaluation.policy_digest,
+    ) != (
+        context.evaluation_policy_id,
+        context.evaluation_policy_version,
+        context.evaluation_policy_digest,
+    ):
+        reasons.append(CompetitionEligibilityReason.EVALUATION_POLICY_MISMATCH)
+    if (
+        evaluation.candidate != binding
+        or evaluation.protected_validation_digest != validation.digest
+    ):
+        reasons.append(CompetitionEligibilityReason.EVALUATION_IDENTITY_MISMATCH)
+    if evaluation.evaluator_identity_digest in candidate.producer_identity_digests:
+        reasons.append(CompetitionEligibilityReason.SELF_EVALUATION)
+    if evaluation.outcome is EvaluationOutcome.HUMAN_REQUIRED:
+        reasons.append(CompetitionEligibilityReason.HUMAN_REQUIRED)
+    elif evaluation.outcome is not EvaluationOutcome.SUPPORTED:
+        reasons.append(CompetitionEligibilityReason.EVALUATION_REJECTED)
+    if not _competition_evidence_matches_project(evaluation.evidence_refs, context.project_id):
+        reasons.append(CompetitionEligibilityReason.CROSS_PROJECT_EVIDENCE)
+
+    support = [value for value in evaluation.dimensions if value.verdict is DimensionVerdict.SUPPORT]
+    quality_score = min((value.score for value in support if value.score is not None), default=None)
+    quality_confidence = min((value.confidence for value in support), default=None)
+    if quality_score is None or quality_confidence is None:
+        reasons.append(CompetitionEligibilityReason.QUALITY_EVIDENCE_INSUFFICIENT)
+    elif quality_score < policy.eligibility_quality_floor:
+        reasons.append(CompetitionEligibilityReason.QUALITY_FLOOR_FAILED)
+
+    economic_score: float | None = None
+    outcome = candidate.routing_outcome
+    if outcome is not None:
+        if (
+            outcome.context_digest != context.routing_evidence_digest
+            or outcome.project_id != context.project_id
+            or outcome.strategy_digest != candidate.strategy.digest
+            or not outcome.protected_validation_passed
+            or outcome.protected_validation_digest != validation.digest
+            or outcome.evaluation_record.digest != evaluation.digest
+            or outcome.completion.project_id != context.project_id
+            or outcome.completion.state is not CompletionState.COMPLETED
+        ):
+            reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_MISMATCH)
+        invalid_routing, economic_score = _competition_economic_score(context, policy, outcome)
+        reasons.extend(invalid_routing)
+    elif policy.economic_metric_policies:
+        economic_score = None
+
+    reasons = list(dict.fromkeys(reasons))
+    return CandidateCompetitionEligibility(
+        candidate.candidate_id,
+        candidate.digest,
+        binding.candidate_lineage_digest,
+        not reasons,
+        tuple(reasons or [CompetitionEligibilityReason.ELIGIBLE]),
+        quality_score,
+        quality_confidence,
+        economic_score,
+    )
+
+
+def _competition_economic_score(
+    context: CompetitionContext,
+    policy: CompetitionPolicy,
+    outcome: StrategyOutcomeEvidence,
+) -> tuple[list[CompetitionEligibilityReason], float | None]:
+    reasons: list[CompetitionEligibilityReason] = []
+    if not policy.economic_metric_policies:
+        return reasons, None
+    grouped: dict[RoutingMetricName, list[RoutingMetricEvidence]] = {}
+    for metric in outcome.metrics:
+        grouped.setdefault(metric.metric, []).append(metric)
+        if not metric.sanitized_generalized and metric.project_id != context.project_id:
+            reasons.append(CompetitionEligibilityReason.CROSS_PROJECT_EVIDENCE)
+    score = 0.0
+    comparable = 0
+    for rule in policy.economic_metric_policies:
+        values = grouped.get(rule.metric, [])
+        unique = {value.digest: value for value in values}
+        if len(unique) > 1:
+            reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_INVALID)
+            continue
+        metric = next(iter(unique.values()), None)
+        if metric is None:
+            if rule.required:
+                reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_INVALID)
+            continue
+        age = context.operation_sequence - metric.sequence
+        if metric.state is EvidenceState.STALE or age < 0 or age > policy.max_routing_sequence_age:
+            if rule.required:
+                reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_STALE)
+            continue
+        if metric.state in {EvidenceState.INVALID, EvidenceState.UNKNOWN, EvidenceState.UNAVAILABLE}:
+            if rule.required:
+                reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_INVALID)
+            continue
+        factor = 1.0
+        if metric.state is EvidenceState.ESTIMATED:
+            if not rule.allow_estimated:
+                if rule.required:
+                    reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_INVALID)
+                continue
+            factor = 0.8
+        elif metric.provenance not in rule.allowed_provenance:
+            if rule.required:
+                reasons.append(CompetitionEligibilityReason.ROUTING_EVIDENCE_INVALID)
+            continue
+        normalized = 1.0 - min(float(metric.value) / rule.ceiling, 1.0)
+        score += normalized * rule.weight * factor
+        comparable += 1
+    return reasons, score if comparable else None
+
+
+def _rank_competition_candidates(
+    eligible: list[tuple[CompetitionCandidate, CandidateCompetitionEligibility]],
+) -> list[tuple[CompetitionCandidate, CandidateCompetitionEligibility]]:
+    return sorted(
+        eligible,
+        key=lambda pair: (
+            -float(pair[1].quality_score if pair[1].quality_score is not None else -1.0),
+            -float(pair[1].quality_confidence if pair[1].quality_confidence is not None else -1.0),
+            -float(pair[1].economic_score if pair[1].economic_score is not None else -1.0),
+            pair[0].candidate_id,
+        ),
+    )
+
+
+def _build_synthesis_request(
+    request: CompetitionRequest,
+    ranked: list[tuple[CompetitionCandidate, CandidateCompetitionEligibility]],
+) -> SynthesisRequest | None:
+    policy = request.policy
+    if (
+        policy.max_synthesis_attempts <= 0
+        or request.synthesis_attempts_used >= policy.max_synthesis_attempts
+        or not request.synthesis_gap_refs
+        or request.no_progress_rounds >= policy.max_no_progress_rounds
+    ):
+        return None
+    for ref in request.synthesis_gap_refs:
+        if not ref.sanitized_generalized and ref.project_id != request.context.project_id:
+            return None
+    parents = ranked[: policy.max_synthesis_parents]
+    if not parents:
+        return None
+    parent_candidates = [candidate for candidate, _ in parents]
+    request_id = f"synthesis:{request.fingerprint[:24]}:{request.synthesis_attempts_used + 1}"
+    return SynthesisRequest(
+        competition_fingerprint=request.fingerprint,
+        parent_candidate_ids=tuple(value.candidate_id for value in parent_candidates),
+        parent_lineage_digests=tuple(value.binding.candidate_lineage_digest for value in parent_candidates),
+        parent_evaluation_digests=tuple(value.evaluation_record.digest for value in parent_candidates),
+        gap_evidence_refs=request.synthesis_gap_refs,
+        target_acceptance_ids=request.context.acceptance_ids,
+        synthesis_policy_id=policy.policy_id,
+        synthesis_policy_version=policy.policy_version,
+        synthesis_policy_digest=policy.digest,
+        request_id=request_id,
+        attempt_number=request.synthesis_attempts_used + 1,
+        budget_class=policy.synthesis_budget_class,
+    )
+
+
+def _competition_record(
+    request: CompetitionRequest,
+    trigger: CompetitionTriggerDisposition,
+    disposition: CompetitionDisposition,
+    reason: str,
+    selected: str | None,
+    results: tuple[CandidateCompetitionEligibility, ...],
+    synthesis: SynthesisRequest | None = None,
+) -> CompetitionDecisionRecord:
+    return CompetitionDecisionRecord(
+        request.context,
+        request.policy.policy_id,
+        request.policy.policy_version,
+        request.policy.digest,
+        request.fingerprint,
+        trigger,
+        disposition,
+        reason,
+        selected,
+        results,
+        synthesis,
+    )
+
+
+def _competition_evidence_matches_project(
+    refs: tuple[_CompetitionEvidenceReference, ...],
+    project_id: str,
+) -> bool:
+    return all(value.sanitized_generalized or value.project_id == project_id for value in refs)
