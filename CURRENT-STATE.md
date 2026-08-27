@@ -2,81 +2,136 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION PRODUCTION-VERIFIED / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION #291 DEPLOYED BUT NOT YET ACCEPTED AS DEPLOYMENT-VERIFIED / CORRECTIVE P2-V0.18.12 / PR #294 ACTIVE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
 
 ## Current production truth
 
-Production remains the deployment-verified Wave 5 generalized application-delivery platform plus the accepted stabilization chain through #127, mobile #261/#262, response-stream #271/#272, and the P2-V0.18.10 model-transport correction tracked by #284 / PR #288.
+Production remains the deployment-verified Wave 5 generalized application-delivery platform plus the accepted stabilization chain through mobile #261/#262, response-stream #271/#272 and P2-V0.18.10 model transport.
 
-Wave 6 S1-S5 are accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. Repository/integration identity and deployed application identity remain deliberately distinct.
+Safe conversation/Project deletion from #290 / PR #291 is **present in production** at merge `a6d7a6fd4d556d5544ede9c43b93972a8c590011`, with the required additive database migration applied and both client/API deployments READY. It is **not yet accepted as deployment-verified feature behavior** because post-merge audit found two correctness/authority gaps now owned by corrective `P2-V0.18.12` / PR #294.
 
-### Production repository / release identity
+Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. The deletion workstream remains on the current production line and does not activate Wave 6.
+
+### Deployed #291 application identity
 
 - production source branch: `main`;
-- exact current application/source merge: `e6fc6900239df436545318e6ab7f532d0d3789bc`;
-- governing corrective spec: `P2-V0.18.10`;
-- corrective worker branch: `p2/provider-gateway-oidc-stabilization`;
-- exact validated worker head: `e654cf9b245aa3ff33f44343cb7d836dd9a8e8a9`;
-- PR #288 merged with expected-head protection;
-- authentic DSPy SpecCritic + SpecCompiler run: `33088339454` — PASS;
-- evidence artifact: `9653273016`;
-- artifact digest: `sha256:55fb185c1192f91783fb0cd21426102a85802063b3e4260c7e710a495e053c77`.
+- deployed application merge: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- feature issue/workstream: #290 — safe deletion for old conversations and Projects;
+- initial release PR: #291 — squash merged from validated head `64b13d4f41d6849031c414eaf82986421bb523c9`;
+- Parallax P2 CI #1064 — PASS on the final #291 feature head;
+- Bounded Autonomy Pilot #669 — PASS on the final #291 feature head.
 
-Exact worker head `e654cf9b245aa3ff33f44343cb7d836dd9a8e8a9` passed Workstream Spec Validation #460, Bounded Autonomy Pilot #665 and P2 CI #1056, plus exact-head Vercel Preview validation. The resulting `main` merge `e6fc6900239df436545318e6ab7f532d0d3789bc` also passed fresh post-merge API/contracts, client/browser/Skia, protected promotion, changed-spec protected-plan and DSPy release checks.
+### Production database
 
-### Production client
+Supabase project `kjyenifnfjqnzfgshpwg` (`Parallax 2.0`) has production migration:
+
+- version `20260827173141`;
+- name `safe_conversation_project_deletion`.
+
+Verified schema:
+
+- `conversations.deleted_at` exists as `timestamptz`;
+- `projects.deleted_at` exists as `timestamptz`;
+- `ix_conversations_deleted_at` exists;
+- `ix_projects_deleted_at` exists;
+- `uq_projects_owner_slug_active` enforces owner-local slug uniqueness only for active Projects;
+- `uq_projects_owner_repository_active` enforces owner-local repository uniqueness only for active Projects with a repository reference.
+
+The migration is additive/backward-compatible and must not be destructively rolled back while the corrective release is in progress.
+
+### Production client for #291
 
 - Vercel project: `parallax`;
-- deployment remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2`;
+- deployment: `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`;
 - state: `READY`;
 - target: `production`;
-- exact client Git SHA: `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
+- exact Git SHA: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
 - public production alias: `parallax-ashy-one-20.vercel.app`.
 
-P2-V0.18.10 is API-only. Vercel correctly suppressed/cancelled a redundant client build for the API-only source change, so no new client artifact is claimed. The existing deployment-verified client remains authoritative.
+The production alias returned HTTP 200 with the expected `Parallax 2.0` application shell.
 
-### Production API
+### Production API for #291
 
 - Vercel project: `parallax-api`;
-- production deployment: `dpl_EGoHSRe69rCTZbbZjLnmFcDcqQC9`;
+- deployment: `dpl_DKNMQrFEWa1kR8iY1vLQ6Y4sNYXP`;
 - state: `READY`;
 - target: `production`;
-- exact Git SHA: `e6fc6900239df436545318e6ab7f532d0d3789bc`;
+- exact Git SHA: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
 - public production alias: `parallax-api-tan.vercel.app`.
 
-Post-cutover verification on that exact deployment established:
+Post-cutover infrastructure/runtime evidence established:
 
+- production provider preflight — PASS;
+- production delivery-permission preflight — PASS;
+- production projected-source preflight — PASS;
+- private Blob SDK preflight — PASS;
+- durable lineage composition preflight — PASS;
+- projected bootstrap/runtime-composition preflight — PASS;
 - `GET /health` → HTTP 200 with `status=ok`;
 - `GET /ready` → HTTP 200 with `database=ok`, `providers=ok`, `provider_targets=1`;
-- authenticated browser/session traffic reached the exact deployment successfully;
-- authenticated `POST /v1/conversations/aa1e2a0b-760e-40e7-8a3a-b79a1abc41d4/work-specifications/draft` → HTTP 200;
-- exact request logs recorded sanitized routing identity `parallax_model_transport transport=vercel_ai_gateway model=openai/gpt-5.6-luna`;
-- LiteLLM completed the canonical `gpt-5.6-luna` call successfully through the OpenAI-compatible transport;
-- exact-deployment runtime-error scan after the authenticated smoke found no runtime errors.
+- exact-deployment runtime scan after cutover found no `error`/`fatal` records.
 
-This satisfies the P2-V0.18.10 end-to-end Capture Spec acceptance criterion that P2-V0.18.9 failed.
+This proves the #291 application and migration are deployed and infrastructure-ready. It does not override the post-merge deletion correctness findings below.
 
-A non-fatal DSPy disk-cache warning was observed in the serverless runtime because the default cache directory is not writable/creatable there. DSPy fell back to memory-only cache and the authenticated request completed successfully. This is an efficiency/operational observation, not a release correctness failure or authority bypass.
+## Safe deletion corrective hardening — P2-V0.18.12 / PR #294
 
-## P2-V0.18.10 model-transport stabilization
+Workstream #290 is **ACTIVE / CORRECTIVE VALIDATION**. Corrective branch `ws/safe-deletion-hardening` and PR #294 are limited to deletion lifecycle parity, historical-unbound destructive authorization, focused tests and later release-record reconciliation.
 
-The prior P2-V0.18.9 production deployment `dpl_C5sdDZgnwq8uSKFkA7DkJc4rCW82` was infrastructure-ready but failed authenticated Capture Spec with HTTP 429. Runtime evidence showed Luna → Terra → Sol exhaustion while LiteLLM treated the request as direct OpenAI provider traffic. That release therefore was not accepted as functionally verified model routing.
+### Gap 1 — Engineering Run terminal-state drift
 
-P2-V0.18.10 preserves canonical model identities and escalation order:
+The deployed #291 deletion guard duplicated terminal run states as only `COMPLETE` and `CANCELLED`. The protected Engineering Run runtime owns `TERMINAL_STAGES`, which also contains `SPEC_AMENDMENT`. Therefore the deployed #291 guard can incorrectly return HTTP 409 for a conversation/Project whose relevant run is already terminal `SPEC_AMENDMENT`.
+
+Corrective acceptance requires deletion guards to derive from the authoritative protected runtime terminal-state contract rather than carrying an independent lifecycle list. `FAILED`, `REVIEW`, `PLAN` and other states outside protected `TERMINAL_STAGES` remain non-terminal and must continue to block deletion.
+
+### Gap 2 — historical unbound destructive authorization
+
+Historical unbound conversations intentionally retain compatibility read visibility because they predate canonical Project ownership. The initial DELETE path reused that visibility without a separate durable ownership identity.
+
+Corrective acceptance therefore requires application `owner` role for destructive deletion of a historical unbound conversation. Compatibility read visibility remains unchanged. Project-bound conversation and Project deletion continue to derive ownership from canonical Project identity and fail closed across owners.
+
+### Corrective acceptance gate
+
+The safe-deletion feature is not marked deployment-verified until all of the following are true:
+
+1. `P2-V0.18.12` spec validation passes;
+2. the exact corrective implementation head passes Workstream Spec Validation, Bounded Autonomy and P2 CI;
+3. merge uses expected-head protection after latest-main collision review;
+4. production deployment is tied to the exact corrective merged SHA;
+5. `/health`, `/ready`, runtime-error scans and authenticated deletion behavior are verified after cutover;
+6. `CURRENT-STATE.md` is reconciled to the verified corrective release and #290 is closed completed.
+
+## Intended durable deletion contract
+
+The architecture/design records now describe the durable contract the corrective release must satisfy:
+
+- user-visible `Delete` is logical workspace deletion, not evidence purge;
+- deleted conversations/Projects disappear from active workspace reads;
+- protected Work Specifications, Engineering Runs, attempts, run events, source lineage and immutable evidence remain retained;
+- linked GitHub repositories, pull requests and Vercel deployments are never deleted by workspace cleanup;
+- any relevant Engineering Run outside authoritative protected `TERMINAL_STAGES` blocks deletion with HTTP 409;
+- deleted Project slug/repository identities may be reused among active Projects, but replacement creates a new canonical `Project.id` and gains no inherited authority;
+- historical unbound conversation deletion requires application `owner` role;
+- destructive UI actions require explicit confirmation and do not hide state until server success.
+
+## P2-V0.18.10 model-transport stabilization retained
+
+The model-transport correction remains the accepted production routing contract and is unaffected by safe-deletion hardening.
+
+Runtime model escalation order remains:
 
 1. `openai/gpt-5.6-luna`;
 2. `openai/gpt-5.6-terra`;
 3. `openai/gpt-5.6-sol`.
 
-For hosted production model traffic, Parallax now binds the validated request-scoped `x-vercel-oidc-token` to the fixed OpenAI-compatible Vercel AI Gateway endpoint `https://ai-gateway.vercel.sh/v1`. Canonical model IDs remain unchanged. Process-environment `VERCEL_OIDC_TOKEN` is not production model-provider authority. Explicit server-owned `DSPY_API_BASE` / `DSPY_API_KEY` configuration remains the deliberate override path. Production fails closed without admitted request OIDC or that explicit override; there is no silent direct-OpenAI fallback.
+Hosted production model traffic binds admitted request-scoped Vercel runtime OIDC to the fixed OpenAI-compatible Vercel AI Gateway endpoint. Process-environment `VERCEL_OIDC_TOKEN` is not production model-provider authority. Explicit server-owned `DSPY_API_BASE` / `DSPY_API_KEY` remains the deliberate override. There is no silent direct-OpenAI fallback.
 
-The request-scoped credential is propagated only through bounded request context into downstream DSPy construction for conversation scope/reason, Work Specification drafting and protected implementation generation. It is not persisted, logged, shipped to the client, placed in prompts/source packages, or forwarded into sandboxes.
+The prior accepted P2-V0.18.10 API deployment `dpl_EGoHSRe69rCTZbbZjLnmFcDcqQC9` remains an application rollback reference for failures unrelated to the already-applied deletion schema.
 
 ## Deployment-verified stabilization retained
 
 ### Mobile #261 / PR #262
 
-The mobile release remains deployment-verified. It provides mobile primary destinations `Chat`, `Build`, and `Project`; conversation-first Chat; full-screen Work Specification review; plain-language `SPEC_AMENDMENT` recovery; guided Build lifecycle; canonical Project/conversation switching; compact authenticated access behavior; and Live Build return-to-chat semantics while preserving server-owned authority.
+The mobile release remains deployment-verified. It provides mobile primary destinations `Chat`, `Build`, and `Project`; conversation-first Chat; full-screen Work Specification review; `SPEC_AMENDMENT` recovery; guided Build lifecycle; canonical Project/conversation switching; compact authenticated access behavior; and Live Build return-to-chat semantics while preserving server-owned authority.
 
 Historical mobile identities retained:
 
@@ -92,12 +147,11 @@ Historical accepted identities retained:
 
 - exact validated worker: `f26f9a9c308d7d72ca5f2aab824d217767a4bcfa`;
 - application merge: `9767b2520d74c70bd1a2ec2e951480da223b45f7`;
-- former production API: `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y`;
-- current production client remains the exact client artifact from that release.
+- historical API deployment: `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y`.
 
 ## Wave 5 baseline retained
 
-Control Tower #215 completed the generalized application-delivery program through #216-#221 / `P2-V0.18.1`-`P2-V0.18.6`. Final Wave 5 application release merge `c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains the generalized-delivery architectural baseline. Later production stabilization is cumulative and does not replace its authority model.
+Control Tower #215 completed generalized application delivery through #216-#221 / `P2-V0.18.1`-`P2-V0.18.6`. Final Wave 5 application release merge `c39b5352be940f4052baa65c7cdd9d7c3ec773bb` remains the generalized-delivery architectural baseline. Later production stabilization and workspace cleanup are cumulative and do not replace its authority model.
 
 ## Wave 6 — Agentic Development Control Plane
 
@@ -106,116 +160,64 @@ Integration branch: `integration/wave6-agentic-control-plane`.
 Current accepted S1-S5 functional integration head: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
 Wave 6 production deployment: **none**.
 
-### S1 — Agent Adapter & Evidence Protocol — ACCEPTED / INTEGRATED
+Accepted/integrated state remains:
 
-- issue #264 / spec `P2-V0.19.1`;
-- exact validated worker `8cc911128d41dc648f2fb6136524edb3e35cfeaf`;
-- integration commit `78720fbfcce3adba508765e30c5e452f1bd33b9e`.
-
-S1 establishes provider-neutral engineering agents as bounded labor with exact Project/run/spec/acceptance/task/attempt binding, typed evidence, replay/stale-result admission and explicit usage provenance. It creates no second source-lineage, deterministic-validation, provider, release, approval or REVIEW authority path.
-
-### S2 — Dynamic Development Team Orchestration — ACCEPTED / INTEGRATED
-
-- issue #265 / spec `P2-V0.19.2`;
-- exact validated worker `fc27331628b8f2a975a7bb63b21255c7784a5de3`;
-- integration commit `78d25beffd21bb983fadcd179b3124c325c25a55`.
-
-S2 composes S1 evidence into deterministic bounded team formation, dependency-safe scheduling and durable evidence-driven reassignment. Team formation remains labor orchestration evidence and cannot grant capabilities/credentials/provider access, accept source, decide final quality, merge/deploy or bypass REVIEW/HUMAN_REQUIRED.
-
-### S3 — Independent Evaluation & Quality Judgment — ACCEPTED / INTEGRATED
-
-- issue #266 / spec `P2-V0.19.3`;
-- exact validated worker `cd16885d75931223d460468f6b14569b047c99b2`;
-- integration commit `11dc226c88e98722f0b0b7dd04775ed1717d61cc`.
-
-S3 provides exact-candidate, independent, provenance-bound quality evidence. Deterministic protected validation is authoritative first; producer self-evaluation cannot satisfy independence; evaluator policy is immutable/server-owned; replay is fingerprinted and fail-closed. `SUPPORTED` is evidence only, not source acceptance, provider/spending, merge/deploy or REVIEW authority.
-
-### S4 — Outcome Routing & Development Economics — ACCEPTED / INTEGRATED
-
-- issue #267 / spec `P2-V0.19.4`;
-- exact validated worker `537fce639419e82d3f08b3c254fe6ec4b791d5f7`;
-- integration commit `0d1cb510e2a7c37b024a994a29642e4047ae84d9`.
-
-S4 adds deterministic outcome-routing evidence under the existing optimization controller. Eligibility/correctness is resolved before economics; observed, estimated, unavailable, unknown, stale and invalid evidence remain distinct; quality/confidence floors are non-tradeable; decisions are replay-safe and confer no provider/spending/source/run/release authority.
-
-### Repository source-tree capacity prerequisite #281 / PR #282 — ACCEPTED / INTEGRATED
-
-- exact validated worker `da32b90621e5da1971a6306243049bd463990642`;
-- integration commit `a96a5b080a71ccd8a6fb2fd47db3a42236b9c195`.
-
-The bounded GitHub source-tree ceiling was increased from 512 to 1024 after S4 exposed that the self-hosting repository had reached the former ceiling. Provider truncation, caller-request bounds, repository/credential scope, path/type validation, secret projection, byte limits and write/publication authority remain fail-closed. This is bounded read capacity only.
-
-### S5 — Candidate Competition & Synthesis — ACCEPTED / INTEGRATED
-
-- issue #268 / spec `P2-V0.19.5`;
-- accepted dependency baseline `f79bc8ca3f2ebce31a82725b9851a410d4c7418b`;
-- authoritative semantic parent `192ec4e369f26df56eb1750b8a831a77ae9aabd2`;
-- exact final validated worker `4233219245b63084e1160967b3c77e212cf6178e`;
-- integration merge `9fe751a96ec050545abdcfbb016c668cd4c7336f`;
-- authentic DSPy run `33035322653`, artifact `9631815552`, digest `sha256:9dc59972e71aa1b601c3038b139e31072f1b04d63e650d5e4edffe99d378a8e5`;
-- final worker gates: Workstream #456 / `33038223093`, Bounded Autonomy #661 / `33038223110`, P2 CI #1052 / `33038223102` — PASS.
-
-S5 selectively competes already-admissible candidates only when bounded server-owned policy and accepted S2/S3/S4 evidence justify the extra work. Candidates remain exact-lineage isolated; deterministic failure disqualifies regardless of quality/economic score; evaluator evidence must remain independent; deterministic replay-safe winner evidence does not itself accept source.
-
-Synthesis creates a distinct new candidate lineage rather than splicing unvalidated fragments. The synthesized candidate requires fresh exact-lineage BUILD/TEST/VERIFY, deterministic validation and fresh independent evaluation before eligibility. Competition/synthesis cannot invoke provider spending, accept canonical source, mutate protected Engineering Run state, merge/deploy, approve, complete REVIEW or bypass HUMAN_REQUIRED.
-
-### Current Wave 6 dependency state
-
-1. #264 / S1 — **COMPLETE / ACCEPTED / INTEGRATED**;
-2. #265 / S2 — **COMPLETE / ACCEPTED / INTEGRATED**;
-3. #266 / S3 — **COMPLETE / ACCEPTED / INTEGRATED**;
-4. #267 / S4 — **COMPLETE / ACCEPTED / INTEGRATED**;
-5. #281 capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
-6. #268 / S5 — **COMPLETE / ACCEPTED / INTEGRATED**;
+1. #264 / S1 Agent Adapter & Evidence Protocol — **COMPLETE / ACCEPTED / INTEGRATED**;
+2. #265 / S2 Dynamic Development Team Orchestration — **COMPLETE / ACCEPTED / INTEGRATED**;
+3. #266 / S3 Independent Evaluation & Quality Judgment — **COMPLETE / ACCEPTED / INTEGRATED**;
+4. #267 / S4 Outcome Routing & Development Economics — **COMPLETE / ACCEPTED / INTEGRATED**;
+5. #281 repository source-tree capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
+6. #268 / S5 Candidate Competition & Synthesis — **COMPLETE / ACCEPTED / INTEGRATED**;
 7. #269 / S6 — **BLOCKED pending authoritative S5 record reconciliation on the integration branch plus a fresh cumulative exact-head S1-S5 gate**.
 
-PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. No Wave 6 production promotion has occurred.
+PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. Safe-deletion hardening does not deploy or activate Wave 6 code.
 
 ## Rollback
 
-Rollback is component-specific and governed; Wave 6 integration is not part of production rollback because Wave 6 is not deployed.
+Rollback is component-specific and governed.
 
-### API rollback
+### API
 
-The immediately preceding P2-V0.18.9 deployment `dpl_C5sdDZgnwq8uSKFkA7DkJc4rCW82` is **not** a functionally accepted model-routing rollback because authenticated Capture Spec failed there. If rollback of P2-V0.18.10 is required, Control Tower must select a prior deployment deliberately based on the failure being mitigated rather than treating P2-V0.18.9 as known-good.
+Pre-#291 accepted API reference:
 
-The earlier response-stream-stabilized API `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y` at `9767b2520d74c70bd1a2ec2e951480da223b45f7` remains a historical exact deployment reference, but it predates the Gateway correction and is not represented as solving current hosted-model capacity/transport behavior.
+- deployment `dpl_EGoHSRe69rCTZbbZjLnmFcDcqQC9`;
+- source `e6fc6900239df436545318e6ab7f532d0d3789bc`.
 
-### Client rollback
+Because migration `20260827173141` is additive, application rollback does not require an emergency down-migration. Do not drop deletion tombstones or partial uniqueness indexes while #291/#294 data may depend on them.
 
-- prior known-good mobile deployment: `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK`;
-- exact client Git SHA: `2bd677c3532df9fc436cac39cd23c4ca86f6e26d`.
+### Client
+
+Pre-#291 client reference:
+
+- deployment `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2`;
+- source `9767b2520d74c70bd1a2ec2e951480da223b45f7`.
+
+Historical mobile rollback reference remains `dpl_A2hN3ZYPzbewMFDhe6zpGtkbd1vK` at `2bd677c3532df9fc436cac39cd23c4ca86f6e26d`.
 
 ## Program controls
 
 - GitHub and the four authoritative project records outrank chat recollection;
-- Control record #31, roadmap #32 and Wave 6 Control Tower #263 remain active durable program records;
+- Control record #31, roadmap #32, safe-deletion workstream #290 and Wave 6 Control Tower #263 remain active durable program records;
 - semantic AI/runtime work remains spec-first with stable acceptance IDs and authentic compiled DSPy evidence;
-- worker branches start only from exact accepted dependency/baseline state and target governed integration where required;
-- workers stop `READY FOR INTEGRATION` and do not merge/deploy by default;
-- Control Tower serializes accepted composition, cumulative validation, authoritative-record maintenance and production promotion;
-- source-integrated Wave 6 work is not production merely because it exists on an integration branch;
-- standing single-user production-promotion authority never waives exact-head gates, rollback, least privilege, post-cutover evidence or the Preview/REVIEW boundaries;
-- no production claim is valid without exact release identity plus post-cutover verification.
+- workers develop on isolated branches and stop at governed integration boundaries;
+- interacting production workstreams are serialized at shared lifecycle/record boundaries;
+- standing single-user production-promotion authority never waives exact-head gates, rollback, least privilege, post-cutover evidence or Preview/REVIEW boundaries;
+- deployed is not equivalent to deployment-verified when corrective acceptance gaps remain;
+- no production-verification claim is valid without exact release identity plus post-cutover feature evidence.
 
 ## Durable invariants
 
 - canonical Project, Work Specification, Engineering Run, repository/source identity and accepted lineage remain server-owned;
+- logical workspace deletion cannot erase or weaken protected engineering/source/provider evidence;
+- authoritative Engineering Run lifecycle state, not a duplicated deletion-specific list, decides whether a run is terminal;
+- historical compatibility read visibility does not imply destructive authorization;
+- deleting a Project never deletes external GitHub/Vercel resources;
+- reusing a deleted Project's human-readable identity creates a new canonical Project identity and grants no inherited authority;
 - deterministic/protected validation outranks model, agent, evaluator, routing or competition judgment;
-- repository/source/model/agent/evaluator/routing/competition content is evidence, not authority;
-- team orchestration cannot grant capabilities, provider scope, credentials, source authority or validation/release authority;
-- independent evaluation cannot override deterministic failure or become acceptance/merge/deployment/REVIEW authority;
-- economic routing cannot trade correctness, deterministic validation, evaluator policy, privacy or human boundaries for cost/time;
-- missing/unknown/unavailable/stale/invalid economic evidence is never synthesized as zero or success;
-- candidate competition cannot accept canonical source, reinterpret deterministic failure, authorize spending/provider actions or turn synthesis into an unvalidated source splice;
-- any synthesized candidate is a new exact lineage requiring fresh deterministic validation and independent evaluation;
-- repository source-tree reads remain hard-bounded and fail closed on provider truncation/caller oversize;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
-- correction cannot weaken acceptance/evaluation policy;
-- skills, service bindings, repository intelligence, engineering memory, agents and adapters cannot create execution/provider/deployment/approval authority;
 - cross-Project privacy boundaries remain strict;
 - replay/idempotency and durable worker lease/checkpoint/recovery remain authoritative;
-- production hosted-model identity and transport are server-owned; request OIDC cannot broaden tool/provider/deployment authority and there is no silent direct-provider fallback;
+- production hosted-model identity and transport are server-owned and fail closed;
 - Preview remains the ordinary autonomous delivery ceiling;
 - `REVIEW` / `HUMAN_REQUIRED` remains the autonomous authority ceiling;
 - no deployment is recorded as production-verified without exact release identity and post-cutover evidence.
@@ -223,8 +225,8 @@ The earlier response-stream-stabilized API `dpl_7WK8xEK6FtuaqLGH4eML5mXTSj7Y` at
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.5 — updated because S5 is now accepted/integrated as durable Wave 6 architecture and P2-V0.18.10 established a durable production hosted-model transport/credential-admission contract.
-- `DESIGN-SYSTEM.md` v3.0 — unchanged; neither S5 nor the model-transport correction changes durable product visual language or interaction semantics.
-- `CURRENT-STATE.md` — updated for the exact P2-V0.18.10 production release and end-to-end verification, current component deployment identities, accepted/integrated S5 state, and the resulting S6 dependency gate.
+- `ARCHITECTURE.md` v3.6 — records the durable governed logical-deletion/retention, evidence-retention, active-run and external-provider boundaries. Corrective #294 aligns implementation to the authoritative Engineering Run lifecycle and destructive authorization contract.
+- `DESIGN-SYSTEM.md` v3.1 — records explicit destructive-cleanup confirmation, server-conflict and cross-device semantics introduced by the feature; no additional design-system change is required for corrective #294.
+- `CURRENT-STATE.md` — corrected after post-merge audit to distinguish #291 as deployed/infrastructure-ready from deployment-verified feature acceptance; P2-V0.18.12 / PR #294 remains active until exact corrective deployment verification succeeds.
 
-Wave 6 remains not deployed. The next Wave 6 control action is to reconcile this authoritative S5/production record state onto `integration/wave6-agentic-control-plane`, run a fresh cumulative exact-head S1-S5 gate, and only then decide whether S6 may begin spec-first work.
+Wave 6 remains not deployed. Safe deletion is present in production but remains under corrective acceptance and must not be represented as fully deployment-verified until #294 completes its governed release gate.

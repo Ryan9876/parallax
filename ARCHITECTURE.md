@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.5
+Version: 3.6
 Status: Authoritative
 
 ## System shape
@@ -123,6 +123,18 @@ RLS remains enabled on server-owned hosted tables where required and direct `ano
 Conversation and Engineering Run Project binding use the canonical Project ID. Existing historical rows may remain unbound where migration policy intentionally preserved prior state; new protected Code execution requires canonical Project binding.
 
 No client, model, provider or execution adapter may create a competing durable Project identity for an already resolved Project.
+
+## Governed workspace deletion and retention
+
+User-visible deletion is a logical workspace-lifecycle operation, not an audit/evidence purge. `Conversation.deleted_at` and `Project.deleted_at` tombstone an item out of active reads while retaining the durable row needed to preserve protected provenance and historical evidence.
+
+A conversation may be deleted only when no non-terminal Engineering Run is bound to it. A Project may be deleted only when no non-terminal Engineering Run is bound to the Project. These checks are server-owned and fail closed with conflict rather than letting client state hide live work.
+
+Deleting a Project removes that Project and its bound conversations from active Project/conversation surfaces. It does not delete Engineering Runs, attempts, run events, Work Specification evidence, accepted source-lineage records/objects or immutable provider/evaluation evidence. It also never deletes the linked GitHub repository, pull requests, Vercel deployments or other external provider resources.
+
+Project slug and repository identities are unique only among non-deleted Projects. A tombstoned Project therefore does not permanently reserve an owner-local slug/repository identity; a later replacement Project receives a new canonical `Project.id` and cannot inherit the deleted Project's run/source authority merely by reusing human-readable identity.
+
+Deletion remains inside the existing authenticated FastAPI boundary. Project deletion is owner-scoped through canonical Project ownership. Historical unbound conversation compatibility retains the existing workspace-access semantics; this feature does not introduce a separate per-conversation ownership model.
 
 ## Work Specification and execution binding
 
@@ -403,7 +415,7 @@ Privacy filtering occurs before transport. Credential-like excerpts, bearer/priv
 
 SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments through `DATABASE_URL`. Production uses the dedicated Parallax Supabase PostgreSQL project. Schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
-Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads.
+Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads. Conversation and Project rows carry nullable `deleted_at` tombstones; active reads exclude tombstoned rows and conversations bound to tombstoned Projects. Owner-local Project slug/repository uniqueness is enforced by partial unique indexes over active rows only.
 
 `engineering_run_events` is a Wave 4 optional observation schema and is not considered active production persistence until its migration and activation gate are both completed.
 
@@ -459,6 +471,8 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - no approved Work Specification: block Code activation;
 - Project lookup outside authenticated owner scope: fail as not found;
 - Project/spec/run/source-lineage mismatch: block protected progress;
+- conversation/Project deletion with a non-terminal Engineering Run: return conflict and preserve the active item/evidence;
+- deletion of a tombstoned conversation/Project through active read scope: resolve as not found rather than reviving hidden state;
 - agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
 - team graph cycle, impossible capability coverage, unsafe coordination overlap or orchestration bound exhaustion: fail closed or return bounded HUMAN_REQUIRED evidence; do not create unbounded agents or parallelism;
 - evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
@@ -515,7 +529,8 @@ Major trust boundaries are:
 18. persisted provider action/audit and replay identity;
 19. protected evaluation/promotion policy;
 20. optional non-authoritative run-event projection behind migration + exact activation flag;
-21. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
+21. governed logical workspace deletion with retained protected evidence and external-provider separation;
+22. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
 
 ## Inherited development-policy architecture
 
