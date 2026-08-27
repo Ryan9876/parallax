@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -17,6 +19,53 @@ from parallax_api.code.lineage_persistence import InMemoryImmutableObjectStore
 
 
 DEPLOYMENT_SHA = "0123456789012345678901234567890123456789"
+
+
+def test_direct_script_bootstraps_api_root_before_package_import(tmp_path: Path) -> None:
+    script = SCRIPTS_ROOT / "production_agentic_runtime_preflight.py"
+    api_root = SCRIPTS_ROOT.parent.resolve()
+    runner = tmp_path / "run_agentic_preflight.py"
+    runner.write_text(
+        "from importlib.abc import MetaPathFinder\n"
+        "from pathlib import Path\n"
+        "import os\n"
+        "import runpy\n"
+        "import sys\n"
+        f"script = Path({str(script)!r})\n"
+        f"api_root = {str(api_root)!r}\n"
+        "sys.path = [entry for entry in sys.path if entry not in {'', api_root}]\n"
+        "class Guard(MetaPathFinder):\n"
+        "    seen = False\n"
+        "    def find_spec(self, fullname, path=None, target=None):\n"
+        "        if fullname == 'parallax_api':\n"
+        "            self.seen = True\n"
+        "            if api_root not in sys.path:\n"
+        "                raise RuntimeError('parallax_api imported before API root bootstrap')\n"
+        "        return None\n"
+        "guard = Guard()\n"
+        "sys.meta_path.insert(0, guard)\n"
+        "os.environ['VERCEL_ENV'] = 'preview'\n"
+        "runpy.run_path(str(script), run_name='__main__')\n"
+        "if not guard.seen:\n"
+        "    raise RuntimeError('agentic preflight never imported parallax_api')\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["VERCEL_ENV"] = "preview"
+    env.pop("PARALLAX_AGENTIC_RUNTIME_ENABLED", None)
+    env.pop("VERCEL_GIT_COMMIT_SHA", None)
+
+    result = subprocess.run(
+        [sys.executable, str(runner)],
+        cwd=api_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Production agentic runtime preflight: SKIP" in result.stdout
 
 
 def test_canary_identity_is_stable_and_release_scoped() -> None:
