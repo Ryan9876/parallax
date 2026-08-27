@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "{Architecture Decision: Selective Exact Competition for Wave 6 Candidate-competition Layer}"
+  ],
+  "work_items": [
+    "{Work Item: Establish Wave 6 Candidate-competition Layer for Exact Competition Context}"
+  ],
+  "validations": [
+    "{Validation: Deterministic Validation and Independent Evaluation for Exact Competition Context}",
+    "AC-01: validate protected requirement \u2014 Every competition decision binds canonical Project ID, Engineering Run ID, exact Work Specification ID/revision/digest, stable acceptance IDs, exact S2/S3/S4 dependency identity where applicable and exact competition-policy ID/version/digest. Malformed, duplicate, stale, mismatched or cross-Project identity fails closed.",
+    "AC-02: validate protected requirement \u2014 Server-owned policy invokes competition only when admitted evidence justifies additional alternatives. Tests prove multiple available agents/candidates alone do not force competition, missing economic/risk evidence is not treated as free competition, and trigger dispositions are deterministic and bounded.",
+    "AC-03: validate protected requirement \u2014 Each candidate is provenance-bound to one exact Project/run/spec/acceptance set, producer identity, candidate/source-lineage digest, protected-validation evidence and S3 evaluation evidence. Duplicate/mismatched/conflicting candidate identities fail closed and separate display IDs cannot make one lineage appear as independent alternatives.",
+    "AC-04: validate protected requirement \u2014 Candidates failing mandatory deterministic validation or S3 independence/policy requirements are excluded before quality/economic comparison. Tests prove cheaper/faster or agent/evaluator-preferred failed candidates cannot re-enter or win.",
+    "AC-05: validate protected requirement \u2014 Competition binds exact policy ID/version/digest covering trigger rules, candidate/evidence requirements, quality floors, comparison order/weights, candidate/synthesis/cost/time/attempt/no-progress bounds, tie-breaking, fallback and HUMAN_REQUIRED behavior. Agent/source/model content cannot modify policy or acceptance criteria.",
+    "AC-06: validate protected requirement \u2014 The same exact eligible candidate/evidence set produces the same comparison components, disposition, supported-candidate identity and fingerprint. Ties use explicit server-owned stable identity rules, never arrival order, majority vote or model preference.",
+    "AC-07: validate protected requirement \u2014 S4 routing/cost/time/retry/intervention evidence may influence whether competition is justified and permitted post-eligibility utility/ties only. Tests prove economic advantage cannot override protected failure, evaluator-policy failure, unresolved HUMAN_REQUIRED or quality floors.",
+    "AC-08: validate protected requirement \u2014 A synthesis disposition emits only a bounded synthesis request bound to exact parent evidence and target acceptance gaps. The resulting implementation must have a new candidate/attempt/lineage identity and cannot inherit parent deterministic validation or S3 evaluation status.",
+    "AC-09: validate protected requirement \u2014 A synthesized candidate is ineligible until fresh exact-lineage protected BUILD/TEST/VERIFY and fresh policy-valid independent evaluation bind the new candidate. Tests prove stale/parent validation/evaluation evidence cannot satisfy the synthesized candidate.",
+    "AC-10: validate protected requirement \u2014 Candidate count, competition rounds, extra attempts, synthesis attempts/parents, economic budget class, evidence size and no-progress behavior are bounded. Exhaustion terminates explicitly without unbounded agents/candidates, threshold weakening or cross-Project source/evidence access.",
+    "AC-11: validate protected requirement \u2014 Exact replay is duplicate-safe; candidate/policy/evidence drift produces a new fingerprint; conflicting records fail closed. Safe serialization excludes secrets/source bytes/raw provider payloads/prompts/hidden reasoning/arbitrary URLs/commands and grants no capability, provider/spending, source acceptance, Engineering Run transition, merge/deploy, approval or REVIEW authority.",
+    "AC-12: validate protected requirement \u2014 Focused S5 tests plus relevant accepted S1 agent, S2 team, S3 evaluation, S4 routing/economic, source-lineage, protected validation/evaluation, provider and bounded-autonomy regressions remain green. `P2-V0.19.5` has stable acceptance IDs and authentic DSPy evidence before semantic implementation; temporary DSPy workflow changes are restored byte-for-byte; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets the Wave 6 integration branch and worker stops `READY FOR INTEGRATION` with no merge/deploy."
+  ],
+  "risks": [
+    "{Risk: Deterministic correctness and independent evaluation precede comparison, with S4 economics not overriding correctness}"
+  ],
+  "spec_id": "P2-V0.19.5",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact canonical competition identity",
+      "protected_requirement": "Every competition decision binds canonical Project ID, Engineering Run ID, exact Work Specification ID/revision/digest, stable acceptance IDs, exact S2/S3/S4 dependency identity where applicable and exact competition-policy ID/version/digest. Malformed, duplicate, stale, mismatched or cross-Project identity fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Selective bounded competition trigger",
+      "protected_requirement": "Server-owned policy invokes competition only when admitted evidence justifies additional alternatives. Tests prove multiple available agents/candidates alone do not force competition, missing economic/risk evidence is not treated as free competition, and trigger dispositions are deterministic and bounded."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact candidate lineage isolation and admission",
+      "protected_requirement": "Each candidate is provenance-bound to one exact Project/run/spec/acceptance set, producer identity, candidate/source-lineage digest, protected-validation evidence and S3 evaluation evidence. Duplicate/mismatched/conflicting candidate identities fail closed and separate display IDs cannot make one lineage appear as independent alternatives."
+    },
+    {
+      "id": "AC-04",
+      "title": "Deterministic validation and independent evaluation precede comparison",
+      "protected_requirement": "Candidates failing mandatory deterministic validation or S3 independence/policy requirements are excluded before quality/economic comparison. Tests prove cheaper/faster or agent/evaluator-preferred failed candidates cannot re-enter or win."
+    },
+    {
+      "id": "AC-05",
+      "title": "Server-owned immutable competition policy",
+      "protected_requirement": "Competition binds exact policy ID/version/digest covering trigger rules, candidate/evidence requirements, quality floors, comparison order/weights, candidate/synthesis/cost/time/attempt/no-progress bounds, tie-breaking, fallback and HUMAN_REQUIRED behavior. Agent/source/model content cannot modify policy or acceptance criteria."
+    },
+    {
+      "id": "AC-06",
+      "title": "Deterministic winner comparison and tie-breaking",
+      "protected_requirement": "The same exact eligible candidate/evidence set produces the same comparison components, disposition, supported-candidate identity and fingerprint. Ties use explicit server-owned stable identity rules, never arrival order, majority vote or model preference."
+    },
+    {
+      "id": "AC-07",
+      "title": "S4 economics cannot override correctness",
+      "protected_requirement": "S4 routing/cost/time/retry/intervention evidence may influence whether competition is justified and permitted post-eligibility utility/ties only. Tests prove economic advantage cannot override protected failure, evaluator-policy failure, unresolved HUMAN_REQUIRED or quality floors."
+    },
+    {
+      "id": "AC-08",
+      "title": "Synthesis creates a new candidate lineage",
+      "protected_requirement": "A synthesis disposition emits only a bounded synthesis request bound to exact parent evidence and target acceptance gaps. The resulting implementation must have a new candidate/attempt/lineage identity and cannot inherit parent deterministic validation or S3 evaluation status."
+    },
+    {
+      "id": "AC-09",
+      "title": "Fresh validation/evaluation after synthesis",
+      "protected_requirement": "A synthesized candidate is ineligible until fresh exact-lineage protected BUILD/TEST/VERIFY and fresh policy-valid independent evaluation bind the new candidate. Tests prove stale/parent validation/evaluation evidence cannot satisfy the synthesized candidate."
+    },
+    {
+      "id": "AC-10",
+      "title": "Hard bounds, privacy and no-progress termination",
+      "protected_requirement": "Candidate count, competition rounds, extra attempts, synthesis attempts/parents, economic budget class, evidence size and no-progress behavior are bounded. Exhaustion terminates explicitly without unbounded agents/candidates, threshold weakening or cross-Project source/evidence access."
+    },
+    {
+      "id": "AC-11",
+      "title": "Replay/idempotency, safe serialization and evidence-only authority",
+      "protected_requirement": "Exact replay is duplicate-safe; candidate/policy/evidence drift produces a new fingerprint; conflicting records fail closed. Safe serialization excludes secrets/source bytes/raw provider payloads/prompts/hidden reasoning/arbitrary URLs/commands and grants no capability, provider/spending, source acceptance, Engineering Run transition, merge/deploy, approval or REVIEW authority."
+    },
+    {
+      "id": "AC-12",
+      "title": "Accepted S1-S4 regressions and exact-head worker boundary",
+      "protected_requirement": "Focused S5 tests plus relevant accepted S1 agent, S2 team, S3 evaluation, S4 routing/economic, source-lineage, protected validation/evaluation, provider and bounded-autonomy regressions remain green. `P2-V0.19.5` has stable acceptance IDs and authentic DSPy evidence before semantic implementation; temporary DSPy workflow changes are restored byte-for-byte; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets the Wave 6 integration branch and worker stops `READY FOR INTEGRATION` with no merge/deploy."
+    }
+  ],
+  "critique": [
+    "Candidate implementation risk: S5 may decide to request synthesis when no existing candidate is sufficient, which can lead to an unnecessary and costly effort."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

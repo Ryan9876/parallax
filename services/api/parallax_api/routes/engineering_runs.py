@@ -55,6 +55,7 @@ from ..schemas import (
 router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
+_AGENTIC_RUNTIME_ENABLE_ENV = "PARALLAX_AGENTIC_RUNTIME_ENABLED"
 
 
 def _run_event_sink(session: Session) -> PersistentRunEventSink | None:
@@ -253,7 +254,10 @@ def autonomous(
     oidc_token: str | None = Depends(runtime_oidc_token),
 ):
     legacy_executor = VercelSandboxExecutor()
+    agentic_enabled = os.getenv(_AGENTIC_RUNTIME_ENABLE_ENV) == "1"
     if allocator is None:
+        if agentic_enabled:
+            raise HTTPException(503, "Wave 6 agentic runtime requires durable source lineage")
         runtime = AutonomyCoordinator(svc, legacy_executor)
     else:
         run = invoke(lambda: svc.get(run_id))
@@ -269,12 +273,25 @@ def autonomous(
                 **delivery_kwargs,
             )
         )
-        runtime = EngineeringRuntimeComposition(
-            svc,
-            allocator,
-            legacy_executor,
-            source_delivery=source_delivery,
-        )
+        if agentic_enabled:
+            try:
+                from ..code.agentic_runtime_live import build_live_agentic_runtime_composition
+
+                runtime = build_live_agentic_runtime_composition(
+                    svc,
+                    allocator,
+                    legacy_executor,
+                    source_delivery=source_delivery,
+                )
+            except ValueError as exc:
+                raise HTTPException(503, "Wave 6 agentic runtime composition is unavailable") from exc
+        else:
+            runtime = EngineeringRuntimeComposition(
+                svc,
+                allocator,
+                legacy_executor,
+                source_delivery=source_delivery,
+            )
     result = invoke(
         lambda: runtime.run(
             run_id=run_id,

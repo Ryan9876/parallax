@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "{Establish the Wave 6 outcome-routing layer that can choose among already-admissible engineering execution strategies using trustworthy quality, cost, elapsed-time, retry, reassignment and intervention evidence without allowing economic optimization to weaken correctness, safety, privacy, protected validation, independent evaluation or human-control boundaries. S4 consumes exact provenance-bound evidence from accepted S1 agent protocol, S2 team orchestration and S3 independent evaluation plus server-owned routing policy. It first determines whether a strategy is admissible under exact identity, authority, capability, dependency and quality constraints. Only after those non-negotiable gates pass may S4 compare economic outcomes such as observed cost, duration, retries or intervention burden. Unknown, unavailable, stale, contradictory or low-confidence evidence must remain explicit and…}"
+  ],
+  "work_items": [
+    "{Propose a concrete implementation of the Compact Parallax implementation brief as a work item, with a clear and concise description of the implementation plan.}"
+  ],
+  "validations": [
+    "{Propose a validation plan to ensure the proposed implementation meets the requirements and specifications outlined in the Compact Parallax implementation brief. This should include a description of the validation process, any relevant tests or checks, and any assurance mechanisms in place.}",
+    "AC-01: validate protected requirement — Every routing decision binds canonical Project ID, Engineering Run ID, exact Work Specification ID/revision/digest, stable acceptance IDs, accepted S1/S2/S3 dependency identity where applicable and exact routing-policy ID/version/digest. Malformed, duplicate, empty, stale or mismatched identity fails closed.",
+    "AC-02: validate protected requirement — Every quality/cost/time/retry/reassignment/intervention/completion signal is bounded and provenance-labeled. Tests prove agent/model/repository self-report cannot become `OBSERVED` authority, unknown/unavailable values remain explicit rather than zero, and invalid/stale/cross-Project evidence is rejected or preserved as bounded non-admissible evidence.",
+    "AC-03: validate protected requirement — Eligibility excludes unauthorized/incompatible strategies and any strategy failing mandatory protected deterministic/S3 quality gates before economic scoring. Tests prove a cheaper/faster candidate cannot outrank or re-enter after deterministic failure, S3 policy rejection/not-independence or unresolved mandatory HUMAN_REQUIRED.",
+    "AC-04: validate protected requirement — Routing binds exact policy ID/version/digest covering eligibility, metric provenance, freshness, floors, normalization/weights or ordering, missing-evidence treatment, exploration bounds, fallback and tie-breaking. Agent/source/model content cannot change policy or acceptance criteria.",
+    "AC-05: validate protected requirement — Only eligible strategies are compared. Numeric normalization is finite/bounded and quality floors remain non-tradeable. Cost/time/retry/intervention components remain inspectable. Unknown and estimates follow explicit policy rather than favorable implicit defaults.",
+    "AC-06: validate protected requirement — The same exact admitted input produces the same disposition/strategy/fingerprint. Ties use server-owned deterministic identity rules. Insufficient/contradictory evidence produces explicit fallback, insufficient evidence or HUMAN_REQUIRED according to policy rather than fabricated certainty.",
+    "AC-07: validate protected requirement — Exact replay is duplicate-safe. Evidence, strategy-set or policy drift yields a new fingerprint. Competing incompatible records for one fingerprint fail closed and no replay duplicates execution/provider mutation because S4 owns no such mutation.",
+    "AC-08: validate protected requirement — If enabled, exploration can select only already-admissible strategies and is bounded by explicit policy limits. Tests prove exploration cannot register providers, grant capabilities, create credentials, invoke spending, mutate source or bypass validation/review.",
+    "AC-09: validate protected requirement — Project-private telemetry cannot cross Project boundaries without an already-admitted sanitized/generalized reference. Safe output excludes secrets, raw provider payloads/prompts, hidden reasoning, arbitrary URLs/commands and unrestricted logs while retaining enough bounded provenance to explain the decision.",
+    "AC-10: validate protected requirement — Routing records structurally expose no source-lineage acceptance, protected Engineering Run transition, provider invocation, spending, capability grant, merge/deployment, approval, REVIEW completion or candidate-winner authority. S5/S6 consume S4 only as bounded routing evidence.",
+    "AC-11: validate protected requirement — Focused S4 tests plus relevant S1 agent protocol, S2 team orchestration, S3 independent evaluation, protected validation/evaluation and bounded-autonomy regression suites remain green. S4 does not duplicate or weaken their identity/admission/authority semantics.",
+    "AC-12: validate protected requirement — `P2-V0.19.4` validates with stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Temporary DSPy workflow changes are restored byte-for-byte before runtime implementation/final candidate. Final S4 changed paths remain within #267 ownership; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy."
+  ],
+  "risks": [
+    "{Identify and propose any material risks associated with the proposed implementation, including any potential risks to correctness, safety, privacy, protected validation, independent evaluation, or human-control boundaries. Provide a description of how these risks will be mitigated or managed.}"
+  ],
+  "spec_id": "P2-V0.19.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact canonical routing identity",
+      "protected_requirement": "Every routing decision binds canonical Project ID, Engineering Run ID, exact Work Specification ID/revision/digest, stable acceptance IDs, accepted S1/S2/S3 dependency identity where applicable and exact routing-policy ID/version/digest. Malformed, duplicate, empty, stale or mismatched identity fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Trustworthy telemetry provenance and missing-data semantics",
+      "protected_requirement": "Every quality/cost/time/retry/reassignment/intervention/completion signal is bounded and provenance-labeled. Tests prove agent/model/repository self-report cannot become `OBSERVED` authority, unknown/unavailable values remain explicit rather than zero, and invalid/stale/cross-Project evidence is rejected or preserved as bounded non-admissible evidence."
+    },
+    {
+      "id": "AC-03",
+      "title": "Governance and correctness precede economics",
+      "protected_requirement": "Eligibility excludes unauthorized/incompatible strategies and any strategy failing mandatory protected deterministic/S3 quality gates before economic scoring. Tests prove a cheaper/faster candidate cannot outrank or re-enter after deterministic failure, S3 policy rejection/not-independence or unresolved mandatory HUMAN_REQUIRED."
+    },
+    {
+      "id": "AC-04",
+      "title": "Server-owned immutable routing policy",
+      "protected_requirement": "Routing binds exact policy ID/version/digest covering eligibility, metric provenance, freshness, floors, normalization/weights or ordering, missing-evidence treatment, exploration bounds, fallback and tie-breaking. Agent/source/model content cannot change policy or acceptance criteria."
+    },
+    {
+      "id": "AC-05",
+      "title": "Bounded deterministic economic comparison",
+      "protected_requirement": "Only eligible strategies are compared. Numeric normalization is finite/bounded and quality floors remain non-tradeable. Cost/time/retry/intervention components remain inspectable. Unknown and estimates follow explicit policy rather than favorable implicit defaults."
+    },
+    {
+      "id": "AC-06",
+      "title": "Deterministic selection, tie-breaking and fallback",
+      "protected_requirement": "The same exact admitted input produces the same disposition/strategy/fingerprint. Ties use server-owned deterministic identity rules. Insufficient/contradictory evidence produces explicit fallback, insufficient evidence or HUMAN_REQUIRED according to policy rather than fabricated certainty."
+    },
+    {
+      "id": "AC-07",
+      "title": "Replay/idempotency and conflict detection",
+      "protected_requirement": "Exact replay is duplicate-safe. Evidence, strategy-set or policy drift yields a new fingerprint. Competing incompatible records for one fingerprint fail closed and no replay duplicates execution/provider mutation because S4 owns no such mutation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Bounded exploration without authority expansion",
+      "protected_requirement": "If enabled, exploration can select only already-admissible strategies and is bounded by explicit policy limits. Tests prove exploration cannot register providers, grant capabilities, create credentials, invoke spending, mutate source or bypass validation/review."
+    },
+    {
+      "id": "AC-09",
+      "title": "Cross-Project privacy and safe serialization",
+      "protected_requirement": "Project-private telemetry cannot cross Project boundaries without an already-admitted sanitized/generalized reference. Safe output excludes secrets, raw provider payloads/prompts, hidden reasoning, arbitrary URLs/commands and unrestricted logs while retaining enough bounded provenance to explain the decision."
+    },
+    {
+      "id": "AC-10",
+      "title": "Evidence-only downstream authority",
+      "protected_requirement": "Routing records structurally expose no source-lineage acceptance, protected Engineering Run transition, provider invocation, spending, capability grant, merge/deployment, approval, REVIEW completion or candidate-winner authority. S5/S6 consume S4 only as bounded routing evidence."
+    },
+    {
+      "id": "AC-11",
+      "title": "Accepted S1-S3 and protected regressions remain intact",
+      "protected_requirement": "Focused S4 tests plus relevant S1 agent protocol, S2 team orchestration, S3 independent evaluation, protected validation/evaluation and bounded-autonomy regression suites remain green. S4 does not duplicate or weaken their identity/admission/authority semantics."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact-head worker boundary and development gate",
+      "protected_requirement": "`P2-V0.19.4` validates with stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Temporary DSPy workflow changes are restored byte-for-byte before runtime implementation/final candidate. Final S4 changed paths remain within #267 ownership; exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass; PR targets `integration/wave6-agentic-control-plane`; worker stops `READY FOR INTEGRATION` with no worker merge/deploy."
+    }
+  ],
+  "critique": [
+    "{finding} None"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

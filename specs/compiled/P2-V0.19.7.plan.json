@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "{Activation of accepted Wave 6 agentic development control plane inside the ordinary protected Parallax Engineering Run path}"
+  ],
+  "work_items": [
+    "{Implementing Compact Parallax implementation within existing Engineering Run path}"
+  ],
+  "validations": [
+    "{Validating activation of Compact Parallax implementation against existing Engineering Run and Protected Implementation Runtime}",
+    "AC-01: validate protected requirement — An approved eligible Engineering Run reaches a server-owned agentic runtime seam during normal PLAN/IMPLEMENT execution, bound to exact Project/run/spec/acceptance identity. The operator does not select agents manually, and no parallel ungoverned implementation path is invoked.",
+    "AC-02: validate protected requirement — Permanent runtime tests prove the same composition selects one compatible agent when sufficient and a bounded multi-agent team when decomposition/capability evidence requires it, with dependency-safe parallelism and conservative serialization of overlapping coordination domains.",
+    "AC-03: validate protected requirement — At least one production-capable adapter wraps the existing protected model/implementation-generation transport into exact S1 identity/task/result/checkpoint evidence. Stale, revoked, mismatched and competing results are rejected before candidate admission; reference adapters are never silently used as production labor.",
+    "AC-04: validate protected requirement — A recoverable agent failure is resumed or reassigned only from accepted durable worker/checkpoint evidence, advances generation/attempt identity correctly, remains within bounds and survives request/process recreation without duplicate canonical source mutation.",
+    "AC-05: validate protected requirement — Agent outputs cannot mutate or accept canonical lineage directly. Exactly one selected candidate is revalidated and applied through the existing safe implementation engine, existing lineage acceptance/CAS boundary and existing durable IMPLEMENT stage transition. Stale/conflicting proposals mutate nothing.",
+    "AC-06: validate protected requirement — Failed/missing/stale deterministic BUILD/TEST/VERIFY evidence blocks S3 support; producer self-evaluation cannot satisfy independence; evaluation remains exact-candidate and exact-policy bound.",
+    "AC-07: validate protected requirement — S4 only scores already-admissible strategies using provenance-bound evidence with explicit unknown state. S5 cannot select failed/unvalidated candidates, multiple candidates alone do not force competition, and synthesis creates a fresh candidate requiring fresh validation/evaluation.",
+    "AC-08: validate protected requirement — Only the selected accepted lineage reaches BUILD/TEST/VERIFY and existing GitHub/Vercel Preview delivery. Process recreation/replay does not substitute lineage or duplicate branch/commit/PR/Preview mutation.",
+    "AC-09: validate protected requirement — Runtime activation stops at REVIEW/HUMAN_REQUIRED. Agentic code cannot complete REVIEW, merge, production-deploy, create provider credentials, widen capabilities or bypass Project/tool/provider policy. Adversarial tests prove fail-closed behavior.",
+    "AC-10: validate protected requirement — Focused W6-R1 tests plus accepted S1-S6, worker recovery, source-lineage, safe implementation, BUILD/TEST/VERIFY, provider delivery, production preflight and client regressions pass. Exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass. The final integration checkpoint records generated/validated/integrated/deployed states distinctly; no production claim occurs before a separate governed release and post-cutover verification."
+  ],
+  "risks": [
+    "{Risk of introducing silent legacy bypass and undermining deterministic validation and judgment}"
+  ],
+  "spec_id": "P2-V0.19.7",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Ordinary runtime uses one agentic admission path",
+      "protected_requirement": "An approved eligible Engineering Run reaches a server-owned agentic runtime seam during normal PLAN/IMPLEMENT execution, bound to exact Project/run/spec/acceptance identity. The operator does not select agents manually, and no parallel ungoverned implementation path is invoked."
+    },
+    {
+      "id": "AC-02",
+      "title": "Smallest adequate one-agent and multi-agent team behavior",
+      "protected_requirement": "Permanent runtime tests prove the same composition selects one compatible agent when sufficient and a bounded multi-agent team when decomposition/capability evidence requires it, with dependency-safe parallelism and conservative serialization of overlapping coordination domains."
+    },
+    {
+      "id": "AC-03",
+      "title": "Production-capable S1 adapter and result admission",
+      "protected_requirement": "At least one production-capable adapter wraps the existing protected model/implementation-generation transport into exact S1 identity/task/result/checkpoint evidence. Stale, revoked, mismatched and competing results are rejected before candidate admission; reference adapters are never silently used as production labor."
+    },
+    {
+      "id": "AC-04",
+      "title": "Durable recovery and replay",
+      "protected_requirement": "A recoverable agent failure is resumed or reassigned only from accepted durable worker/checkpoint evidence, advances generation/attempt identity correctly, remains within bounds and survives request/process recreation without duplicate canonical source mutation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Single-writer candidate handoff preserves safe IMPLEMENT authority",
+      "protected_requirement": "Agent outputs cannot mutate or accept canonical lineage directly. Exactly one selected candidate is revalidated and applied through the existing safe implementation engine, existing lineage acceptance/CAS boundary and existing durable IMPLEMENT stage transition. Stale/conflicting proposals mutate nothing."
+    },
+    {
+      "id": "AC-06",
+      "title": "Protected validation and independent evaluation precedence",
+      "protected_requirement": "Failed/missing/stale deterministic BUILD/TEST/VERIFY evidence blocks S3 support; producer self-evaluation cannot satisfy independence; evaluation remains exact-candidate and exact-policy bound."
+    },
+    {
+      "id": "AC-07",
+      "title": "Trustworthy routing, selective competition and synthesis",
+      "protected_requirement": "S4 only scores already-admissible strategies using provenance-bound evidence with explicit unknown state. S5 cannot select failed/unvalidated candidates, multiple candidates alone do not force competition, and synthesis creates a fresh candidate requiring fresh validation/evaluation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Exact selected lineage reaches replay-safe Preview",
+      "protected_requirement": "Only the selected accepted lineage reaches BUILD/TEST/VERIFY and existing GitHub/Vercel Preview delivery. Process recreation/replay does not substitute lineage or duplicate branch/commit/PR/Preview mutation."
+    },
+    {
+      "id": "AC-09",
+      "title": "REVIEW/HUMAN_REQUIRED and authority boundaries remain intact",
+      "protected_requirement": "Runtime activation stops at REVIEW/HUMAN_REQUIRED. Agentic code cannot complete REVIEW, merge, production-deploy, create provider credentials, widen capabilities or bypass Project/tool/provider policy. Adversarial tests prove fail-closed behavior."
+    },
+    {
+      "id": "AC-10",
+      "title": "Whole-product regression and release evidence",
+      "protected_requirement": "Focused W6-R1 tests plus accepted S1-S6, worker recovery, source-lineage, safe implementation, BUILD/TEST/VERIFY, provider delivery, production preflight and client regressions pass. Exact-head Workstream Spec Validation, Bounded Autonomy Pilot and P2 CI pass. The final integration checkpoint records generated/validated/integrated/deployed states distinctly; no production claim occurs before a separate governed release and post-cutover verification."
+    }
+  ],
+  "critique": [
+    "One material implementation risk or omission in the approved software specification is the lack of explicit control over the runtime admission boundary, which can lead to silent legacy bypass and undermine the deterministic validation and judgment of the system. This risk can be mitigated by introducing a server-owned agentic runtime composition seam attached to the existing Engineering Run composition, as described in 3.1 Runtime admission boundary."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

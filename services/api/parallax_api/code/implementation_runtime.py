@@ -125,6 +125,12 @@ class ProtectedImplementationRuntime:
     Generation, filesystem mutation, lineage acceptance, and durable stage
     authority remain separate boundaries. No model-visible contract contains the
     protected local workspace root.
+
+    A composed controller may supply a pre-selected candidate through the narrow
+    ``generate_protected`` seam. That seam receives the already server-resolved
+    workspace only for candidate validation and cannot accept lineage or complete
+    the stage. The selected proposal is still revalidated and committed below by
+    the same safe implementation, lineage and EngineeringRunService boundaries.
     """
 
     def __init__(
@@ -232,8 +238,27 @@ class ProtectedImplementationRuntime:
                 return False
             return True
 
+        controller_evidence: dict[str, object] | None = None
         try:
-            if isinstance(self.generator, ImplementationGenerationCoordinator):
+            protected_generate = getattr(self.generator, "generate_protected", None)
+            if callable(protected_generate):
+                generated = protected_generate(
+                    request,
+                    workspace_root=handle.workspace_root,
+                    project_ref=project_ref,
+                    run_id=run.id,
+                    base_source_lineage_ref=handle.source_lineage_ref,
+                    base_revision=handle.base_revision,
+                    proposal_validator=proposal_is_safe,
+                    operation_key=operation_key,
+                )
+                if not isinstance(generated, tuple) or len(generated) != 2:
+                    raise ImplementationGenerationFailure(
+                        "protected controller returned an invalid selected-candidate result"
+                    )
+                generation, raw_controller_evidence = generated
+                controller_evidence = _bounded_controller_evidence(raw_controller_evidence)
+            elif isinstance(self.generator, ImplementationGenerationCoordinator):
                 generation = self.generator.generate_sync(
                     request,
                     proposal_validator=proposal_is_safe,
@@ -243,7 +268,7 @@ class ProtectedImplementationRuntime:
                 # and integrations. They receive no routing authority; their
                 # selected proposal is still rejected by the safe engine below.
                 generation = self.generator.generate_sync(request)
-        except ImplementationGenerationFailure as exc:
+        except (ImplementationGenerationFailure, TypeError, ValueError) as exc:
             raise ImplementationContractError("protected implementation generation failed") from exc
 
         # Defense in depth: even a custom/injected generation coordinator cannot
@@ -253,8 +278,9 @@ class ProtectedImplementationRuntime:
 
         implementation_request = self._implementation_request(generation.proposal)
         try:
-            # Re-prepare immediately before commit. The routing preflight is not
-            # mutation authority and cannot substitute for commit-time validation.
+            # Re-prepare immediately before commit. The routing/candidate
+            # preflight is not mutation authority and cannot substitute for
+            # commit-time validation on the exact server-owned workspace.
             mutation = self.implementation_engine.apply(handle.workspace_root, implementation_request)
         except (ImplementationError, PatchError, OSError) as exc:
             raise ImplementationMutationError("safe source implementation rejected the proposal") from exc
@@ -303,6 +329,8 @@ class ProtectedImplementationRuntime:
             "git_mutation": False,
             "deployment_mutation": False,
         }
+        if controller_evidence is not None:
+            evidence["controller_evidence"] = controller_evidence
         try:
             operation = self.service.complete_stage(
                 run_id=run.id,
@@ -417,6 +445,57 @@ class ProtectedImplementationRuntime:
                 "accepted source-lineage receipt does not match the implementation mutation",
                 mutation_applied=True,
             )
+
+
+def _bounded_controller_evidence(value: object) -> dict[str, object]:
+    """Admit only bounded, non-secret controller evidence into durable IMPLEMENT."""
+
+    if not isinstance(value, dict) or not value:
+        raise ValueError("protected controller evidence must be a non-empty object")
+
+    forbidden_fragments = (
+        "credential",
+        "token",
+        "secret",
+        "prompt",
+        "reasoning",
+        "source_bytes",
+        "provider_payload",
+        "workspace_root",
+    )
+
+    def inspect(item: object) -> None:
+        if isinstance(item, dict):
+            for key, nested in item.items():
+                if not isinstance(key, str):
+                    raise ValueError("protected controller evidence keys must be strings")
+                lowered = key.casefold()
+                if any(fragment in lowered for fragment in forbidden_fragments):
+                    raise ValueError("protected controller evidence contains forbidden sensitive field")
+                inspect(nested)
+        elif isinstance(item, list):
+            for nested in item:
+                inspect(nested)
+        elif not isinstance(item, (str, int, float, bool, type(None))):
+            raise ValueError("protected controller evidence contains non-JSON value")
+
+    inspect(value)
+    for claim in (
+        "source_lineage_accepted",
+        "engineering_run_transitioned",
+        "review_completed",
+        "production_deployed",
+    ):
+        if claim in value and value[claim] is not False:
+            raise ValueError("protected controller evidence asserted authority it does not own")
+
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    if len(encoded.encode("utf-8")) > 32_768:
+        raise ValueError("protected controller evidence exceeds durable evidence bound")
+    normalized = json.loads(encoded)
+    if not isinstance(normalized, dict):
+        raise ValueError("protected controller evidence normalization failed")
+    return normalized
 
 
 def _bounded_identity(value: str, name: str) -> str:

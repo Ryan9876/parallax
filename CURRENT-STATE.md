@@ -2,7 +2,7 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 / PR #294 MERGED / CORRECTIVE API PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / WAVE 6 NOT DEPLOYED / S6 BLOCKED PENDING FRESH CUMULATIVE S1-S5 RECORD CHECKPOINT**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S6 + W6-R1 #304 ACCEPTED AND INTEGRATED / CUMULATIVE RUNTIME-ACTIVATED WAVE 6 CHECKPOINT VALIDATED / WAVE 6 NOT DEPLOYED / PRODUCTION PROMOTION REQUIRES SEPARATE GOVERNED RELEASE + POST-CUTOVER PROOF**
 
 ## Current production truth
 
@@ -12,7 +12,9 @@ Safe conversation/Project deletion originated in #290 / PR #291 and is present i
 
 The corrective release is **production-deployed and infrastructure-verified but not yet accepted as fully deployment-verified feature behavior** because the final authenticated post-cutover deletion smoke cannot be executed by the available connector without an application user session. No destructive smoke will be performed against real user content merely to manufacture release evidence.
 
-Wave 6 S1-S5 remain accepted development architecture on `integration/wave6-agentic-control-plane`; they are **not** production deployments. The deletion workstream remains on the current production line and does not activate Wave 6.
+Wave 6 S1-S6 plus runtime-activation closure W6-R1 are accepted development architecture and are **not** production deployments. The S1-S6 integration checkpoint was extended by exact validated W6-R1 worker head `6244cefd8c7cc2dec923f815838e14747f47aef0`, which passed Workstream Spec Validation #492, Bounded Autonomy Pilot #699 and Parallax P2 CI #1103. PR #306 merged that exact candidate into `integration/wave6-agentic-control-plane` as `07f45319d166d52298b2b056cdab4c48c1accf25`. Fresh cumulative integration-head Workstream #493, Bounded Autonomy #700 and P2 CI #1104 all passed. Validation-only PR #308 was closed without merge to `main`; production remains unchanged.
+
+The prior whole-product activation gap is therefore closed at the validated integration level: the ordinary protected Engineering Run path can now invoke the accepted Wave 6 agentic decision plane under explicit server-owned activation. This changes no production state. Control Tower must use a separate production-release package to reconcile current `main`, explicitly enable the runtime, prove required private candidate-artifact storage/configuration, deploy the exact accepted release, and collect post-cutover runtime evidence before Wave 6 can be called deployed or deployment-verified.
 
 ### Safe-deletion release identity
 
@@ -145,11 +147,33 @@ Control Tower #215 completed generalized application delivery through #216-#221 
 ## Wave 6 — Agentic Development Control Plane
 
 Control Tower: #263.  
-Integration branch: `integration/wave6-agentic-control-plane`.  
-Current accepted S1-S5 functional integration head: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
-Wave 6 production deployment: **none**.
+Authoritative integration branch: `integration/wave6-agentic-control-plane`.  
+Current accepted runtime-activated integration head: `07f45319d166d52298b2b056cdab4c48c1accf25`.  
+Current production baseline: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
+Wave 6 production deployment: **none**.  
+Production activation flag state: **not claimed enabled**.
 
-Accepted/integrated state remains:
+### Accepted cumulative S1-S6 + W6-R1 evidence
+
+- accepted production-synchronized S1-S5 checkpoint: `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`;
+- S6 exact validated worker head: `75d6a51f8d014e70772a54f032370ead64c965bb`;
+- S6 integration head before runtime closure: `01dda9f0328ca3f6ce2cf31f9c236c4603cef638`;
+- S6 worker Workstream #485 / Bounded #692 / P2 CI #1096 — **PASS**;
+- pre-W6-R1 cumulative integration Workstream #486 / Bounded #693 / P2 CI #1097 — **PASS**;
+- W6-R1 specification: `P2-V0.19.7`;
+- W6-R1 exact validated worker head: `6244cefd8c7cc2dec923f815838e14747f47aef0`;
+- W6-R1 canonical PR #306: **MERGED TO INTEGRATION ONLY**;
+- W6-R1 integration merge: `07f45319d166d52298b2b056cdab4c48c1accf25`;
+- W6-R1 worker Workstream Spec Validation #492 — **PASS**;
+- W6-R1 worker Bounded Autonomy Pilot #699 — **PASS**;
+- W6-R1 worker Parallax P2 CI #1103 — **PASS**;
+- runtime-activated cumulative integration Workstream Spec Validation #493 — **PASS**;
+- runtime-activated cumulative integration Bounded Autonomy Pilot #700 — **PASS**;
+- runtime-activated cumulative integration Parallax P2 CI #1104 — **PASS**;
+- W6-R1 validation-only PR #308: **CLOSED WITHOUT MERGE TO MAIN**;
+- long-lived PR #275 remains **DRAFT / DO NOT MERGE** and is not a production release candidate.
+
+Accepted/integrated semantic state:
 
 1. #264 / S1 Agent Adapter & Evidence Protocol — **COMPLETE / ACCEPTED / INTEGRATED**;
 2. #265 / S2 Dynamic Development Team Orchestration — **COMPLETE / ACCEPTED / INTEGRATED**;
@@ -157,9 +181,33 @@ Accepted/integrated state remains:
 4. #267 / S4 Outcome Routing & Development Economics — **COMPLETE / ACCEPTED / INTEGRATED**;
 5. #281 repository source-tree capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
 6. #268 / S5 Candidate Competition & Synthesis — **COMPLETE / ACCEPTED / INTEGRATED**;
-7. #269 / S6 — **BLOCKED pending authoritative S5 record reconciliation on the integration branch plus a fresh cumulative exact-head S1-S5 gate**.
+7. #269 / S6 Agentic Development Integrated Reference Proof — **COMPLETE / ACCEPTED / INTEGRATED**;
+8. #304 / W6-R1 Runtime Activation — **COMPLETE / VALIDATED / ACCEPTED / INTEGRATED / NOT DEPLOYED**.
 
-PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. Safe-deletion hardening does not deploy or activate Wave 6 code.
+### Runtime activation closure — #304 / P2-V0.19.7
+
+W6-R1 closes the release-audit gap without adding a second execution authority. Under explicit server-owned `PARALLAX_AGENTIC_RUNTIME_ENABLED=1`, ordinary protected PLAN uses one server-owned agentic planning seam bound to exact Project/run/approved Work Specification/acceptance/source identity. The accepted S2 orchestration layer selects the smallest adequate admitted team; operator agent selection is not part of the normal build path.
+
+Agent work remains non-authoritative candidate labor. Production-capable S1 adapters wrap the existing hosted implementation-generation transport. Durable S2 worker lease/checkpoint/recovery state governs live dispatch and process-loss reassignment. Candidate BUILD/TEST/VERIFY happens on disposable deny-all Vercel Sandbox materializations before S3 evaluation; protected deterministic failure cannot be promoted by model/evaluator judgment. S4 routing consumes provenance-bound evidence and S5 selection cannot select a failed or unvalidated candidate. Team size alone is not a runtime competition/spending signal.
+
+Exactly one selected candidate reaches the existing `ProtectedImplementationRuntime`. That runtime still performs final safe-patch validation/application against the server-resolved workspace, durable lineage compare-and-swap acceptance and the authoritative IMPLEMENT transition. The agentic controller cannot advance the source head, complete REVIEW, merge or production-deploy.
+
+For process recreation after selection, the exact selected proposal/controller envelope is stored as a private immutable content-addressed artifact. The durable worker checkpoint stores only the artifact digest plus bounded selection evidence. Replay must rebind the artifact to exact Project/run/spec/acceptance/plan/base-lineage/base-revision/source-context identity and revalidate the proposal against the current protected workspace before canonical mutation. Artifact storage is replay evidence, not a new source-lineage authority.
+
+After accepted IMPLEMENT, only the accepted lineage reaches BUILD/TEST/VERIFY and existing GitHub/Vercel Preview delivery. Preview remains the ordinary autonomous publication ceiling and REVIEW remains operator-controlled.
+
+### Next release gate
+
+Wave 6 is **validated and integrated but not deployed**. The next action is a separate governed production-release candidate, not a merge of validation PR #275. Before production promotion Control Tower must:
+
+1. reconcile the release candidate to the exact current production `main` head and resolve any intervening production changes without weakening Wave 6 contracts;
+2. rerun required exact-head protected gates on the release candidate;
+3. verify production prerequisites for durable source lineage, Vercel Sandbox, private selected-candidate artifacts, hosted model transport and source delivery;
+4. explicitly authorize and configure `PARALLAX_AGENTIC_RUNTIME_ENABLED=1` only as part of the governed release;
+5. merge/promote only the exact accepted release head;
+6. verify production health/readiness plus an authenticated Project-bound Engineering Run that exercises agentic PLAN/IMPLEMENT, exact-lineage BUILD/TEST/VERIFY, Preview and REVIEW stop behavior;
+7. verify replay/process recreation does not duplicate canonical mutation or Preview publication;
+8. inspect exact-deployment logs/error signals and record rollback identities before calling Wave 6 deployment-verified.
 
 ## Rollback
 
@@ -197,7 +245,9 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 - semantic AI/runtime work remains spec-first with stable acceptance IDs and authentic compiled DSPy evidence;
 - workers develop on isolated branches and stop at governed integration boundaries;
 - interacting production workstreams are serialized at shared lifecycle/record boundaries;
+- a production-baseline sync into an undeployed future-wave integration branch must preserve accepted future-wave semantics, use current production records for production truth, and pass fresh cumulative exact-head gates before becoming the new integration checkpoint;
 - standing single-user production-promotion authority never waives exact-head gates, rollback, least privilege, post-cutover evidence or Preview/REVIEW boundaries;
+- server-owned activation flags do not redefine generated/integrated code as deployed; enabled production state requires explicit configuration and deployment evidence;
 - path-aware ignored builds may preserve a previously verified component artifact when a release has no changes under that component root;
 - deployed/infrastructure-ready is not equivalent to deployment-verified feature behavior when a required post-cutover feature smoke is still absent;
 - no production-verification claim is valid without exact release identity plus appropriate post-cutover evidence.
@@ -212,6 +262,8 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 - reusing a deleted Project's human-readable identity creates a new canonical Project identity and grants no inherited authority;
 - deterministic/protected validation outranks model, agent, evaluator, routing or competition judgment;
 - immutable accepted lineage and single-writer canonical source mutation remain authoritative;
+- agentic planning/dispatch/candidate evidence cannot advance canonical lineage or durable Engineering Run authority directly;
+- selected-candidate artifact persistence is immutable replay evidence only and must be rebound/revalidated before canonical mutation;
 - cross-Project privacy boundaries remain strict;
 - replay/idempotency and durable worker lease/checkpoint/recovery remain authoritative;
 - production hosted-model identity and transport are server-owned and fail closed;
@@ -221,9 +273,9 @@ Pre-#291 client reference remains `dpl_ZxJTDLWYJxShme9oA6KBSYpxxaR2` at `9767b25
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; constitutional authority did not change.
-- `ARCHITECTURE.md` v3.7 — updated for authoritative protected `TERMINAL_STAGES` deletion parity and owner-only destructive authority for historical unbound conversations.
-- `DESIGN-SYSTEM.md` v3.1 — unchanged; the corrective release changes server lifecycle/authorization behavior, not destructive-interaction design.
-- `CURRENT-STATE.md` — updated after corrective merge/deployment to record exact API production identity, successful health/readiness/error/auth-boundary evidence, expected ignored client build behavior, and the one remaining authenticated post-cutover smoke required before #290 can close.
+- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; W6-R1 creates no new constitutional authority.
+- `ARCHITECTURE.md` v3.9 — updated for the validated/integrated Wave 6 live agentic composition, durable worker dispatch binding and private selected-candidate replay artifact boundary.
+- `DESIGN-SYSTEM.md` v3.1 — unchanged; W6-R1 changes no durable product visual or interaction-language contract.
+- `CURRENT-STATE.md` — updated after exact W6-R1 worker gates, integration merge and fresh cumulative integration-head validation to distinguish validated/integrated from deployed/deployment-verified state.
 
-Wave 6 remains not deployed. Safe deletion corrective code is serving in production; final feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target.
+Wave 6 is validated and integrated through W6-R1 at `07f45319d166d52298b2b056cdab4c48c1accf25` but remains undeployed. Safe deletion corrective code is serving in production; final safe-deletion feature acceptance remains deliberately open until authenticated post-cutover deletion behavior is exercised against a disposable test target. The next Wave 6 step is a separately governed production-release candidate and verification sequence.
