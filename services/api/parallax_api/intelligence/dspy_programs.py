@@ -7,6 +7,14 @@ from typing import Any, Protocol
 from .protected_metrics import evaluate_reasoning_output
 
 
+_GATEWAY_CREDENTIAL_ENV = (
+    "AI_GATEWAY_API_KEY",
+    "VERCEL_AI_GATEWAY_API_KEY",
+    "VERCEL_OIDC_TOKEN",
+)
+_GATEWAY_MODEL_PREFIX = "vercel_ai_gateway/"
+
+
 @dataclass(frozen=True)
 class ReasoningResult:
     answer: str
@@ -30,19 +38,63 @@ def _local_development() -> bool:
     return os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1"
 
 
+def _has_explicit_dspy_override() -> bool:
+    """Treat even an explicitly empty DSPY key as an intentional endpoint override."""
+
+    return "DSPY_API_BASE" in os.environ or "DSPY_API_KEY" in os.environ
+
+
+def _gateway_api_key() -> str | None:
+    """Resolve only server-owned Gateway credentials in deterministic precedence order."""
+
+    for name in _GATEWAY_CREDENTIAL_ENV:
+        value = os.getenv(name)
+        if value:
+            return value
+    return None
+
+
+def _gateway_transport_model(model: str) -> str:
+    """Map current hosted OpenAI models to LiteLLM's Vercel AI Gateway provider."""
+
+    if model.startswith(_GATEWAY_MODEL_PREFIX):
+        return model
+    if model.startswith("openai/"):
+        return f"{_GATEWAY_MODEL_PREFIX}{model}"
+    return model
+
+
 def build_lm(model: str):
-    """Build a DSPy LM without coupling programs to one provider."""
+    """Build a DSPy LM while keeping canonical model identity separate from transport.
+
+    Explicit DSPY endpoint settings are operator/development authority and win
+    over automatic routing. Otherwise a hosted Vercel deployment (or an
+    explicitly configured Gateway API key) uses Vercel AI Gateway. The caller's
+    canonical model string is never mutated outside this construction boundary.
+    """
 
     dspy = _dspy()
     api_base = os.getenv("DSPY_API_BASE")
     api_key = os.getenv("DSPY_API_KEY")
     model_type = os.getenv("DSPY_MODEL_TYPE")
+    explicit_override = _has_explicit_dspy_override()
 
+    transport_model = model
     kwargs: dict[str, object] = {}
-    if api_base:
-        kwargs["api_base"] = api_base
-    if api_key is not None:
-        kwargs["api_key"] = api_key
+
+    if explicit_override:
+        if api_base:
+            kwargs["api_base"] = api_base
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+    else:
+        gateway_key = _gateway_api_key()
+        if gateway_key is not None:
+            gateway_model = _gateway_transport_model(model)
+            if gateway_model != model or model.startswith(_GATEWAY_MODEL_PREFIX):
+                transport_model = gateway_model
+                kwargs["api_key"] = gateway_key
+
     if model_type:
         kwargs["model_type"] = model_type
     if _local_development():
@@ -52,7 +104,7 @@ def build_lm(model: str):
         kwargs["temperature"] = 0.15
         kwargs["max_tokens"] = 384
         kwargs["num_retries"] = 1
-    return dspy.LM(model, **kwargs)
+    return dspy.LM(transport_model, **kwargs)
 
 
 _PLAN_LIMITS = {
