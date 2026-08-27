@@ -2,7 +2,7 @@
 
 Date: 2026-08-27
 
-Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S5 ACCEPTED AND INTEGRATED / CURRENT PRODUCTION MAIN SYNCHRONIZED / CUMULATIVE S1-S5 CHECKPOINT ACCEPTED / WAVE 6 NOT DEPLOYED / S6 SPEC-FIRST WORK AUTHORIZED / S6 SEMANTIC IMPLEMENTATION BLOCKED PENDING APPROVED SPEC + AUTHENTIC DSPY EVIDENCE**
+Status: **WAVE 5 PRODUCTION BASELINE RETAINED / MOBILE #261/#262 PRODUCTION-VERIFIED / RESPONSE-STREAM #271/#272 PRODUCTION-VERIFIED / P2-V0.18.10 MODEL-TRANSPORT STABILIZATION RETAINED / SAFE DELETION CORRECTIVE P2-V0.18.12 PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED / FINAL SAFE-DELETION ACCEPTANCE PENDING AUTHENTICATED POST-CUTOVER SMOKE / CLIENT READY / API READY / WAVE 6 CONTROL #263 ACTIVE / S1-S6 ACCEPTED AND INTEGRATED / CUMULATIVE S1-S6 CHECKPOINT VALIDATED / WAVE 6 NOT DEPLOYED / RELEASE AUDIT FOUND LIVE RUNTIME-ACTIVATION GAP / #304 P2-V0.19.7 SPEC-FIRST CLOSURE ACTIVE / PRODUCTION PROMOTION BLOCKED PENDING RUNTIME ACTIVATION + RELEASE PROOF**
 
 ## Current production truth
 
@@ -12,7 +12,9 @@ Safe conversation/Project deletion originated in #290 / PR #291 and is present i
 
 The corrective release is **production-deployed and infrastructure-verified but not yet accepted as fully deployment-verified feature behavior** because the final authenticated post-cutover deletion smoke cannot be executed by the available connector without an application user session. No destructive smoke will be performed against real user content merely to manufacture release evidence.
 
-Wave 6 S1-S5 remain accepted development architecture and are **not** production deployments. Control Tower PR #298 reconciled accepted S1-S5 head `9fe751a96ec050545abdcfbb016c668cd4c7336f` with current production `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`. The final conflict-resolved and record-reconciled candidate `f8b5bcd9b40f13777c16e3d323030b814dc4fa86` passed fresh cumulative exact-head validation and was advanced without force to `integration/wave6-agentic-control-plane`. Validation-only PR #299 was closed without merge to `main`; production remains unchanged.
+Wave 6 S1-S6 are accepted development architecture and are **not** production deployments. The production-synchronized S1-S5 checkpoint was extended by accepted S6 worker head `75d6a51f8d014e70772a54f032370ead64c965bb`, merged through PR #300 into `integration/wave6-agentic-control-plane` as `01dda9f0328ca3f6ce2cf31f9c236c4603cef638`. Exact worker gates Workstream #485, Bounded Autonomy #692 and P2 CI #1096 passed, followed by fresh cumulative integration-head Workstream #486, Bounded Autonomy #693 and P2 CI #1097. Temporary validation PR #302 was closed without merge to `main`; production remains unchanged.
+
+Whole-product release audit then found a material activation gap: the Wave 6 delta provides accepted S1-S6 protocols/decision layers/reference proof, but ordinary `EngineeringRuntimeComposition` / `AutonomyCoordinator` does not yet invoke the S1-S5 agentic control plane during a normal build. Shipping that state would deploy validated primitives without fulfilling the operator-facing Wave 6 runtime objective. Control Tower therefore opened #304 / `P2-V0.19.7` as a required runtime-activation release closure. No Wave 6 production promotion is authorized until that closure is integrated and release-qualified.
 
 ### Safe-deletion release identity
 
@@ -146,20 +148,25 @@ Control Tower #215 completed generalized application delivery through #216-#221 
 
 Control Tower: #263.  
 Authoritative integration branch: `integration/wave6-agentic-control-plane`.  
-Accepted S1-S5 functional integration head before production-baseline synchronization: `9fe751a96ec050545abdcfbb016c668cd4c7336f`.  
-Accepted cumulative production-synchronized S1-S5 checkpoint: `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`.  
-Conflict-resolved cumulative synchronization PR: #298 — **MERGED TO INTEGRATION ONLY**.  
-Validation-only PR #299: **CLOSED WITHOUT MERGE TO MAIN**.  
-Current production baseline included by the checkpoint: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
+Current accepted S1-S6 integration head: `01dda9f0328ca3f6ce2cf31f9c236c4603cef638`.  
+Current production baseline: `main@a455b223ad4707aa7fe2ccd3470a5e7640c40da2`.  
 Wave 6 production deployment: **none**.
 
-Cumulative checkpoint evidence on exact `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`:
+### Accepted cumulative S1-S6 evidence
 
-- Parallax Workstream Spec Validation #475 / run `33102583272` — **PASS**;
-- Bounded Autonomy Pilot #682 / run `33102569123` — **PASS**;
-- Parallax P2 CI #1086 / run `33102583280` — **PASS**;
-- tree comparison against current `main` showed only accepted Wave 6 S1-S5 paths beyond production;
-- integration ref advancement was a non-force fast-forward to the exact validated checkpoint.
+- accepted production-synchronized S1-S5 checkpoint: `f8b5bcd9b40f13777c16e3d323030b814dc4fa86`;
+- S6 authorized record parent: `fed6662c0d7d228b714c31237ec5088076b9a2aa`;
+- S6 exact validated worker head: `75d6a51f8d014e70772a54f032370ead64c965bb`;
+- S6 canonical PR #300: **MERGED TO INTEGRATION ONLY**;
+- resulting cumulative integration head: `01dda9f0328ca3f6ce2cf31f9c236c4603cef638`;
+- S6 worker Workstream Spec Validation #485 — **PASS**;
+- S6 worker Bounded Autonomy Pilot #692 — **PASS**;
+- S6 worker Parallax P2 CI #1096 — **PASS**;
+- cumulative integration Workstream Spec Validation #486 — **PASS**;
+- cumulative integration Bounded Autonomy Pilot #693 — **PASS**;
+- cumulative integration Parallax P2 CI #1097 — **PASS**;
+- temporary main-targeted validation PR #302: **CLOSED WITHOUT MERGE**;
+- long-lived PR #275 remains **DRAFT / DO NOT MERGE** and is not a production release candidate.
 
 Accepted/integrated semantic state:
 
@@ -169,11 +176,15 @@ Accepted/integrated semantic state:
 4. #267 / S4 Outcome Routing & Development Economics — **COMPLETE / ACCEPTED / INTEGRATED**;
 5. #281 repository source-tree capacity prerequisite — **COMPLETE / ACCEPTED / INTEGRATED**;
 6. #268 / S5 Candidate Competition & Synthesis — **COMPLETE / ACCEPTED / INTEGRATED**;
-7. #269 / S6 Agentic Development Integrated Reference Proof — **SPEC-FIRST ENTRY AUTHORIZED** from the accepted cumulative checkpoint. Semantic implementation remains blocked until `P2-V0.19.6` validates with stable acceptance IDs, authentic DSPy SpecCritic + SpecCompiler evidence is committed, the protected `--require-dspy` plan gate passes, temporary development-workflow changes are restored, and Control Tower explicitly releases the semantic-development gate.
+7. #269 / S6 Agentic Development Integrated Reference Proof — **COMPLETE / ACCEPTED / INTEGRATED**.
 
-The production-baseline synchronization was manually conflict-resolved because direct `main` -> integration PR #297 was not mergeable. The accepted tree preserves all accepted S1-S5 implementation/test/spec/compiled-plan paths while overlaying current production changes and production-authoritative records. This whole-product composition is now the governed S6 starting dependency baseline.
+### Release-closure decision — #304 / P2-V0.19.7
 
-PR #275 remains the long-lived DRAFT / DO NOT MERGE integration-validation surface. PR #297 is closed as superseded. Safe-deletion/model-transport production changes incorporated into the integration branch do not deploy or activate Wave 6 code.
+After S1-S6 integration, a whole-product audit compared the accepted Wave 6 objective with the actual integration diff and live runtime composition. The accepted Wave 6 production-code delta adds the agent protocol, team orchestration, independent judgment, routing/economics, competition/synthesis and integrated reference proof, but does not modify the ordinary `EngineeringRuntimeComposition`, `AutonomyCoordinator` or `ProtectedImplementationRuntime` path to invoke those decisions for a normal Engineering Run.
+
+That gap is material: deploying `01dda9f...` would make the primitives importable and validated but would not make the normal Parallax build flow automatically select/manage one or more agents. Control Tower therefore treats Wave 6 as **integrated but not production-release-qualified**.
+
+#304 / `W6-R1` / `P2-V0.19.7` is the required closure workstream. Its branch is `p2/w6-runtime-activation`, based exactly on `01dda9f0328ca3f6ce2cf31f9c236c4603cef638`. It is spec-first and must activate the accepted S1-S5 decision plane inside the existing single-writer protected Engineering Run/source-lineage/BUILD/TEST/VERIFY/Preview/REVIEW path without inventing a second authority path. Production promotion remains blocked until #304 is validated, accepted, integrated, record-reconciled and separately release-verified.
 
 ## Rollback
 
