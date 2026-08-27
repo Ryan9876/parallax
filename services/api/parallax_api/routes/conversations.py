@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -73,6 +73,12 @@ def list_conversations(svc: ConversationService = Depends(service)):
 @router.get("/{conversation_id}", response_model=ConversationRead)
 def get_conversation(conversation_id: str, svc: ConversationService = Depends(service)):
     return svc.get(conversation_id)
+
+
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(conversation_id: str, svc: ConversationService = Depends(service)):
+    svc.delete(conversation_id)
+    return None
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageRead)
