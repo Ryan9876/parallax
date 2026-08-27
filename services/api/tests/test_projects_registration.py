@@ -8,3 +8,4 @@ def test_projects_router_is_registered_on_api_composition_root():
     assert ("/v1/projects", ("POST",)) in routes
     assert ("/v1/projects", ("GET",)) in routes
     assert ("/v1/projects/{project_id}", ("GET",)) in routes
+    assert ("/v1/projects/{project_id}", ("DELETE",)) in routes

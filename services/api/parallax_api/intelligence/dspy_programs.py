@@ -1,10 +1,30 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
+import logging
 import os
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 from .protected_metrics import evaluate_reasoning_output
+
+
+_GATEWAY_API_BASE = "https://ai-gateway.vercel.sh/v1"
+_GATEWAY_CREDENTIAL_ENV = (
+    "AI_GATEWAY_API_KEY",
+    "VERCEL_AI_GATEWAY_API_KEY",
+)
+_GATEWAY_MODEL_PREFIX = "vercel_ai_gateway/"
+_REQUEST_GATEWAY_CREDENTIAL: ContextVar[str | None] = ContextVar(
+    "parallax_request_gateway_credential",
+    default=None,
+)
+logger = logging.getLogger(__name__)
+
+
+class ModelTransportConfigurationError(RuntimeError):
+    """Sanitized failure establishing the server-owned model transport boundary."""
 
 
 @dataclass(frozen=True)
@@ -30,19 +50,85 @@ def _local_development() -> bool:
     return os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1"
 
 
+def _production_runtime() -> bool:
+    return os.getenv("VERCEL_ENV") == "production"
+
+
+def _has_explicit_dspy_override() -> bool:
+    """Treat even an explicitly empty DSPY key as an intentional endpoint override."""
+
+    return "DSPY_API_BASE" in os.environ or "DSPY_API_KEY" in os.environ
+
+
+def _gateway_api_key() -> str | None:
+    """Resolve bounded non-request Gateway credentials; build-time OIDC is excluded."""
+
+    for name in _GATEWAY_CREDENTIAL_ENV:
+        value = os.getenv(name)
+        if value:
+            return value
+    return None
+
+
+@contextmanager
+def request_model_gateway_credential(credential: str | None) -> Iterator[None]:
+    """Bind one already-validated request credential to downstream DSPy construction.
+
+    The opaque credential is request-local only. ContextVar propagation reaches
+    `asyncio.to_thread` / AnyIO worker execution while reset prevents credential
+    reuse by a later request. Validation of Vercel's request OIDC shape remains
+    owned by the existing `runtime_vercel_oidc_token` boundary.
+    """
+
+    if credential is not None and (not isinstance(credential, str) or not credential):
+        raise ModelTransportConfigurationError("request model gateway credential is invalid")
+    token = _REQUEST_GATEWAY_CREDENTIAL.set(credential)
+    try:
+        yield
+    finally:
+        _REQUEST_GATEWAY_CREDENTIAL.reset(token)
+
+
 def build_lm(model: str):
-    """Build a DSPy LM without coupling programs to one provider."""
+    """Build a DSPy LM with canonical identity and a bounded transport boundary.
+
+    Explicit DSPY endpoint settings remain deliberate operator/development
+    authority and win first. Production request-scoped OIDC is admitted only by
+    the request boundary and is then sent to Vercel's OpenAI-compatible AI
+    Gateway endpoint without rewriting the canonical `openai/...` model ID.
+
+    Process-environment `VERCEL_OIDC_TOKEN` is deliberately ignored: Vercel
+    Functions use request-scoped OIDC and the build-time token is not runtime
+    authority. Production cannot silently fall back to direct OpenAI.
+    """
 
     dspy = _dspy()
     api_base = os.getenv("DSPY_API_BASE")
     api_key = os.getenv("DSPY_API_KEY")
     model_type = os.getenv("DSPY_MODEL_TYPE")
+    explicit_override = _has_explicit_dspy_override()
 
     kwargs: dict[str, object] = {}
-    if api_base:
-        kwargs["api_base"] = api_base
-    if api_key is not None:
-        kwargs["api_key"] = api_key
+
+    if explicit_override:
+        if api_base:
+            kwargs["api_base"] = api_base
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+    else:
+        if model.startswith(_GATEWAY_MODEL_PREFIX):
+            raise ModelTransportConfigurationError("canonical Parallax model identity is required")
+
+        request_gateway_key = _REQUEST_GATEWAY_CREDENTIAL.get()
+        if _production_runtime() and model.startswith("openai/") and request_gateway_key is None:
+            raise ModelTransportConfigurationError("production model gateway credential is unavailable")
+
+        gateway_key = request_gateway_key if request_gateway_key is not None else _gateway_api_key()
+        if gateway_key is not None and model.startswith("openai/"):
+            kwargs["api_base"] = _GATEWAY_API_BASE
+            kwargs["api_key"] = gateway_key
+            logger.info("parallax_model_transport transport=vercel_ai_gateway model=%s", model)
+
     if model_type:
         kwargs["model_type"] = model_type
     if _local_development():

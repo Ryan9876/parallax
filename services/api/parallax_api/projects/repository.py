@@ -6,7 +6,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..models import EngineeringRun, utcnow
 from .model import Project
+
+
+def terminal_run_states() -> frozenset[str]:
+    # Import lazily because parallax_api.code exports EngineeringRunService,
+    # which itself composes ProjectRepository during package initialization.
+    from ..code.domain import TERMINAL_STAGES
+
+    return frozenset(stage.value for stage in TERMINAL_STAGES)
 
 
 class ProjectConflictError(RuntimeError):
@@ -49,7 +58,10 @@ class ProjectRepository:
     def list_for_owner(self, owner_subject: str) -> list[Project]:
         statement = (
             select(Project)
-            .where(Project.owner_subject == owner_subject)
+            .where(
+                Project.owner_subject == owner_subject,
+                Project.deleted_at.is_(None),
+            )
             .order_by(Project.created_at.asc(), Project.id.asc())
         )
         return list(self.session.scalars(statement).all())
@@ -58,5 +70,24 @@ class ProjectRepository:
         statement = select(Project).where(
             Project.id == project_id,
             Project.owner_subject == owner_subject,
+            Project.deleted_at.is_(None),
         )
         return self.session.scalar(statement)
+
+    def has_nonterminal_run(self, project_id: str) -> bool:
+        statement = (
+            select(EngineeringRun.id)
+            .where(
+                EngineeringRun.project_id == project_id,
+                EngineeringRun.state.notin_(terminal_run_states()),
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement) is not None
+
+    def soft_delete(self, project: Project) -> None:
+        project.status = "deleted"
+        project.deleted_at = utcnow()
+        project.updated_at = project.deleted_at
+        self.session.add(project)
+        self.session.commit()

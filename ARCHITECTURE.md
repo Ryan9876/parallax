@@ -1,6 +1,6 @@
 # Parallax 2.0 Architecture
 
-Version: 3.4
+Version: 3.7
 Status: Authoritative
 
 ## System shape
@@ -31,6 +31,7 @@ FastAPI intelligence service
   ├─ bounded development-team orchestration
   ├─ independent evaluation + quality evidence
   ├─ bounded outcome routing + development economics
+  ├─ bounded candidate competition + synthesis evidence
   ├─ conversation + Work Specification persistence
   ├─ Engineering Run kernel + bounded autonomy coordinator
   ├─ durable worker execution / lease / checkpoint / recovery
@@ -68,12 +69,13 @@ FastAPI intelligence service
           │               └─ Wave 4 run events only after explicit migration + activation
           │
           └────────────► bounded provider plane
+                          ├─ request-scoped Vercel OIDC → Vercel AI Gateway for hosted model traffic
                           ├─ Vercel Connect → short-lived GitHub App credential
                           ├─ GitHub branch/commit/PR publication
                           └─ project-scoped Vercel Preview deployment
 ```
 
-Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S4 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
+Wave 3 remains the deployment-verified app-builder execution architecture at the pre-production Wave 4 release boundary. Wave 4 Live Build/Observability source is integrated but production run-event persistence and protected observation remain explicitly migration/activation gated until release evidence records otherwise. Wave 5 generalized application delivery is deployment-verified. Wave 6 S1-S5 are accepted on the governed Wave 6 integration branch but are not production deployments. Preview publication remains the ordinary autonomous provider ceiling; production merge/promotion remains outside ordinary autonomous Project execution.
 
 ## Core trust boundaries
 
@@ -100,6 +102,8 @@ Project, conversation, Work Specification, Engineering Run, worker state, Reason
 
 Provider authority is resolved only after canonical authenticated Project resolution. Repository identity, connector identity, Preview target identity and credentials are server-owned registrations. Models and clients cannot provide arbitrary provider endpoints, tokens, repositories or deployment projects.
 
+Hosted production model transport is also server-owned. A validated request-scoped Vercel runtime OIDC token may authenticate an OpenAI-compatible request to the fixed Vercel AI Gateway endpoint, but the token does not become generic model, network, tool or deployment authority. Model identity, escalation order, endpoint selection and credential admission remain bounded Parallax policy.
+
 ## Identity and access architecture
 
 Google/Supabase proves interactive identity. Parallax decides application authorization through the server-owned `authorized_users` allowlist.
@@ -119,6 +123,18 @@ RLS remains enabled on server-owned hosted tables where required and direct `ano
 Conversation and Engineering Run Project binding use the canonical Project ID. Existing historical rows may remain unbound where migration policy intentionally preserved prior state; new protected Code execution requires canonical Project binding.
 
 No client, model, provider or execution adapter may create a competing durable Project identity for an already resolved Project.
+
+## Governed workspace deletion and retention
+
+User-visible deletion is a logical workspace-lifecycle operation, not an audit/evidence purge. `Conversation.deleted_at` and `Project.deleted_at` tombstone an item out of active reads while retaining the durable row needed to preserve protected provenance and historical evidence.
+
+A conversation may be deleted only when no non-terminal Engineering Run is bound to it. A Project may be deleted only when no non-terminal Engineering Run is bound to the Project. Both guards derive terminality from the protected Engineering Run `TERMINAL_STAGES` contract rather than a deletion-specific lifecycle list: `COMPLETE`, `SPEC_AMENDMENT` and `CANCELLED` are terminal; `FAILED` and every other state outside that contract remain non-terminal. These checks are server-owned and fail closed with conflict rather than letting client state hide live work.
+
+Deleting a Project removes that Project and its bound conversations from active Project/conversation surfaces. It does not delete Engineering Runs, attempts, run events, Work Specification evidence, accepted source-lineage records/objects or immutable provider/evaluation evidence. It also never deletes the linked GitHub repository, pull requests, Vercel deployments or other external provider resources.
+
+Project slug and repository identities are unique only among non-deleted Projects. A tombstoned Project therefore does not permanently reserve an owner-local slug/repository identity; a later replacement Project receives a new canonical `Project.id` and cannot inherit the deleted Project's run/source authority merely by reusing human-readable identity.
+
+Deletion remains inside the existing authenticated FastAPI boundary. Project deletion and Project-bound conversation deletion are owner-scoped through canonical Project ownership and fail closed across owners. Historical unbound conversations retain compatibility read visibility because those rows predate canonical Project ownership, but that read visibility is not destructive authority: deleting an unbound historical conversation requires application `owner` role. The correction does not invent a separate per-conversation ownership model.
 
 ## Work Specification and execution binding
 
@@ -315,6 +331,18 @@ Routing decisions are fingerprinted over the exact context, policy, strategies a
 
 S4 was deliberately re-homed into the existing optimization-controller/test surfaces after final validation exposed the protected 512-entry repository-tree ceiling. The accepted correction preserved that fail-closed provider/source projection bound rather than weakening it. S5 may consume S4 only as accepted routing/outcome evidence and must independently preserve candidate lineage, validation and evaluator authority boundaries.
 
+## Wave 6 candidate competition and synthesis
+
+Wave 6 S5 extends the existing optimization controller with selective, bounded competition between already-admissible implementation candidates. It is accepted on the governed Wave 6 integration branch and remains an evidence/decision layer; it does not create source-lineage, provider, spending, Engineering Run, approval, merge/deploy or REVIEW authority.
+
+Competition is invoked only under immutable server-owned policy when accepted S2/S3/S4 evidence justifies the added bounded cost/time. Each candidate is isolated by exact canonical Project/run/Work Specification identity, stable acceptance IDs, exact candidate/source-lineage identity, producer identity, deterministic-validation evidence, independent-evaluator identity/policy and admitted routing/economic evidence. Candidate declarations, agent confidence, votes or low cost cannot substitute for those bindings.
+
+Protected deterministic validation is authoritative before comparison. A deterministically failed, stale, cross-Project, policy-mismatched or insufficiently evaluated candidate is ineligible regardless of qualitative score, agent recommendation or economic advantage. S3 evidence used for comparison must remain structurally independent from the candidate producer and bind the exact candidate/evaluator policy.
+
+Winner selection is deterministic, provenance-bound and replayable under exact competition/routing/evaluator policy versions. Candidate, attempt, synthesis, elapsed-time, cost and no-progress behavior are bounded. Exhaustion resolves to a bounded safe fallback, no-selection or `HUMAN_REQUIRED`, not unbounded alternative generation.
+
+Synthesis never splices unvalidated fragments directly into canonical lineage. A synthesis request produces a distinct candidate identity/source lineage that must pass fresh exact-lineage BUILD/TEST/VERIFY, protected deterministic validation and fresh independent evaluation before it can become eligible for comparison. Competition records and their safe downstream S6 projection expose bounded evidence only and confer no canonical acceptance authority.
+
 ## Project-scoped tool authority
 
 The tool layer defines immutable typed capabilities, authority requests, approvals, decisions, results and audit records. A server-owned registry is authoritative. Model/user input cannot create or widen capabilities.
@@ -387,7 +415,7 @@ Privacy filtering occurs before transport. Credential-like excerpts, bearer/priv
 
 SQLAlchemy 2 supports SQLite development and PostgreSQL hosted environments through `DATABASE_URL`. Production uses the dedicated Parallax Supabase PostgreSQL project. Schema evolution is migration-driven under `services/api/migrations`; production startup performs no implicit DDL.
 
-Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads.
+Active production durable schema includes conversations, messages, work specifications, engineering runs, engineering attempts, engineering worker executions, authorized users, projects, source lineage manifests and source lineage heads. Conversation and Project rows carry nullable `deleted_at` tombstones; active reads exclude tombstoned rows and conversations bound to tombstoned Projects. Owner-local Project slug/repository uniqueness is enforced by partial unique indexes over active rows only.
 
 `engineering_run_events` is a Wave 4 optional observation schema and is not considered active production persistence until its migration and activation gate are both completed.
 
@@ -405,6 +433,10 @@ Runtime model escalation order remains:
 2. `openai/gpt-5.6-terra`
 3. `openai/gpt-5.6-sol`
 
+For hosted production model traffic, canonical model IDs remain unchanged while transport is explicit: an admitted request-scoped Vercel runtime OIDC token is supplied to the OpenAI-compatible Vercel AI Gateway endpoint `https://ai-gateway.vercel.sh/v1`. Process-environment `VERCEL_OIDC_TOKEN` is not production model-provider authority. Deliberate server-owned `DSPY_API_BASE` / `DSPY_API_KEY` configuration remains the explicit override path. Without an admitted request OIDC token or such an explicit override, production model construction fails closed; it does not silently fall back to direct OpenAI.
+
+Request-scoped OIDC is propagated only through bounded request context into downstream DSPy construction for conversation scope/reason, Work Specification drafting and protected implementation generation. Credentials are excluded from prompts, traces, persisted evidence, client payloads, source packages and sandboxes. Operational logs may record sanitized transport/model identity such as `transport=vercel_ai_gateway` and the canonical model ID, but never the credential.
+
 DSPy operates in development specification compilation. Promotion validates the committed compiled plan and protected acceptance map deterministically; stochastic regeneration is not itself a promotion oracle.
 
 ## Deployment topology
@@ -418,7 +450,7 @@ Two authoritative Vercel projects deploy from the same repository:
 
 The Vercel Sandbox execution plane, private Blob store and Vercel Connect connectors are runtime infrastructure, not additional long-lived Parallax application deployments.
 
-Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover; production readiness then independently verifies the request-scoped runtime Connect exchange.
+Release promotion requires exact-head CI, relevant Preview evidence, migration readiness, production prerequisite verification, exact production deployment SHA, health/readiness/auth-boundary checks, runtime-error inspection and evidence-based state recording. For the Parallax API, production build preflights verify provider scope, bounded projected source, private Blob/durable lineage and the production runtime-bootstrap composition before cutover; production readiness then independently verifies the request-scoped runtime Connect exchange. Model-routing releases additionally require an authenticated exact-deployment request that exercises the hosted model path and verifies sanitized provider-transport evidence after cutover.
 
 A green Preview is not production deployment evidence. Production-only preflights do not replace post-deploy smoke/observability checks.
 
@@ -439,10 +471,14 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - no approved Work Specification: block Code activation;
 - Project lookup outside authenticated owner scope: fail as not found;
 - Project/spec/run/source-lineage mismatch: block protected progress;
+- conversation/Project deletion with a non-terminal Engineering Run: return conflict and preserve the active item/evidence;
+- historical unbound conversation deletion by a non-owner principal: return forbidden and mutate nothing while preserving compatibility read visibility;
+- deletion of a tombstoned conversation/Project through active read scope: resolve as not found rather than reviving hidden state;
 - agent task/result/checkpoint binding mismatch, stale/revoked attempt or competing terminal evidence: reject agent evidence and advance no canonical authority;
 - team graph cycle, impossible capability coverage, unsafe coordination overlap or orchestration bound exhaustion: fail closed or return bounded HUMAN_REQUIRED evidence; do not create unbounded agents or parallelism;
 - evaluator self-identity, policy drift, deterministic validation failure, insufficient/mismatched/cross-Project evidence or competing replay record: reject/normalize to the bounded S3 failure outcome; never synthesize support;
 - routing context/policy/dependency drift, deterministic/S3 rejection, untrusted/stale/invalid/cross-Project economic evidence or contradictory routing records: exclude the affected strategy before economics and return bounded fallback, insufficient evidence, policy rejection or HUMAN_REQUIRED; never optimize around a protected failure;
+- competition context/policy/candidate drift, deterministic candidate failure, producer/evaluator identity conflict, stale or ineligible routing evidence, cross-Project evidence, unvalidated synthesis or replay conflict: disqualify the affected candidate or stop with bounded fallback/no-selection/HUMAN_REQUIRED; never manufacture a winner;
 - durable lineage unavailable or compare-and-swap stale: accept no mutation;
 - transient private-Blob transport failure: retry only within the bounded adapter policy, then fail as object-store/write failure rather than escaping raw transport errors;
 - invalid source patch or workspace escape: mutate nothing and return bounded failure evidence;
@@ -456,6 +492,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 - capability unknown/disabled/mismatched/unapproved: deny before provider action;
 - provider target/credential/repository mismatch: fail before mutation;
 - missing/invalid production request OIDC or failed runtime Connect exchange/scope verification: fail production readiness and autonomous repository bootstrap without static-credential fallback;
+- missing/invalid production model request OIDC, or failure of the fixed hosted Gateway transport without an explicit server override: fail the model request; never silently select direct OpenAI;
 - malformed connector wire identity or production provider/source/durability/bootstrap preflight failure: fail the candidate production build before cutover;
 - provider failure: return `FAILED`, never `SUCCEEDED`;
 - replay of an already accepted exact provider action: resolve durable delivery rather than duplicate mutation;
@@ -469,7 +506,7 @@ Source-integrated future-wave code must not be treated as deployed/active merely
 
 No provider secret, production root secret or Vercel execution credential is shipped to the client or sandbox process.
 
-User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, routing/economic policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, protected evaluation, run-event activation or deployment state.
+User/model/agent/evaluator content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, filesystem root, accepted source lineage, worker ownership/generation/checkpoint authority, deterministic validation precedence, team-orchestration policy, evaluator policy, routing/economic policy, competition/synthesis policy, correction/LKG policy, tool capabilities, executable commands, registered provider targets, hosted model endpoints/credentials, protected evaluation, run-event activation or deployment state.
 
 Major trust boundaries are:
 
@@ -487,12 +524,14 @@ Major trust boundaries are:
 12. server-owned bounded development-team eligibility/dependency/coordination/reassignment policy;
 13. independent evaluator identity plus exact server-owned evaluator policy and deterministic-validation precedence;
 14. server-owned outcome-routing eligibility/economic policy with provenance-bound evidence and non-tradeable correctness floors;
-15. server-owned tool capability registry;
-16. server-owned provider target/credential registry, request-scoped runtime OIDC identity and encoded connector wire contract;
-17. persisted provider action/audit and replay identity;
-18. protected evaluation/promotion policy;
-19. optional non-authoritative run-event projection behind migration + exact activation flag;
-20. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect readiness verification.
+15. server-owned candidate-competition/synthesis policy with exact-lineage isolation and fresh-validation requirements;
+16. server-owned tool capability registry;
+17. server-owned provider target/credential registry, request-scoped runtime OIDC identity, fixed hosted model transport and encoded connector wire contract;
+18. persisted provider action/audit and replay identity;
+19. protected evaluation/promotion policy;
+20. optional non-authoritative run-event projection behind migration + exact activation flag;
+21. governed logical workspace deletion with retained protected evidence, authoritative Engineering Run terminality, owner-scoped destructive authority and external-provider separation;
+22. governed production release authority plus distinct fail-closed build-time provider/source/durability/bootstrap preflights and runtime Connect/model-routing verification.
 
 ## Inherited development-policy architecture
 

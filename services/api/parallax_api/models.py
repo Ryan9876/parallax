@@ -42,6 +42,7 @@ class Conversation(Base):
     status: Mapped[str] = mapped_column(String(40), default="ACTIVE")
     spec_id: Mapped[str] = mapped_column(String(64), default="P2-V0.3.0")
     project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

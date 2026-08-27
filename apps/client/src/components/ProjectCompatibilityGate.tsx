@@ -16,6 +16,7 @@ import {
   type ProjectCompatibilityResolver,
   type ProjectDto,
 } from '../lib/api';
+import { deleteConversation, deleteProject } from '../lib/deletionApi';
 import {
   reconcileProjectSelection,
   requireCanonicalCodeProject,
@@ -29,6 +30,7 @@ type PendingSelection = {
 };
 
 type ActiveBinding = {
+  conversationId: string | null;
   mode: ConversationDto['mode'];
   projectId: string | null;
   status: ConversationDto['project_binding_status'];
@@ -66,15 +68,21 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
   const { width } = useWindowDimensions();
   const compact = width < 760;
   const [projects, setProjects] = React.useState<ProjectDto[]>([]);
+  const [conversations, setConversations] = React.useState<ConversationDto[]>([]);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [historyBusy, setHistoryBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [projectName, setProjectName] = React.useState('');
   const [repositoryRef, setRepositoryRef] = React.useState('');
+  const [confirmProjectId, setConfirmProjectId] = React.useState<string | null>(null);
+  const [confirmConversationId, setConfirmConversationId] = React.useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = React.useState<string | null>(null);
   const [activeBinding, setActiveBinding] = React.useState<ActiveBinding>({
+    conversationId: null,
     mode: 'reason',
     projectId: null,
     status: 'HISTORICAL_UNBOUND',
@@ -118,6 +126,17 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
       setBusy(false);
     }
   }, [commitProjects]);
+
+  const loadConversationHistory = React.useCallback(async () => {
+    setHistoryBusy(true);
+    try {
+      setConversations(await api.listConversations());
+    } catch (cause) {
+      setError(messageFor(cause, 'Conversation history is unavailable.'));
+    } finally {
+      setHistoryBusy(false);
+    }
+  }, []);
 
   const settleSelection = React.useCallback((projectId: string) => {
     if (!projectsRef.current.some((project) => project.id === projectId)) return;
@@ -168,6 +187,7 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
 
   const observeConversation = React.useCallback((conversation: ConversationDto) => {
     const nextBinding: ActiveBinding = {
+      conversationId: conversation.id,
       mode: conversation.mode,
       projectId: conversation.project_id,
       status: conversation.project_binding_status,
@@ -210,16 +230,17 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
   const openSelector = React.useCallback(async () => {
     setOpen(true);
     setCreating(false);
-    if (loadedRef.current) return;
-    try {
-      const preferred = activeBindingRef.current.status === 'PROJECT_BOUND'
-        ? activeBindingRef.current.projectId
-        : null;
-      await loadProjects(preferred, activeBindingRef.current.status !== 'HISTORICAL_UNBOUND');
-    } catch {
-      // Error state is rendered in the selector. Manual refresh remains available.
+    setConfirmProjectId(null);
+    setConfirmConversationId(null);
+    const preferred = activeBindingRef.current.status === 'PROJECT_BOUND'
+      ? activeBindingRef.current.projectId
+      : null;
+    const tasks: Promise<unknown>[] = [loadConversationHistory()];
+    if (!loadedRef.current) {
+      tasks.push(loadProjects(preferred, activeBindingRef.current.status !== 'HISTORICAL_UNBOUND'));
     }
-  }, [loadProjects]);
+    await Promise.allSettled(tasks);
+  }, [loadConversationHistory, loadProjects]);
 
   const createProject = React.useCallback(async () => {
     const name = projectName.trim();
@@ -249,6 +270,38 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
       setBusy(false);
     }
   }, [projectName, repositoryRef, settleSelection]);
+
+  const removeProject = React.useCallback(async (project: ProjectDto) => {
+    if (deletingKey || activeBindingRef.current.projectId === project.id) return;
+    setDeletingKey(`project:${project.id}`);
+    setError('');
+    try {
+      await deleteProject(project.id);
+      const nextProjects = projectsRef.current.filter((item) => item.id !== project.id);
+      commitProjects(nextProjects, null, true);
+      setConversations((current) => current.filter((conversation) => conversation.project_id !== project.id));
+      setConfirmProjectId(null);
+    } catch (cause) {
+      setError(messageFor(cause, 'Project could not be deleted.'));
+    } finally {
+      setDeletingKey(null);
+    }
+  }, [commitProjects, deletingKey]);
+
+  const removeConversation = React.useCallback(async (conversation: ConversationDto) => {
+    if (deletingKey || activeBindingRef.current.conversationId === conversation.id) return;
+    setDeletingKey(`conversation:${conversation.id}`);
+    setError('');
+    try {
+      await deleteConversation(conversation.id);
+      setConversations((current) => current.filter((item) => item.id !== conversation.id));
+      setConfirmConversationId(null);
+    } catch (cause) {
+      setError(messageFor(cause, 'Conversation could not be deleted.'));
+    } finally {
+      setDeletingKey(null);
+    }
+  }, [deletingKey]);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
   const activeProject = projects.find((project) => project.id === activeBinding.projectId) ?? null;
@@ -290,8 +343,8 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
               <View style={styles.selectorHeader}>
                 <View style={styles.selectorHeaderCopy}>
                   <Text style={[styles.kicker, compact && styles.kickerCompact]}>{compact ? 'PROJECT' : 'CODE · PROJECT'}</Text>
-                  <Text style={[styles.selectorTitle, compact && styles.selectorTitleCompact]}>{pendingRef.current ? (compact ? 'Choose a project for Build' : 'Choose a Project for Code') : compact ? 'Choose project' : 'Project for future Code work'}</Text>
-                  <Text style={[styles.selectorCopy, compact && styles.selectorCopyCompact]}>{compact ? 'Choose where future Build work belongs. Parallax keeps the canonical Project binding protected.' : 'Only the canonical Project ID is used. Workspace and repository metadata do not grant execution authority.'}</Text>
+                  <Text style={[styles.selectorTitle, compact && styles.selectorTitleCompact]}>{pendingRef.current ? (compact ? 'Choose a project for Build' : 'Choose a Project for Code') : compact ? 'Projects & history' : 'Projects & conversation history'}</Text>
+                  <Text style={[styles.selectorCopy, compact && styles.selectorCopyCompact]}>{compact ? 'Choose a Project or remove old workspace history. Deletion never removes linked GitHub/Vercel resources or protected engineering evidence.' : 'Choose canonical Project context or remove old Parallax workspace entries. Protected engineering evidence remains retained.'}</Text>
                 </View>
                 {!pendingRef.current ? (
                   <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close Project selector" onPress={() => setOpen(false)} style={styles.closeButton}>
@@ -305,28 +358,113 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
               {busy && !loaded ? <ActivityIndicator color={compact ? palette.teal600 : palette.cyan} size="small" style={styles.spinner} /> : null}
 
               {!creating && projects.length > 0 ? (
-                <ScrollView style={styles.projectList} contentContainerStyle={styles.projectListContent} keyboardShouldPersistTaps="handled">
-                  {projects.map((project) => {
-                    const selected = project.id === selectedProjectId;
-                    return (
-                      <TouchableOpacity
-                        key={project.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Select Project ${project.name}`}
-                        accessibilityState={{ selected, disabled: busy }}
-                        disabled={busy}
-                        onPress={() => settleSelection(project.id)}
-                        style={[styles.projectRow, compact && styles.projectRowCompact, selected && styles.projectRowSelected, compact && selected && styles.projectRowSelectedCompact]}
-                      >
-                        <View style={styles.projectCopy}>
-                          <Text numberOfLines={1} style={[styles.projectName, compact && styles.projectNameCompact]}>{project.name}</Text>
-                          <Text numberOfLines={1} style={[styles.projectMeta, compact && styles.projectMetaCompact]}>{project.repository_ref ?? project.slug}</Text>
+                <View style={styles.managementSection}>
+                  <Text style={[styles.managementLabel, compact && styles.managementLabelCompact]}>PROJECTS</Text>
+                  <ScrollView style={styles.projectList} contentContainerStyle={styles.projectListContent} keyboardShouldPersistTaps="handled">
+                    {projects.map((project) => {
+                      const selected = project.id === selectedProjectId;
+                      const current = activeBinding.projectId === project.id;
+                      const confirming = confirmProjectId === project.id;
+                      const deleting = deletingKey === `project:${project.id}`;
+                      return (
+                        <View key={project.id} style={[styles.projectRow, compact && styles.projectRowCompact, selected && styles.projectRowSelected, compact && selected && styles.projectRowSelectedCompact]}>
+                          <View style={styles.managementMainRow}>
+                            <TouchableOpacity
+                              accessibilityRole="button"
+                              accessibilityLabel={`Select Project ${project.name}`}
+                              accessibilityState={{ selected, disabled: busy }}
+                              disabled={busy}
+                              onPress={() => settleSelection(project.id)}
+                              style={styles.projectSelectButton}
+                            >
+                              <View style={styles.projectCopy}>
+                                <Text numberOfLines={1} style={[styles.projectName, compact && styles.projectNameCompact]}>{project.name}</Text>
+                                <Text numberOfLines={1} style={[styles.projectMeta, compact && styles.projectMetaCompact]}>{project.repository_ref ?? project.slug}</Text>
+                              </View>
+                              <Text style={selected ? [styles.selectedLabel, compact && styles.selectedLabelCompact] : [styles.selectLabel, compact && styles.selectLabelCompact]}>{selected ? 'SELECTED' : 'USE'}</Text>
+                            </TouchableOpacity>
+                            {!current && !pendingRef.current ? (
+                              <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={`Delete Project ${project.name}`}
+                                disabled={Boolean(deletingKey)}
+                                onPress={() => { setError(''); setConfirmProjectId(project.id); setConfirmConversationId(null); }}
+                                style={[styles.smallDeleteButton, compact && styles.smallDeleteButtonCompact]}
+                              >
+                                <Text style={[styles.smallDeleteText, compact && styles.smallDeleteTextCompact]}>Delete</Text>
+                              </TouchableOpacity>
+                            ) : null}
+                          </View>
+                          {confirming ? (
+                            <View style={[styles.confirmPanel, compact && styles.confirmPanelCompact]} accessibilityLiveRegion="polite">
+                              <Text style={[styles.confirmCopy, compact && styles.confirmCopyCompact]}>Delete this Project from Parallax? Bound conversations disappear from active history. GitHub/Vercel resources and protected evidence remain intact.</Text>
+                              <View style={styles.confirmActions}>
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel Project deletion" disabled={deleting} onPress={() => setConfirmProjectId(null)} style={[styles.confirmCancel, compact && styles.confirmCancelCompact]}>
+                                  <Text style={[styles.confirmCancelText, compact && styles.confirmCancelTextCompact]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Confirm delete Project ${project.name}`} disabled={deleting} onPress={() => void removeProject(project)} style={[styles.confirmDelete, compact && styles.confirmDeleteCompact]}>
+                                  <Text style={styles.confirmDeleteText}>{deleting ? 'Deleting…' : 'Delete Project'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ) : null}
                         </View>
-                        <Text style={selected ? [styles.selectedLabel, compact && styles.selectedLabelCompact] : [styles.selectLabel, compact && styles.selectLabelCompact]}>{selected ? 'SELECTED' : 'USE'}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              {!creating && (historyBusy || conversations.length > 0) ? (
+                <View style={styles.managementSection}>
+                  <View style={styles.managementHeadingRow}>
+                    <Text style={[styles.managementLabel, compact && styles.managementLabelCompact]}>RECENT CONVERSATIONS</Text>
+                    {historyBusy ? <ActivityIndicator size="small" color={compact ? palette.teal600 : palette.violet} /> : null}
+                  </View>
+                  <ScrollView style={styles.historyList} contentContainerStyle={styles.historyListContent} keyboardShouldPersistTaps="handled">
+                    {conversations.slice(0, 12).map((conversation) => {
+                      const current = activeBinding.conversationId === conversation.id;
+                      const confirming = confirmConversationId === conversation.id;
+                      const deleting = deletingKey === `conversation:${conversation.id}`;
+                      return (
+                        <View key={conversation.id} style={[styles.historyRow, compact && styles.historyRowCompact]}>
+                          <View style={styles.managementMainRow}>
+                            <View style={styles.historyCopy}>
+                              <Text numberOfLines={1} style={[styles.historyTitle, compact && styles.historyTitleCompact]}>{conversation.title}</Text>
+                              <Text numberOfLines={1} style={[styles.historyMeta, compact && styles.historyMetaCompact]}>{conversation.mode === 'code' ? 'Build' : 'Ask'}{conversation.project_id ? ` · Project ${conversation.project_id.slice(0, 8)}` : ''}</Text>
+                            </View>
+                            {current ? (
+                              <Text style={[styles.currentLabel, compact && styles.currentLabelCompact]}>CURRENT</Text>
+                            ) : (
+                              <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={`Delete conversation ${conversation.title}`}
+                                disabled={Boolean(deletingKey)}
+                                onPress={() => { setError(''); setConfirmConversationId(conversation.id); setConfirmProjectId(null); }}
+                                style={[styles.smallDeleteButton, compact && styles.smallDeleteButtonCompact]}
+                              >
+                                <Text style={[styles.smallDeleteText, compact && styles.smallDeleteTextCompact]}>Delete</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                          {confirming ? (
+                            <View style={[styles.confirmPanel, compact && styles.confirmPanelCompact]} accessibilityLiveRegion="polite">
+                              <Text style={[styles.confirmCopy, compact && styles.confirmCopyCompact]}>Delete this conversation from active history? Protected engineering evidence is retained.</Text>
+                              <View style={styles.confirmActions}>
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel conversation deletion" disabled={deleting} onPress={() => setConfirmConversationId(null)} style={[styles.confirmCancel, compact && styles.confirmCancelCompact]}>
+                                  <Text style={[styles.confirmCancelText, compact && styles.confirmCancelTextCompact]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Confirm delete conversation ${conversation.title}`} disabled={deleting} onPress={() => void removeConversation(conversation)} style={[styles.confirmDelete, compact && styles.confirmDeleteCompact]}>
+                                  <Text style={styles.confirmDeleteText}>{deleting ? 'Deleting…' : 'Delete'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
               ) : null}
 
               {creating ? (
@@ -364,8 +502,8 @@ export function ProjectCompatibilityGate({ children }: { children: React.ReactNo
                 </View>
               ) : (
                 <View style={[styles.selectorActions, compact && styles.selectorActionsCompact]}>
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Refresh Projects" disabled={busy} onPress={() => void loadProjects(selectedRef.current, true).catch(() => undefined)} style={[styles.secondaryButton, compact && styles.secondaryButtonCompact]}>
-                    <Text style={[styles.secondaryButtonText, compact && styles.secondaryButtonTextCompact]}>{busy ? 'REFRESHING…' : 'REFRESH'}</Text>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Refresh Projects and conversation history" disabled={busy || historyBusy} onPress={() => { void loadProjects(selectedRef.current, true).catch(() => undefined); void loadConversationHistory(); }} style={[styles.secondaryButton, compact && styles.secondaryButtonCompact]}>
+                    <Text style={[styles.secondaryButtonText, compact && styles.secondaryButtonTextCompact]}>{busy || historyBusy ? 'REFRESHING…' : 'REFRESH'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity accessibilityRole="button" accessibilityLabel="New Project" disabled={busy} onPress={() => { setError(''); setCreating(true); }} style={[styles.primaryButton, compact && styles.primaryButtonCompact]}>
                     <Text style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>NEW PROJECT</Text>
@@ -418,7 +556,7 @@ const styles = StyleSheet.create({
   selectorPanel: {
     width: '100%',
     maxWidth: 520,
-    maxHeight: '86%',
+    maxHeight: '90%',
     padding: 22,
     borderRadius: 24,
     backgroundColor: 'rgba(17,21,37,0.97)',
@@ -443,21 +581,24 @@ const styles = StyleSheet.create({
   closeTextCompact: { color: palette.charcoal600 },
   errorText: { color: palette.danger, fontSize: 10, lineHeight: 15, marginTop: 13 },
   spinner: { marginTop: 20 },
-  projectList: { maxHeight: 250, marginTop: 16 },
+  managementSection: { marginTop: 16 },
+  managementHeadingRow: { minHeight: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  managementLabel: { color: palette.muted, fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
+  managementLabelCompact: { color: palette.olive700 },
+  projectList: { maxHeight: 210, marginTop: 7 },
   projectListContent: { gap: 7 },
   projectRow: {
     minHeight: 54,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
     borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     backgroundColor: palette.glassSoft,
   },
   projectRowCompact: { minHeight: 58, backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   projectRowSelected: { backgroundColor: palette.indigoWash },
   projectRowSelectedCompact: { backgroundColor: palette.teal100, borderColor: 'rgba(0,132,135,0.22)' },
+  managementMainRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  projectSelectButton: { flex: 1, minWidth: 0, minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
   projectCopy: { flex: 1, minWidth: 0 },
   projectName: { color: palette.text, fontSize: 13, fontWeight: '600' },
   projectNameCompact: { color: palette.charcoal950 },
@@ -467,6 +608,33 @@ const styles = StyleSheet.create({
   selectLabelCompact: { color: palette.teal700 },
   selectedLabel: { color: palette.sage, fontSize: 8, fontWeight: '800', letterSpacing: 0.65 },
   selectedLabelCompact: { color: palette.olive700 },
+  smallDeleteButton: { minHeight: 34, paddingHorizontal: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(196,74,27,0.14)' },
+  smallDeleteButtonCompact: { backgroundColor: palette.rust100 },
+  smallDeleteText: { color: '#E6A78E', fontSize: 8, fontWeight: '800' },
+  smallDeleteTextCompact: { color: palette.rust700 },
+  historyList: { maxHeight: 190, marginTop: 7 },
+  historyListContent: { gap: 6 },
+  historyRow: { minHeight: 50, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 13, backgroundColor: palette.glassSoft },
+  historyRowCompact: { backgroundColor: palette.ivory50, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  historyCopy: { flex: 1, minWidth: 0 },
+  historyTitle: { color: palette.text, fontSize: 11, lineHeight: 15, fontWeight: '600' },
+  historyTitleCompact: { color: palette.charcoal950 },
+  historyMeta: { color: palette.muted, fontSize: 8, lineHeight: 11, marginTop: 3 },
+  historyMetaCompact: { color: palette.charcoal450 },
+  currentLabel: { color: palette.sage, fontSize: 7, fontWeight: '800', letterSpacing: 0.55 },
+  currentLabelCompact: { color: palette.olive700 },
+  confirmPanel: { marginTop: 7, padding: 10, borderRadius: 12, backgroundColor: 'rgba(196,74,27,0.12)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(196,74,27,0.2)' },
+  confirmPanelCompact: { backgroundColor: palette.rust100, borderColor: 'rgba(168,59,23,0.18)' },
+  confirmCopy: { color: palette.textSecondary, fontSize: 9, lineHeight: 14 },
+  confirmCopyCompact: { color: palette.charcoal600 },
+  confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 7, marginTop: 8 },
+  confirmCancel: { minHeight: 34, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  confirmCancelCompact: { backgroundColor: palette.ivory50, borderColor: palette.border },
+  confirmCancelText: { color: palette.textSecondary, fontSize: 8, fontWeight: '800' },
+  confirmCancelTextCompact: { color: palette.charcoal600 },
+  confirmDelete: { minHeight: 34, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600 },
+  confirmDeleteCompact: { backgroundColor: palette.rust600 },
+  confirmDeleteText: { color: palette.ivory50, fontSize: 8, fontWeight: '800' },
   createForm: { gap: 9, marginTop: 17 },
   input: {
     minHeight: 48,
