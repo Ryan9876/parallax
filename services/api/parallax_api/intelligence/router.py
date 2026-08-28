@@ -6,13 +6,14 @@ import logging
 from time import perf_counter
 from typing import Awaitable, Callable, Generic, TypeVar
 
+from .model_routes import HOSTED_MODEL_ORDER, effective_model_order, provider_kind_for_model
+
 T = TypeVar("T")
 
-MODEL_ORDER = (
-    "openai/gpt-5.6-luna",
-    "openai/gpt-5.6-terra",
-    "openai/gpt-5.6-sol",
-)
+# Compatibility constant. Server-owned local-first configuration changes only
+# the effective default route resolved when ModelRouter is constructed without
+# an explicit model tuple.
+MODEL_ORDER = HOSTED_MODEL_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class AttemptRecord:
     status: str
     duration_ms: int
     error: str | None = None
+    provider_kind: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,33 +70,58 @@ ValidatorFn = Callable[[T], bool]
 
 
 class ModelRouter(Generic[T]):
-    def __init__(self, models: tuple[str, ...] = MODEL_ORDER):
-        self.models = models
+    def __init__(self, models: tuple[str, ...] | None = None):
+        self.models = effective_model_order() if models is None else models
 
     async def route(self, attempt: AttemptFn[T], validate: ValidatorFn[T]) -> RouteResult[T]:
         records: list[AttemptRecord] = []
         for model in self.models:
+            provider_kind = provider_kind_for_model(model)
             started = perf_counter()
             try:
                 value = await attempt(model)
                 duration = int((perf_counter() - started) * 1000)
                 if not validate(value):
-                    records.append(AttemptRecord(model, "validation_failed", duration))
+                    records.append(
+                        AttemptRecord(
+                            model=model,
+                            status="validation_failed",
+                            duration_ms=duration,
+                            provider_kind=provider_kind,
+                        )
+                    )
                     logger.warning(
-                        "parallax_model_route validation_failed model=%s duration_ms=%s",
+                        "parallax_model_route validation_failed model=%s provider=%s duration_ms=%s",
                         model,
+                        provider_kind,
                         duration,
                     )
                     continue
-                records.append(AttemptRecord(model, "ok", duration))
+                records.append(
+                    AttemptRecord(
+                        model=model,
+                        status="ok",
+                        duration_ms=duration,
+                        provider_kind=provider_kind,
+                    )
+                )
                 return RouteResult(value=value, model=model, attempts=tuple(records))
             except Exception as exc:  # provider boundary intentionally sanitized here
                 duration = int((perf_counter() - started) * 1000)
                 error_class = type(exc).__name__
-                records.append(AttemptRecord(model, "provider_failed", duration, error_class))
+                records.append(
+                    AttemptRecord(
+                        model=model,
+                        status="provider_failed",
+                        duration_ms=duration,
+                        error=error_class,
+                        provider_kind=provider_kind,
+                    )
+                )
                 logger.warning(
-                    "parallax_model_route provider_failed model=%s error_class=%s duration_ms=%s",
+                    "parallax_model_route provider_failed model=%s provider=%s error_class=%s duration_ms=%s",
                     model,
+                    provider_kind,
                     error_class,
                     duration,
                 )
