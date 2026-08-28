@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import StrEnum
 from hashlib import sha256
 import json
 import math
 import re
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Protocol, Sequence
 from uuid import UUID
 
 from parallax_api.models import EngineeringAttempt, EngineeringRun
+from parallax_api.repositories.worker_executions import EngineeringWorkerExecution
 
-from .run_events import RunEvent
+from .domain import ACTIVE_STAGES, TERMINAL_STAGES, AttemptStatus, WorkflowStage
+from .run_events import RunEvent, RunEventOutcome, RunEventType
+from .service import EngineeringRunService, RunOperationResult
 
 
 _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 _AC_RE = re.compile(r"^AC-[0-9]{2,3}$")
 _ACTION_RE = re.compile(r"^[a-z][a-z0-9_.-]{0,63}$")
 _LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
+_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,159}$")
 _MAX_EVENTS = 512
 _MAX_ATTEMPTS = 256
 _MAX_ACCEPTANCE_IDS = 128
@@ -25,6 +30,10 @@ _MAX_ACCEPTANCE_IDS = 128
 
 class AgentRunProjectionError(ValueError):
     """Fail-closed error for malformed or cross-boundary projection evidence."""
+
+
+class AgentRunControlRejected(AgentRunProjectionError):
+    """Typed control request did not satisfy the current server-owned run contract."""
 
 
 class ProjectionKnownState(StrEnum):
@@ -39,12 +48,24 @@ class ProjectionMetric(StrEnum):
     HUMAN_INTERVENTIONS = "human_interventions"
 
 
+class ProjectionControlKind(StrEnum):
+    PAUSE = "pause"
+    RESUME = "resume"
+    CANCEL = "cancel"
+
+
 class ProjectionControlDenyReason(StrEnum):
     PROJECT_MISMATCH = "PROJECT_MISMATCH"
     RUN_MISMATCH = "RUN_MISMATCH"
     REVISION_MISMATCH = "REVISION_MISMATCH"
     STATE_MISMATCH = "STATE_MISMATCH"
     UNSUPPORTED_CONTROL = "UNSUPPORTED_CONTROL"
+
+
+class DeterministicDisposition(StrEnum):
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    PENDING = "PENDING"
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,22 +80,10 @@ class ProjectionIdentity:
     def __post_init__(self) -> None:
         object.__setattr__(self, "project_id", _uuid(self.project_id, "project_id"))
         object.__setattr__(self, "run_id", _uuid(self.run_id, "run_id"))
-        object.__setattr__(
-            self,
-            "work_specification_id",
-            _uuid(self.work_specification_id, "work_specification_id"),
-        )
-        if (
-            not isinstance(self.work_specification_revision, int)
-            or isinstance(self.work_specification_revision, bool)
-            or self.work_specification_revision < 1
-        ):
+        object.__setattr__(self, "work_specification_id", _uuid(self.work_specification_id, "work_specification_id"))
+        if not isinstance(self.work_specification_revision, int) or isinstance(self.work_specification_revision, bool) or self.work_specification_revision < 1:
             raise AgentRunProjectionError("work_specification_revision must be >= 1")
-        object.__setattr__(
-            self,
-            "work_specification_digest",
-            _sha(self.work_specification_digest, "work_specification_digest"),
-        )
+        object.__setattr__(self, "work_specification_digest", _sha(self.work_specification_digest, "work_specification_digest"))
         object.__setattr__(self, "acceptance_ids", _acceptance_ids(self.acceptance_ids))
 
     @property
@@ -93,86 +102,146 @@ class ProjectionIdentity:
 
 
 @dataclass(frozen=True, slots=True)
-class ProjectedAttempt:
-    attempt_id: str
+class ProjectedTask:
+    task_id: str
     stage: str
     attempt_number: int
     status: str
+    producer_ref: str | None
     failure_code: str | None
-    program_id: str | None
-    tool_id: str | None
+    started_at: str | None
+    completed_at: str | None
 
     @classmethod
-    def from_attempt(cls, attempt: EngineeringAttempt) -> "ProjectedAttempt":
+    def from_attempt(cls, attempt: EngineeringAttempt) -> "ProjectedTask":
+        producer_ref: str | None = None
+        if attempt.tool_id:
+            producer_ref = _optional_bounded(f"tool:{attempt.tool_id}", "producer_ref", 160)
+        elif attempt.program_id:
+            producer_ref = _optional_bounded(f"program:{attempt.program_id}", "producer_ref", 160)
+        elif attempt.model_id:
+            producer_ref = _optional_bounded(f"model:{attempt.model_id}", "producer_ref", 160)
         return cls(
-            attempt_id=_uuid(attempt.id, "attempt_id"),
+            task_id=f"attempt:{_uuid(attempt.id, 'attempt_id')}",
             stage=_bounded(attempt.stage, "stage", 32),
             attempt_number=_positive_int(attempt.attempt_number, "attempt_number"),
             status=_bounded(attempt.status, "status", 32),
+            producer_ref=producer_ref,
             failure_code=_optional_bounded(attempt.failure_code, "failure_code", 120),
-            program_id=_optional_bounded(attempt.program_id, "program_id", 160),
-            tool_id=_optional_bounded(attempt.tool_id, "tool_id", 160),
+            started_at=_utc_iso(attempt.started_at),
+            completed_at=_utc_iso(attempt.completed_at),
         )
 
     def as_dict(self) -> dict[str, object]:
         return {
-            "attempt_id": self.attempt_id,
+            "task_id": self.task_id,
             "stage": self.stage,
             "attempt_number": self.attempt_number,
             "status": self.status,
+            "producer_ref": self.producer_ref,
             "failure_code": self.failure_code,
-            "program_id": self.program_id,
-            "tool_id": self.tool_id,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
         }
 
 
 @dataclass(frozen=True, slots=True)
-class ProjectedEvent:
-    sequence: int
-    event_type: str
-    outcome: str
-    subsystem: str
-    stage: str | None
-    attempt_id: str | None
-    worker_execution_id: str | None
+class RecoveryProjection:
+    execution_id: str | None
+    state: str | None
+    lease_generation: int | None
+    checkpoint_revision: int | None
+    current_step: str | None
     source_lineage_ref: str | None
-    evidence_ref: str | None
-    failure_code: str | None
-    summary: str | None
-    metadata: tuple[tuple[str, object], ...]
-
-    @classmethod
-    def from_event(cls, event: RunEvent) -> "ProjectedEvent":
-        append = event.append
-        return cls(
-            sequence=_positive_int(event.sequence, "event sequence"),
-            event_type=append.event_type.value,
-            outcome=append.outcome.value,
-            subsystem=append.subsystem.value,
-            stage=append.stage,
-            attempt_id=append.attempt_id,
-            worker_execution_id=append.worker_execution_id,
-            source_lineage_ref=append.source_lineage_ref,
-            evidence_ref=append.evidence_ref,
-            failure_code=append.failure_code,
-            summary=append.summary,
-            metadata=tuple(sorted(dict(append.metadata).items())),
-        )
+    last_known_good_lineage_ref: str | None
+    retry_count: int | None
+    no_progress_count: int | None
+    oscillation_count: int | None
+    blocker_code: str | None
+    next_recovery_action: str | None
 
     def as_dict(self) -> dict[str, object]:
         return {
-            "sequence": self.sequence,
-            "event_type": self.event_type,
-            "outcome": self.outcome,
-            "subsystem": self.subsystem,
-            "stage": self.stage,
-            "attempt_id": self.attempt_id,
-            "worker_execution_id": self.worker_execution_id,
+            "execution_id": self.execution_id,
+            "state": self.state,
+            "lease_generation": self.lease_generation,
+            "checkpoint_revision": self.checkpoint_revision,
+            "current_step": self.current_step,
             "source_lineage_ref": self.source_lineage_ref,
-            "evidence_ref": self.evidence_ref,
+            "last_known_good_lineage_ref": self.last_known_good_lineage_ref,
+            "retry_count": self.retry_count,
+            "no_progress_count": self.no_progress_count,
+            "oscillation_count": self.oscillation_count,
+            "blocker_code": self.blocker_code,
+            "next_recovery_action": self.next_recovery_action,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationProjection:
+    stage: str
+    disposition: DeterministicDisposition
+    attempt_id: str | None
+    failure_code: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "stage": self.stage,
+            "disposition": self.disposition.value,
+            "attempt_id": self.attempt_id,
             "failure_code": self.failure_code,
-            "summary": self.summary,
-            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationProjection:
+    evaluation_id: str | None
+    outcome: str | None
+    score_class: str | None
+    source_lineage_ref: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "evaluation_id": self.evaluation_id,
+            "outcome": self.outcome,
+            "score_class": self.score_class,
+            "source_lineage_ref": self.source_lineage_ref,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RoutingProjection:
+    provider: str | None
+    result_code: str | None
+    outcome: str | None
+    source_lineage_ref: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "provider": self.provider,
+            "result_code": self.result_code,
+            "outcome": self.outcome,
+            "source_lineage_ref": self.source_lineage_ref,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryProjection:
+    source_lineage_ref: str | None
+    parent_source_lineage_ref: str | None
+    pull_request_number: int | None
+    preview_deployment_id: str | None
+    preview_status: str | None
+    artifact_ref: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "source_lineage_ref": self.source_lineage_ref,
+            "parent_source_lineage_ref": self.parent_source_lineage_ref,
+            "pull_request_number": self.pull_request_number,
+            "preview_deployment_id": self.preview_deployment_id,
+            "preview_status": self.preview_status,
+            "artifact_ref": self.artifact_ref,
         }
 
 
@@ -215,7 +284,22 @@ class ProjectionMetricEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class AdvertisedProjectionControl:
+    kind: ProjectionControlKind
+    expected_revision: int
+    expected_state: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": self.kind.value,
+            "expected_revision": self.expected_revision,
+            "expected_state": self.expected_state,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectionControlRequest:
+    request_id: str
     project_id: str
     run_id: str
     expected_revision: int
@@ -223,6 +307,7 @@ class ProjectionControlRequest:
     action: str
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "request_id", _reference(self.request_id, "request_id"))
         object.__setattr__(self, "project_id", _uuid(self.project_id, "project_id"))
         object.__setattr__(self, "run_id", _uuid(self.run_id, "run_id"))
         if not isinstance(self.expected_revision, int) or isinstance(self.expected_revision, bool) or self.expected_revision < 0:
@@ -231,19 +316,26 @@ class ProjectionControlRequest:
         if not isinstance(self.action, str) or _ACTION_RE.fullmatch(self.action) is None:
             raise AgentRunProjectionError("action is invalid or unbounded")
 
+    @property
+    def operation_key(self) -> str:
+        key = f"agent-projection:{self.action}:{self.request_id}"
+        if len(key) > 160:
+            raise AgentRunProjectionError("control operation identity is unbounded")
+        return key
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectionControlDecision:
     allowed: bool
-    deny_reason: ProjectionControlDenyReason
+    deny_reason: ProjectionControlDenyReason | None = None
 
     def __post_init__(self) -> None:
-        if self.allowed:
-            raise AgentRunProjectionError("Wave 7 S2 v1 projection does not grant control authority")
-        try:
+        if self.allowed and self.deny_reason is not None:
+            raise AgentRunProjectionError("allowed control decision cannot include a deny reason")
+        if not self.allowed and self.deny_reason is None:
+            raise AgentRunProjectionError("denied control decision requires a deny reason")
+        if self.deny_reason is not None:
             object.__setattr__(self, "deny_reason", ProjectionControlDenyReason(self.deny_reason))
-        except ValueError as exc:
-            raise AgentRunProjectionError("invalid projection control deny reason") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,11 +346,17 @@ class AgentRunProjection:
     resume_stage: str | None
     last_failure_code: str | None
     latest_source_lineage_ref: str | None
-    preview_deployment_id: str | None
-    preview_status: str | None
-    attempts: tuple[ProjectedAttempt, ...]
-    events: tuple[ProjectedEvent, ...]
+    tasks: tuple[ProjectedTask, ...]
+    recovery: RecoveryProjection
+    validation: tuple[ValidationProjection, ...]
+    deterministic_disposition: DeterministicDisposition
+    evaluation: EvaluationProjection
+    routing: RoutingProjection
+    delivery: DeliveryProjection
     metrics: tuple[ProjectionMetricEvidence, ...]
+    advertised_controls: tuple[AdvertisedProjectionControl, ...]
+    final_handoff: str | None
+    latest_event_sequence: int
 
     def __post_init__(self) -> None:
         if not isinstance(self.identity, ProjectionIdentity):
@@ -270,34 +368,10 @@ class AgentRunProjection:
         object.__setattr__(self, "last_failure_code", _optional_bounded(self.last_failure_code, "last_failure_code", 120))
         if self.latest_source_lineage_ref is not None and _LINEAGE_RE.fullmatch(self.latest_source_lineage_ref) is None:
             raise AgentRunProjectionError("latest_source_lineage_ref is invalid")
-        object.__setattr__(
-            self,
-            "preview_deployment_id",
-            _optional_bounded(self.preview_deployment_id, "preview_deployment_id", 200),
-        )
-        object.__setattr__(self, "preview_status", _optional_bounded(self.preview_status, "preview_status", 80))
-        attempts = tuple(self.attempts)
-        events = tuple(self.events)
-        metrics = tuple(self.metrics)
-        if len(attempts) > _MAX_ATTEMPTS or len(events) > _MAX_EVENTS:
-            raise AgentRunProjectionError("projection evidence exceeds bounded cardinality")
-        if any(not isinstance(item, ProjectedAttempt) for item in attempts):
-            raise AgentRunProjectionError("projection attempts must be canonical")
-        if any(not isinstance(item, ProjectedEvent) for item in events):
-            raise AgentRunProjectionError("projection events must be canonical")
-        if any(not isinstance(item, ProjectionMetricEvidence) for item in metrics):
-            raise AgentRunProjectionError("projection metrics must be canonical")
-        if len({item.attempt_id for item in attempts}) != len(attempts):
-            raise AgentRunProjectionError("projection attempt identities must be unique")
-        if tuple(item.sequence for item in events) != tuple(sorted(item.sequence for item in events)):
-            raise AgentRunProjectionError("projection events must be sequence ordered")
-        if len({item.sequence for item in events}) != len(events):
-            raise AgentRunProjectionError("projection event sequences must be unique")
-        if {item.metric for item in metrics} != set(ProjectionMetric) or len(metrics) != len(ProjectionMetric):
-            raise AgentRunProjectionError("projection must report each runtime metric exactly once")
-        object.__setattr__(self, "attempts", attempts)
-        object.__setattr__(self, "events", events)
-        object.__setattr__(self, "metrics", tuple(sorted(metrics, key=lambda item: item.metric.value)))
+        if len(self.tasks) > _MAX_ATTEMPTS:
+            raise AgentRunProjectionError("projection tasks exceed bounded cardinality")
+        if not isinstance(self.latest_event_sequence, int) or self.latest_event_sequence < 0:
+            raise AgentRunProjectionError("latest_event_sequence must be nonnegative")
 
     @property
     def fingerprint(self) -> str:
@@ -305,21 +379,26 @@ class AgentRunProjection:
 
     def as_dict(self, *, include_fingerprint: bool = True) -> dict[str, object]:
         data: dict[str, object] = {
-            "projection_version": 1,
+            "projection_version": 2,
             "identity": self.identity.as_dict(),
             "current_state": self.current_state,
             "run_revision": self.run_revision,
             "resume_stage": self.resume_stage,
             "last_failure_code": self.last_failure_code,
             "latest_source_lineage_ref": self.latest_source_lineage_ref,
-            "preview_deployment_id": self.preview_deployment_id,
-            "preview_status": self.preview_status,
-            "attempts": [item.as_dict() for item in self.attempts],
-            "events": [item.as_dict() for item in self.events],
+            "tasks": [item.as_dict() for item in self.tasks],
+            "recovery": self.recovery.as_dict(),
+            "validation": [item.as_dict() for item in self.validation],
+            "deterministic_disposition": self.deterministic_disposition.value,
+            "evaluation": self.evaluation.as_dict(),
+            "routing": self.routing.as_dict(),
+            "delivery": self.delivery.as_dict(),
             "metrics": [item.as_dict() for item in self.metrics],
-            "advertised_controls": [],
+            "advertised_controls": [item.as_dict() for item in self.advertised_controls],
+            "final_handoff": self.final_handoff,
+            "latest_event_sequence": self.latest_event_sequence,
             "accepts_source_lineage": False,
-            "transitions_engineering_run": False,
+            "creates_lifecycle_authority": False,
             "grants_provider_authority": False,
             "grants_tool_authority": False,
             "executes_arbitrary_command": False,
@@ -339,12 +418,21 @@ class AgentRunProjection:
         return data
 
 
+class AgentRunEventReader(Protocol):
+    def list_for_run(self, *, project_id: str, run_id: str, after_sequence: int = 0, limit: int = 100) -> Sequence[RunEvent]: ...
+
+
+class AgentRunWorkerReader(Protocol):
+    def get_for_run(self, run_id: str) -> EngineeringWorkerExecution | None: ...
+
+
 def build_agent_run_projection(
     *,
     run: EngineeringRun,
     acceptance_ids: Iterable[str],
     events: Iterable[RunEvent] = (),
     metrics: Iterable[ProjectionMetricEvidence] = (),
+    worker: EngineeringWorkerExecution | None = None,
 ) -> AgentRunProjection:
     """Project existing authoritative facts without creating a second state machine."""
 
@@ -361,83 +449,288 @@ def build_agent_run_projection(
         acceptance_ids=tuple(acceptance_ids),
     )
 
-    canonical_events: list[ProjectedEvent] = []
-    latest_lineage: str | None = None
-    preview_deployment_id: str | None = None
-    preview_status: str | None = None
-    for event in sorted(tuple(events), key=lambda item: item.sequence):
-        if not isinstance(event, RunEvent):
-            raise AgentRunProjectionError("events must contain canonical RunEvent values")
-        if event.project_id != identity.project_id or event.run_id != identity.run_id:
-            raise AgentRunProjectionError("cross-Project or cross-run event cannot satisfy projection")
-        projected = ProjectedEvent.from_event(event)
-        canonical_events.append(projected)
-        if projected.source_lineage_ref is not None:
-            latest_lineage = projected.source_lineage_ref
-        metadata = dict(projected.metadata)
-        deployment = metadata.get("preview_deployment_id")
-        status = metadata.get("preview_status")
-        if isinstance(deployment, str):
-            preview_deployment_id = deployment
-        if isinstance(status, str):
-            preview_status = status
+    ordered_events = tuple(sorted(tuple(events), key=lambda item: item.sequence))
+    if len(ordered_events) > _MAX_EVENTS:
+        raise AgentRunProjectionError("projection event evidence exceeds bounded cardinality")
+    if any(not isinstance(event, RunEvent) for event in ordered_events):
+        raise AgentRunProjectionError("events must contain canonical RunEvent values")
+    if any(event.project_id != identity.project_id or event.run_id != identity.run_id for event in ordered_events):
+        raise AgentRunProjectionError("cross-Project or cross-run event cannot satisfy projection")
+    if worker is not None and worker.run_id != run.id:
+        raise AgentRunProjectionError("worker evidence crosses the canonical run boundary")
 
-    projected_attempts = tuple(
-        ProjectedAttempt.from_attempt(item)
-        for item in sorted(
-            tuple(run.attempts),
-            key=lambda item: (item.started_at, item.attempt_number, item.id),
-        )
+    tasks = tuple(
+        ProjectedTask.from_attempt(item)
+        for item in sorted(tuple(run.attempts), key=lambda item: (item.started_at, item.attempt_number, item.id))
     )
+    if len(tasks) > _MAX_ATTEMPTS:
+        raise AgentRunProjectionError("projection attempt evidence exceeds bounded cardinality")
+
     supplied_metrics = tuple(metrics)
-    by_metric = {item.metric: item for item in supplied_metrics if isinstance(item, ProjectionMetricEvidence)}
+    if any(not isinstance(item, ProjectionMetricEvidence) for item in supplied_metrics):
+        raise AgentRunProjectionError("metrics must contain canonical ProjectionMetricEvidence values")
+    by_metric = {item.metric: item for item in supplied_metrics}
     if len(by_metric) != len(supplied_metrics):
-        raise AgentRunProjectionError("metrics must be unique canonical ProjectionMetricEvidence values")
+        raise AgentRunProjectionError("metrics must be unique")
     complete_metrics = tuple(
-        by_metric.get(
-            metric,
-            ProjectionMetricEvidence(metric=metric, state=ProjectionKnownState.UNKNOWN, value=None, provenance_ref=None),
-        )
+        by_metric.get(metric, ProjectionMetricEvidence(metric=metric, state=ProjectionKnownState.UNKNOWN, value=None, provenance_ref=None))
         for metric in ProjectionMetric
     )
+
+    latest_lineage = _latest_lineage(ordered_events, worker)
+    validation, deterministic = _validation(tasks)
+    evaluation = _evaluation(ordered_events)
+    routing = _routing(ordered_events)
+    delivery = _delivery(ordered_events, latest_lineage)
+    recovery = _recovery(worker, ordered_events)
+    controls = _advertised_controls(run)
+    final_handoff = "HUMAN_REQUIRED" if run.state == WorkflowStage.REVIEW.value or any(
+        event.append.outcome is RunEventOutcome.HUMAN_REQUIRED for event in ordered_events
+    ) else None
+
     return AgentRunProjection(
         identity=identity,
         current_state=run.state,
-        run_revision=run.revision,
+        run_revision=int(run.revision),
         resume_stage=run.resume_stage,
         last_failure_code=run.last_failure_code,
         latest_source_lineage_ref=latest_lineage,
-        preview_deployment_id=preview_deployment_id,
-        preview_status=preview_status,
-        attempts=projected_attempts,
-        events=tuple(canonical_events),
+        tasks=tasks,
+        recovery=recovery,
+        validation=validation,
+        deterministic_disposition=deterministic,
+        evaluation=evaluation,
+        routing=routing,
+        delivery=delivery,
         metrics=complete_metrics,
+        advertised_controls=controls,
+        final_handoff=final_handoff,
+        latest_event_sequence=max((item.sequence for item in ordered_events), default=0),
     )
 
 
-def decide_projection_control(
-    projection: AgentRunProjection,
-    request: ProjectionControlRequest,
-) -> ProjectionControlDecision:
-    """Fail closed until a separately accepted server authority is wired to S2."""
-
+def decide_projection_control(projection: AgentRunProjection, request: ProjectionControlRequest) -> ProjectionControlDecision:
     if request.project_id != projection.identity.project_id:
-        reason = ProjectionControlDenyReason.PROJECT_MISMATCH
-    elif request.run_id != projection.identity.run_id:
-        reason = ProjectionControlDenyReason.RUN_MISMATCH
-    elif request.expected_revision != projection.run_revision:
-        reason = ProjectionControlDenyReason.REVISION_MISMATCH
-    elif request.expected_state != projection.current_state:
-        reason = ProjectionControlDenyReason.STATE_MISMATCH
-    else:
-        reason = ProjectionControlDenyReason.UNSUPPORTED_CONTROL
-    return ProjectionControlDecision(allowed=False, deny_reason=reason)
+        return ProjectionControlDecision(False, ProjectionControlDenyReason.PROJECT_MISMATCH)
+    if request.run_id != projection.identity.run_id:
+        return ProjectionControlDecision(False, ProjectionControlDenyReason.RUN_MISMATCH)
+    if request.expected_revision != projection.run_revision:
+        return ProjectionControlDecision(False, ProjectionControlDenyReason.REVISION_MISMATCH)
+    if request.expected_state != projection.current_state:
+        return ProjectionControlDecision(False, ProjectionControlDenyReason.STATE_MISMATCH)
+    allowed = {item.kind.value for item in projection.advertised_controls}
+    if request.action not in allowed:
+        return ProjectionControlDecision(False, ProjectionControlDenyReason.UNSUPPORTED_CONTROL)
+    return ProjectionControlDecision(True, None)
+
+
+class AgentRunProjectionService:
+    """Projection facade that reuses existing Engineering Run mutation authority."""
+
+    def __init__(self, service: EngineeringRunService, workers: AgentRunWorkerReader, *, events: AgentRunEventReader | None = None):
+        self.service = service
+        self.workers = workers
+        self.events = events
+
+    def project(self, *, project_id: str, run_id: str, metrics: Iterable[ProjectionMetricEvidence] = ()) -> AgentRunProjection:
+        run = self.service.get(run_id)
+        if run.project_id != project_id:
+            raise AgentRunProjectionError("Agent Run projection scope is unavailable")
+        acceptance_ids = tuple(item["id"] for item in self.service.acceptance_map_for_run(run))
+        event_rows: Sequence[RunEvent] = ()
+        if self.events is not None:
+            event_rows = self.events.list_for_run(project_id=project_id, run_id=run_id, limit=200)
+        return build_agent_run_projection(
+            run=run,
+            acceptance_ids=acceptance_ids,
+            events=event_rows,
+            metrics=metrics,
+            worker=self.workers.get_for_run(run_id),
+        )
+
+    def control(self, projection: AgentRunProjection, request: ProjectionControlRequest) -> RunOperationResult:
+        decision = decide_projection_control(projection, request)
+        run = self.service.get(request.run_id)
+        if run.project_id != request.project_id:
+            raise AgentRunControlRejected("Agent Run control scope is unavailable")
+        existing = self.service.runs.find_operation(run.id, request.operation_key)
+        if existing is None:
+            if not decision.allowed:
+                assert decision.deny_reason is not None
+                raise AgentRunControlRejected(decision.deny_reason.value)
+            if run.revision != request.expected_revision:
+                raise AgentRunControlRejected(ProjectionControlDenyReason.REVISION_MISMATCH.value)
+            if run.state != request.expected_state:
+                raise AgentRunControlRejected(ProjectionControlDenyReason.STATE_MISMATCH.value)
+        try:
+            kind = ProjectionControlKind(request.action)
+        except ValueError as exc:
+            raise AgentRunControlRejected(ProjectionControlDenyReason.UNSUPPORTED_CONTROL.value) from exc
+        method = {
+            ProjectionControlKind.PAUSE: self.service.pause,
+            ProjectionControlKind.RESUME: self.service.resume,
+            ProjectionControlKind.CANCEL: self.service.cancel,
+        }[kind]
+        return method(
+            run_id=request.run_id,
+            operation_key=request.operation_key,
+            expected_revision=request.expected_revision,
+        )
 
 
 def safe_agent_run_projection_json(projection: AgentRunProjection) -> str:
     if not isinstance(projection, AgentRunProjection):
         raise AgentRunProjectionError("projection must be AgentRunProjection")
     return json.dumps(projection.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _advertised_controls(run: EngineeringRun) -> tuple[AdvertisedProjectionControl, ...]:
+    try:
+        state = WorkflowStage(run.state)
+    except ValueError:
+        return ()
+    controls: list[AdvertisedProjectionControl] = []
+    if state in ACTIVE_STAGES:
+        controls.append(AdvertisedProjectionControl(ProjectionControlKind.PAUSE, int(run.revision), state.value))
+    if state in {WorkflowStage.PAUSED, WorkflowStage.FAILED} and run.resume_stage:
+        try:
+            if WorkflowStage(run.resume_stage) in ACTIVE_STAGES:
+                controls.append(AdvertisedProjectionControl(ProjectionControlKind.RESUME, int(run.revision), state.value))
+        except ValueError:
+            pass
+    if state not in TERMINAL_STAGES:
+        controls.append(AdvertisedProjectionControl(ProjectionControlKind.CANCEL, int(run.revision), state.value))
+    return tuple(controls)
+
+
+def _validation(tasks: tuple[ProjectedTask, ...]) -> tuple[tuple[ValidationProjection, ...], DeterministicDisposition]:
+    rows: list[ValidationProjection] = []
+    for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
+        candidates = [item for item in tasks if item.stage == stage.value]
+        latest = candidates[-1] if candidates else None
+        if latest is None:
+            disposition = DeterministicDisposition.PENDING
+        elif latest.status == AttemptStatus.PASSED.value:
+            disposition = DeterministicDisposition.PASSED
+        else:
+            disposition = DeterministicDisposition.FAILED
+        rows.append(
+            ValidationProjection(
+                stage=stage.value,
+                disposition=disposition,
+                attempt_id=latest.task_id.removeprefix("attempt:") if latest else None,
+                failure_code=latest.failure_code if latest else None,
+            )
+        )
+    if any(item.disposition is DeterministicDisposition.FAILED for item in rows):
+        overall = DeterministicDisposition.FAILED
+    elif all(item.disposition is DeterministicDisposition.PASSED for item in rows):
+        overall = DeterministicDisposition.PASSED
+    else:
+        overall = DeterministicDisposition.PENDING
+    return tuple(rows), overall
+
+
+def _latest_lineage(events: Sequence[RunEvent], worker: EngineeringWorkerExecution | None) -> str | None:
+    for event in reversed(tuple(events)):
+        if event.append.source_lineage_ref and event.append.event_type in {RunEventType.SOURCE_LINEAGE_ACCEPTED, RunEventType.SOURCE_DELIVERY}:
+            return event.append.source_lineage_ref
+    if worker is not None and worker.source_lineage_ref and _LINEAGE_RE.fullmatch(worker.source_lineage_ref):
+        return worker.source_lineage_ref
+    return None
+
+
+def _evaluation(events: Sequence[RunEvent]) -> EvaluationProjection:
+    for event in reversed(tuple(events)):
+        if event.append.event_type is RunEventType.EVALUATION_RESULT:
+            metadata = event.append.metadata
+            return EvaluationProjection(
+                evaluation_id=_safe_metadata_ref(metadata.get("evaluation_id")),
+                outcome=event.append.outcome.value,
+                score_class=_safe_metadata_ref(metadata.get("score_class")),
+                source_lineage_ref=event.append.source_lineage_ref,
+            )
+    return EvaluationProjection(None, None, None, None)
+
+
+def _routing(events: Sequence[RunEvent]) -> RoutingProjection:
+    for event in reversed(tuple(events)):
+        if event.append.event_type is RunEventType.PROVIDER_RESULT:
+            metadata = event.append.metadata
+            return RoutingProjection(
+                provider=_safe_metadata_ref(metadata.get("provider")),
+                result_code=_safe_metadata_ref(metadata.get("result_code")),
+                outcome=event.append.outcome.value,
+                source_lineage_ref=event.append.source_lineage_ref,
+            )
+    return RoutingProjection(None, None, None, None)
+
+
+def _delivery(events: Sequence[RunEvent], fallback_lineage: str | None) -> DeliveryProjection:
+    for event in reversed(tuple(events)):
+        if event.append.event_type is RunEventType.SOURCE_DELIVERY:
+            metadata = event.append.metadata
+            pr = metadata.get("pull_request_number")
+            return DeliveryProjection(
+                source_lineage_ref=event.append.source_lineage_ref or fallback_lineage,
+                parent_source_lineage_ref=event.append.parent_source_lineage_ref,
+                pull_request_number=int(pr) if isinstance(pr, int) and pr > 0 else None,
+                preview_deployment_id=_safe_metadata_ref(metadata.get("preview_deployment_id")),
+                preview_status=_safe_metadata_ref(metadata.get("preview_status")),
+                artifact_ref=event.append.artifact_ref,
+            )
+    return DeliveryProjection(fallback_lineage, None, None, None, None, None)
+
+
+def _recovery(worker: EngineeringWorkerExecution | None, events: Sequence[RunEvent]) -> RecoveryProjection:
+    if worker is not None:
+        return RecoveryProjection(
+            execution_id=worker.id,
+            state=worker.state,
+            lease_generation=int(worker.lease_generation),
+            checkpoint_revision=int(worker.checkpoint_revision),
+            current_step=_optional_bounded(worker.current_step, "current_step", 64),
+            source_lineage_ref=worker.source_lineage_ref if worker.source_lineage_ref and _LINEAGE_RE.fullmatch(worker.source_lineage_ref) else None,
+            last_known_good_lineage_ref=(worker.last_known_good_lineage_ref if worker.last_known_good_lineage_ref and _LINEAGE_RE.fullmatch(worker.last_known_good_lineage_ref) else None),
+            retry_count=int(worker.retry_count),
+            no_progress_count=int(worker.no_progress_count),
+            oscillation_count=int(worker.oscillation_count),
+            blocker_code=_optional_bounded(worker.blocker_code, "blocker_code", 120),
+            next_recovery_action=_optional_bounded(worker.next_recovery_action, "next_recovery_action", 64),
+        )
+    for event in reversed(tuple(events)):
+        if event.append.event_type is RunEventType.WORKER_STATE:
+            metadata = event.append.metadata
+            return RecoveryProjection(
+                execution_id=event.append.worker_execution_id,
+                state=_safe_metadata_ref(metadata.get("worker_state")),
+                lease_generation=_safe_metadata_int(metadata.get("lease_generation")),
+                checkpoint_revision=_safe_metadata_int(metadata.get("checkpoint_revision")),
+                current_step=_safe_metadata_ref(metadata.get("current_step")),
+                source_lineage_ref=event.append.source_lineage_ref,
+                last_known_good_lineage_ref=None,
+                retry_count=_safe_metadata_int(metadata.get("retry_count")),
+                no_progress_count=_safe_metadata_int(metadata.get("no_progress_count")),
+                oscillation_count=_safe_metadata_int(metadata.get("oscillation_count")),
+                blocker_code=event.append.failure_code,
+                next_recovery_action=_safe_metadata_ref(metadata.get("next_recovery_action")),
+            )
+    return RecoveryProjection(None, None, None, None, None, None, None, None, None, None, None, None)
+
+
+def _safe_metadata_ref(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if not candidate or len(candidate) > 160:
+        return None
+    return candidate
+
+
+def _safe_metadata_int(value: object) -> int | None:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return None
 
 
 def _uuid(value: str, field: str) -> str:
@@ -486,6 +779,40 @@ def _acceptance_ids(values: Iterable[str]) -> tuple[str, ...]:
     return tuple(sorted(ids))
 
 
+def _reference(value: str, field: str) -> str:
+    if not isinstance(value, str) or _REF_RE.fullmatch(value) is None:
+        raise AgentRunProjectionError(f"{field} must be a bounded opaque identifier")
+    return value
+
+
+def _utc_iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
+
 def _digest(value: Mapping[str, object]) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return sha256(encoded).hexdigest()
+
+
+__all__ = [
+    "AdvertisedProjectionControl",
+    "AgentRunControlRejected",
+    "AgentRunProjection",
+    "AgentRunProjectionError",
+    "AgentRunProjectionService",
+    "DeterministicDisposition",
+    "ProjectionControlDecision",
+    "ProjectionControlDenyReason",
+    "ProjectionControlKind",
+    "ProjectionControlRequest",
+    "ProjectionKnownState",
+    "ProjectionMetric",
+    "ProjectionMetricEvidence",
+    "build_agent_run_projection",
+    "decide_projection_control",
+    "safe_agent_run_projection_json",
+]
