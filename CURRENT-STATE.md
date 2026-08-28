@@ -2,7 +2,7 @@
 
 Date: 2026-08-28
 
-Status: **WAVES 1–6 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 INTEGRATED AND PRODUCTION-DEPLOYED / PRODUCTION MOBILE PLAN-HANDOFF HOTFIX DEPLOYMENT-VERIFIED / WAVE 7 PRODUCTIZATION ACTIVE WITH S1–S2 ACCEPTED INTEGRATION AND S3/S4/S5 IN DEVELOPMENT / CLIENT READY / API READY / SAFE DELETION PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED WITH FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–6 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 INTEGRATED AND PRODUCTION-DEPLOYED / PRODUCTION MOBILE PLAN-HANDOFF HOTFIX DEPLOYMENT-VERIFIED / WAVE 7 PRODUCTIZATION ACTIVE WITH S1–S3 ACCEPTED INTEGRATION AND S4/S5 IN DEVELOPMENT / CLIENT READY / API READY / SAFE DELETION PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED WITH FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
@@ -81,11 +81,11 @@ Dedicated cumulative integration branch:
 
 `integration/wave7-productization`
 
-Current accepted Wave 7 integration SHA after S2:
+Current accepted Wave 7 integration SHA after S3:
 
-`ab92b84e8f8a36870791f2154f86d838b3292f99`
+`bd3e510679fd156f2fce5bdf84412592a04420fb`
 
-Wave 7 remains a development/integration program. The narrow production mobile reliability hotfix above is not acceptance or production deployment of W7-S3 as a whole.
+Wave 7 remains a development/integration program. No wholesale Wave 7 release to `main` or production has occurred. The narrow production mobile reliability hotfix above is a separately governed backport of behavior also present in S3.
 
 ### W7-S1 — ParallaxBench: ACCEPTED / INTEGRATED
 
@@ -109,7 +109,7 @@ S1 is a read-only objective-evaluation layer. It adds no Engineering Run, source
 
 ### W7-S2 — Agent Run Projection & Control Contract: ACCEPTED / INTEGRATED
 
-W7-S2 / #349 / `P2-V0.20.2` is accepted into the cumulative Wave 7 integration branch as:
+W7-S2 / #349 / `P2-V0.20.2` is accepted as cumulative Wave 7 integration:
 
 `ab92b84e8f8a36870791f2154f86d838b3292f99`
 
@@ -117,26 +117,41 @@ Its accepted integration reuses existing server-owned Engineering Run pause/resu
 
 Recorded acceptance evidence includes exact-head Workstream Spec Validation #533, Bounded Autonomy #769, full release P2 CI #1194, authentic DSPy plan evidence, and READY API Preview `dpl_8KwmBQJ4ezQwd9CiqTMXFR1fTyic`.
 
+### W7-S3 — Agent Run Canvas / Development Studio: ACCEPTED / INTEGRATED
+
+W7-S3 / #351 / `P2-V0.20.3` is accepted into the cumulative Wave 7 integration branch as:
+
+`bd3e510679fd156f2fce5bdf84412592a04420fb`
+
+Final accepted worker head:
+
+`31eb5fb2c07c58971975ea484bf796bee8112f64`
+
+Accepted exact-head evidence:
+
+- Workstream Spec Validation #548 / run `33144250517` — PASS;
+- Bounded Autonomy #786 / run `33144250611` — PASS;
+- release-strength P2 CI #1214 / run `33144250617` — PASS;
+- exact Preview `dpl_3pb9Dw9EZdjJtkmwzN3T5inXct3Z` — `READY`, clean build and error/fatal runtime scans;
+- Control Tower #347 authorized only this exact head for integration-branch merge;
+- PR #359 merged to `integration/wave7-productization` as `bd3e510679fd156f2fce5bdf84412592a04420fb`.
+
+S3 composes the accepted S2 server-owned run contract into the Agent Run Canvas / Development Studio. It includes the replay-safe approved-run continuation behavior, run presentation/evidence interactions, and mobile regression coverage without creating client-side canonical run/source/provider/REVIEW authority. Its production PLAN-handoff behavior was separately backported through PR #361; S3 integration itself is not production deployment.
+
 ### Active dependency-aware lanes
 
-1. **W7-S3 / #351 / `P2-V0.20.3` — Agent Run Canvas / Development Studio**
-   - worker PR #359 targets `integration/wave7-productization`;
-   - current worker head after mobile handoff regression-fixture reconciliation: `31eb5fb2c07c58971975ea484bf796bee8112f64`;
-   - semantic implementation composes the accepted S2 server-owned run contract and does not create client-side source/provider/REVIEW authority;
-   - the production mobile PLAN-handoff hotfix is a narrow reliability backport only and does not constitute S3 acceptance;
-   - S3 remains under exact-head qualification and Control Tower review before integration.
-
-2. **W7-S4 / #350 / `P2-V0.20.4` — Safe Browser Tool Layer v1**
+1. **W7-S4 / #350 / `P2-V0.20.4` — Safe Browser Tool Layer v1**
    - worker PR #357 targets `integration/wave7-productization`;
-   - current worker head `5be84c676f3a6cb54cdf85ec5e8e1304dffbc771` is reconciled to the accepted S2 branch base;
+   - last validated/reconciled worker head `5be84c676f3a6cb54cdf85ec5e8e1304dffbc771` was based on accepted S2;
+   - because S3 is now the accepted cumulative integration head, S4 must reconcile to `bd3e510679fd156f2fce5bdf84412592a04420fb` and rerun exact-head gates before Control Tower may integrate it;
    - scope remains Project-scoped, non-destructive browser evidence with admitted HTTPS targets, bounded declarative inspection/assertion/screenshot evidence, off-origin redirect denial, sensitive-observation redaction, deterministic-validation precedence, and no arbitrary JavaScript/network/credential/destructive-action authority;
    - candidate is not yet accepted/integrated.
 
-3. **W7-S5 / #352 / `P2-V0.20.5` — Agentic Observability, Runtime Economics & Retention**
+2. **W7-S5 / #352 / `P2-V0.20.5` — Agentic Observability, Runtime Economics & Retention**
    - draft worker PR #360 targets `integration/wave7-productization`;
-   - current head `c3f09e8541e449f5663e1854418d26b726131685` contains the spec-first contract;
+   - current head `c3f09e8541e449f5663e1854418d26b726131685` contains the spec-first contract on the earlier S2 baseline;
    - S5 consumes existing run/event/worker/evaluation evidence and may not create a scheduler, billing ledger, second state machine, or canonical-deletion authority;
-   - semantic acceptance remains gated by authentic DSPy evidence and exact-head protected validation.
+   - before semantic acceptance it must reconcile to the latest accepted integration head and complete authentic DSPy evidence plus exact-head protected validation.
 
 W7-S6 / #353 / `P2-V0.20.6` — Integrated Product Proof — remains downstream of accepted S1–S5.
 
@@ -251,7 +266,7 @@ The mobile PLAN-handoff hotfix adds no database or API migration.
 
 ## Next governed implementation boundary
 
-Finish exact-head qualification of W7-S3 after the mobile regression-fixture reconciliations; independently complete S4 final validation on the accepted S2 integration baseline; continue S5 spec-first evidence work without exceeding the three-lane limit. Control Tower may integrate only one accepted exact head at a time and must require cumulative revalidation where interacting candidates have drifted.
+Reconcile W7-S4 to accepted S3 integration `bd3e510679fd156f2fce5bdf84412592a04420fb`, rerun exact-head protected/release gates and integrate only if it remains clean. Continue S5 spec-first evidence work on the current three-lane budget, then reconcile it to the latest accepted integration head before semantic acceptance. W7-S6 remains blocked until S1–S5 are accepted.
 
 The production mobile PLAN-handoff defect is deployment-verified fixed at the client release boundary, but the specific previously parked authenticated run should be considered resumed only when its durable run/event evidence advances after the user loads the new client.
 
@@ -259,7 +274,7 @@ Safe-deletion final authenticated destructive smoke and hosted-to-private infere
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; the hotfix used existing governance and authority boundaries.
-- `ARCHITECTURE.md` v3.10 — unchanged by the hotfix; no new backend authority or durable runtime state machine was introduced. W7-S3/S4/S5 remain unaccepted candidates.
-- `DESIGN-SYSTEM.md` v3.1 — unchanged; the hotfix is behavior/reliability work, not a durable visual-system change.
-- `CURRENT-STATE.md` — updated because PR #361 is merged and its exact production client deployment is deployment-verified, and to reconcile the Wave 7 record to accepted S2 plus current S3/S4/S5 development truth.
+- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; the production hotfix and S3 integration use existing governance/authority boundaries.
+- `ARCHITECTURE.md` v3.10 — unchanged in this record update; S3 composes the accepted server-owned run contract in the client and does not add a new backend authority/state machine. S4/S5 remain unaccepted candidates.
+- `DESIGN-SYSTEM.md` v3.1 — unchanged; S3 acceptance does not establish a new durable visual-system rule in this record update.
+- `CURRENT-STATE.md` — updated because W7-S3 passed exact-head gates and was accepted into the cumulative Wave 7 integration branch as `bd3e510679fd156f2fce5bdf84412592a04420fb`.
