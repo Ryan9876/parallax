@@ -211,9 +211,20 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const errors = [];
+  let expectedRequestFailureConsoleCount = 0;
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    // Chromium reports an intentionally mocked non-2xx resource response as a
+    // console error. That 503 is the recovery condition this acceptance proof
+    // deliberately exercises, so classify only that exact expected signal as
+    // test evidence; every other browser error still fails the release gate.
+    if (text.includes('Failed to load resource') && text.includes('503 (Service Unavailable)')) {
+      expectedRequestFailureConsoleCount += 1;
+      return;
+    }
+    errors.push(`console: ${text}`);
   });
 
   await page.goto('http://127.0.0.1:8767', { waitUntil: 'networkidle' });
@@ -237,9 +248,10 @@ try {
   await retry.click();
   await page.getByText('Ready for your review', { exact: true }).waitFor({ timeout: 10000 });
   assert(autonomyCalls === 2, `w8-s2 recovery: expected one failed continuation plus one retry, got ${autonomyCalls}`);
+  assert(expectedRequestFailureConsoleCount <= 1, `w8-s2 recovery: expected at most one mocked 503 browser signal, got ${expectedRequestFailureConsoleCount}`);
 
   await page.screenshot({ path: join(evidenceDir, 'w8-s2-mobile-recovery.png'), fullPage: true });
-  assert(errors.length === 0, `w8-s2 recovery: browser errors detected: ${errors.join(' | ')}`);
+  assert(errors.length === 0, `w8-s2 recovery: unexpected browser errors detected: ${errors.join(' | ')}`);
   console.log('PASS: W8-S2 mobile recovery keeps durable progress visible, hides technical evidence by default, and exposes a 44px retry action.');
 } finally {
   if (browser) await browser.close();
