@@ -68,6 +68,9 @@ function apiServer() {
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') return json(response, 200, workSpecification, origin);
     if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, engineeringRun, origin);
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/autonomous` && request.method === 'POST') {
+      return json(response, 200, { run: engineeringRun, stop_reason: 'IMPLEMENTATION_REQUIRED', steps: [] }, origin);
+    }
     if (pathname === `/v1/engineering-runs/${RUN_ID}/events` && request.method === 'GET') {
       const after = Number(url.searchParams.get('after_sequence') ?? '0'); const page = events.filter((event) => event.sequence > after);
       return json(response, 200, { events: page, next_after_sequence: page.at(-1)?.sequence ?? after, has_more: false }, origin);
