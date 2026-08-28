@@ -200,7 +200,7 @@ Final Wave 6 application source before local-first integration:
 
 Final Wave 6 production API deployment before local-first integration:
 
-`dpl_2uYwsPsKDFo214mEFxwwUKwa4Hzj`
+`dpl_2uYwsPsKDFo214mEFxwwXGytxh5Uj3KSo`
 
 The production-deployed local-first release is cumulative with that Wave 6 baseline.
 
@@ -224,7 +224,7 @@ Current production API:
 Immediate fully deployment-verified API rollback reference:
 
 - Wave 6 source `55066fccfcb9b4d645cdb87c8b7d061f032d6dec`;
-- deployment `dpl_2uYwsPsKDFo214mEFxwwUKwa4Hzj`.
+- deployment `dpl_2uYwsPsKDFo214mEFxwwXGytxh5Uj3KSo`.
 
 Wave 7 has not been production-deployed, so there is no Wave 7 production rollback identity yet.
 
