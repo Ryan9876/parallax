@@ -31,7 +31,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
-      - run: python scripts/validate_spec.py "$SPEC_PATH"
+      - name: Validate specification contract before DSPy compilation
+        run: python scripts/validate_spec.py "$SPEC_PATH" --spec-only
 
       - id: credentials
         name: Select DSPy development model
@@ -67,6 +68,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py "$SPEC_PATH"
+
+      - name: Verify exact compiled plan against protected DSPy contract
+        run: python scripts/validate_spec.py "$SPEC_PATH" --require-dspy
 
       - name: Optimize SpecCompiler with MIPROv2
         if: steps.credentials.outputs.provider == 'true'
