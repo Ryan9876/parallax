@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    ":\n- **Plan is not a delivery-provisioning gate.** PLAN may depend on protected executor/model/source-context evidence required by its accepted runtime, but it must not fail merely because a Vercel Preview Project has not yet been discovered or provisioned."
+  ],
+  "work_items": [
+    ":\n- **Plan is not a delivery-provisioning gate.** PLAN may depend on protected executor/model/source-context evidence required by its accepted runtime, but it must not fail merely because a Vercel Preview Project has not yet been discovered or provisioned."
+  ],
+  "validations": [
+    ":\n- **Plan is not a delivery-provisioning gate.** PLAN may depend on protected executor/model/source-context evidence required by its accepted runtime, but it must not fail merely because a Vercel Preview Project has not yet been discovered or provisioned.",
+    "AC-01: validate protected requirement — A permanent runtime test proves an approved Project-bound run with no static Preview target can complete protected PLAN without invoking Vercel target discovery/creation or failing on Preview configuration. The resulting PLAN attempt and next canonical state are durable.",
+    "AC-02: validate protected requirement — Permanent provider/runtime tests prove repositories already present in the accepted static target registry continue to resolve to the same exact verified target and do not invoke dynamic project creation.",
+    "AC-03: validate protected requirement — Tests prove dynamic readiness accepts only the canonical Project repository after exact repository-scoped credential verification, numeric GitHub repository ID resolution and default-branch validation. Cross-repository, broader installation scope, stale/missing repository and identity mismatch all fail before Vercel mutation.",
+    "AC-04: validate protected requirement — Tests prove bounded discovery reuses exactly one Vercel Project whose authenticated Git link matches the canonical numeric GitHub repository ID. Name-only matches, wrong-team targets and duplicate exact matches are rejected.",
+    "AC-05: validate protected requirement — Tests prove zero matching target permits one bounded Vercel Project creation linked to the exact canonical repository; authenticated read-back verifies the created identity; replay/process recreation reuses it; simulated concurrent conflict reconciles to one exact target without duplicate admissible Projects.",
+    "AC-06: validate protected requirement — Provider-contract tests prove readiness invokes no production-deployment/promotion operation, includes no production target in project-creation authority, and cannot call existing production promotion surfaces. Production qualification observes no production deployment side effect for the newly readied Project.",
+    "AC-07: validate protected requirement — After readiness, repository bootstrap, safe implementation, accepted source lineage, BUILD/TEST/VERIFY, GitHub branch/commit/PR and Vercel Preview use the existing protected contracts and exact identities. The dynamically resolved target cannot bypass lineage acceptance or alter the Preview-only deployment ceiling.",
+    "AC-08: validate protected requirement — Tests cover missing/ambiguous provisioning profile, provider auth denial, unavailable provider, repository mismatch, Vercel duplicate match and read-back mismatch. Each failure preserves canonical Project/spec/run truth, does not fabricate stage progress, and remains retryable where safe.",
+    "AC-09: validate protected requirement — When readiness cannot complete, the ordinary client explains in plain language that Parallax could not prepare the Project and that saved work remains intact, exposes an appropriate retry/continue action when server state permits, and keeps normalized technical evidence behind the technical-detail surface. Mobile touch/accessibility rules remain satisfied.",
+    "AC-10: validate protected requirement — The exact release candidate passes focused W8-S2 tests, provider/source-lineage/agentic-runtime regressions, API contract tests, client state/type/export and applicable browser/Skia acceptance, protected promotion/regression rejection, authentic DSPy validation and Bounded Autonomy Pilot. Production verification proves the reported OT Time path or an exact equivalent new repository-bound Project advances beyond PLAN without the missing-static-target `ProductionDeliveryConfigurationError`, while production deployment/merge/REVIEW authority remains unchanged."
+  ],
+  "risks": [
+    ":\n- **Plan is not a delivery-provisioning gate.** PLAN may depend on protected executor/model/source-context evidence required by its accepted runtime, but it must not fail merely because a Vercel Preview Project has not yet been discovered or provisioned."
+  ],
+  "spec_id": "P2-V0.21.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "PLAN no longer depends on Preview target registration",
+      "protected_requirement": "A permanent runtime test proves an approved Project-bound run with no static Preview target can complete protected PLAN without invoking Vercel target discovery/creation or failing on Preview configuration. The resulting PLAN attempt and next canonical state are durable."
+    },
+    {
+      "id": "AC-02",
+      "title": "Existing registered targets preserve exact behavior",
+      "protected_requirement": "Permanent provider/runtime tests prove repositories already present in the accepted static target registry continue to resolve to the same exact verified target and do not invoke dynamic project creation."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact GitHub repository identity and scope are verified",
+      "protected_requirement": "Tests prove dynamic readiness accepts only the canonical Project repository after exact repository-scoped credential verification, numeric GitHub repository ID resolution and default-branch validation. Cross-repository, broader installation scope, stale/missing repository and identity mismatch all fail before Vercel mutation."
+    },
+    {
+      "id": "AC-04",
+      "title": "Existing Vercel target discovery is exact and bounded",
+      "protected_requirement": "Tests prove bounded discovery reuses exactly one Vercel Project whose authenticated Git link matches the canonical numeric GitHub repository ID. Name-only matches, wrong-team targets and duplicate exact matches are rejected."
+    },
+    {
+      "id": "AC-05",
+      "title": "Missing target is provisioned exactly once and replay safely",
+      "protected_requirement": "Tests prove zero matching target permits one bounded Vercel Project creation linked to the exact canonical repository; authenticated read-back verifies the created identity; replay/process recreation reuses it; simulated concurrent conflict reconciles to one exact target without duplicate admissible Projects."
+    },
+    {
+      "id": "AC-06",
+      "title": "Provisioning cannot create or promote production deployment",
+      "protected_requirement": "Provider-contract tests prove readiness invokes no production-deployment/promotion operation, includes no production target in project-creation authority, and cannot call existing production promotion surfaces. Production qualification observes no production deployment side effect for the newly readied Project."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing protected source and Preview delivery remain authoritative",
+      "protected_requirement": "After readiness, repository bootstrap, safe implementation, accepted source lineage, BUILD/TEST/VERIFY, GitHub branch/commit/PR and Vercel Preview use the existing protected contracts and exact identities. The dynamically resolved target cannot bypass lineage acceptance or alter the Preview-only deployment ceiling."
+    },
+    {
+      "id": "AC-08",
+      "title": "Configuration and provider ambiguity fail closed without losing work",
+      "protected_requirement": "Tests cover missing/ambiguous provisioning profile, provider auth denial, unavailable provider, repository mismatch, Vercel duplicate match and read-back mismatch. Each failure preserves canonical Project/spec/run truth, does not fabricate stage progress, and remains retryable where safe."
+    },
+    {
+      "id": "AC-09",
+      "title": "User-facing failure is actionable and technical evidence is secondary",
+      "protected_requirement": "When readiness cannot complete, the ordinary client explains in plain language that Parallax could not prepare the Project and that saved work remains intact, exposes an appropriate retry/continue action when server state permits, and keeps normalized technical evidence behind the technical-detail surface. Mobile touch/accessibility rules remain satisfied."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production defect is proven fixed with full regression evidence",
+      "protected_requirement": "The exact release candidate passes focused W8-S2 tests, provider/source-lineage/agentic-runtime regressions, API contract tests, client state/type/export and applicable browser/Skia acceptance, protected promotion/regression rejection, authentic DSPy validation and Bounded Autonomy Pilot. Production verification proves the reported OT Time path or an exact equivalent new repository-bound Project advances beyond PLAN without the missing-static-target `ProductionDeliveryConfigurationError`, while production deployment/merge/REVIEW authority remains unchanged."
+    }
+  ],
+  "critique": [
+    "The client correctly requests protected continuation, but the API returns HTTP 503 at delivery composition before PLAN can proceed because the repository has no pre-registered Vercel Preview target. This specification fixes that product/runtime mismatch without weakening Project."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
