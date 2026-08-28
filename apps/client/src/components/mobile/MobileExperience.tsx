@@ -1,6 +1,11 @@
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ConversationDto, EngineeringRunDto, WorkSpecificationDto } from '../../lib/api';
+import {
+  getEngineeringRunFailure,
+  requestEngineeringRunRetry,
+  subscribeEngineeringRunFailures,
+} from '../../lib/engineeringRunEvents';
 import { palette } from '../../theme';
 import { ParallaxLogo } from '../ParallaxLogo';
 import { useProjectCompatibility } from '../ProjectCompatibilityGate';
@@ -20,9 +25,19 @@ function shortProject(projectId: string | null): string {
   return `Project ${projectId.slice(0, 8)}`;
 }
 
+function useEngineeringRunFailure(conversationId: string | null | undefined) {
+  const subscribe = React.useCallback((listener: () => void) => subscribeEngineeringRunFailures(listener), []);
+  const getSnapshot = React.useCallback(() => getEngineeringRunFailure(conversationId ?? null), [conversationId]);
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 function plainError(error: string | null): string | null {
   if (!error) return null;
-  return 'Parallax couldn’t complete that step. Your work is still here.';
+  const normalized = error.toLowerCase();
+  if (normalized.includes("couldn't prepare this project") || normalized.includes('couldn’t prepare this project')) {
+    return 'Parallax couldn’t prepare this project for the next step yet. Your saved work is still here. Try again.';
+  }
+  return 'Parallax couldn’t continue that step. Your saved work is still here. Try again.';
 }
 
 function friendlyRunState(run: EngineeringRunDto | null): string {
@@ -162,7 +177,9 @@ type MobileContextCardProps = {
 };
 
 export function MobileContextCard({ specification, run, canDraft, busy, error, onCapture, onReviewSpecification, onOpenBuild }: MobileContextCardProps) {
-  if (!specification && !run && !canDraft && !error) return null;
+  const runFailure = useEngineeringRunFailure(run?.conversation_id);
+  const effectiveError = runFailure?.message ?? error;
+  if (!specification && !run && !canDraft && !effectiveError) return null;
 
   let eyebrow = 'NEXT STEP';
   let title = 'Ready when you are';
@@ -182,11 +199,13 @@ export function MobileContextCard({ specification, run, canDraft, busy, error, o
     primaryLabel = 'Review build plan';
     primaryAction = onReviewSpecification;
   } else if (run) {
-    eyebrow = run.state === 'REVIEW' || run.state === 'COMPLETE' ? 'READY FOR YOU' : 'IN PROGRESS';
-    title = friendlyRunState(run);
-    copy = run.last_failure_code
-      ? 'Something needs attention. Open Progress to see what happened and what comes next.'
-      : 'See where the work is now, what is finished, and what comes next.';
+    eyebrow = runFailure ? 'NEEDS ATTENTION' : run.state === 'REVIEW' || run.state === 'COMPLETE' ? 'READY FOR YOU' : 'IN PROGRESS';
+    title = runFailure ? 'Parallax couldn’t continue this step' : friendlyRunState(run);
+    copy = runFailure
+      ? 'Your saved work is still here. Open Progress to see where it stopped and try again.'
+      : run.last_failure_code
+        ? 'Something needs attention. Open Progress to see what happened and what comes next.'
+        : 'See where the work is now, what is finished, and what comes next.';
     primaryLabel = 'View progress';
     primaryAction = onOpenBuild;
   } else if (specification?.status === 'APPROVED') {
@@ -202,7 +221,7 @@ export function MobileContextCard({ specification, run, canDraft, busy, error, o
       <Text style={styles.contextEyebrow}>{eyebrow}</Text>
       <Text style={styles.contextTitle}>{title}</Text>
       <Text style={styles.contextCopy}>{copy}</Text>
-      {plainError(error) ? <Text style={styles.error}>{plainError(error)}</Text> : null}
+      {plainError(effectiveError) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{plainError(effectiveError)}</Text> : null}
       {primaryLabel && primaryAction ? (
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={primaryLabel} disabled={busy} onPress={primaryAction} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
@@ -213,9 +232,9 @@ export function MobileContextCard({ specification, run, canDraft, busy, error, o
           <Text style={styles.textButtonText}>Review build plan</Text>
         </TouchableOpacity>
       ) : null}
-      {error || run?.last_failure_code ? (
+      {effectiveError || run?.last_failure_code ? (
         <TechnicalDetails>
-          {error ? <Text selectable style={styles.technicalLine}>System message: {error}</Text> : null}
+          {effectiveError ? <Text selectable style={styles.technicalLine}>System message: {effectiveError}</Text> : null}
           {run?.last_failure_code ? <Text selectable style={styles.technicalLine}>Issue code: {run.last_failure_code}</Text> : null}
         </TechnicalDetails>
       ) : null}
@@ -417,15 +436,19 @@ type BuildWorkspaceProps = {
 };
 
 export function MobileBuildWorkspace({ specification, run, canDraft, busy, error, onCaptureSpecification, onReviewSpecification, onOpenDetails }: BuildWorkspaceProps) {
+  const runFailure = useEngineeringRunFailure(run?.conversation_id);
+  const effectiveError = runFailure?.message ?? error;
   const currentIndex = currentJourneyIndex(specification, run);
   const currentStep = JOURNEY_STEPS[currentIndex] ?? JOURNEY_STEPS[0]!;
-  const currentActivity = specification?.status === 'DRAFT'
-    ? 'Your build plan needs your review'
-    : run
-      ? friendlyRunState(run)
-      : specification?.status === 'APPROVED'
-        ? 'Your plan is approved and ready'
-        : 'Start by defining what you want';
+  const currentActivity = runFailure
+    ? 'Something needs attention'
+    : specification?.status === 'DRAFT'
+      ? 'Your build plan needs your review'
+      : run
+        ? friendlyRunState(run)
+        : specification?.status === 'APPROVED'
+          ? 'Your plan is approved and ready'
+          : 'Start by defining what you want';
   const complete = run?.state === 'COMPLETE';
 
   return (
@@ -452,9 +475,20 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
       <View style={styles.activityCard}>
         <Text style={styles.detailLabel}>RIGHT NOW</Text>
         <Text style={styles.activityTitle}>{currentActivity}</Text>
-        {run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
-        {plainError(error) ? <Text style={styles.error}>{plainError(error)}</Text> : null}
-        {!specification && canDraft ? (
+        {runFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
+        {plainError(effectiveError) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{plainError(effectiveError)}</Text> : null}
+        {runFailure && run ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={() => requestEngineeringRunRetry(run.conversation_id)}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>
+          </TouchableOpacity>
+        ) : !specification && canDraft ? (
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Create build plan" disabled={busy} onPress={onCaptureSpecification} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>{busy ? 'Creating plan…' : 'Create build plan'}</Text>
           </TouchableOpacity>
@@ -491,7 +525,7 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
         <Text selectable style={styles.technicalLine}>System stage: {run?.state ?? 'Not started'}</Text>
         {run?.resume_stage ? <Text selectable style={styles.technicalLine}>Resume stage: {run.resume_stage}</Text> : null}
         {run?.last_failure_code ? <Text selectable style={styles.technicalLine}>Issue code: {run.last_failure_code}</Text> : null}
-        {error ? <Text selectable style={styles.technicalLine}>System message: {error}</Text> : null}
+        {effectiveError ? <Text selectable style={styles.technicalLine}>System message: {effectiveError}</Text> : null}
         {run?.attempts?.length ? (
           <View style={styles.attemptList}>
             <Text style={styles.technicalHeading}>Recent attempts</Text>
