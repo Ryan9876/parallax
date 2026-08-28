@@ -14,6 +14,7 @@ from . import models  # noqa: F401
 from .intelligence.dspy_programs import request_model_gateway_credential
 from .projects.routes import router as projects_router
 from .routes.access import router as access_router
+from .routes.agent_run_projection import router as agent_run_projection_router
 from .routes.conversations import router as conversations_router
 from .routes.health import router as health_router
 from .routes.engineering_runs import router as engineering_runs_router
@@ -81,6 +82,7 @@ def create_app(*, create_schema: bool | None = None) -> FastAPI:
     protected = [Depends(require_access)]
     app.include_router(conversations_router, dependencies=protected)
     app.include_router(engineering_runs_router, dependencies=protected)
+    app.include_router(agent_run_projection_router, dependencies=protected)
     if os.getenv(_RUN_EVENTS_ENABLE_ENV) == "1":
         app.include_router(observability_router, dependencies=protected)
     app.include_router(work_specifications_router, dependencies=protected)
