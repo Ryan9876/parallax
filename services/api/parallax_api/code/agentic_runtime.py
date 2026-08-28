@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from hashlib import sha256
 import json
@@ -129,6 +130,85 @@ class CandidateValidationFailure(AgenticRuntimeError):
     def __init__(self, message: str, *, diagnostic_evidence: dict[str, object]) -> None:
         super().__init__(message)
         self.diagnostic_evidence = diagnostic_evidence
+
+
+_CANDIDATE_ADMISSION_PHASES = frozenset(
+    {
+        "PROPOSAL_GENERATION",
+        "DISPOSABLE_VALIDATION_EXECUTION",
+        "CANDIDATE_BINDING",
+        "INDEPENDENT_EVALUATION",
+        "ROUTING_CONTEXT",
+        "ROUTING_OUTCOME",
+        "COMPETITION_CONTEXT",
+        "COMPETITION_TRIGGER",
+        "ROUTING_DECISION",
+        "COMPETITION_DECISION",
+        "CANDIDATE_SELECTION",
+    }
+)
+_CANDIDATE_ADMISSION_FAILURE_KINDS = frozenset(
+    {
+        "CONTRACT_REJECTED",
+        "SAFE_APPLICATION_REJECTED",
+        "PROTECTED_POLICY_REJECTED",
+        "SANDBOX_UNAVAILABLE",
+        "IO_REJECTED",
+        "RUNTIME_REJECTED",
+    }
+)
+
+
+class CandidateAdmissionFailure(AgenticRuntimeError):
+    """Finite candidate-admission phase failure with no arbitrary exception material."""
+
+    def __init__(self, *, candidate_id: str, phase: str, failure_kind: str) -> None:
+        if phase not in _CANDIDATE_ADMISSION_PHASES:
+            raise ValueError("candidate admission phase is not admitted")
+        if failure_kind not in _CANDIDATE_ADMISSION_FAILURE_KINDS:
+            raise ValueError("candidate admission failure kind is not admitted")
+        super().__init__("protected candidate admission failed")
+        self.diagnostic_evidence = {
+            "candidate_id": candidate_id,
+            "phase": phase,
+            "failure_kind": failure_kind,
+            "candidate_is_canonical_lineage": False,
+            "accepts_source_lineage": False,
+            "source_lineage_accepted": False,
+            "engineering_run_transitioned": False,
+            "review_completed": False,
+            "production_deployed": False,
+        }
+
+
+def _candidate_admission_failure_kind(exc: Exception) -> str:
+    if isinstance(exc, VercelSandboxUnavailable):
+        return "SANDBOX_UNAVAILABLE"
+    if isinstance(exc, ExecutionPolicyError):
+        return "PROTECTED_POLICY_REJECTED"
+    if isinstance(exc, (ImplementationError, PatchError)):
+        return "SAFE_APPLICATION_REJECTED"
+    if isinstance(exc, OSError):
+        return "IO_REJECTED"
+    if isinstance(exc, (AgenticRuntimeError, ImplementationGenerationFailure, TypeError, ValueError)):
+        return "CONTRACT_REJECTED"
+    return "RUNTIME_REJECTED"
+
+
+@contextmanager
+def _candidate_admission_phase(candidate_id: str, phase: str):
+    if phase not in _CANDIDATE_ADMISSION_PHASES:
+        raise ValueError("candidate admission phase is not admitted")
+    try:
+        yield
+    except (CandidateValidationFailure, CandidateAdmissionFailure):
+        raise
+    except Exception as exc:
+        raise CandidateAdmissionFailure(
+            candidate_id=candidate_id,
+            phase=phase,
+            failure_kind=_candidate_admission_failure_kind(exc),
+        ) from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -1282,55 +1362,61 @@ class AgenticControlPlane:
         alternative_round: int,
         routing_context: RoutingContext | None = None,
     ) -> tuple[ProducedCandidate, RoutingContext]:
-        proposal, attempts, models, result_digests, task_digests = self._proposal_for_plan(
-            plan,
-            request,
-            proposal_validator=proposal_validator,
-            alternative_round=alternative_round,
-        )
-        validation = self._candidate_validation(
-            base_workspace,
-            proposal,
-            operation_key=operation_key,
-            candidate_id=candidate_id,
-        )
-        lead = plan.selected_agent_digests[0]
-        binding = CandidateBinding(
-            project_id=run.project_id or "",
-            run_id=run.id,
-            work_specification_id=run.work_specification_id or "",
-            work_specification_revision=int(run.work_specification_revision or 0),
-            work_specification_digest=run.work_specification_digest or "",
-            acceptance_ids=primary_plan.graph.approved_acceptance_ids,
-            candidate_lineage_digest=validation.content_digest,
-            candidate_revision_id=f"revision:{validation.content_digest[:24]}",
-            candidate_attempt_id=f"attempt:{candidate_id}",
-            producer_identity_digest=lead,
-        )
-        protected, evaluation = self._evaluation(
-            run=run,
-            candidate_id=candidate_id,
-            candidate_binding=binding,
-            validation=validation,
-            producer_digests=plan.selected_agent_digests,
-        )
-        context = routing_context or self._routing_context(
-            run=run,
-            primary_plan=primary_plan,
-            evaluation_policy_digest=evaluation.policy_digest,
-        )
-        if context.evaluation_policy_digest != evaluation.policy_digest:
-            raise AgenticRuntimeError("candidate evaluation policy drifted from routing context")
-        strategy = self._strategy(plan, candidate_id=candidate_id)
-        outcome = self._routing_outcome(
-            routing_context=context,
-            strategy=strategy,
-            candidate=binding,
-            protected_validation=protected,
-            evaluation_record=evaluation,
-            validation=validation,
-            project_id=run.project_id or "",
-        )
+        with _candidate_admission_phase(candidate_id, "PROPOSAL_GENERATION"):
+            proposal, attempts, models, result_digests, task_digests = self._proposal_for_plan(
+                plan,
+                request,
+                proposal_validator=proposal_validator,
+                alternative_round=alternative_round,
+            )
+        with _candidate_admission_phase(candidate_id, "DISPOSABLE_VALIDATION_EXECUTION"):
+            validation = self._candidate_validation(
+                base_workspace,
+                proposal,
+                operation_key=operation_key,
+                candidate_id=candidate_id,
+            )
+        with _candidate_admission_phase(candidate_id, "CANDIDATE_BINDING"):
+            lead = plan.selected_agent_digests[0]
+            binding = CandidateBinding(
+                project_id=run.project_id or "",
+                run_id=run.id,
+                work_specification_id=run.work_specification_id or "",
+                work_specification_revision=int(run.work_specification_revision or 0),
+                work_specification_digest=run.work_specification_digest or "",
+                acceptance_ids=primary_plan.graph.approved_acceptance_ids,
+                candidate_lineage_digest=validation.content_digest,
+                candidate_revision_id=f"revision:{validation.content_digest[:24]}",
+                candidate_attempt_id=f"attempt:{candidate_id}",
+                producer_identity_digest=lead,
+            )
+        with _candidate_admission_phase(candidate_id, "INDEPENDENT_EVALUATION"):
+            protected, evaluation = self._evaluation(
+                run=run,
+                candidate_id=candidate_id,
+                candidate_binding=binding,
+                validation=validation,
+                producer_digests=plan.selected_agent_digests,
+            )
+        with _candidate_admission_phase(candidate_id, "ROUTING_CONTEXT"):
+            context = routing_context or self._routing_context(
+                run=run,
+                primary_plan=primary_plan,
+                evaluation_policy_digest=evaluation.policy_digest,
+            )
+            if context.evaluation_policy_digest != evaluation.policy_digest:
+                raise AgenticRuntimeError("candidate evaluation policy drifted from routing context")
+        with _candidate_admission_phase(candidate_id, "ROUTING_OUTCOME"):
+            strategy = self._strategy(plan, candidate_id=candidate_id)
+            outcome = self._routing_outcome(
+                routing_context=context,
+                strategy=strategy,
+                candidate=binding,
+                protected_validation=protected,
+                evaluation_record=evaluation,
+                validation=validation,
+                project_id=run.project_id or "",
+            )
         return (
             ProducedCandidate(
                 candidate_id=candidate_id,
@@ -1453,12 +1539,13 @@ class AgenticControlPlane:
             )
             candidates = [primary]
 
-            competition_context = self._competition_context(
-                run=run,
-                primary_plan=primary_plan,
-                routing_context=routing_context,
-                evaluation_policy_digest=primary.evaluation_record.policy_digest,
-            )
+            with _candidate_admission_phase(primary.candidate_id, "COMPETITION_CONTEXT"):
+                competition_context = self._competition_context(
+                    run=run,
+                    primary_plan=primary_plan,
+                    routing_context=routing_context,
+                    evaluation_policy_digest=primary.evaluation_record.policy_digest,
+                )
             signal = None
             if len(primary_plan.selected_agent_digests) > 1:
                 signal = CompetitionSignal(
@@ -1469,26 +1556,27 @@ class AgenticControlPlane:
                     expected_quality_gain=0.10,
                 )
 
-            preliminary = CompetitionRequest(
-                context=competition_context,
-                policy=self.competition_policy,
-                candidates=(self._competition_candidate(primary),),
-                signal=signal,
-            )
-            trigger, _ = should_compete(
-                preliminary,
-                tuple(
-                    item for item in decide_candidate_competition(
-                        CompetitionRequest(
-                            context=competition_context,
-                            policy=self.competition_policy,
-                            candidates=(self._competition_candidate(primary),),
-                            signal=None,
-                        )
-                    ).eligibility
-                    if item.eligible
-                ),
-            )
+            with _candidate_admission_phase(primary.candidate_id, "COMPETITION_TRIGGER"):
+                preliminary = CompetitionRequest(
+                    context=competition_context,
+                    policy=self.competition_policy,
+                    candidates=(self._competition_candidate(primary),),
+                    signal=signal,
+                )
+                trigger, _ = should_compete(
+                    preliminary,
+                    tuple(
+                        item for item in decide_candidate_competition(
+                            CompetitionRequest(
+                                context=competition_context,
+                                policy=self.competition_policy,
+                                candidates=(self._competition_candidate(primary),),
+                                signal=None,
+                            )
+                        ).eligibility
+                        if item.eligible
+                    ),
+                )
             if trigger is CompetitionTriggerDisposition.COMPETE:
                 acceptance = self._acceptance(run, self.service)
                 challenger_plan = self._challenger_plan(
@@ -1513,68 +1601,72 @@ class AgenticControlPlane:
                     if challenger.validation.content_digest != primary.validation.content_digest:
                         candidates.append(challenger)
 
-            strategies = tuple(candidate.strategy for candidate in candidates)
-            admissions = tuple(
-                StrategyAdmissionSnapshot(
-                    context_digest=routing_context.digest,
-                    strategy_digest=candidate.strategy.digest,
-                    project_id=run.project_id or "",
-                    source_ref=f"candidate:{candidate.candidate_id}",
-                    source_digest=candidate.validation.content_digest,
-                    capability_compatible=True,
-                    authority_compatible=True,
-                    dependency_compatible=True,
-                    admitted_capabilities=("bounded-source-evidence",),
-                )
-                for candidate in candidates
-            )
-            outcomes = tuple(candidate.routing_outcome for candidate in candidates)
-            routing_request = RoutingRequest(
-                context=routing_context,
-                policy=self.routing_policy,
-                strategies=strategies,
-                admissions=admissions,
-                outcomes=outcomes,
-            )
-            routing_record = route_outcomes(routing_request)
-            if routing_record.selected_strategy_id is None:
-                diagnostic = _candidate_validation_failure_diagnostic(
-                    primary.candidate_id,
-                    primary.validation,
-                )
-                if diagnostic is not None:
-                    raise CandidateValidationFailure(
-                        f"agentic outcome routing stopped after protected candidate validation: {routing_record.reason_code}",
-                        diagnostic_evidence=diagnostic,
+            with _candidate_admission_phase(primary.candidate_id, "ROUTING_DECISION"):
+                strategies = tuple(candidate.strategy for candidate in candidates)
+                admissions = tuple(
+                    StrategyAdmissionSnapshot(
+                        context_digest=routing_context.digest,
+                        strategy_digest=candidate.strategy.digest,
+                        project_id=run.project_id or "",
+                        source_ref=f"candidate:{candidate.candidate_id}",
+                        source_digest=candidate.validation.content_digest,
+                        capability_compatible=True,
+                        authority_compatible=True,
+                        dependency_compatible=True,
+                        admitted_capabilities=("bounded-source-evidence",),
                     )
-                raise AgenticRuntimeError(
-                    f"agentic outcome routing stopped: {routing_record.reason_code}"
+                    for candidate in candidates
                 )
+                outcomes = tuple(candidate.routing_outcome for candidate in candidates)
+                routing_request = RoutingRequest(
+                    context=routing_context,
+                    policy=self.routing_policy,
+                    strategies=strategies,
+                    admissions=admissions,
+                    outcomes=outcomes,
+                )
+                routing_record = route_outcomes(routing_request)
+                if routing_record.selected_strategy_id is None:
+                    diagnostic = _candidate_validation_failure_diagnostic(
+                        primary.candidate_id,
+                        primary.validation,
+                    )
+                    if diagnostic is not None:
+                        raise CandidateValidationFailure(
+                            f"agentic outcome routing stopped after protected candidate validation: {routing_record.reason_code}",
+                            diagnostic_evidence=diagnostic,
+                        )
+                    raise AgenticRuntimeError(
+                        f"agentic outcome routing stopped: {routing_record.reason_code}"
+                    )
 
-            competition_request = CompetitionRequest(
-                context=competition_context,
-                policy=self.competition_policy,
-                candidates=tuple(self._competition_candidate(item) for item in candidates),
-                signal=signal,
-            )
-            competition_record = decide_candidate_competition(competition_request)
-            if competition_record.disposition not in {
-                CompetitionDisposition.SINGLE_CANDIDATE_SUFFICIENT,
-                CompetitionDisposition.WINNER_SUPPORTED,
-            } or competition_record.selected_candidate_id is None:
-                raise AgenticRuntimeError(
-                    f"candidate competition did not admit a selected candidate: {competition_record.reason_code}"
+            with _candidate_admission_phase(primary.candidate_id, "COMPETITION_DECISION"):
+                competition_request = CompetitionRequest(
+                    context=competition_context,
+                    policy=self.competition_policy,
+                    candidates=tuple(self._competition_candidate(item) for item in candidates),
+                    signal=signal,
                 )
-            selected = next(
-                item for item in candidates
-                if item.candidate_id == competition_record.selected_candidate_id
-            )
-            if routing_record.selected_strategy_id != selected.strategy.strategy_id:
-                raise AgenticRuntimeError("S4 routing and S5 candidate selection disagree")
-            if not selected.validation.passed:
-                raise AgenticRuntimeError("selected candidate lacks protected deterministic validation")
-            if selected.evaluation_record.outcome is not EvaluationOutcome.SUPPORTED:
-                raise AgenticRuntimeError("selected candidate lacks independent S3 support")
+                competition_record = decide_candidate_competition(competition_request)
+                if competition_record.disposition not in {
+                    CompetitionDisposition.SINGLE_CANDIDATE_SUFFICIENT,
+                    CompetitionDisposition.WINNER_SUPPORTED,
+                } or competition_record.selected_candidate_id is None:
+                    raise AgenticRuntimeError(
+                        f"candidate competition did not admit a selected candidate: {competition_record.reason_code}"
+                    )
+
+            with _candidate_admission_phase(primary.candidate_id, "CANDIDATE_SELECTION"):
+                selected = next(
+                    item for item in candidates
+                    if item.candidate_id == competition_record.selected_candidate_id
+                )
+                if routing_record.selected_strategy_id != selected.strategy.strategy_id:
+                    raise AgenticRuntimeError("S4 routing and S5 candidate selection disagree")
+                if not selected.validation.passed:
+                    raise AgenticRuntimeError("selected candidate lacks protected deterministic validation")
+                if selected.evaluation_record.outcome is not EvaluationOutcome.SUPPORTED:
+                    raise AgenticRuntimeError("selected candidate lacks independent S3 support")
 
             execution_digest = _digest(
                 {
@@ -1646,6 +1738,13 @@ class AgenticControlPlane:
                 "agentic runtime rejected a protected implementation candidate",
                 diagnostic_evidence={
                     "candidate_validation_failure": dict(exc.diagnostic_evidence),
+                },
+            ) from exc
+        except CandidateAdmissionFailure as exc:
+            raise ImplementationGenerationFailure(
+                "agentic runtime rejected a protected candidate-admission phase",
+                diagnostic_evidence={
+                    "candidate_admission_failure": dict(exc.diagnostic_evidence),
                 },
             ) from exc
         except (AgenticRuntimeError, ValueError, ImplementationError, PatchError, OSError) as exc:

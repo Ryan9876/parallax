@@ -521,6 +521,70 @@ def _bounded_controller_evidence(value: object) -> dict[str, object]:
 def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]:
     """Allow only sanitized protected candidate failure diagnostics into durable failure evidence."""
 
+    if isinstance(value, dict) and set(value) == {"candidate_admission_failure"}:
+        raw = value["candidate_admission_failure"]
+        if not isinstance(raw, dict):
+            raise ValueError("candidate admission diagnostics must be an object")
+        allowed = {
+            "candidate_id",
+            "phase",
+            "failure_kind",
+            "candidate_is_canonical_lineage",
+            "accepts_source_lineage",
+            "source_lineage_accepted",
+            "engineering_run_transitioned",
+            "review_completed",
+            "production_deployed",
+        }
+        if set(raw) != allowed:
+            raise ValueError("candidate admission diagnostics contain a non-admitted field")
+        phase = raw.get("phase")
+        if phase not in {
+            "PROPOSAL_GENERATION",
+            "DISPOSABLE_VALIDATION_EXECUTION",
+            "CANDIDATE_BINDING",
+            "INDEPENDENT_EVALUATION",
+            "ROUTING_CONTEXT",
+            "ROUTING_OUTCOME",
+            "COMPETITION_CONTEXT",
+            "COMPETITION_TRIGGER",
+            "ROUTING_DECISION",
+            "COMPETITION_DECISION",
+            "CANDIDATE_SELECTION",
+        }:
+            raise ValueError("candidate admission diagnostics contain an invalid phase")
+        failure_kind = raw.get("failure_kind")
+        if failure_kind not in {
+            "CONTRACT_REJECTED",
+            "SAFE_APPLICATION_REJECTED",
+            "PROTECTED_POLICY_REJECTED",
+            "SANDBOX_UNAVAILABLE",
+            "IO_REJECTED",
+            "RUNTIME_REJECTED",
+        }:
+            raise ValueError("candidate admission diagnostics contain an invalid failure kind")
+        normalized_failure: dict[str, object] = {
+            "candidate_id": _bounded_identity(raw.get("candidate_id"), "candidate_id"),
+            "phase": phase,
+            "failure_kind": failure_kind,
+        }
+        for key in (
+            "candidate_is_canonical_lineage",
+            "accepts_source_lineage",
+            "source_lineage_accepted",
+            "engineering_run_transitioned",
+            "review_completed",
+            "production_deployed",
+        ):
+            if raw.get(key) is not False:
+                raise ValueError("candidate admission diagnostics asserted authority they do not own")
+            normalized_failure[key] = False
+        normalized = {"candidate_admission_failure": normalized_failure}
+        encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        if len(encoded.encode("utf-8")) > 2_048:
+            raise ValueError("candidate admission diagnostics exceed durable evidence bound")
+        return normalized
+
     if not isinstance(value, dict) or set(value) != {"candidate_validation_failure"}:
         raise ValueError("implementation failure diagnostics have an invalid envelope")
     raw = value["candidate_validation_failure"]
