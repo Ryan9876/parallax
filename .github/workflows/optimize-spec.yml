@@ -12,7 +12,7 @@ jobs:
   optimize:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     env:
       SPEC_PATH: specs/P2-V0.20.3.md
       DSPY_MODEL: ollama_chat/llama3.2:1b
@@ -52,6 +52,17 @@ jobs:
           print(raw.decode('utf-8'))
           print('W7_S3_PLAN_END')
           PY
+      - name: Commit exact generated plan to evidence branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/compiled/P2-V0.20.3.plan.json
+          if git diff --cached --quiet; then
+            echo 'Generated plan already matches branch.'
+            exit 0
+          fi
+          git commit -m 'Evidence: compile P2-V0.20.3 with DSPy'
+          git push origin HEAD:p2/w7-s3-agent-canvas-evidence
       - uses: actions/upload-artifact@v4
         with:
           name: dspy-w7-s3-agent-canvas-evidence
