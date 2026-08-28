@@ -31,7 +31,7 @@ class RuntimeMetricRead(BaseModel):
         "provider.cost_usd",
     ]
     unit: Literal["seconds", "count", "usage_units", "usd"]
-    source_kind: str
+    source_kind: str = Field(min_length=1, max_length=80)
     retention_class: Literal[
         "CANONICAL_REFERENCE",
         "PROTECTED_RELEASE_EVIDENCE",
@@ -40,21 +40,21 @@ class RuntimeMetricRead(BaseModel):
     ]
     state: Literal["OBSERVED", "ESTIMATED", "UNKNOWN"]
     value: float | None
-    provenance_ref: str | None
+    provenance_ref: str | None = Field(default=None, max_length=200)
 
 
 class CompatibleProjectionMetricRead(BaseModel):
     metric: Literal["elapsed_time", "cost_usage", "human_interventions"]
     state: Literal["OBSERVED", "ESTIMATED", "UNKNOWN"]
     value: float | None
-    provenance_ref: str | None
+    provenance_ref: str | None = Field(default=None, max_length=200)
 
 
 class QualityProjectionRead(BaseModel):
     deterministic_disposition: Literal["PASSED", "FAILED", "PENDING"]
     effective_disposition: Literal["PASSED", "FAILED", "PENDING"]
-    evaluation_outcome: str | None
-    preview_status: str | None
+    evaluation_outcome: str | None = Field(default=None, max_length=32)
+    preview_status: str | None = Field(default=None, max_length=64)
     deterministic_failure_authoritative: bool
 
 
@@ -62,6 +62,7 @@ class RuntimeEvidenceCoverageRead(BaseModel):
     attempt_count: int = Field(ge=0)
     unique_event_count: int = Field(ge=0, le=200)
     event_plane_available: bool
+    event_plane_complete: bool
     worker_evidence_available: bool
     known_metric_count: int = Field(ge=0)
     estimated_metric_count: int = Field(ge=0)
@@ -79,9 +80,9 @@ class RetentionProjectionRead(BaseModel):
 
 class AgenticRunObservabilityRead(BaseModel):
     observability_version: Literal[1]
-    project_id: str
-    run_id: str
-    run_state: str
+    project_id: str = Field(min_length=36, max_length=36)
+    run_id: str = Field(min_length=36, max_length=36)
+    run_state: str = Field(min_length=1, max_length=32)
     run_revision: int = Field(ge=0)
     projection_fingerprint: str = Field(min_length=64, max_length=64)
     latest_event_sequence: int = Field(ge=0)
@@ -113,7 +114,7 @@ class AgenticRunObservabilityRead(BaseModel):
 
 class ProjectObservabilityHistoryRead(BaseModel):
     observability_version: Literal[1]
-    project_id: str
+    project_id: str = Field(min_length=36, max_length=36)
     limit: int = Field(ge=1, le=25)
     run_count: int = Field(ge=0, le=25)
     runs: list[AgenticRunObservabilityRead] = Field(max_length=25)
