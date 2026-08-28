@@ -318,7 +318,7 @@ async function exerciseCodeBinding(page) {
   await page.getByText('Plan approved').waitFor({ timeout: 5000 });
   await page.getByText('Planning the work').waitFor({ timeout: 5000 });
   await page.getByText('Following your approved plan').waitFor({ timeout: 5000 });
-  await page.getByText('STEP 2 OF 5').waitFor({ timeout: 5000 });
+  await page.getByLabel('Current step: Plan').waitFor({ timeout: 5000 });
   const autonomy = page.getByLabel('Continue work');
   await autonomy.waitFor({ timeout: 5000 });
   await autonomy.click();
