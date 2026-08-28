@@ -78,10 +78,10 @@ function boundaryMessage(run: EngineeringRunDto, stopReason?: string | null): st
     SPEC_AMENDMENT: 'Your request changed from the approved plan, so Parallax stopped before changing the approved work.',
     MAX_STEPS_REACHED: 'Parallax reached its safe automatic-work limit and needs a review before continuing.',
   };
-  if (stopReason && reported[stopReason]) return reported[stopReason];
-  if (run.state === 'IMPLEMENT') return reported.IMPLEMENTATION_REQUIRED;
-  if (run.state === 'REVIEW') return reported.REVIEW_REQUIRED;
-  if (run.state === 'FAILED') return reported.FAILED;
+  if (stopReason && reported[stopReason]) return reported[stopReason] ?? null;
+  if (run.state === 'IMPLEMENT') return reported.IMPLEMENTATION_REQUIRED ?? null;
+  if (run.state === 'REVIEW') return reported.REVIEW_REQUIRED ?? null;
+  if (run.state === 'FAILED') return reported.FAILED ?? null;
   return null;
 }
 
