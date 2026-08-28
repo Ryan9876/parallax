@@ -2,6 +2,11 @@ import React from 'react';
 import { api, type EngineeringRunDto } from '../lib/api';
 import { runEngineeringAutonomy } from '../lib/autonomyApi';
 import {
+  clearEngineeringRunFailure,
+  publishEngineeringRunFailure,
+  subscribeEngineeringRunRetry,
+} from '../lib/engineeringRunEvents';
+import {
   automaticAutonomyOperationKey,
   canContinueEngineeringRunAutonomously,
 } from '../state/engineeringRunContinuation';
@@ -15,13 +20,29 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
   const [error, setError] = React.useState<string | null>(null);
   const manualAutonomyAttemptRef = React.useRef(0);
 
+  const clearFailure = React.useCallback(() => {
+    setError(null);
+    clearEngineeringRunFailure(conversationId);
+  }, [conversationId]);
+
+  const recordFailure = React.useCallback((message: string, runId?: string | null) => {
+    setError(message);
+    if (conversationId && runId) {
+      publishEngineeringRunFailure({
+        conversationId,
+        runId,
+        message,
+      });
+    }
+  }, [conversationId]);
+
   const applyAutonomyResult = React.useCallback(async (candidate: EngineeringRunDto, operationKey: string) => {
     const result = await runEngineeringAutonomy(candidate, operationKey);
     const next: EngineeringRunView = { ...result.run, autonomy_stop_reason: result.stop_reason };
     setRun(next);
-    setError(null);
+    clearFailure();
     return next;
-  }, []);
+  }, [clearFailure]);
 
   const continueAutomatically = React.useCallback(async (candidate: EngineeringRunDto) => {
     if (!canContinueEngineeringRunAutonomously(candidate)) return candidate;
@@ -32,7 +53,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     if (!enabled || !conversationId) return null;
     const activated = await api.activateEngineeringRun(conversationId, specificationId);
     setRun(activated);
-    setError(null);
+    clearFailure();
     if (!canContinueEngineeringRunAutonomously(activated)) return activated;
     try {
       return await continueAutomatically(activated);
@@ -40,22 +61,25 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       // Activation is durable server truth even when the bounded autonomous
       // handoff fails. Keep the PLAN/active run visible so the operator can
       // retry without fabricating or discarding canonical state.
-      setError(caught instanceof Error ? caught.message : 'Autonomous Code run failed after activation.');
+      recordFailure(
+        caught instanceof Error ? caught.message : 'Autonomous Code run failed after activation.',
+        activated.id,
+      );
       return activated;
     }
-  }, [continueAutomatically, conversationId, enabled]);
+  }, [clearFailure, continueAutomatically, conversationId, enabled, recordFailure]);
 
   const refresh = React.useCallback(async () => {
     if (!enabled || !conversationId) {
       setRun(null);
-      setError(null);
+      clearFailure();
       return;
     }
     try {
       const latest = await api.latestEngineeringRun(conversationId);
       if (latest) {
         setRun(latest);
-        setError(null);
+        clearFailure();
         if (!canContinueEngineeringRunAutonomously(latest)) return;
         setBusy(true);
         try {
@@ -64,7 +88,10 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
           // protected execution for the same server revision.
           await continueAutomatically(latest);
         } catch (caught) {
-          setError(caught instanceof Error ? caught.message : 'Autonomous Code run continuation failed.');
+          recordFailure(
+            caught instanceof Error ? caught.message : 'Autonomous Code run continuation failed.',
+            latest.id,
+          );
         } finally {
           setBusy(false);
         }
@@ -80,14 +107,14 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
         }
       } else {
         setRun(null);
-        setError(null);
+        clearFailure();
       }
     } catch (caught) {
       setRun(null);
       setError(caught instanceof Error ? caught.message : 'Code run status unavailable.');
       setBusy(false);
     }
-  }, [activateApproved, continueAutomatically, conversationId, enabled]);
+  }, [activateApproved, clearFailure, continueAutomatically, conversationId, enabled, recordFailure]);
 
   React.useEffect(() => { void refresh(); }, [refresh]);
 
@@ -102,7 +129,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
   const mutate = React.useCallback(async (action: 'pause' | 'resume' | 'cancel') => {
     if (!run || busy) return;
     setBusy(true);
-    setError(null);
+    clearFailure();
     try {
       const key = `${action}-${run.id}-${run.revision}-${Date.now()}`;
       const result = action === 'pause'
@@ -111,15 +138,19 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
           ? await api.resumeEngineeringRun(run, key)
           : await api.cancelEngineeringRun(run, key);
       setRun(result.run);
+      clearFailure();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : `Code run ${action} failed.`);
+      recordFailure(
+        caught instanceof Error ? caught.message : `Code run ${action} failed.`,
+        run.id,
+      );
     } finally { setBusy(false); }
-  }, [busy, run]);
+  }, [busy, clearFailure, recordFailure, run]);
 
   const runAutonomously = React.useCallback(async () => {
     if (!run || busy || !canContinueEngineeringRunAutonomously(run)) return;
     setBusy(true);
-    setError(null);
+    clearFailure();
     manualAutonomyAttemptRef.current += 1;
     try {
       await applyAutonomyResult(
@@ -127,9 +158,12 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
         `autonomous-manual-${run.id}-${run.revision}-${manualAutonomyAttemptRef.current}`,
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Autonomous Code run failed.');
+      recordFailure(
+        caught instanceof Error ? caught.message : 'Autonomous Code run failed.',
+        run.id,
+      );
     } finally { setBusy(false); }
-  }, [applyAutonomyResult, busy, run]);
+  }, [applyAutonomyResult, busy, clearFailure, recordFailure, run]);
 
   const continueRun = React.useCallback(async () => {
     if (!run) return;
@@ -139,6 +173,15 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     }
     await mutate('resume');
   }, [mutate, run, runAutonomously]);
+
+  React.useEffect(() => subscribeEngineeringRunRetry((targetConversationId) => {
+    if (!enabled || !conversationId || targetConversationId !== conversationId) return;
+    void continueRun();
+  }), [continueRun, conversationId, enabled]);
+
+  React.useEffect(() => () => {
+    clearEngineeringRunFailure(conversationId);
+  }, [conversationId]);
 
   return {
     run,
