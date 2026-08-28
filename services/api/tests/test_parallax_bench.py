@@ -117,7 +117,7 @@ def _dimension(
         provenance=provenance,
         value=value,
         evidence_ref=f"evidence:{dimension.value}:{suffix}",
-        evidence_digest=(suffix * 64)[:64],
+        evidence_digest=(format(ord(suffix) % 16, "x") * 64),
     )
 
 
