@@ -1,6 +1,10 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { EngineeringRunDto } from '../lib/api';
+import {
+  getEngineeringRunFailure,
+  subscribeEngineeringRunFailures,
+} from '../lib/engineeringRunEvents';
 import { palette } from '../theme';
 
 const RAW_STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
@@ -15,6 +19,12 @@ const JOURNEY = [
   { key: 'check', label: 'Check', description: 'Test the result and run final checks.' },
   { key: 'review', label: 'Review', description: 'Review the finished result before anything moves further.' },
 ] as const;
+
+function useEngineeringRunFailure(conversationId: string) {
+  const subscribe = React.useCallback((listener: () => void) => subscribeEngineeringRunFailures(listener), []);
+  const getSnapshot = React.useCallback(() => getEngineeringRunFailure(conversationId), [conversationId]);
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 function rawStage(run: EngineeringRunDto): string | null {
   if (RAW_STAGES.includes(run.state)) return run.state;
@@ -64,6 +74,15 @@ function friendlyState(run: EngineeringRunDto): string {
   return labels[run.state] ?? 'Working on your request';
 }
 
+function plainRunError(error?: string | null): string | null {
+  if (!error) return null;
+  const normalized = error.toLowerCase();
+  if (normalized.includes("couldn't prepare this project") || normalized.includes('couldn’t prepare this project')) {
+    return 'Parallax couldn’t prepare this project for the next step yet. Your saved work is still here. Try again.';
+  }
+  return 'Parallax couldn’t continue this step. Your saved work is still here. Try again.';
+}
+
 function boundaryMessage(run: EngineeringRunDto, stopReason?: string | null): string | null {
   const reported: Record<string, string> = {
     EXECUTOR_UNAVAILABLE: 'Parallax can’t continue right now because the protected build environment is unavailable. Nothing was changed.',
@@ -85,7 +104,7 @@ function boundaryMessage(run: EngineeringRunDto, stopReason?: string | null): st
   return null;
 }
 
-function TechnicalDetails({ run, stopReason }: { run: EngineeringRunDto; stopReason?: string | null }) {
+function TechnicalDetails({ run, stopReason, error }: { run: EngineeringRunDto; stopReason?: string | null; error?: string | null }) {
   const [open, setOpen] = React.useState(false);
   const passed = run.attempts.filter((item) => item.status === 'PASSED').map((item) => item.stage);
   return (
@@ -112,26 +131,31 @@ function TechnicalDetails({ run, stopReason }: { run: EngineeringRunDto; stopRea
           <Text selectable style={styles.technicalLine}>Passed stages: {passed.length ? passed.join(' · ') : 'None yet'}</Text>
           {run.last_failure_code ? <Text selectable style={styles.technicalLine}>Issue code: {run.last_failure_code}</Text> : null}
           {stopReason ? <Text selectable style={styles.technicalLine}>Stop reason: {stopReason}</Text> : null}
+          {error ? <Text selectable style={styles.technicalLine}>Last request error: {error}</Text> : null}
         </View>
       ) : null}
     </View>
   );
 }
 
-export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel }: {
+export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCancel }: {
   run: EngineeringRunDto;
   busy: boolean;
+  error?: string | null;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
   reducedGraphics?: boolean;
 }) {
+  const storedFailure = useEngineeringRunFailure(run.conversation_id);
+  const effectiveError = error ?? storedFailure?.message ?? null;
   const bound = run.binding_status === 'APPROVED_SPEC_BOUND';
   const canPause = bound && RAW_STAGES.includes(run.state);
   const canResume = bound && (run.state === 'PAUSED' || run.state === 'FAILED');
   const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state);
   const stopReason = (run as EngineeringRunView).autonomy_stop_reason;
   const boundary = boundaryMessage(run, stopReason);
+  const requestError = plainRunError(effectiveError);
   const currentIndex = currentJourneyIndex(run);
   const currentStep = JOURNEY[currentIndex] ?? JOURNEY[0]!;
   const complete = run.state === 'COMPLETE';
@@ -172,16 +196,17 @@ export function EngineeringRunStatus({ run, busy, onPause, onResume, onCancel }:
 
       <Text style={styles.currentDescription}>{complete ? 'Parallax finished the build flow and the result is ready.' : currentStep.description}</Text>
       {boundary ? <Text style={styles.boundary} accessibilityLiveRegion="polite">{boundary}</Text> : null}
+      {requestError ? <Text style={styles.requestError} accessibilityLiveRegion="polite">{requestError}</Text> : null}
       {!bound ? <Text style={styles.warning}>This older run is preserved for reference, but it cannot continue as approved work.</Text> : null}
 
       <View style={styles.actions}>
-        {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Continue work" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : 'Continue work'}</Text></TouchableOpacity>}
+        {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel={effectiveError ? 'Try again' : 'Continue work'} accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : effectiveError ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
         {canPause && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Pause work" disabled={busy} onPress={onPause} style={styles.actionButton}><Text style={styles.action}>Pause</Text></TouchableOpacity>}
         {canResume && <TouchableOpacity accessibilityRole="button" accessibilityLabel={run.state === 'FAILED' ? 'Try again' : 'Continue work'} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : run.state === 'FAILED' ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
         {bound && !['COMPLETE', 'CANCELLED', 'SPEC_AMENDMENT'].includes(run.state) && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Stop work" disabled={busy} onPress={onCancel} style={styles.actionButton}><Text style={styles.action}>Stop</Text></TouchableOpacity>}
       </View>
 
-      <TechnicalDetails run={run} stopReason={stopReason} />
+      <TechnicalDetails run={run} stopReason={stopReason} error={effectiveError} />
     </View>
   );
 }
@@ -210,6 +235,7 @@ const styles = StyleSheet.create({
   journeyMeta: { color: palette.charcoal600, fontSize: 12, lineHeight: 17, marginTop: 1 },
   currentDescription: { color: palette.charcoal600, marginTop: 14, fontSize: 14, lineHeight: 21, maxWidth: 740 },
   boundary: { color: palette.teal700, marginTop: 10, fontSize: 14, lineHeight: 21, fontWeight: '700', maxWidth: 740 },
+  requestError: { color: palette.danger, marginTop: 10, fontSize: 14, lineHeight: 21, fontWeight: '700', maxWidth: 740 },
   warning: { color: palette.warning, marginTop: 10, fontSize: 14, lineHeight: 21, maxWidth: 740 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   actionButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 15, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.ivory50 },

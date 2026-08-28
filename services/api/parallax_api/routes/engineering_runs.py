@@ -11,10 +11,8 @@ from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.bootstrap_observability import record_bootstrap_failure
 from ..code.domain import WorkflowStage
-from ..code.production_delivery import (
-    ProductionDeliveryConfigurationError,
-    production_source_delivery,
-)
+from ..code.production_delivery import ProductionDeliveryConfigurationError
+from ..code.production_delivery_lazy import production_source_delivery_lazy
 from ..code.run_events import (
     RunEventConflict,
     RunEventPersistenceError,
@@ -56,6 +54,11 @@ router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
 _AGENTIC_RUNTIME_ENABLE_ENV = "PARALLAX_AGENTIC_RUNTIME_ENABLED"
+
+# Preserve the accepted route-level composition seam. W8-S2 changes the
+# implementation behind this name so source bootstrap is immediate while Vercel
+# readiness is deferred until verified REVIEW delivery is actually attempted.
+production_source_delivery = production_source_delivery_lazy
 
 
 def _run_event_sink(session: Session) -> PersistentRunEventSink | None:
@@ -273,6 +276,7 @@ def autonomous(
                 **delivery_kwargs,
             )
         )
+
         if agentic_enabled:
             try:
                 from ..code.agentic_runtime_live import build_live_agentic_runtime_composition
@@ -292,6 +296,7 @@ def autonomous(
                 legacy_executor,
                 source_delivery=source_delivery,
             )
+
     result = invoke(
         lambda: runtime.run(
             run_id=run_id,
