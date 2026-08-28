@@ -39,7 +39,7 @@ const conversation = {
   project_id: PROJECT_ID, project_binding_status: 'PROJECT_BOUND', created_at: now, updated_at: now,
   messages: [
     { id: 'mobile-scroll-user', role: 'user', content: 'Update the Parallax logo with a small governed visual change.', status: 'complete', created_at: now },
-    { id: 'mobile-scroll-assistant', role: 'assistant', content: 'The approved work specification is bound to an active implementation run.', status: 'complete', created_at: now },
+    { id: 'mobile-scroll-assistant', role: 'assistant', content: 'The approved build plan is attached to work that is now in progress.', status: 'complete', created_at: now },
   ],
 };
 const workSpecification = {
@@ -117,28 +117,33 @@ try {
   const composerAfterProject = await page.getByLabel('Message Parallax').boundingBox();
   assert(composerAfterProject && Math.abs(composerAfterProject.y - composerBefore.y) <= 2, 'mobile guided scroll: composer did not return after Project navigation');
 
-  await page.getByRole('tab', { name: 'Build' }).click();
+  await page.getByRole('tab', { name: 'Progress' }).click();
   const build = page.getByTestId('mobile-build-workspace');
   await build.waitFor({ timeout: 5000 });
-  await page.getByText('Implementation', { exact: true }).waitFor();
-  await page.getByText('Current', { exact: true }).waitFor();
-  assert(await page.getByLabel('Message Parallax').count() === 0, 'mobile guided scroll: composer must not compete with Build workspace');
+  await page.getByText('Making the changes', { exact: true }).waitFor();
+  await page.getByText('Create', { exact: true }).first().waitFor();
+  await page.getByText(/In progress · Make and prepare the changes\./).waitFor();
+  assert(await page.getByLabel('Message Parallax').count() === 0, 'mobile guided scroll: composer must not compete with Progress workspace');
 
   const before = await build.evaluate((node) => ({ scrollTop: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }));
-  assert(before.scrollHeight > before.clientHeight + 40, `mobile guided scroll: Build workspace should be vertically scrollable (${before.scrollHeight} <= ${before.clientHeight})`);
-  await page.getByText('View full engineering evidence').scrollIntoViewIfNeeded();
+  assert(before.scrollHeight > before.clientHeight + 40, `mobile guided scroll: Progress workspace should be vertically scrollable (${before.scrollHeight} <= ${before.clientHeight})`);
+  const technicalDisclosure = page.getByLabel('Show technical details and evidence');
+  await technicalDisclosure.scrollIntoViewIfNeeded();
   await page.waitForTimeout(100);
   const after = await build.evaluate((node) => ({ scrollTop: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }));
   const navAfter = await nav.boundingBox();
-  assert(after.scrollTop > 0, 'mobile guided scroll: lower Build evidence was not reachable by scrolling');
-  assert(navAfter && Math.abs(navAfter.y - navBefore.y) <= 2, 'mobile guided scroll: bottom navigation moved while Build content scrolled');
+  assert(after.scrollTop > 0, 'mobile guided scroll: lower Progress details were not reachable by scrolling');
+  assert(navAfter && Math.abs(navAfter.y - navBefore.y) <= 2, 'mobile guided scroll: bottom navigation moved while Progress content scrolled');
+  await technicalDisclosure.click();
+  await page.getByText('System stage: IMPLEMENT', { exact: true }).waitFor();
+  await page.getByLabel('Open full technical build details').waitFor();
 
   await page.getByRole('tab', { name: 'Chat' }).click();
   const composerAfter = await page.getByLabel('Message Parallax').boundingBox();
   assert(composerAfter && Math.abs(composerAfter.y - composerBefore.y) <= 2, 'mobile guided scroll: composer did not return to its stable Chat position');
   assert(errors.length === 0, `mobile guided scroll: browser errors: ${errors.join(' | ')}`);
   await page.screenshot({ path: `${evidenceDir}/mobile-guided-build-scroll.png`, fullPage: true });
-  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, before, after, navStable: true, projectDestination: true, composerStable: true, currentStage: 'Implementation' }, null, 2));
+  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, before, after, navStable: true, projectDestination: true, composerStable: true, currentStep: 'Create', currentActivity: 'Making the changes', technicalDetailsReachable: true }, null, 2));
   await page.close();
 } finally {
   await browser?.close(); web.close(); api.close();
