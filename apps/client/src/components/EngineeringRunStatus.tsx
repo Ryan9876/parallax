@@ -1,6 +1,10 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { EngineeringRunDto } from '../lib/api';
+import {
+  getEngineeringRunFailure,
+  subscribeEngineeringRunFailures,
+} from '../lib/engineeringRunEvents';
 import { palette } from '../theme';
 
 const RAW_STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
@@ -15,6 +19,12 @@ const JOURNEY = [
   { key: 'check', label: 'Check', description: 'Test the result and run final checks.' },
   { key: 'review', label: 'Review', description: 'Review the finished result before anything moves further.' },
 ] as const;
+
+function useEngineeringRunFailure(conversationId: string) {
+  const subscribe = React.useCallback((listener: () => void) => subscribeEngineeringRunFailures(listener), []);
+  const getSnapshot = React.useCallback(() => getEngineeringRunFailure(conversationId), [conversationId]);
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 function rawStage(run: EngineeringRunDto): string | null {
   if (RAW_STAGES.includes(run.state)) return run.state;
@@ -137,13 +147,15 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
   onCancel(): void;
   reducedGraphics?: boolean;
 }) {
+  const storedFailure = useEngineeringRunFailure(run.conversation_id);
+  const effectiveError = error ?? storedFailure?.message ?? null;
   const bound = run.binding_status === 'APPROVED_SPEC_BOUND';
   const canPause = bound && RAW_STAGES.includes(run.state);
   const canResume = bound && (run.state === 'PAUSED' || run.state === 'FAILED');
   const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state);
   const stopReason = (run as EngineeringRunView).autonomy_stop_reason;
   const boundary = boundaryMessage(run, stopReason);
-  const requestError = plainRunError(error);
+  const requestError = plainRunError(effectiveError);
   const currentIndex = currentJourneyIndex(run);
   const currentStep = JOURNEY[currentIndex] ?? JOURNEY[0]!;
   const complete = run.state === 'COMPLETE';
@@ -188,13 +200,13 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
       {!bound ? <Text style={styles.warning}>This older run is preserved for reference, but it cannot continue as approved work.</Text> : null}
 
       <View style={styles.actions}>
-        {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel={error ? 'Try again' : 'Continue work'} accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : error ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
+        {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel={effectiveError ? 'Try again' : 'Continue work'} accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : effectiveError ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
         {canPause && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Pause work" disabled={busy} onPress={onPause} style={styles.actionButton}><Text style={styles.action}>Pause</Text></TouchableOpacity>}
         {canResume && <TouchableOpacity accessibilityRole="button" accessibilityLabel={run.state === 'FAILED' ? 'Try again' : 'Continue work'} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : run.state === 'FAILED' ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
         {bound && !['COMPLETE', 'CANCELLED', 'SPEC_AMENDMENT'].includes(run.state) && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Stop work" disabled={busy} onPress={onCancel} style={styles.actionButton}><Text style={styles.action}>Stop</Text></TouchableOpacity>}
       </View>
 
-      <TechnicalDetails run={run} stopReason={stopReason} error={error} />
+      <TechnicalDetails run={run} stopReason={stopReason} error={effectiveError} />
     </View>
   );
 }
