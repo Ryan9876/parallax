@@ -1,0 +1,110 @@
+{
+  "architecture_decisions": [
+    "Full-screen Development Studio for autonomous Parallax application build management."
+  ],
+  "work_items": [
+    "Create Development Studio for autonomous Parallax application build management."
+  ],
+  "validations": [
+    "Ensure Development Studio provides exact Project/Run/Work Specification identity, bounded task/recovery/validation/evaluation/delivery/economic evidence, and only the controls advertised by the server.",
+    "AC-01: validate protected requirement \u2014 Studio displays canonical Project/Run/Work Specification/revision/state identity from W7-S2 and does not synthesize replacements.",
+    "AC-02: validate protected requirement \u2014 The main canvas makes current task/stage flow and progress legible without requiring operator management of individual agents or inventing dependencies.",
+    "AC-03: validate protected requirement \u2014 Current bounded artifact/progress, validation/evaluation and delivery/Preview evidence is presented in context and binds the exact projected run/source identity available from W7-S2.",
+    "AC-04: validate protected requirement \u2014 Checkpoint/recovery/reassignment/generation state is legible when present and is not fabricated from client transient state.",
+    "AC-05: validate protected requirement \u2014 Failed protected deterministic validation is visually explicit and cannot be masked by positive evaluation/routing/Preview evidence.",
+    "AC-06: validate protected requirement \u2014 Preview/PR/source delivery evidence is clearly non-production; REVIEW/HUMAN_REQUIRED is an explicit handoff and the UI offers no completion/deploy shortcut.",
+    "AC-07: validate protected requirement \u2014 Only current W7-S2 advertised controls are enabled and every request binds Project/Run/expected revision/state/request identity without extra authority fields.",
+    "AC-08: validate protected requirement \u2014 Stale, denied, unauthorized and unsupported control outcomes do not optimistically mutate the UI; the Studio refreshes canonical projection and explains the bounded failure.",
+    "AC-09: validate protected requirement \u2014 Observed, estimated and unknown economics retain their state/provenance semantics; unknown is never rendered as zero and estimated is not represented as observed.",
+    "AC-10: validate protected requirement \u2014 Client code/tests prove credentials, raw provider payloads, prompts, hidden reasoning, source bytes/patches and unrestricted logs are not requested or rendered.",
+    "AC-11: validate protected requirement \u2014 Desktop and narrow/mobile layouts preserve critical identity/state/validation/REVIEW information, keyboard access, semantic relationships, focus, contrast and reduced-motion behavior.",
+    "AC-12: validate protected requirement \u2014 Studio grants no new source acceptance, lifecycle transition, recovery ownership, provider/tool administration, arbitrary command/network, merge/deploy or REVIEW completion authority.",
+    "AC-13: validate protected requirement \u2014 Before integration, S3 commits authentic DSPy evidence for `P2-V0.20.3`, reconciles to the latest accepted Wave 7 integration SHA, passes protected spec validation, client type/state/export checks, browser/Skia acceptance and applicable cumulative gates, then stops `READY FOR INTEGRATION` for Control Tower expected-head merge.",
+    "AC-14: validate protected requirement \u2014 A focused client acceptance test proves that explicit Work Specification approval followed by activation into `PLAN` (or another autonomous active stage) immediately calls the existing bounded autonomous endpoint with the exact returned revision and a deterministic operation identity. A reload with an already-active unpaused run performs one bounded continuation attempt from freshly fetched server state. Tests also prove `PAUSED`, `FAILED`, `REVIEW`, `SPEC_AMENDMENT`, `CANCELLED` and `COMPLETE` do not auto-continue, and narrow/mobile presentation cannot leave a valid active run permanently parked at `PLAN` solely because no desktop-only continuation control exists."
+  ],
+  "risks": [
+    "Mitigate risk by ensuring Development Studio only consumes W7-S2 projection/control API, grants no new source acceptance, lifecycle transition, recovery ownership, provider/tool administration, arbitrary command/network access, and never displays hidden reasoning/private scratchpad, raw prompts."
+  ],
+  "spec_id": "P2-V0.20.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact identity and state truth",
+      "protected_requirement": "Studio displays canonical Project/Run/Work Specification/revision/state identity from W7-S2 and does not synthesize replacements."
+    },
+    {
+      "id": "AC-02",
+      "title": "Understandable task/build flow",
+      "protected_requirement": "The main canvas makes current task/stage flow and progress legible without requiring operator management of individual agents or inventing dependencies."
+    },
+    {
+      "id": "AC-03",
+      "title": "Artifact/evidence context",
+      "protected_requirement": "Current bounded artifact/progress, validation/evaluation and delivery/Preview evidence is presented in context and binds the exact projected run/source identity available from W7-S2."
+    },
+    {
+      "id": "AC-04",
+      "title": "Recovery visibility",
+      "protected_requirement": "Checkpoint/recovery/reassignment/generation state is legible when present and is not fabricated from client transient state."
+    },
+    {
+      "id": "AC-05",
+      "title": "Deterministic validation precedence",
+      "protected_requirement": "Failed protected deterministic validation is visually explicit and cannot be masked by positive evaluation/routing/Preview evidence."
+    },
+    {
+      "id": "AC-06",
+      "title": "Delivery and REVIEW clarity",
+      "protected_requirement": "Preview/PR/source delivery evidence is clearly non-production; REVIEW/HUMAN_REQUIRED is an explicit handoff and the UI offers no completion/deploy shortcut."
+    },
+    {
+      "id": "AC-07",
+      "title": "Server-derived control truthfulness",
+      "protected_requirement": "Only current W7-S2 advertised controls are enabled and every request binds Project/Run/expected revision/state/request identity without extra authority fields."
+    },
+    {
+      "id": "AC-08",
+      "title": "Stale/rejection recovery",
+      "protected_requirement": "Stale, denied, unauthorized and unsupported control outcomes do not optimistically mutate the UI; the Studio refreshes canonical projection and explains the bounded failure."
+    },
+    {
+      "id": "AC-09",
+      "title": "Economic known-state integrity",
+      "protected_requirement": "Observed, estimated and unknown economics retain their state/provenance semantics; unknown is never rendered as zero and estimated is not represented as observed."
+    },
+    {
+      "id": "AC-10",
+      "title": "Private data absence",
+      "protected_requirement": "Client code/tests prove credentials, raw provider payloads, prompts, hidden reasoning, source bytes/patches and unrestricted logs are not requested or rendered."
+    },
+    {
+      "id": "AC-11",
+      "title": "Responsive and accessible operator surface",
+      "protected_requirement": "Desktop and narrow/mobile layouts preserve critical identity/state/validation/REVIEW information, keyboard access, semantic relationships, focus, contrast and reduced-motion behavior."
+    },
+    {
+      "id": "AC-12",
+      "title": "No authority expansion",
+      "protected_requirement": "Studio grants no new source acceptance, lifecycle transition, recovery ownership, provider/tool administration, arbitrary command/network, merge/deploy or REVIEW completion authority."
+    },
+    {
+      "id": "AC-13",
+      "title": "Release and exact-head gate",
+      "protected_requirement": "Before integration, S3 commits authentic DSPy evidence for `P2-V0.20.3`, reconciles to the latest accepted Wave 7 integration SHA, passes protected spec validation, client type/state/export checks, browser/Skia acceptance and applicable cumulative gates, then stops `READY FOR INTEGRATION` for Control Tower expected-head merge."
+    },
+    {
+      "id": "AC-14",
+      "title": "Approved-run handoff and mobile dead-end prevention",
+      "protected_requirement": "A focused client acceptance test proves that explicit Work Specification approval followed by activation into `PLAN` (or another autonomous active stage) immediately calls the existing bounded autonomous endpoint with the exact returned revision and a deterministic operation identity. A reload with an already-active unpaused run performs one bounded continuation attempt from freshly fetched server state. Tests also prove `PAUSED`, `FAILED`, `REVIEW`, `SPEC_AMENDMENT`, `CANCELLED` and `COMPLETE` do not auto-continue, and narrow/mobile presentation cannot leave a valid active run permanently parked at `PLAN` solely because no desktop-only continuation control exists."
+    }
+  ],
+  "critique": [
+    "The single most material implementation risk or omission in the approved software specification is the lack of explicit Work Specification approval for the autonomous Development Studio, which may lead to a situation where the Studio is activated without the operator's explicit intent to begin the bounded protected run."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

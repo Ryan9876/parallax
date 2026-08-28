@@ -24,6 +24,9 @@ dependencies = [
 dev = [
   "pytest>=9,<10",
 ]
+browser = [
+  "playwright>=1.58,<2",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
