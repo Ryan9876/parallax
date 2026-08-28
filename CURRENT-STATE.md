@@ -64,6 +64,8 @@ W8-S2 API production evidence:
 
 The authenticated OT Time replay remains the final W8-S2 production acceptance proof. It is not replaced by an unauthenticated service bypass.
 
+A read-only production database check after cutover confirms Engineering Run `af617b0b-5297-427c-a40d-90d58f59a20a` remains canonical `PLAN`, revision `1`, with `last_failure_code` unset. No direct database mutation was used to manufacture W8-S2 success; the next state change must occur through the normal authenticated Engineering Run API.
+
 ## Wave 8 — Human-centered product experience and dependable guided execution
 
 Control Tower: #374
@@ -196,7 +198,7 @@ Logical conversation/Project deletion remains production-deployed and infrastruc
 
 Remaining safe-deletion debt: final authenticated destructive-behavior smoke against a deliberately disposable production conversation/Project. Authentication will not be weakened and real user content will not be deleted merely to manufacture evidence.
 
-Safe-deletion record PR #296 predates the newer Wave 8 state record and touches this file. It must be reconciled against current `main` before any later merge so older record text cannot overwrite newer production truth.
+Stale safe-deletion record PR #296 has now been closed without merge as superseded by later authoritative state records. Workstream #290 remains open and preserves the exact corrective merge/deployment evidence plus the still-pending authenticated destructive smoke.
 
 ## Rollback
 
@@ -269,12 +271,11 @@ Immediate remaining boundaries are:
 2. after that evidence, mark W8-S2 deployment-verified and close #377;
 3. define the next Wave 8 slice under #374 before substantive implementation beyond S2;
 4. complete safe deletion #290 only when a deliberately disposable authenticated production target is available;
-5. reconcile safe-deletion record PR #296 against this newer `CURRENT-STATE.md` before merging it;
-6. treat hosted-to-private inference from Vercel as a separate architecture/security/network/deployment workstream if later desired.
+5. treat hosted-to-private inference from Vercel as a separate architecture/security/network/deployment workstream if later desired.
 
 ## Authoritative records
 
 - `PROJECT-CONSTITUTION.md` v1.5 — unchanged by W8-S2; Wave 8 S1's plain-language governing principle remains authoritative.
 - `ARCHITECTURE.md` v3.13 — updated by W8-S2 to make source readiness and hosting readiness distinct lifecycle concerns and to bound dynamic Vercel Project readiness authority.
 - `DESIGN-SYSTEM.md` v3.2 — unchanged by W8-S2; Wave 8 S1's human-centered mobile and content standard remains authoritative.
-- `CURRENT-STATE.md` — updated after W8-S2 merge and production deployment to record exact source/deployment identities, release qualification, healthy production infrastructure, rollback references, dependency-audit status, the preserved authentication boundary, and the still-pending authenticated OT Time defect replay.
+- `CURRENT-STATE.md` — updated after W8-S2 merge and production deployment to record exact source/deployment identities, release qualification, healthy production infrastructure, rollback references, dependency-audit status, the preserved authentication boundary, the read-only production OT Time state confirmation, closed stale safe-deletion record coordination, and the still-pending authenticated OT Time defect replay.
