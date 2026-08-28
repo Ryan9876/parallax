@@ -80,6 +80,13 @@ function apiServer() {
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') return json(response, 200, workSpecification, origin);
     if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, engineeringRun, origin);
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/autonomous` && request.method === 'POST') {
+      return json(response, 200, {
+        run: engineeringRun,
+        stop_reason: 'IMPLEMENTATION_REQUIRED',
+        steps: [],
+      }, origin);
+    }
     return json(response, 404, { detail: 'not found' }, origin);
   });
 }
