@@ -243,7 +243,7 @@ try {
     const tab = page.getByRole('tab', { name: label });
     const box = await tab.boundingBox();
     assert(box && box.height >= 44, `wave8 mobile: ${label} navigation target is smaller than 44px`);
-    assert(await fontSize(tab.locator('span').last()) >= 14, `wave8 mobile: ${label} navigation text is smaller than 14px`);
+    assert(await fontSize(tab.getByText(label, { exact: true })) >= 14, `wave8 mobile: ${label} navigation text is smaller than 14px`);
   }
 
   const contextTitle = page.getByText('Your build plan is ready to review', { exact: true });
