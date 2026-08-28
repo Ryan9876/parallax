@@ -1,0 +1,116 @@
+{
+  "architecture_decisions": [
+    "ParallaxBench v1: A permanent, versioned, objective-level evaluation contract that measures whether Parallax completes materially different application-building objectives while preserving protected correctness, safety, privacy and governance."
+  ],
+  "work_items": [
+    "Create ParallaxBench v1: A new implementation of ParallaxBench that extends the existing protected evaluation suite and Wave 6 integrated reference proof."
+  ],
+  "validations": [
+    "Validation of ParallaxBench v1: Ensures deterministic correctness, preserves evidence state and provenance, and admits visual/UX evidence only after deterministic protected checks.",
+    "AC-01: validate protected requirement — ParallaxBench case IDs/versions/digests are bounded and immutable. Duplicate identity with different content or mismatched digest fails closed.",
+    "AC-02: validate protected requirement — Every supported result binds exact objective/Work Specification identity and the complete stable acceptance-ID set; missing, duplicate, extra or cross-case acceptance identity blocks support.",
+    "AC-03: validate protected requirement — Required deterministic/protected failure produces `DETERMINISTIC_BLOCKED` or `REGRESSED` before any visual/model/economic judgment can support the candidate.",
+    "AC-04: validate protected requirement — Every metric/dimension records provenance and known-state. Unknown/unavailable/stale/invalid values remain explicit and are never converted to favorable numeric defaults.",
+    "AC-05: validate protected requirement — Baseline/challenger comparison yields deterministic per-dimension improved/equivalent/regressed/unknown/incomparable outcomes rather than hiding tradeoffs in one scalar score.",
+    "AC-06: validate protected requirement — A challenger is materially improved only when at least one meaningful comparable dimension improves and no protected correctness/safety/privacy/governance guardrail regresses.",
+    "AC-07: validate protected requirement — Visual/UX evidence is considered only for the exact candidate after required deterministic evidence passes; visual/model judgment cannot override deterministic failure.",
+    "AC-08: validate protected requirement — Permanent fixtures cover the required materially different positive/recovery/unknown/adversarial cases and remain bounded/repository-safe.",
+    "AC-09: validate protected requirement — Cross-Project or identity-mismatched evidence cannot satisfy a case. Benchmark serialization exposes no private source/user content beyond admitted bounded references.",
+    "AC-10: validate protected requirement — Exact case/candidate/evidence replay produces equivalent result identity without mutation; changed candidate/policy/evidence is distinguishable and conflicting identity fails closed.",
+    "AC-11: validate protected requirement — Results exclude credentials, secrets, prompts, hidden reasoning, raw provider payloads, source bytes/patches, arbitrary commands/URLs and unrestricted logs.",
+    "AC-12: validate protected requirement — Tests/code inspection prove ordinary runtime behavior cannot inspect fixture/case identity, benchmark mode or expected answer to special-case implementation behavior.",
+    "AC-13: validate protected requirement — ParallaxBench has no canonical source acceptance, Engineering Run transition, tool/provider capability, merge/deploy, approval or REVIEW completion surface.",
+    "AC-14: validate protected requirement — Existing protected evaluation, Wave 6 integrated reference proof and whole-product regressions remain green; ParallaxBench composes those contracts rather than replacing them.",
+    "AC-15: validate protected requirement — Authentic DSPy SpecCritic + SpecCompiler evidence is committed and protected `--require-dspy` validation passes before semantic implementation. Final worker head passes applicable Workstream Spec Validation, Bounded Autonomy, P2 CI and Preview gates and stops `READY FOR INTEGRATION` targeting `integration/wave7-productization`."
+  ],
+  "risks": [
+    "Risk associated with ParallaxBench v1: No risk of regression in protected dimensions, but potential for missing values and invalid evidence."
+  ],
+  "spec_id": "P2-V0.20.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Unique versioned benchmark identity",
+      "protected_requirement": "ParallaxBench case IDs/versions/digests are bounded and immutable. Duplicate identity with different content or mismatched digest fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Exact objective and acceptance binding",
+      "protected_requirement": "Every supported result binds exact objective/Work Specification identity and the complete stable acceptance-ID set; missing, duplicate, extra or cross-case acceptance identity blocks support."
+    },
+    {
+      "id": "AC-03",
+      "title": "Protected correctness is a hard floor",
+      "protected_requirement": "Required deterministic/protected failure produces `DETERMINISTIC_BLOCKED` or `REGRESSED` before any visual/model/economic judgment can support the candidate."
+    },
+    {
+      "id": "AC-04",
+      "title": "Explicit evidence provenance and known-state",
+      "protected_requirement": "Every metric/dimension records provenance and known-state. Unknown/unavailable/stale/invalid values remain explicit and are never converted to favorable numeric defaults."
+    },
+    {
+      "id": "AC-05",
+      "title": "Dimension-wise comparison",
+      "protected_requirement": "Baseline/challenger comparison yields deterministic per-dimension improved/equivalent/regressed/unknown/incomparable outcomes rather than hiding tradeoffs in one scalar score."
+    },
+    {
+      "id": "AC-06",
+      "title": "Material-improvement rule",
+      "protected_requirement": "A challenger is materially improved only when at least one meaningful comparable dimension improves and no protected correctness/safety/privacy/governance guardrail regresses."
+    },
+    {
+      "id": "AC-07",
+      "title": "Visual/UX evidence precedence",
+      "protected_requirement": "Visual/UX evidence is considered only for the exact candidate after required deterministic evidence passes; visual/model judgment cannot override deterministic failure."
+    },
+    {
+      "id": "AC-08",
+      "title": "Diverse bounded fixtures",
+      "protected_requirement": "Permanent fixtures cover the required materially different positive/recovery/unknown/adversarial cases and remain bounded/repository-safe."
+    },
+    {
+      "id": "AC-09",
+      "title": "Cross-Project/privacy safety",
+      "protected_requirement": "Cross-Project or identity-mismatched evidence cannot satisfy a case. Benchmark serialization exposes no private source/user content beyond admitted bounded references."
+    },
+    {
+      "id": "AC-10",
+      "title": "Replay-safe immutable result",
+      "protected_requirement": "Exact case/candidate/evidence replay produces equivalent result identity without mutation; changed candidate/policy/evidence is distinguishable and conflicting identity fails closed."
+    },
+    {
+      "id": "AC-11",
+      "title": "Safe serialization",
+      "protected_requirement": "Results exclude credentials, secrets, prompts, hidden reasoning, raw provider payloads, source bytes/patches, arbitrary commands/URLs and unrestricted logs."
+    },
+    {
+      "id": "AC-12",
+      "title": "No benchmark-only runtime backdoor",
+      "protected_requirement": "Tests/code inspection prove ordinary runtime behavior cannot inspect fixture/case identity, benchmark mode or expected answer to special-case implementation behavior."
+    },
+    {
+      "id": "AC-13",
+      "title": "No authority expansion",
+      "protected_requirement": "ParallaxBench has no canonical source acceptance, Engineering Run transition, tool/provider capability, merge/deploy, approval or REVIEW completion surface."
+    },
+    {
+      "id": "AC-14",
+      "title": "Compatibility with existing evaluation/proof layers",
+      "protected_requirement": "Existing protected evaluation, Wave 6 integrated reference proof and whole-product regressions remain green; ParallaxBench composes those contracts rather than replacing them."
+    },
+    {
+      "id": "AC-15",
+      "title": "Authentic spec and exact-head gates",
+      "protected_requirement": "Authentic DSPy SpecCritic + SpecCompiler evidence is committed and protected `--require-dspy` validation passes before semantic implementation. Final worker head passes applicable Workstream Spec Validation, Bounded Autonomy, P2 CI and Preview gates and stops `READY FOR INTEGRATION` targeting `integration/wave7-productization`."
+    }
+  ],
+  "critique": [
+    "Material implementation risk: Lack of deterministic/protected correctness in ParallaxBench, which may lead to false positives or false negatives in benchmarking and evaluation."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
