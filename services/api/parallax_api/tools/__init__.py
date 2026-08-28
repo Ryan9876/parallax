@@ -1,4 +1,23 @@
 from .audit import audit_denied, audit_tool_result
+from .browser_evidence import (
+    BrowserAction,
+    BrowserAdapterError,
+    BrowserAdapterResult,
+    BrowserAdapterTimeout,
+    BrowserAssertion,
+    BrowserAssertionKind,
+    BrowserEvidenceError,
+    BrowserEvidenceRecord,
+    BrowserEvidenceRequest,
+    BrowserOutcome,
+    BrowserPolicyDenied,
+    BrowserSessionLimits,
+    BrowserTarget,
+    BrowserTargetCatalog,
+    PlaywrightBrowserAdapter,
+    build_browser_evidence_capability,
+    safe_browser_evidence_json,
+)
 from .contracts import (
     AuthorityDecision,
     AuthorityDenyReason,
@@ -12,12 +31,31 @@ from .contracts import (
     ToolOutcome,
     canonical_digest,
 )
+from .playwright_adapter import SyncPlaywrightBrowserAdapter
+from .protected_browser import ProtectedBrowserEvidenceSession
 from .registry import ToolCapabilityRegistry
 
 __all__ = [
     "AuthorityDecision",
     "AuthorityDenyReason",
+    "BrowserAction",
+    "BrowserAdapterError",
+    "BrowserAdapterResult",
+    "BrowserAdapterTimeout",
+    "BrowserAssertion",
+    "BrowserAssertionKind",
+    "BrowserEvidenceError",
+    "BrowserEvidenceRecord",
+    "BrowserEvidenceRequest",
+    "BrowserOutcome",
+    "BrowserPolicyDenied",
+    "BrowserSessionLimits",
+    "BrowserTarget",
+    "BrowserTargetCatalog",
     "HumanApproval",
+    "PlaywrightBrowserAdapter",
+    "ProtectedBrowserEvidenceSession",
+    "SyncPlaywrightBrowserAdapter",
     "ToolActionPolicy",
     "ToolAuditRecord",
     "ToolAuthorityRequest",
@@ -28,5 +66,7 @@ __all__ = [
     "ToolOutcome",
     "audit_denied",
     "audit_tool_result",
+    "build_browser_evidence_capability",
     "canonical_digest",
+    "safe_browser_evidence_json",
 ]
