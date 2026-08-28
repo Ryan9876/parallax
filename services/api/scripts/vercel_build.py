@@ -9,6 +9,8 @@ import sys
 
 _SCRIPT_ROOT = Path(__file__).resolve().parent
 _API_ROOT = _SCRIPT_ROOT.parent
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_W6_FINAL_PROOF_BRANCH = "control/w6-final-production-proof"
 
 
 def _run(*args: str) -> None:
@@ -65,6 +67,18 @@ def _run_service_preflight(script: str) -> None:
     )
 
 
+def _run_w6_final_production_proof() -> None:
+    if (os.getenv("VERCEL_ENV") or "") != "preview":
+        return
+    if (os.getenv("VERCEL_GIT_COMMIT_REF") or "") != _W6_FINAL_PROOF_BRANCH:
+        return
+    proof_script = (_REPOSITORY_ROOT / "scripts" / "w6_final_production_proof.py").resolve()
+    expected_parent = (_REPOSITORY_ROOT / "scripts").resolve()
+    if proof_script.parent != expected_parent or not proof_script.is_file():
+        raise RuntimeError("Wave 6 final production proof script is outside the trusted repository scripts root")
+    subprocess.run([sys.executable, str(proof_script)], check=True, cwd=_API_ROOT)
+
+
 def main() -> None:
     _run("scripts/production_provider_preflight.py")
     _run("scripts/production_delivery_permission_preflight.py")
@@ -87,6 +101,8 @@ def main() -> None:
         print("Production projected bootstrap preflight: SKIP (non-production)")
         print("Production execution-snapshot preflight: SKIP (non-production)")
         print("Production run-event schema guard: SKIP (non-production)")
+
+    _run_w6_final_production_proof()
 
     public = Path("public")
     public.mkdir(parents=True, exist_ok=True)
