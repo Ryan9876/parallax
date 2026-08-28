@@ -1,0 +1,105 @@
+name: Apply W6 candidate admission phase diagnostics
+
+on:
+  push:
+    branches:
+      - hotfix/w6-candidate-admission-phase-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[w6-phase-diag-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/w6-candidate-admission-phase-diagnostics
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply exact bounded patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "services/api/parallax_api/code/agentic_runtime.py",
+              "from dataclasses import dataclass\n",
+              "from contextlib import contextmanager\nfrom dataclasses import dataclass\n",
+          )
+
+          replace_once(
+              "services/api/parallax_api/code/agentic_runtime.py",
+              '''class CandidateValidationFailure(AgenticRuntimeError):\n    """Bounded protected-candidate rejection with sanitized diagnostics only."""\n\n    def __init__(self, message: str, *, diagnostic_evidence: dict[str, object]) -> None:\n        super().__init__(message)\n        self.diagnostic_evidence = diagnostic_evidence\n\n\n@dataclass(frozen=True, slots=True)\nclass CandidateValidationResult:\n''',
+              '''class CandidateValidationFailure(AgenticRuntimeError):\n    """Bounded protected-candidate rejection with sanitized diagnostics only."""\n\n    def __init__(self, message: str, *, diagnostic_evidence: dict[str, object]) -> None:\n        super().__init__(message)\n        self.diagnostic_evidence = diagnostic_evidence\n\n\nclass CandidateAdmissionFailure(AgenticRuntimeError):\n    """Finite candidate-admission phase failure without arbitrary exception text."""\n\n    def __init__(self, message: str, *, diagnostic_evidence: dict[str, object]) -> None:\n        super().__init__(message)\n        self.diagnostic_evidence = diagnostic_evidence\n\n\n@dataclass(frozen=True, slots=True)\nclass CandidateValidationResult:\n''',
+          )
+
+          replace_once(
+              "services/api/parallax_api/code/agentic_runtime.py",
+              '''    return diagnostic\n\n\nclass CandidateValidationExecutor(Protocol):\n''',
+              '''    return diagnostic\n\n\n_CANDIDATE_ADMISSION_PHASES = frozenset(\n    {\n        "PROPOSAL_ASSEMBLY",\n        "DISPOSABLE_CANDIDATE_VALIDATION",\n        "CANDIDATE_BINDING",\n        "INDEPENDENT_EVALUATION",\n        "ROUTING_CONTEXT",\n        "STRATEGY_CONSTRUCTION",\n        "ROUTING_OUTCOME",\n    }\n)\n\n\ndef _candidate_admission_failure_kind(exc: Exception) -> str:\n    if isinstance(exc, ImplementationError):\n        return "SAFE_IMPLEMENTATION_ERROR"\n    if isinstance(exc, PatchError):\n        return "PATCH_ERROR"\n    if isinstance(exc, OSError):\n        return "OS_BOUNDARY_ERROR"\n    if isinstance(exc, AgenticRuntimeError):\n        return "AGENTIC_CONTRACT_ERROR"\n    return "VALUE_CONTRACT_ERROR"\n\n\ndef _candidate_admission_failure_diagnostic(\n    candidate_id: str,\n    phase: str,\n    exc: Exception,\n) -> dict[str, object]:\n    if phase not in _CANDIDATE_ADMISSION_PHASES:\n        raise AgenticRuntimeError("candidate admission diagnostic phase is not server-owned")\n    return {\n        "candidate_id": candidate_id,\n        "phase": phase,\n        "failure_kind": _candidate_admission_failure_kind(exc),\n        "candidate_is_canonical_lineage": False,\n        "accepts_source_lineage": False,\n        "source_lineage_accepted": False,\n        "engineering_run_transitioned": False,\n        "review_completed": False,\n        "production_deployed": False,\n    }\n\n\n@contextmanager\ndef _candidate_admission_phase(candidate_id: str, phase: str):\n    if phase not in _CANDIDATE_ADMISSION_PHASES:\n        raise AgenticRuntimeError("candidate admission phase is not server-owned")\n    try:\n        yield\n    except CandidateAdmissionFailure:\n        raise\n    except (ImplementationError, PatchError, OSError, AgenticRuntimeError, ValueError) as exc:\n        raise CandidateAdmissionFailure(\n            f"bounded candidate admission failed during {phase}",\n            diagnostic_evidence=_candidate_admission_failure_diagnostic(candidate_id, phase, exc),\n        ) from exc\n\n\nclass CandidateValidationExecutor(Protocol):\n''',
+          )
+
+          replace_once(
+              "services/api/parallax_api/code/agentic_runtime.py",
+              '''        proposal, attempts, models, result_digests, task_digests = self._proposal_for_plan(\n            plan,\n            request,\n            proposal_validator=proposal_validator,\n            alternative_round=alternative_round,\n        )\n        validation = self._candidate_validation(\n            base_workspace,\n            proposal,\n            operation_key=operation_key,\n            candidate_id=candidate_id,\n        )\n        lead = plan.selected_agent_digests[0]\n        binding = CandidateBinding(\n            project_id=run.project_id or "",\n            run_id=run.id,\n            work_specification_id=run.work_specification_id or "",\n            work_specification_revision=int(run.work_specification_revision or 0),\n            work_specification_digest=run.work_specification_digest or "",\n            acceptance_ids=primary_plan.graph.approved_acceptance_ids,\n            candidate_lineage_digest=validation.content_digest,\n            candidate_revision_id=f"revision:{validation.content_digest[:24]}",\n            candidate_attempt_id=f"attempt:{candidate_id}",\n            producer_identity_digest=lead,\n        )\n        protected, evaluation = self._evaluation(\n            run=run,\n            candidate_id=candidate_id,\n            candidate_binding=binding,\n            validation=validation,\n            producer_digests=plan.selected_agent_digests,\n        )\n        context = routing_context or self._routing_context(\n            run=run,\n            primary_plan=primary_plan,\n            evaluation_policy_digest=evaluation.policy_digest,\n        )\n        if context.evaluation_policy_digest != evaluation.policy_digest:\n            raise AgenticRuntimeError("candidate evaluation policy drifted from routing context")\n        strategy = self._strategy(plan, candidate_id=candidate_id)\n        outcome = self._routing_outcome(\n            routing_context=context,\n            strategy=strategy,\n            candidate=binding,\n            protected_validation=protected,\n            evaluation_record=evaluation,\n            validation=validation,\n            project_id=run.project_id or "",\n        )\n''',
+              '''        with _candidate_admission_phase(candidate_id, "PROPOSAL_ASSEMBLY"):\n            proposal, attempts, models, result_digests, task_digests = self._proposal_for_plan(\n                plan,\n                request,\n                proposal_validator=proposal_validator,\n                alternative_round=alternative_round,\n            )\n        with _candidate_admission_phase(candidate_id, "DISPOSABLE_CANDIDATE_VALIDATION"):\n            validation = self._candidate_validation(\n                base_workspace,\n                proposal,\n                operation_key=operation_key,\n                candidate_id=candidate_id,\n            )\n        lead = plan.selected_agent_digests[0]\n        with _candidate_admission_phase(candidate_id, "CANDIDATE_BINDING"):\n            binding = CandidateBinding(\n                project_id=run.project_id or "",\n                run_id=run.id,\n                work_specification_id=run.work_specification_id or "",\n                work_specification_revision=int(run.work_specification_revision or 0),\n                work_specification_digest=run.work_specification_digest or "",\n                acceptance_ids=primary_plan.graph.approved_acceptance_ids,\n                candidate_lineage_digest=validation.content_digest,\n                candidate_revision_id=f"revision:{validation.content_digest[:24]}",\n                candidate_attempt_id=f"attempt:{candidate_id}",\n                producer_identity_digest=lead,\n            )\n        with _candidate_admission_phase(candidate_id, "INDEPENDENT_EVALUATION"):\n            protected, evaluation = self._evaluation(\n                run=run,\n                candidate_id=candidate_id,\n                candidate_binding=binding,\n                validation=validation,\n                producer_digests=plan.selected_agent_digests,\n            )\n        if routing_context is None:\n            with _candidate_admission_phase(candidate_id, "ROUTING_CONTEXT"):\n                context = self._routing_context(\n                    run=run,\n                    primary_plan=primary_plan,\n                    evaluation_policy_digest=evaluation.policy_digest,\n                )\n        else:\n            context = routing_context\n        with _candidate_admission_phase(candidate_id, "ROUTING_CONTEXT"):\n            if context.evaluation_policy_digest != evaluation.policy_digest:\n                raise AgenticRuntimeError("candidate evaluation policy drifted from routing context")\n        with _candidate_admission_phase(candidate_id, "STRATEGY_CONSTRUCTION"):\n            strategy = self._strategy(plan, candidate_id=candidate_id)\n        with _candidate_admission_phase(candidate_id, "ROUTING_OUTCOME"):\n            outcome = self._routing_outcome(\n                routing_context=context,\n                strategy=strategy,\n                candidate=binding,\n                protected_validation=protected,\n                evaluation_record=evaluation,\n                validation=validation,\n                project_id=run.project_id or "",\n            )\n''',
+          )
+
+          replace_once(
+              "services/api/parallax_api/code/agentic_runtime.py",
+              '''        except ImplementationGenerationFailure:\n            raise\n        except CandidateValidationFailure as exc:\n            raise ImplementationGenerationFailure(\n                "agentic runtime rejected a protected implementation candidate",\n                diagnostic_evidence={\n                    "candidate_validation_failure": dict(exc.diagnostic_evidence),\n                },\n            ) from exc\n        except (AgenticRuntimeError, ValueError, ImplementationError, PatchError, OSError) as exc:\n''',
+              '''        except ImplementationGenerationFailure:\n            raise\n        except CandidateValidationFailure as exc:\n            raise ImplementationGenerationFailure(\n                "agentic runtime rejected a protected implementation candidate",\n                diagnostic_evidence={\n                    "candidate_validation_failure": dict(exc.diagnostic_evidence),\n                },\n            ) from exc\n        except CandidateAdmissionFailure as exc:\n            raise ImplementationGenerationFailure(\n                "agentic runtime failed during bounded candidate admission",\n                diagnostic_evidence={\n                    "candidate_admission_failure": dict(exc.diagnostic_evidence),\n                },\n            ) from exc\n        except (AgenticRuntimeError, ValueError, ImplementationError, PatchError, OSError) as exc:\n''',
+          )
+
+          replace_once(
+              "services/api/parallax_api/code/implementation_runtime.py",
+              '''    if not isinstance(value, dict) or set(value) != {"candidate_validation_failure"}:\n        raise ValueError("implementation failure diagnostics have an invalid envelope")\n    raw = value["candidate_validation_failure"]\n''',
+              '''    if not isinstance(value, dict):\n        raise ValueError("implementation failure diagnostics have an invalid envelope")\n    if set(value) == {"candidate_admission_failure"}:\n        raw_phase = value["candidate_admission_failure"]\n        if not isinstance(raw_phase, dict):\n            raise ValueError("candidate admission diagnostics must be an object")\n        allowed_phase_fields = {\n            "candidate_id",\n            "phase",\n            "failure_kind",\n            "candidate_is_canonical_lineage",\n            "accepts_source_lineage",\n            "source_lineage_accepted",\n            "engineering_run_transitioned",\n            "review_completed",\n            "production_deployed",\n        }\n        if set(raw_phase) != allowed_phase_fields:\n            raise ValueError("candidate admission diagnostics contain a non-admitted field")\n        phases = {\n            "PROPOSAL_ASSEMBLY",\n            "DISPOSABLE_CANDIDATE_VALIDATION",\n            "CANDIDATE_BINDING",\n            "INDEPENDENT_EVALUATION",\n            "ROUTING_CONTEXT",\n            "STRATEGY_CONSTRUCTION",\n            "ROUTING_OUTCOME",\n        }\n        failure_kinds = {\n            "SAFE_IMPLEMENTATION_ERROR",\n            "PATCH_ERROR",\n            "OS_BOUNDARY_ERROR",\n            "AGENTIC_CONTRACT_ERROR",\n            "VALUE_CONTRACT_ERROR",\n        }\n        candidate_id = _bounded_identity(raw_phase.get("candidate_id"), "candidate_id")\n        phase = raw_phase.get("phase")\n        failure_kind = raw_phase.get("failure_kind")\n        if phase not in phases or failure_kind not in failure_kinds:\n            raise ValueError("candidate admission diagnostics contain a non-server-owned classification")\n        normalized_phase: dict[str, object] = {\n            "candidate_id": candidate_id,\n            "phase": phase,\n            "failure_kind": failure_kind,\n        }\n        for claim in (\n            "candidate_is_canonical_lineage",\n            "accepts_source_lineage",\n            "source_lineage_accepted",\n            "engineering_run_transitioned",\n            "review_completed",\n            "production_deployed",\n        ):\n            if raw_phase.get(claim) is not False:\n                raise ValueError("candidate admission diagnostics asserted authority they do not own")\n            normalized_phase[claim] = False\n        normalized = {"candidate_admission_failure": normalized_phase}\n        encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True)\n        if len(encoded.encode("utf-8")) > 2_048:\n            raise ValueError("candidate admission diagnostics exceed durable evidence bound")\n        return normalized\n    if set(value) != {"candidate_validation_failure"}:\n        raise ValueError("implementation failure diagnostics have an invalid envelope")\n    raw = value["candidate_validation_failure"]\n''',
+          )
+
+          replace_once(
+              "services/api/tests/test_w6_candidate_validation_diagnostics.py",
+              '''import json\n\nfrom sqlalchemy.orm import sessionmaker\n\nfrom parallax_api.code.agentic_runtime import (\n    CandidateValidationResult,\n    _candidate_validation_failure_diagnostic,\n)\n''',
+              '''import json\n\nimport pytest\nfrom sqlalchemy.orm import sessionmaker\n\nfrom parallax_api.code.agentic_runtime import (\n    CandidateAdmissionFailure,\n    CandidateValidationResult,\n    _candidate_admission_phase,\n    _candidate_validation_failure_diagnostic,\n)\n''',
+          )
+
+          test_path = Path("services/api/tests/test_w6_candidate_validation_diagnostics.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_text += '''\n\n\ndef _phase_diagnostic() -> dict[str, object]:\n    return {\n        "candidate_admission_failure": {\n            "candidate_id": "candidate-primary",\n            "phase": "INDEPENDENT_EVALUATION",\n            "failure_kind": "VALUE_CONTRACT_ERROR",\n            "candidate_is_canonical_lineage": False,\n            "accepts_source_lineage": False,\n            "source_lineage_accepted": False,\n            "engineering_run_transitioned": False,\n            "review_completed": False,\n            "production_deployed": False,\n        }\n    }\n\n\ndef test_candidate_admission_phase_classifies_without_exception_text() -> None:\n    with pytest.raises(CandidateAdmissionFailure) as captured:\n        with _candidate_admission_phase("candidate-primary", "INDEPENDENT_EVALUATION"):\n            raise ValueError("Bearer super-secret provider payload workspace_root=/tmp/private")\n\n    diagnostic = captured.value.diagnostic_evidence\n    assert diagnostic == _phase_diagnostic()["candidate_admission_failure"]\n    encoded = json.dumps(diagnostic, sort_keys=True)\n    assert "Bearer" not in encoded\n    assert "super-secret" not in encoded\n    assert "provider payload" not in encoded\n    assert "workspace_root" not in encoded\n\n\ndef test_candidate_admission_phase_diagnostic_is_strictly_allow_listed() -> None:\n    safe = ImplementationRuntimeError(\n        "bounded failure",\n        diagnostic_evidence=_phase_diagnostic(),\n    )\n    assert safe.diagnostic_evidence == _phase_diagnostic()\n\n    unsafe = _phase_diagnostic()\n    unsafe["candidate_admission_failure"]["exception_message"] = "Bearer must-never-persist"  # type: ignore[index]\n    rejected = ImplementationRuntimeError(\n        "bounded failure",\n        diagnostic_evidence=unsafe,\n    )\n    assert rejected.diagnostic_evidence is None\n\n\nclass _PhaseDiagnosticImplementationRuntime:\n    def execute(self, **_kwargs):\n        raise ImplementationContractError(\n            "bounded candidate admission failed",\n            mutation_applied=False,\n            diagnostic_evidence=_phase_diagnostic(),\n        )\n\n\ndef test_failed_implement_persists_only_bounded_candidate_phase(tmp_path) -> None:\n    session, service, run = _service(tmp_path)\n    try:\n        planned = AutonomyCoordinator(service, _Executor()).run(\n            run_id=run.id,\n            operation_key="candidate-phase-plan",\n            expected_revision=run.revision,\n        )\n        assert planned.run.state == "IMPLEMENT"\n\n        result = AutonomyCoordinator(\n            service,\n            _Executor(),\n            implementation_runtime=_PhaseDiagnosticImplementationRuntime(),\n        ).run(\n            run_id=run.id,\n            operation_key="candidate-phase-implement",\n            expected_revision=planned.run.revision,\n        )\n\n        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED\n        assert result.run.state == "FAILED"\n        attempt = next(item for item in result.run.attempts if item.stage == "IMPLEMENT")\n        evidence = json.loads(attempt.evidence_json)\n        assert evidence["mutation_applied"] is False\n        assert evidence["diagnostic_evidence"] == _phase_diagnostic()\n        phase = evidence["diagnostic_evidence"]["candidate_admission_failure"]\n        assert phase["phase"] == "INDEPENDENT_EVALUATION"\n        assert phase["failure_kind"] == "VALUE_CONTRACT_ERROR"\n        assert phase["source_lineage_accepted"] is False\n        assert phase["engineering_run_transitioned"] is False\n        assert phase["review_completed"] is False\n        assert phase["production_deployed"] is False\n    finally:\n        session.close()\n'''
+          test_path.write_text(test_text, encoding="utf-8")
+
+          Path(".github/workflows/w6-candidate-admission-phase-diagnostics.yml").unlink()
+          PY
+
+      - name: Install API development dependencies
+        run: python -m pip install -e 'services/api[dev]'
+
+      - name: Run focused phase diagnostics regression
+        run: python -m pytest -q services/api/tests/test_w6_candidate_validation_diagnostics.py
+
+      - name: Commit bounded hotfix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/api/parallax_api/code/agentic_runtime.py \
+                  services/api/parallax_api/code/implementation_runtime.py \
+                  services/api/tests/test_w6_candidate_validation_diagnostics.py \
+                  .github/workflows/w6-candidate-admission-phase-diagnostics.yml
+          git commit -m "[w6-phase-diag-patched] Persist bounded candidate admission phase diagnostics"
+          git push origin HEAD:hotfix/w6-candidate-admission-phase-diagnostics
