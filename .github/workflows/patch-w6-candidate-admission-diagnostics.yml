@@ -2,7 +2,7 @@ name: Patch Wave 6 candidate admission diagnostics
 
 on:
   push:
-    branches: [hotfix/w6-candidate-admission-diagnostics]
+    branches: [hotfix/w6-candidate-admission-diagnostics-v2]
 
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: hotfix/w6-candidate-admission-diagnostics
+          ref: hotfix/w6-candidate-admission-diagnostics-v2
           fetch-depth: 0
       - name: Apply bounded runtime patch
         run: python .github/patch-w6-candidate-admission-diagnostics.py
@@ -31,4 +31,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add services/api/parallax_api/code/agentic_runtime.py services/api/parallax_api/code/implementation_runtime.py services/api/tests/test_w6_candidate_admission_diagnostics.py
           git commit -m 'fix(w6): persist bounded candidate admission phase diagnostics'
-          git push origin HEAD:hotfix/w6-candidate-admission-diagnostics
+          git push origin HEAD:hotfix/w6-candidate-admission-diagnostics-v2
