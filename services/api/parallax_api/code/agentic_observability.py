@@ -199,6 +199,7 @@ class RuntimeEvidenceCoverage:
     attempt_count: int
     unique_event_count: int
     event_plane_available: bool
+    event_plane_complete: bool
     worker_evidence_available: bool
     known_metric_count: int
     estimated_metric_count: int
@@ -209,6 +210,7 @@ class RuntimeEvidenceCoverage:
             "attempt_count": self.attempt_count,
             "unique_event_count": self.unique_event_count,
             "event_plane_available": self.event_plane_available,
+            "event_plane_complete": self.event_plane_complete,
             "worker_evidence_available": self.worker_evidence_available,
             "known_metric_count": self.known_metric_count,
             "estimated_metric_count": self.estimated_metric_count,
@@ -235,6 +237,8 @@ class AgenticRunObservability:
         object.__setattr__(self, "run_id", _canonical_uuid(self.run_id, "run_id"))
         if not isinstance(self.run_revision, int) or isinstance(self.run_revision, bool) or self.run_revision < 0:
             raise AgenticObservabilityError("run_revision must be non-negative")
+        if not isinstance(self.latest_event_sequence, int) or self.latest_event_sequence < 0:
+            raise AgenticObservabilityError("latest_event_sequence must be non-negative")
         if len(self.metrics) > _MAX_METRICS:
             raise AgenticObservabilityError("runtime metric cardinality exceeds server bound")
 
@@ -323,6 +327,8 @@ def build_agentic_run_observability(
     events: Iterable[RunEvent] = (),
     worker: EngineeringWorkerExecution | None = None,
     event_plane_available: bool = False,
+    event_plane_complete: bool | None = None,
+    authoritative_latest_event_sequence: int | None = None,
 ) -> AgenticRunObservability:
     if not isinstance(run, EngineeringRun):
         raise AgenticObservabilityError("run must be an EngineeringRun")
@@ -330,6 +336,18 @@ def build_agentic_run_observability(
         raise AgenticObservabilityScopeError("historical unbound runs do not have Project-scoped observability")
 
     unique_events = _dedupe_events(run, events)
+    loaded_latest_sequence = max((item.sequence for item in unique_events), default=0)
+    latest_event_sequence = (
+        loaded_latest_sequence
+        if authoritative_latest_event_sequence is None
+        else authoritative_latest_event_sequence
+    )
+    if not isinstance(latest_event_sequence, int) or latest_event_sequence < loaded_latest_sequence:
+        raise AgenticObservabilityError("authoritative latest event sequence is inconsistent with loaded evidence")
+    complete = event_plane_available if event_plane_complete is None else event_plane_complete
+    if complete and not event_plane_available:
+        raise AgenticObservabilityError("event plane cannot be complete when it is unavailable")
+
     projection = build_agent_run_projection(
         run=run,
         acceptance_ids=tuple(acceptance_ids),
@@ -341,13 +359,14 @@ def build_agentic_run_observability(
         events=unique_events,
         worker=worker,
         event_plane_available=event_plane_available,
+        event_plane_complete=complete,
     )
     s2_metrics = _s2_compatible_metrics(metrics)
     quality = QualityProjection(
         deterministic_disposition=projection.deterministic_disposition,
         effective_disposition=projection.deterministic_disposition,
-        evaluation_outcome=projection.evaluation.outcome,
-        preview_status=projection.delivery.preview_status,
+        evaluation_outcome=projection.evaluation.outcome if complete else None,
+        preview_status=projection.delivery.preview_status if complete else None,
         deterministic_failure_authoritative=(
             projection.deterministic_disposition is DeterministicDisposition.FAILED
         ),
@@ -356,6 +375,7 @@ def build_agentic_run_observability(
         attempt_count=len(tuple(run.attempts)),
         unique_event_count=len(unique_events),
         event_plane_available=event_plane_available,
+        event_plane_complete=complete,
         worker_evidence_available=worker is not None,
         known_metric_count=sum(item.state is ProjectionKnownState.OBSERVED for item in metrics),
         estimated_metric_count=sum(item.state is ProjectionKnownState.ESTIMATED for item in metrics),
@@ -367,7 +387,7 @@ def build_agentic_run_observability(
         run_state=run.state,
         run_revision=int(run.revision),
         projection_fingerprint=projection.fingerprint,
-        latest_event_sequence=projection.latest_event_sequence,
+        latest_event_sequence=latest_event_sequence,
         metrics=metrics,
         s2_compatible_metrics=s2_metrics,
         quality=quality,
@@ -390,18 +410,25 @@ class AgenticObservabilityService:
             raise AgenticObservabilityScopeError("agentic observability scope is unavailable")
         acceptance_ids = tuple(item["id"] for item in self.run_service.acceptance_map_for_run(run))
         event_rows: Sequence[RunEvent] = ()
+        latest_event_sequence = 0
+        event_plane_complete = False
         if self.events is not None:
+            latest_event_sequence = self.events.latest_sequence(project_id=project_id, run_id=run_id)
             event_rows = self.events.list_for_run(
                 project_id=project_id,
                 run_id=run_id,
                 limit=_MAX_EVENTS,
             )
+            loaded_latest = max((item.sequence for item in event_rows), default=0)
+            event_plane_complete = loaded_latest >= latest_event_sequence
         return build_agentic_run_observability(
             run=run,
             acceptance_ids=acceptance_ids,
             events=event_rows,
             worker=self.workers.get_for_run(run_id),
             event_plane_available=self.events is not None,
+            event_plane_complete=event_plane_complete,
+            authoritative_latest_event_sequence=latest_event_sequence,
         )
 
     def project_history(self, *, project_id: str, limit: int = 10) -> ProjectObservabilityHistory:
@@ -440,6 +467,7 @@ def _runtime_metrics(
     events: Sequence[RunEvent],
     worker: EngineeringWorkerExecution | None,
     event_plane_available: bool,
+    event_plane_complete: bool,
 ) -> tuple[RuntimeMetricEvidence, ...]:
     elapsed = _elapsed_metric(run)
     attempt_retries = sum(
@@ -468,14 +496,15 @@ def _runtime_metrics(
         )
     )
     human_count = float(len(_intervention_identities(run, events)))
+    event_truth_complete = event_plane_available and event_plane_complete
     human_metric = RuntimeMetricEvidence(
         RuntimeMetricId.HUMAN_INTERVENTION_COUNT,
-        ProjectionKnownState.OBSERVED if event_plane_available else ProjectionKnownState.ESTIMATED,
+        ProjectionKnownState.OBSERVED if event_truth_complete else ProjectionKnownState.ESTIMATED,
         human_count,
         (
             f"obs:interventions:v1:{run.id}:seq{max((item.sequence for item in events), default=0)}"
-            if event_plane_available
-            else f"est:interventions-from-attempts:v1:{run.id}:r{int(run.revision)}"
+            if event_truth_complete
+            else f"est:interventions-bounded:v1:{run.id}:r{int(run.revision)}"
         ),
     )
     unknown_usage = RuntimeMetricEvidence(
