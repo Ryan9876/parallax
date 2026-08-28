@@ -7,6 +7,7 @@ import logging
 import os
 from typing import Any, Iterator, Protocol
 
+from .model_routes import local_route_for_model
 from .protected_metrics import evaluate_reasoning_output
 
 
@@ -93,13 +94,15 @@ def build_lm(model: str):
     """Build a DSPy LM with canonical identity and a bounded transport boundary.
 
     Explicit DSPY endpoint settings remain deliberate operator/development
-    authority and win first. Production request-scoped OIDC is admitted only by
-    the request boundary and is then sent to Vercel's OpenAI-compatible AI
-    Gateway endpoint without rewriting the canonical `openai/...` model ID.
+    authority and win first. A server-admitted local route may bind transport
+    only for its exact model outside Vercel production. Production request-scoped
+    OIDC is admitted only by the request boundary and is sent to Vercel's fixed
+    OpenAI-compatible AI Gateway without rewriting canonical `openai/...` IDs.
 
     Process-environment `VERCEL_OIDC_TOKEN` is deliberately ignored: Vercel
     Functions use request-scoped OIDC and the build-time token is not runtime
-    authority. Production cannot silently fall back to direct OpenAI.
+    authority. Production cannot silently fall back to direct OpenAI or a local
+    endpoint.
     """
 
     dspy = _dspy()
@@ -119,15 +122,31 @@ def build_lm(model: str):
         if model.startswith(_GATEWAY_MODEL_PREFIX):
             raise ModelTransportConfigurationError("canonical Parallax model identity is required")
 
-        request_gateway_key = _REQUEST_GATEWAY_CREDENTIAL.get()
-        if _production_runtime() and model.startswith("openai/") and request_gateway_key is None:
-            raise ModelTransportConfigurationError("production model gateway credential is unavailable")
+        local_route = local_route_for_model(model)
+        if local_route is not None:
+            if local_route.api_base is None:
+                raise ModelTransportConfigurationError("local model endpoint is unavailable")
+            kwargs["api_base"] = local_route.api_base
+            if local_route.api_key_env is not None:
+                local_key = os.getenv(local_route.api_key_env)
+                if not local_key:
+                    raise ModelTransportConfigurationError("local model credential is unavailable")
+                kwargs["api_key"] = local_key
+            logger.info(
+                "parallax_model_transport transport=%s model=%s",
+                local_route.provider_kind,
+                model,
+            )
+        else:
+            request_gateway_key = _REQUEST_GATEWAY_CREDENTIAL.get()
+            if _production_runtime() and model.startswith("openai/") and request_gateway_key is None:
+                raise ModelTransportConfigurationError("production model gateway credential is unavailable")
 
-        gateway_key = request_gateway_key if request_gateway_key is not None else _gateway_api_key()
-        if gateway_key is not None and model.startswith("openai/"):
-            kwargs["api_base"] = _GATEWAY_API_BASE
-            kwargs["api_key"] = gateway_key
-            logger.info("parallax_model_transport transport=vercel_ai_gateway model=%s", model)
+            gateway_key = request_gateway_key if request_gateway_key is not None else _gateway_api_key()
+            if gateway_key is not None and model.startswith("openai/"):
+                kwargs["api_base"] = _GATEWAY_API_BASE
+                kwargs["api_key"] = gateway_key
+                logger.info("parallax_model_transport transport=vercel_ai_gateway model=%s", model)
 
     if model_type:
         kwargs["model_type"] = model_type
