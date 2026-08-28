@@ -48,21 +48,24 @@ def _credentials() -> EnvironmentVercelCredentialProvider:
     )
 
 
-def _project_payload(*, project_id: str = "prj_ot_time", account_id: str = TEAM_ID):
-    return {
+def _project_payload(*, project_id: str = "prj_ot_time", account_id: str | None = TEAM_ID):
+    payload = {
         "id": project_id,
         "name": "ot-time-px-11111111",
-        "accountId": account_id,
         "link": {"type": "github", "repoId": 424242},
     }
+    if account_id is not None:
+        payload["accountId"] = account_id
+    return payload
 
 
 def test_creation_conflict_reconciles_to_one_exact_verified_target():
     list_calls = 0
     post_calls = 0
+    production_checks = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
-        nonlocal list_calls, post_calls
+        nonlocal list_calls, post_calls, production_checks
         assert request.url.params.get("teamId") == TEAM_ID
         if request.url.path == "/v9/projects":
             list_calls += 1
@@ -73,6 +76,12 @@ def test_creation_conflict_reconciles_to_one_exact_verified_target():
             return httpx.Response(409, json={"error": {"code": "project_already_exists"}})
         if request.url.path == "/v9/projects/prj_ot_time":
             return httpx.Response(200, json=_project_payload())
+        if request.url.path == "/v6/deployments":
+            production_checks += 1
+            assert request.method == "GET"
+            assert request.url.params.get("projectId") == "prj_ot_time"
+            assert request.url.params.get("target") == "production"
+            return httpx.Response(200, json={"deployments": []})
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     client = VercelProjectReadinessRestClient(
@@ -92,6 +101,7 @@ def test_creation_conflict_reconciles_to_one_exact_verified_target():
     assert result.target.project_id == "prj_ot_time"
     assert list_calls == 2
     assert post_calls == 1
+    assert production_checks == 1
 
 
 def test_exact_repository_match_with_wrong_team_readback_fails_closed():
@@ -127,6 +137,32 @@ def test_exact_repository_match_with_wrong_team_readback_fails_closed():
             project_name="ot-time-px-11111111",
         )
     assert mutation_count == 0
+
+
+def test_exact_repository_match_without_team_readback_fails_closed():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v9/projects":
+            return httpx.Response(
+                200,
+                json={"projects": [_project_payload()], "pagination": {"next": None}},
+            )
+        if request.url.path == "/v9/projects/prj_ot_time":
+            return httpx.Response(200, json=_project_payload(account_id=None))
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = VercelProjectReadinessRestClient(
+        _credentials(),
+        credential_ref=READINESS_REF,
+        team_id=TEAM_ID,
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ProviderClientError, match="TARGET_SCOPE_MISMATCH"):
+        client.ensure(
+            repository_ref=REPOSITORY_REF,
+            github_repo_id=424242,
+            production_branch="main",
+            project_name="ot-time-px-11111111",
+        )
 
 
 def test_provider_auth_denial_fails_before_project_mutation():
