@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import time
 from types import MappingProxyType
 from typing import Any, Mapping
 from urllib.parse import quote
@@ -22,6 +23,8 @@ from .vercel import VercelPreviewResult, VercelPreviewStatus, VercelProviderClie
 _VERCEL_API = "https://api.vercel.com"
 _BOUNDED_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+_MAX_PREVIEW_READ_ATTEMPTS = 60
+_MAX_PREVIEW_POLL_INTERVAL_SECONDS = 5.0
 
 
 def _dict(value: object) -> dict[str, Any]:
@@ -88,9 +91,23 @@ class VercelPreviewRestClient(VercelProviderClient):
         *,
         transport: httpx.BaseTransport | None = None,
         timeout_seconds: float = 20.0,
+        preview_read_attempts: int = 31,
+        preview_poll_interval_seconds: float = 2.0,
     ) -> None:
         if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 60:
             raise ValueError("Vercel timeout must be between 0 and 60 seconds")
+        if (
+            not isinstance(preview_read_attempts, int)
+            or isinstance(preview_read_attempts, bool)
+            or not 1 <= preview_read_attempts <= _MAX_PREVIEW_READ_ATTEMPTS
+        ):
+            raise ValueError("Vercel Preview read attempts must be between 1 and 60")
+        if (
+            not isinstance(preview_poll_interval_seconds, (int, float))
+            or isinstance(preview_poll_interval_seconds, bool)
+            or not 0 <= preview_poll_interval_seconds <= _MAX_PREVIEW_POLL_INTERVAL_SECONDS
+        ):
+            raise ValueError("Vercel Preview poll interval must be between 0 and 5 seconds")
         normalized: dict[str, VercelApiTarget] = {}
         for key, value in dict(targets).items():
             if not isinstance(value, VercelApiTarget) or key != value.vercel_project_ref:
@@ -98,6 +115,8 @@ class VercelPreviewRestClient(VercelProviderClient):
             normalized[key] = value
         self._targets = MappingProxyType(normalized)
         self._credential_provider = credential_provider
+        self._preview_read_attempts = preview_read_attempts
+        self._preview_poll_interval_seconds = float(preview_poll_interval_seconds)
         self._http = httpx.Client(
             base_url=_VERCEL_API,
             transport=transport,
@@ -306,6 +325,23 @@ class VercelPreviewRestClient(VercelProviderClient):
             expected_branch=expected_branch,
         )
 
+    def _read_preview_until_terminal(
+        self,
+        target: VercelApiTarget,
+        deployment_id: str,
+    ) -> VercelPreviewResult:
+        for attempt in range(self._preview_read_attempts):
+            preview = self._read_preview(target, deployment_id)
+            if preview.status in {
+                VercelPreviewStatus.READY,
+                VercelPreviewStatus.ERROR,
+                VercelPreviewStatus.CANCELED,
+            }:
+                return preview
+            if attempt + 1 < self._preview_read_attempts and self._preview_poll_interval_seconds:
+                time.sleep(self._preview_poll_interval_seconds)
+        raise ProviderClientError("PREVIEW_NOT_READY", result_identity=deployment_id)
+
     def _find_existing_preview(
         self,
         target: VercelApiTarget,
@@ -414,4 +450,4 @@ class VercelPreviewRestClient(VercelProviderClient):
         deployment_id: str,
     ) -> VercelPreviewResult:
         target = self._target(vercel_project_ref)
-        return self._read_preview(target, deployment_id)
+        return self._read_preview_until_terminal(target, deployment_id)
