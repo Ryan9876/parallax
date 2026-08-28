@@ -2,7 +2,7 @@ name: Bounded Autonomy Pilot
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, integration/wave7-productization]
   push:
     branches: [p2/v0.13.0-bounded-autonomy]
 
