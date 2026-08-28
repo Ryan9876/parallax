@@ -281,6 +281,7 @@ def test_durable_plan_advances_to_implement_without_preview_target(tmp_path):
             work_specification_id=approved.id,
         )
         assert run.state == "PLAN"
+        initial_revision = run.revision
 
         lineage_store = SourceLineageStore(
             InMemoryImmutableObjectStore(),
@@ -310,13 +311,13 @@ def test_durable_plan_advances_to_implement_without_preview_target(tmp_path):
         result = runtime.run(
             run_id=run.id,
             operation_key="w8-s2:plan-no-preview",
-            expected_revision=run.revision,
+            expected_revision=initial_revision,
         )
 
         refreshed = service.get(run.id)
         assert result.stop_reason is AutonomyStopReason.MAX_STEPS_REACHED
         assert refreshed.state == "IMPLEMENT"
-        assert refreshed.revision == run.revision + 1
+        assert refreshed.revision == initial_revision + 1
         plan_attempts = [item for item in refreshed.attempts if item.stage == "PLAN"]
         assert len(plan_attempts) == 1
         assert plan_attempts[0].status == "PASSED"
