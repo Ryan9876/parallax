@@ -188,7 +188,7 @@ class VercelProjectReadinessRestClient:
         if not isinstance(project_name, str) or not _PROJECT_NAME.fullmatch(project_name):
             raise ProviderClientError("TARGET_IDENTITY_UNVERIFIED")
         account_id = payload.get("accountId")
-        if account_id is not None and account_id != self._team_id:
+        if not isinstance(account_id, str) or account_id != self._team_id:
             raise ProviderClientError("TARGET_SCOPE_MISMATCH", result_identity=project_id)
         link = payload.get("link")
         if not isinstance(link, dict) or link.get("type") != "github":
@@ -297,13 +297,19 @@ class VercelProjectReadinessRestClient:
             project_id = matches[0].get("id")
             if not isinstance(project_id, str) or not project_id:
                 raise ProviderClientError("TARGET_IDENTITY_UNVERIFIED")
-            return self._read(
+            result = self._read(
                 project_id,
                 repository_ref=repository_ref,
                 github_repo_id=github_repo_id,
                 production_branch=production_branch,
                 created=False,
             )
+            # A conflict can mean another concurrent readiness request created
+            # the Project. Treat that reconciled Project as newly readied for
+            # this operation and prove no production deployment appeared before
+            # admitting it as the Preview target.
+            self._assert_no_production_deployment(project_id=project_id)
+            return result
         self._raise_status(response)
         created_payload = self._payload(response)
         project_id = created_payload.get("id")
