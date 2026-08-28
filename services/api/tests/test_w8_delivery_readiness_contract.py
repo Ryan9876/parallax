@@ -12,10 +12,14 @@ from parallax_api.code.delivery_readiness import (
     VercelProjectReadinessRestClient,
     _provisioning_profile,
 )
+from parallax_api.code.lineage_persistence import (
+    InMemoryImmutableObjectStore,
+    InMemoryLineageMetadataStore,
+)
 from parallax_api.code.runtime_composition import EngineeringRuntimeComposition
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
-from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourcePackage
+from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
 from parallax_api.db import Base, make_engine
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
 from parallax_api.projects.repository import ProjectRepository
@@ -278,7 +282,14 @@ def test_durable_plan_advances_to_implement_without_preview_target(tmp_path):
         )
         assert run.state == "PLAN"
 
-        allocator = ProjectWorkspaceAllocator(tmp_path / "lineage")
+        lineage_store = SourceLineageStore(
+            InMemoryImmutableObjectStore(),
+            InMemoryLineageMetadataStore(),
+        )
+        allocator = ProjectWorkspaceAllocator(
+            tmp_path / "lineage",
+            lineage_store=lineage_store,
+        )
         identity = ProjectRunIdentity(project_id=project.id, run_id=run.id)
         materialized = allocator.initialize(identity, _StarterSource())
         allocator.cleanup(materialized)
