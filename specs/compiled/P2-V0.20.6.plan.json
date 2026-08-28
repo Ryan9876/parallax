@@ -1,0 +1,110 @@
+{
+  "architecture_decisions": [
+    "S6: Reuse accepted S1-S5 and Wave 6 runtime contracts, reuse accepted S6 runtime contracts."
+  ],
+  "work_items": [
+    "Project \u2192 approved Work Specification \u2192 Engineering Run \u2192 accepted source lineage \u2192 BUILD/TEST/VERIFY \u2192 Preview \u2192 REVIEW path."
+  ],
+  "validations": [
+    "Protected deterministic validation and the single-writer source acceptance boundary remain authoritative.",
+    "AC-01: validate protected requirement \u2014 At least three immutable server-owned proof scenarios from materially different application-objective classes execute under one proof version; the portfolio cannot be cherry-picked or weakened after results are known.",
+    "AC-02: validate protected requirement \u2014 Every scenario proof preserves exact Project, approved Work Specification revision/digest, Engineering Run/revision, acceptance IDs and accepted source-lineage identity through validation/evaluation/delivery evidence; cross-boundary evidence fails closed.",
+    "AC-03: validate protected requirement \u2014 Proof uses the existing protected Engineering Run/source-lineage/BUILD/TEST/VERIFY/delivery contracts and cannot satisfy acceptance through a parallel test-only authority path.",
+    "AC-04: validate protected requirement \u2014 At least one scenario proves bounded retry/recovery/reconnect behavior with durable revision/checkpoint/replay semantics and no duplicate canonical mutation/publication or indefinite loop.",
+    "AC-05: validate protected requirement \u2014 Every scenario's S3 projection is bound to fresh canonical run evidence and exposes bounded lifecycle/task/validation/recovery/delivery/metric/handoff truth without client-side canonical inference.",
+    "AC-06: validate protected requirement \u2014 Applicable browser proof uses only the accepted S4 admitted non-destructive capability and fails closed on off-origin, unrestricted JavaScript/network, credential or destructive-action attempts.",
+    "AC-07: validate protected requirement \u2014 S5 proof preserves deterministic provenance, bounded coverage and `OBSERVED`/`ESTIMATED`/`UNKNOWN` semantics; unknown never becomes zero and incomplete event coverage cannot masquerade as complete observation.",
+    "AC-08: validate protected requirement \u2014 Deterministic/protected failure remains release-blocking and cannot be overridden by ParallaxBench, model/evaluator, S3 UI, S4 browser, S5 telemetry/economics or Preview status.",
+    "AC-09: validate protected requirement \u2014 ParallaxBench/reference comparison demonstrates no protected regression across the portfolio and material improvement in at least one predeclared meaningful non-protected product-value dimension, otherwise the aggregate result is `VALUE_NOT_DEMONSTRATED` and cannot be release-qualified.",
+    "AC-10: validate protected requirement \u2014 Where real Preview delivery is exercised, delivery is bound to exact accepted lineage/provider evidence; autonomous execution stops at `REVIEW`/`HUMAN_REQUIRED` and S6 cannot complete production promotion.",
+    "AC-11: validate protected requirement \u2014 Re-running the same proof or reconnecting after process recreation is deterministic/idempotent: existing run/source/provider/proof identities resolve rather than duplicate canonical mutation or publication.",
+    "AC-12: validate protected requirement \u2014 Negative tests prove benchmark, projection/client, browser and observability/proof payloads cannot gain lifecycle, source acceptance, provider/tool administration, arbitrary command/network, merge/deploy or REVIEW-completion authority.",
+    "AC-13: validate protected requirement \u2014 Proof records/responses contain only bounded allowlisted identities/status/provenance and exclude credentials, prompts, hidden reasoning, raw provider payloads, source bytes/patches, unrestricted logs and sensitive raw URLs.",
+    "AC-14: validate protected requirement \u2014 Before S6 acceptance, authentic DSPy evidence for `P2-V0.20.6` is committed, the worker remains based/reconciled to the latest accepted cumulative Wave 7 integration SHA, applicable protected API/client/browser/evaluation/replay/privacy gates pass on the exact head, and the worker stops `READY FOR INTEGRATION` for Control Tower expected-head handling. Any `main` merge or production release requires a separate explicit Control Tower decision and deployment verification."
+  ],
+  "risks": [
+    "Material risk and mitigation: S3 projection/canvas truth must match fresh server-owned run evidence; presentation cannot become lifecycle/source/provider authority."
+  ],
+  "spec_id": "P2-V0.20.6",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Materially different scenario portfolio",
+      "protected_requirement": "At least three immutable server-owned proof scenarios from materially different application-objective classes execute under one proof version; the portfolio cannot be cherry-picked or weakened after results are known."
+    },
+    {
+      "id": "AC-02",
+      "title": "Canonical identity continuity",
+      "protected_requirement": "Every scenario proof preserves exact Project, approved Work Specification revision/digest, Engineering Run/revision, acceptance IDs and accepted source-lineage identity through validation/evaluation/delivery evidence; cross-boundary evidence fails closed."
+    },
+    {
+      "id": "AC-03",
+      "title": "Ordinary protected lifecycle",
+      "protected_requirement": "Proof uses the existing protected Engineering Run/source-lineage/BUILD/TEST/VERIFY/delivery contracts and cannot satisfy acceptance through a parallel test-only authority path."
+    },
+    {
+      "id": "AC-04",
+      "title": "Bounded autonomy and recovery",
+      "protected_requirement": "At least one scenario proves bounded retry/recovery/reconnect behavior with durable revision/checkpoint/replay semantics and no duplicate canonical mutation/publication or indefinite loop."
+    },
+    {
+      "id": "AC-05",
+      "title": "S3 operator visibility",
+      "protected_requirement": "Every scenario's S3 projection is bound to fresh canonical run evidence and exposes bounded lifecycle/task/validation/recovery/delivery/metric/handoff truth without client-side canonical inference."
+    },
+    {
+      "id": "AC-06",
+      "title": "S4 browser evidence boundary",
+      "protected_requirement": "Applicable browser proof uses only the accepted S4 admitted non-destructive capability and fails closed on off-origin, unrestricted JavaScript/network, credential or destructive-action attempts."
+    },
+    {
+      "id": "AC-07",
+      "title": "S5 known-state evidence",
+      "protected_requirement": "S5 proof preserves deterministic provenance, bounded coverage and `OBSERVED`/`ESTIMATED`/`UNKNOWN` semantics; unknown never becomes zero and incomplete event coverage cannot masquerade as complete observation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Protected quality precedence",
+      "protected_requirement": "Deterministic/protected failure remains release-blocking and cannot be overridden by ParallaxBench, model/evaluator, S3 UI, S4 browser, S5 telemetry/economics or Preview status."
+    },
+    {
+      "id": "AC-09",
+      "title": "Objective value evidence",
+      "protected_requirement": "ParallaxBench/reference comparison demonstrates no protected regression across the portfolio and material improvement in at least one predeclared meaningful non-protected product-value dimension, otherwise the aggregate result is `VALUE_NOT_DEMONSTRATED` and cannot be release-qualified."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact-lineage Preview and REVIEW ceiling",
+      "protected_requirement": "Where real Preview delivery is exercised, delivery is bound to exact accepted lineage/provider evidence; autonomous execution stops at `REVIEW`/`HUMAN_REQUIRED` and S6 cannot complete production promotion."
+    },
+    {
+      "id": "AC-11",
+      "title": "Replay and process-recreation safety",
+      "protected_requirement": "Re-running the same proof or reconnecting after process recreation is deterministic/idempotent: existing run/source/provider/proof identities resolve rather than duplicate canonical mutation or publication."
+    },
+    {
+      "id": "AC-12",
+      "title": "Adversarial authority isolation",
+      "protected_requirement": "Negative tests prove benchmark, projection/client, browser and observability/proof payloads cannot gain lifecycle, source acceptance, provider/tool administration, arbitrary command/network, merge/deploy or REVIEW-completion authority."
+    },
+    {
+      "id": "AC-13",
+      "title": "Privacy and bounded evidence",
+      "protected_requirement": "Proof records/responses contain only bounded allowlisted identities/status/provenance and exclude credentials, prompts, hidden reasoning, raw provider payloads, source bytes/patches, unrestricted logs and sensitive raw URLs."
+    },
+    {
+      "id": "AC-14",
+      "title": "Release and exact-head gate",
+      "protected_requirement": "Before S6 acceptance, authentic DSPy evidence for `P2-V0.20.6` is committed, the worker remains based/reconciled to the latest accepted cumulative Wave 7 integration SHA, applicable protected API/client/browser/evaluation/replay/privacy gates pass on the exact head, and the worker stops `READY FOR INTEGRATION` for Control Tower expected-head handling. Any `main` merge or production release requires a separate explicit Control Tower decision and deployment verification."
+    }
+  ],
+  "critique": [
+    "The cumulative Wave 7 product implementation has a material risk in its reliance on the `00a9e66e2f87a1f992d375b4217845b8f072e11d` baseline, which is not yet governed and may change, potentially disrupting the entire proof/release-qualification layer."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
