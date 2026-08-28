@@ -289,22 +289,21 @@ async function inspectViewport(browser, name, width, height, report) {
   const logoCount = await page.getByLabel('Parallax orbital planet mark').count();
   assert(logoCount > 0, `${name}: approved orbital identity was not rendered`);
 
-
-const navCount = await page.getByTestId('editorial-navigation-rail').count();
-const utilityCount = await page.getByTestId('editorial-utility-rail').count();
-if (name === 'mobile') {
-  assert(navCount === 0, 'mobile: desktop navigation rail must reflow away');
-  assert(utilityCount === 0, 'mobile: utility rail must reflow away');
-} else if (name === 'tablet') {
-  assert(navCount === 1, 'tablet: navigation rail should remain available at 768px');
-  assert(utilityCount === 0, 'tablet: desktop utility rail must not compress the workplane');
-} else if (name === 'desktop') {
-  assert(navCount === 1, 'desktop: warm editorial navigation rail missing');
-  assert(utilityCount === 1, 'desktop: warm editorial utility rail missing');
-  await page.getByText('What shall we build today?').waitFor();
-  const railStyle = await page.getByTestId('editorial-navigation-rail').evaluate((node) => getComputedStyle(node).backgroundColor);
-  assert(!railStyle.includes('139, 156, 255') && !railStyle.includes('209, 139, 255'), `desktop: legacy violet rail detected (${railStyle})`);
-}
+  const navCount = await page.getByTestId('editorial-navigation-rail').count();
+  const utilityCount = await page.getByTestId('editorial-utility-rail').count();
+  if (name === 'mobile') {
+    assert(navCount === 0, 'mobile: desktop navigation rail must reflow away');
+    assert(utilityCount === 0, 'mobile: utility rail must reflow away');
+  } else if (name === 'tablet') {
+    assert(navCount === 1, 'tablet: navigation rail should remain available at 768px');
+    assert(utilityCount === 0, 'tablet: desktop utility rail must not compress the workplane');
+  } else if (name === 'desktop') {
+    assert(navCount === 1, 'desktop: warm editorial navigation rail missing');
+    assert(utilityCount === 1, 'desktop: warm editorial utility rail missing');
+    await page.getByText('What shall we build today?').waitFor();
+    const railStyle = await page.getByTestId('editorial-navigation-rail').evaluate((node) => getComputedStyle(node).backgroundColor);
+    assert(!railStyle.includes('139, 156, 255') && !railStyle.includes('209, 139, 255'), `desktop: legacy violet rail detected (${railStyle})`);
+  }
 
   const first = await page.screenshot({ path: `${evidenceDir}/${name}-idle-a.png` });
   await page.waitForTimeout(1100);
@@ -354,11 +353,11 @@ if (name === 'mobile') {
     await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor();
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
 
-    await page.getByLabel('Capture work specification').waitFor({ timeout: 5000 });
-    await page.getByLabel('Capture work specification').click();
-    await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
-    const specSurface = page.getByLabel('Work specification', { exact: true });
-    const specStyle = await specSurface.evaluate((node) => {
+    await page.getByLabel('Create build plan').waitFor({ timeout: 5000 });
+    await page.getByLabel('Create build plan').click();
+    await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
+    const planSurface = page.getByLabel('Build plan', { exact: true });
+    const planStyle = await planSurface.evaluate((node) => {
       const style = getComputedStyle(node);
       return {
         borderLeftWidth: parseFloat(style.borderLeftWidth || '0'),
@@ -366,13 +365,13 @@ if (name === 'mobile') {
         backgroundColor: style.backgroundColor,
       };
     });
-    assert(specStyle.borderLeftWidth <= 1, `desktop: Work Specification retained a heavy left rule (${specStyle.borderLeftWidth}px)`);
-    assert(specStyle.borderRadius >= 14, `desktop: Work Specification is not using rounded editorial material (${specStyle.borderRadius}px)`);
-    await page.getByLabel('Expand work specification').click();
+    assert(planStyle.borderLeftWidth <= 1, `desktop: Build plan retained a heavy left rule (${planStyle.borderLeftWidth}px)`);
+    assert(planStyle.borderRadius >= 14, `desktop: Build plan is not using rounded editorial material (${planStyle.borderRadius}px)`);
+    await page.getByLabel('Show build plan details').first().click();
     await page.getByText('The work specification persists as a durable draft.').waitFor({ timeout: 5000 });
-    await page.getByLabel('Approve work specification').click();
-    await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
-    await page.screenshot({ path: `${evidenceDir}/desktop-spec-approved.png` });
+    await page.getByLabel('Approve build plan').click();
+    await page.getByText('Plan approved').waitFor({ timeout: 5000 });
+    await page.screenshot({ path: `${evidenceDir}/desktop-plan-approved.png` });
 
     report.liveResponseTreatment = {
       idleCanvasCount,
@@ -383,8 +382,8 @@ if (name === 'mobile') {
       liveChunkObservedBeforeStreamCompletion: true,
       completed: true,
     };
-    report.workSpecification = {
-      captured: true,
+    report.buildPlan = {
+      created: true,
       roundedEditorialMaterial: true,
       heavyLeftRuleRemoved: true,
       expanded: true,
@@ -405,7 +404,7 @@ async function inspectFallback(browser, report) {
   await page.goto('http://127.0.0.1:8766', { waitUntil: 'networkidle' });
   await page.getByLabel('Message Parallax').waitFor({ timeout: 10000 });
   await page.getByText(/Reduced graphics mode/).first().waitFor();
-  await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
+  await page.getByText('Plan approved').waitFor({ timeout: 5000 });
   const canvasCount = await page.locator('canvas').count();
   assert(canvasCount === 0, `fallback: expected zero Skia canvases, found ${canvasCount}`);
 
@@ -441,7 +440,7 @@ async function inspectFallback(browser, report) {
   report.fallback = {
     canvasCount,
     functionalConversation: true,
-    workSpecificationParity: true,
+    buildPlanParity: true,
     amendmentStatePreservedWithoutSkia: true,
     expectedSkiaInitializationErrorObserved: true,
     observedExpectedErrorCount: errors.filter(expectedSkiaFailure).length,
@@ -457,7 +456,7 @@ const report = {
   conversationPolicySpecId: 'P2-V0.5.0',
   viewports: [],
   liveResponseTreatment: null,
-  workSpecification: null,
+  buildPlan: null,
   fallback: null,
 };
 let browser;
