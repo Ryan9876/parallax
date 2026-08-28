@@ -73,6 +73,18 @@ class RecorderDelivery:
         return SimpleNamespace(lineage_id="src:" + "a" * 64)
 
 
+class PersistingDelivery(RecorderDelivery):
+    def __init__(self, events, *, service, refreshed_run):
+        super().__init__(events)
+        self.service = service
+        self.refreshed_run = refreshed_run
+
+    def deliver(self, run, *, operation_key):
+        result = super().deliver(run, operation_key=operation_key)
+        self.service.run = self.refreshed_run
+        return result
+
+
 class RecorderCoordinator:
     def __init__(self, events, result_run, stop_reason):
         self.events = events
@@ -86,7 +98,7 @@ class RecorderCoordinator:
 
 def make_runtime(*, source_delivery=None, stop_reason=AutonomyStopReason.REVIEW_REQUIRED):
     project_id, run_id = str(uuid4()), str(uuid4())
-    run = SimpleNamespace(id=run_id, project_id=project_id, state="REVIEW", attempts=[])
+    run = SimpleNamespace(id=run_id, project_id=project_id, state="REVIEW", revision=7, attempts=[])
     events = []
     runtime = EngineeringRuntimeComposition(
         FakeService(run),
@@ -113,6 +125,33 @@ def test_runtime_bootstraps_before_autonomy_and_delivers_only_at_review():
     assert result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED
     assert [event[0] for event in events] == ["bootstrap", "coordinator", "delivery"]
     assert runtime.last_delivery_result is not None
+
+
+def test_runtime_returns_canonical_post_delivery_run_snapshot():
+    runtime, run, events = make_runtime(source_delivery=None)
+    refreshed_run = SimpleNamespace(
+        id=run.id,
+        project_id=run.project_id,
+        state="REVIEW",
+        revision=run.revision,
+        attempts=[SimpleNamespace(stage="SOURCE_DELIVERY", status="RECORDED")],
+    )
+    runtime.source_delivery = SourceDeliveryComposition(
+        bootstrap=RecorderBootstrap(events),
+        delivery=PersistingDelivery(
+            events,
+            service=runtime.service,
+            refreshed_run=refreshed_run,
+        ),
+    )
+
+    result = runtime.run(run_id=run.id, operation_key="operation-refresh", expected_revision=run.revision)
+
+    assert result.run is refreshed_run
+    assert result.run.state == "REVIEW"
+    assert result.run.revision == run.revision
+    assert [item.stage for item in result.run.attempts] == ["SOURCE_DELIVERY"]
+    assert [event[0] for event in events] == ["bootstrap", "coordinator", "delivery"]
 
 
 def test_runtime_does_not_publish_when_autonomy_stops_before_review():
