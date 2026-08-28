@@ -1,12 +1,12 @@
 # Parallax 2.0 Current State
 
-Date: 2026-08-27
+Date: 2026-08-28
 
-Status: **WAVES 1–6 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 INTEGRATED AND PRODUCTION-DEPLOYED / VERCEL PRODUCTION HOSTED-ONLY COMPATIBILITY VERIFIED / WAVE 7 PRODUCTIZATION ACTIVE WITH S1 ACCEPTED INTEGRATION AND S2/S4 SEMANTIC DEVELOPMENT ACTIVE / CLIENT READY / API READY / SAFE DELETION PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED WITH FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–6 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 INTEGRATED AND PRODUCTION-DEPLOYED / PRODUCTION MOBILE PLAN-HANDOFF HOTFIX DEPLOYMENT-VERIFIED / WAVE 7 PRODUCTIZATION ACTIVE WITH S1–S2 ACCEPTED INTEGRATION AND S3/S4/S5 IN DEVELOPMENT / CLIENT READY / API READY / SAFE DELETION PRODUCTION-DEPLOYED AND INFRASTRUCTURE-VERIFIED WITH FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Parallax production is cumulative through the accepted Wave 6 runtime and the `P2-V0.19.8` local-first model-routing release.
+### API
 
 Current API application source:
 
@@ -16,9 +16,9 @@ Current production API deployment:
 
 `dpl_VUpPpHN5vjXLWwwXGytxh5Uj3KSo`
 
-It is `READY`, target `production`, exact Git SHA `35113209d9ad43585a6cc5ba167774ab8d13e03c`, and serves `parallax-api-tan.vercel.app`.
+It remains `READY`, target `production`, exact Git SHA `35113209d9ad43585a6cc5ba167774ab8d13e03c`, and serves `parallax-api-tan.vercel.app`.
 
-Post-cutover evidence remains:
+Retained API post-cutover evidence:
 
 - main Workstream Spec Validation #505 / run `33134841900` — PASS;
 - main Parallax P2 CI #1159 / run `33134841915` — PASS;
@@ -27,7 +27,47 @@ Post-cutover evidence remains:
 - `GET /ready` — HTTP 200 / `database=ok`, `providers=ok`, `provider_targets=1`;
 - exact deployment `error` / `fatal` runtime scan — clean.
 
-Repository documentation/control commits and Wave 7 integration commits do not replace the deployed application identity unless a deployable component is merged to the production release branch and a new deployment is verified.
+The 2026-08-28 mobile PLAN-handoff release is client-only and does not change the production API identity.
+
+### Client
+
+Current deployment-verified production client:
+
+- application source / main merge: `f5e7618c1e4262232b5eee9dda3d5f7e724b140e`;
+- production deployment: `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h`;
+- Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
+- state: `READY`;
+- target: `production`;
+- public alias: `parallax-ashy-one-20.vercel.app`;
+- production root fetch — HTTP 200;
+- exact deployment build error scan — clean;
+- exact deployment `error` / `fatal` runtime scan — clean.
+
+This release fixes the production mobile dead-end in which an explicitly approved Code objective could durably complete SPECIFY and enter `PLAN`, while the mobile client never issued the separate existing protected autonomous continuation call.
+
+Accepted hotfix behavior:
+
+- `PLAN`, `IMPLEMENT`, `BUILD`, `TEST`, and `VERIFY` may request bounded continuation only from fresh server-owned Engineering Run truth;
+- explicit Work Specification approval hands the newly activated run into the already-existing protected `/autonomous` endpoint;
+- reopening/reconnecting an eligible active run performs one replay-safe continuation attempt using deterministic operation identity for the server revision;
+- `SPECIFY`, `PAUSED`, `FAILED`, `REVIEW`, `SPEC_AMENDMENT`, `CANCELLED`, `COMPLETE`, and historical-unbound runs do not auto-continue;
+- a failed autonomous handoff does not discard or fabricate canonical run state;
+- no API/runtime authority, source acceptance, provider administration, arbitrary command, deployment authority, or REVIEW-completion authority was added.
+
+Release evidence:
+
+- hotfix PR #361 exact candidate head `30ca4d693b2bf39a24aab77b5e709b0724961cb1`;
+- Bounded Autonomy Pilot #785 / run `33144164829` — PASS;
+- release-strength Parallax P2 CI #1213 / run `33144164840` — PASS, including API regression, client type/state/export, production dependency audit, complete browser/Skia acceptance, protected promotion evaluation, and DSPy release compilation;
+- focused 390×844 browser regression proves an eligible approved mobile run issues protected autonomy continuation;
+- exact candidate Preview `dpl_EqKwkLmEPnrM4dNakDZcCKiXzdAJ` — `READY`, clean build and runtime error/fatal scans;
+- Control Tower #347 explicitly authorized only the narrow production reliability hotfix after those gates;
+- PR #361 merged with an exact-head guard as `f5e7618c1e4262232b5eee9dda3d5f7e724b140e`;
+- exact production deployment `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h` — `READY`, aliased to `parallax-ashy-one-20.vercel.app`, HTTP 200, clean build and runtime error/fatal scans.
+
+The already-existing user run that was parked at `PLAN` is preserved. The deployed client now has the replay-safe reconnect behavior required to continue that run when it is loaded; no claim is made that the specific authenticated user run advanced until corresponding run evidence is observed.
+
+Repository documentation/control commits after this release do not replace the deployed application identity unless a deployable component actually changes and a new deployment is verified.
 
 ## Wave 7 — Productization & Measured Autonomy
 
@@ -41,63 +81,72 @@ Dedicated cumulative integration branch:
 
 `integration/wave7-productization`
 
-Current accepted Wave 7 integration SHA after S1:
+Current accepted Wave 7 integration SHA after S2:
 
-`1a293d63cf1dfdfe78b9bb83da95130657468bfb`
+`ab92b84e8f8a36870791f2154f86d838b3292f99`
 
-Wave 7 remains **development/integration only**. No Wave 7 application code is integrated to `main`, production-deployed or deployment-verified.
+Wave 7 remains a development/integration program. The narrow production mobile reliability hotfix above is not acceptance or production deployment of W7-S3 as a whole.
 
 ### W7-S1 — ParallaxBench: ACCEPTED / INTEGRATED
 
-W7-S1 / #348 / `P2-V0.20.1` is accepted and integrated into the Wave 7 branch.
+W7-S1 / #348 / `P2-V0.20.1` is accepted and integrated.
 
 Final worker head:
 
 `3d07322a1df9a92deb3c5daae1121691597849c5`
 
-Accepted evidence:
+Accepted evidence includes:
 
-- authentic DSPy SpecCritic + SpecCompiler development run #173 / `33136786353` — PASS;
-- exact generated plan SHA-256 `621672c1aa5c0584b28b266a465444111e6ce96098744b34be0965b4a58a87a2`;
-- Workstream Spec Validation #510 / run `33137992966` — PASS, including committed `--require-dspy` plan validation;
+- authentic DSPy SpecCritic + SpecCompiler run #173 / `33136786353` — PASS;
+- exact compiled-plan SHA-256 `621672c1aa5c0584b28b266a465444111e6ce96098744b34be0965b4a58a87a2`;
+- Workstream Spec Validation #510 / run `33137992966` — PASS;
 - Bounded Autonomy #745 — PASS;
-- release-strength P2 CI #1170 / run `33137993003` — PASS, including API/client regression, browser/Skia acceptance, protected promotion evaluation and DSPy release compilation;
+- release-strength P2 CI #1170 / run `33137993003` — PASS;
 - exact-head API Preview `dpl_Ek8vQEaQV9KAuG5384shP2wMQmFX` — `READY`;
-- PR #355 expected-head merged only to `integration/wave7-productization` as `1a293d63cf1dfdfe78b9bb83da95130657468bfb`.
+- accepted integration `1a293d63cf1dfdfe78b9bb83da95130657468bfb`.
 
-S1 adds a read-only objective-level ParallaxBench contract with immutable case/candidate/evidence identity, explicit known-state/provenance, deterministic protected correctness as a hard floor, dimension-wise comparison, material-improvement rules, diverse bounded fixtures, replay-safe fingerprints and privacy-safe/no-authority serialization. It does not alter Engineering Run, source-lineage, provider/tool, deployment or REVIEW authority.
+S1 is a read-only objective-evaluation layer. It adds no Engineering Run, source-lineage, provider/tool, deployment, or REVIEW authority.
+
+### W7-S2 — Agent Run Projection & Control Contract: ACCEPTED / INTEGRATED
+
+W7-S2 / #349 / `P2-V0.20.2` is accepted into the cumulative Wave 7 integration branch as:
+
+`ab92b84e8f8a36870791f2154f86d838b3292f99`
+
+Its accepted integration reuses existing server-owned Engineering Run pause/resume/cancel authority and adds the governed projection/control contract without creating a second run state machine or client-side canonical authority.
+
+Recorded acceptance evidence includes exact-head Workstream Spec Validation #533, Bounded Autonomy #769, full release P2 CI #1194, authentic DSPy plan evidence, and READY API Preview `dpl_8KwmBQJ4ezQwd9CiqTMXFR1fTyic`.
 
 ### Active dependency-aware lanes
 
-1. **W7-S2 / #349 / `P2-V0.20.2` — Agent Run Projection & Control Contract**
-   - semantic implementation is authorized because S1 is accepted;
-   - authentic DSPy run #175 / `33137953047` — PASS, protected score `1.000`, exact plan SHA-256 `eacd73d93437541d62449f2e871e2ae647b5fa00802126faff102d070051c3ae`;
-   - worker reconciled to accepted S1 integration before implementation;
-   - implementation is a read-only projection over existing Engineering Run / attempt / run-event facts plus an authenticated typed projection API; no second state machine is introduced;
-   - no writable controls are advertised in S2 v1 until a separately accepted existing server authority is explicitly composed;
-   - candidate remains under exact-head validation and is not yet accepted/integrated.
+1. **W7-S3 / #351 / `P2-V0.20.3` — Agent Run Canvas / Development Studio**
+   - worker PR #359 targets `integration/wave7-productization`;
+   - current worker head after mobile handoff regression-fixture reconciliation: `31eb5fb2c07c58971975ea484bf796bee8112f64`;
+   - semantic implementation composes the accepted S2 server-owned run contract and does not create client-side source/provider/REVIEW authority;
+   - the production mobile PLAN-handoff hotfix is a narrow reliability backport only and does not constitute S3 acceptance;
+   - S3 remains under exact-head qualification and Control Tower review before integration.
 
 2. **W7-S4 / #350 / `P2-V0.20.4` — Safe Browser Tool Layer v1**
-   - semantic implementation is authorized because S1 is accepted;
-   - authentic DSPy run #176 / `33137961535` — PASS, protected score `1.000`, exact plan SHA-256 `0522b8a668965ef7fad54e0592320e34db919a8e672964d7e69275e9b4782852`;
-   - worker reconciled to accepted S1 integration before implementation;
-   - implementation composes the existing Project-scoped `ToolCapabilityRegistry` with typed read-only browser-evidence capabilities, server-admitted HTTPS targets, bounded declarative assertions/inspection/screenshot evidence, off-origin redirect denial, sensitive-observation redaction, deterministic-validation precedence and ephemeral session cleanup;
-   - the public S4 entrypoint exposes no arbitrary JavaScript, raw network, credential, destructive-action, source/provider/deployment or REVIEW authority;
-   - candidate remains under exact-head validation and is not yet accepted/integrated.
+   - worker PR #357 targets `integration/wave7-productization`;
+   - current worker head `5be84c676f3a6cb54cdf85ec5e8e1304dffbc771` is reconciled to the accepted S2 branch base;
+   - scope remains Project-scoped, non-destructive browser evidence with admitted HTTPS targets, bounded declarative inspection/assertion/screenshot evidence, off-origin redirect denial, sensitive-observation redaction, deterministic-validation precedence, and no arbitrary JavaScript/network/credential/destructive-action authority;
+   - candidate is not yet accepted/integrated.
 
-Downstream implementation remains dependency-controlled:
+3. **W7-S5 / #352 / `P2-V0.20.5` — Agentic Observability, Runtime Economics & Retention**
+   - draft worker PR #360 targets `integration/wave7-productization`;
+   - current head `c3f09e8541e449f5663e1854418d26b726131685` contains the spec-first contract;
+   - S5 consumes existing run/event/worker/evaluation evidence and may not create a scheduler, billing ledger, second state machine, or canonical-deletion authority;
+   - semantic acceptance remains gated by authentic DSPy evidence and exact-head protected validation.
 
-- W7-S3 / #351 / `P2-V0.20.3` — Agent Run Canvas / Development Studio — implementation requires accepted S2;
-- W7-S5 / #352 / `P2-V0.20.5` — Agentic Observability, Runtime Economics & Retention — S1 is satisfied; implementation still requires accepted S2;
-- W7-S6 / #353 / `P2-V0.20.6` — Integrated Product Proof: Real-World App Completion — implementation requires accepted S1-S5.
+W7-S6 / #353 / `P2-V0.20.6` — Integrated Product Proof — remains downstream of accepted S1–S5.
 
 ### Wave 7 integration rule
 
 All Wave 7 worker PRs target `integration/wave7-productization`, never `main`.
 
-Workers stop `READY FOR INTEGRATION`; they do not deploy. Control Tower integrates one accepted exact head at a time and advances the accepted integration SHA only after the applicable exact-head gates pass. A concurrently developed worker must reconcile to the latest accepted integration head and rerun exact-head gates before acceptance.
+Workers stop `READY FOR INTEGRATION`; Control Tower integrates one accepted exact head at a time. A concurrently developed worker must reconcile to the latest accepted integration head and rerun exact-head gates before acceptance.
 
-The integration branch now admits worker PRs to the existing Workstream Spec Validation, Bounded Autonomy and P2 CI workflows. This validation-plumbing change does not alter application runtime behavior or production deployment identity.
+A production reliability hotfix may be separately backported to `main` only under an explicit Control Tower decision and must not be treated as wholesale acceptance of its originating workstream.
 
 If a worker discovers that a shared authority/security contract must change, that work stops and returns to Control Tower rather than independently redefining the boundary.
 
@@ -133,19 +182,6 @@ Final Wave 6 production API deployment before local-first integration:
 
 The authenticated Wave 6 production proof established Project-bound PLAN, agentic IMPLEMENT, exact-lineage BUILD/TEST/VERIFY, bounded GitHub/Vercel Preview delivery, operator REVIEW ceiling and replay/process-recreation stability without duplicate canonical mutation or publication.
 
-## Production client
-
-Current verified client production remains:
-
-- Vercel project: `parallax`;
-- deployment: `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`;
-- source: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
-- state: `READY`;
-- target: `production`;
-- public alias: `parallax-ashy-one-20.vercel.app`.
-
-No Wave 7 client deployment has occurred.
-
 ## Production database and safe deletion
 
 Supabase production migration `20260827173141` (`safe_conversation_project_deletion`) remains active and additive/backward-compatible.
@@ -163,7 +199,7 @@ Current production API:
 - source `35113209d9ad43585a6cc5ba167774ab8d13e03c`;
 - deployment `dpl_VUpPpHN5vjXLWwwXGytxh5Uj3KSo`.
 
-Immediate fully deployment-verified rollback reference:
+Immediate fully deployment-verified API rollback reference:
 
 - Wave 6 source `55066fccfcb9b4d645cdb87c8b7d061f032d6dec`;
 - deployment `dpl_2uYwsPsKDFo214mEFxwwXGytxh5Uj3KSo`.
@@ -172,18 +208,28 @@ The local-first release adds no database migration, so rollback to the verified 
 
 ### Client
 
-Current verified client remains `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K` at `a6d7a6fd4d556d5544ede9c43b93972a8c590011`.
+Current deployment-verified client:
+
+- source `f5e7618c1e4262232b5eee9dda3d5f7e724b140e`;
+- deployment `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h`.
+
+Immediate previous verified client rollback reference:
+
+- source `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- deployment `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`.
+
+The mobile PLAN-handoff hotfix adds no database or API migration.
 
 ## Program controls
 
 - GitHub plus the four authoritative project records outrank chat recollection;
 - Control record #31 remains the parent integration/release queue;
-- Wave 7 Control Tower #347 governs `integration/wave7-productization` and dependency-aware parallelism;
+- Wave 7 Control Tower #347 governs `integration/wave7-productization`, dependency-aware parallelism, and the separately authorized production hotfix boundary;
 - app-builder roadmap #32 records Waves 1–6 complete and Wave 7 active;
 - every semantic Wave 7 workstream remains spec-first with stable acceptance IDs and authentic DSPy SpecCritic + SpecCompiler evidence;
 - at most three active Wave 7 development lanes run concurrently without a new Control Tower decision;
 - interacting candidates integrate serially at the Wave 7 branch and cumulative gates rerun for each candidate against the latest accepted integration baseline;
-- deployment, integration, repository-record and production identities remain separate facts;
+- deployment, integration, repository-record, and production identities remain separate facts;
 - no production-verification claim is valid without exact release identity and appropriate post-cutover evidence.
 
 ## Durable invariants
@@ -194,6 +240,7 @@ Current verified client remains `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K` at `a6d7a6fd4
 - agentic, benchmark, projection and model output remains evidence, not authority;
 - cross-Project privacy boundaries remain strict;
 - replay/idempotency and durable worker lease/checkpoint/recovery remain authoritative;
+- client reconnect/continuation may request existing bounded server authority but cannot redefine canonical run truth;
 - hosted production model transport remains server-owned and fail-closed;
 - local-first configuration remains rejected in Vercel production;
 - browser-tool work may not create unrestricted JavaScript/network, credential or destructive-action authority;
@@ -204,13 +251,15 @@ Current verified client remains `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K` at `a6d7a6fd4
 
 ## Next governed implementation boundary
 
-Complete exact-head release validation of W7-S2 and W7-S4. If S2 passes, Control Tower integrates it first, advances the accepted Wave 7 SHA, unlocks S3 and S5 semantic implementation, and requires concurrently developed S4 to reconcile to the new accepted integration SHA before its final acceptance. S4 must then rerun exact-head gates on that reconciled baseline before integration.
+Finish exact-head qualification of W7-S3 after the mobile regression-fixture reconciliations; independently complete S4 final validation on the accepted S2 integration baseline; continue S5 spec-first evidence work without exceeding the three-lane limit. Control Tower may integrate only one accepted exact head at a time and must require cumulative revalidation where interacting candidates have drifted.
+
+The production mobile PLAN-handoff defect is deployment-verified fixed at the client release boundary, but the specific previously parked authenticated run should be considered resumed only when its durable run/event evidence advances after the user loads the new client.
 
 Safe-deletion final authenticated destructive smoke and hosted-to-private inference from Vercel remain separate boundaries.
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; Wave 7 uses the existing governance/authority model.
-- `ARCHITECTURE.md` v3.10 — unchanged in this record update; S1 is an evaluation layer that composes existing authority contracts without altering the durable runtime authority model. S2/S4 are not yet accepted integrations.
-- `DESIGN-SYSTEM.md` v3.1 — unchanged; no Wave 7 UI contract is accepted yet.
-- `CURRENT-STATE.md` — updated because W7-S1 was accepted into the Wave 7 integration branch and S2/S4 semantic implementation was subsequently authorized, while production identities remain unchanged.
+- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; the hotfix used existing governance and authority boundaries.
+- `ARCHITECTURE.md` v3.10 — unchanged by the hotfix; no new backend authority or durable runtime state machine was introduced. W7-S3/S4/S5 remain unaccepted candidates.
+- `DESIGN-SYSTEM.md` v3.1 — unchanged; the hotfix is behavior/reliability work, not a durable visual-system change.
+- `CURRENT-STATE.md` — updated because PR #361 is merged and its exact production client deployment is deployment-verified, and to reconcile the Wave 7 record to accepted S2 plus current S3/S4/S5 development truth.
