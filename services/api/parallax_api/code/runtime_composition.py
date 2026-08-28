@@ -494,6 +494,14 @@ class EngineeringRuntimeComposition:
                     raise RuntimeCompositionError(
                         "durable run-event projection failed after verified source delivery"
                     ) from exc
+                refreshed_run = self.service.get(run_id)
+                if refreshed_run.state != result.run.state or refreshed_run.revision != result.run.revision:
+                    raise RuntimeCompositionError("verified source delivery changed protected run state")
+                result = AutonomyResult(
+                    run=refreshed_run,
+                    stop_reason=result.stop_reason,
+                    steps=result.steps,
+                )
             return result
         except BaseException as exc:
             primary_error = exc
