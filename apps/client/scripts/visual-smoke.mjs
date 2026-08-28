@@ -349,7 +349,7 @@ async function inspectViewport(browser, name, width, height, report) {
     const respondingCanvasCount = await page.locator('canvas').count();
     assert(respondingCanvasCount >= idleCanvasCount, `desktop: responding state lost a required canvas (${respondingCanvasCount} < ${idleCanvasCount})`);
 
-    await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
+    await page.getByText(/ask · ready/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor();
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
 
