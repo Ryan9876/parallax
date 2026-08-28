@@ -6,7 +6,7 @@ on:
       spec:
         description: Specification path
         required: true
-        default: specs/P2-V0.1.0.md
+        default: specs/P2-V0.19.8.md
   push:
     branches:
       - 'p2/**'
@@ -22,9 +22,9 @@ jobs:
   optimize:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     env:
-      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.1.0.md' }}
+      SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.19.8.md' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -94,19 +94,31 @@ jobs:
               'model': os.environ['MODEL'],
               'provider_backed': provider,
               'optimizer_executed': provider,
-              'compiler_artifact': 'P2-V0.1.0.plan.json',
+              'compiler_artifact': 'P2-V0.19.8.plan.json',
               'optimizer_artifact': 'optimized-program.json' if provider else None,
               'evidence_artifact': 'optimized-program-evidence.json' if provider else None,
               'purpose': 'P2 development-method evidence; protected metrics still gate promotion.'
           }, indent=2) + '\n', encoding='utf-8')
           PY
 
+      - name: Persist exact reconciled compiled plan
+        if: success() && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add specs/compiled/P2-V0.19.8.plan.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "DSPy evidence: P2-V0.19.8 compiled plan [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: dspy-spec-evidence
           path: |
-            specs/compiled/P2-V0.1.0.plan.json
+            specs/compiled/P2-V0.19.8.plan.json
             specs/compiled/optimized-program.json
             specs/compiled/optimized-program-evidence.json
             specs/compiled/dspy-run-status.json
