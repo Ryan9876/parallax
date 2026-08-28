@@ -418,7 +418,7 @@ type BuildWorkspaceProps = {
 
 export function MobileBuildWorkspace({ specification, run, canDraft, busy, error, onCaptureSpecification, onReviewSpecification, onOpenDetails }: BuildWorkspaceProps) {
   const currentIndex = currentJourneyIndex(specification, run);
-  const currentStep = JOURNEY_STEPS[currentIndex];
+  const currentStep = JOURNEY_STEPS[currentIndex] ?? JOURNEY_STEPS[0]!;
   const currentActivity = specification?.status === 'DRAFT'
     ? 'Your build plan needs your review'
     : run
