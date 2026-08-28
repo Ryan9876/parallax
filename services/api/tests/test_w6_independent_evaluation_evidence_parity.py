@@ -1,18 +1,4 @@
-from pathlib import Path
-
-runtime_path = Path("services/api/parallax_api/code/agentic_runtime.py")
-text = runtime_path.read_text(encoding="utf-8")
-old = "            qualitative_evidence=refs,\n"
-new = "            qualitative_evidence=(),\n"
-if text.count(old) != 1:
-    raise SystemExit(f"expected exactly one independent-evaluation qualitative evidence binding, found {text.count(old)}")
-runtime_path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-test_path = Path("services/api/tests/test_w6_independent_evaluation_evidence_parity.py")
-if test_path.exists():
-    raise SystemExit("focused regression path already exists")
-test_path.write_text(
-    '''from __future__ import annotations
+from __future__ import annotations
 
 from types import SimpleNamespace
 from uuid import uuid4
@@ -84,6 +70,3 @@ def test_independent_evaluation_uses_protected_stage_evidence_once() -> None:
     assert len(record.evidence_refs) == 3
     assert record.candidate == binding
     assert record.protected_validation_digest == protected.digest
-''',
-    encoding="utf-8",
-)
