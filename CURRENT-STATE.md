@@ -2,47 +2,70 @@
 
 Date: 2026-08-28
 
-Status: **WAVES 1–6 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 PRODUCTION-DEPLOYED / MOBILE PLAN-HANDOFF HOTFIX DEPLOYMENT-VERIFIED / WAVE 7 S1–S6 ACCEPTED AND CUMULATIVELY INTEGRATED / RECONCILED WAVE 7 RELEASE CANDIDATE VALIDATED / MAIN MERGE AND PRODUCTION RELEASE NOT YET AUTHORIZED / CLIENT READY / API READY / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / LOCAL-FIRST P2-V0.19.8 PRODUCTION-DEPLOYED / MOBILE PLAN-HANDOFF HOTFIX DEPLOYMENT-VERIFIED / WAVE 7 S1–S6 MAIN-INTEGRATED AND CHANGED API SURFACES PRODUCTION-VERIFIED / CLIENT READY AND UNCHANGED / API READY / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Wave 7 has **not** been merged to `main` or production-deployed. Current production identities therefore remain unchanged.
+Wave 7 S1–S6 are now accepted, cumulatively integrated, merged to `main`, and deployment-verified for the components changed by the release.
+
+The Wave 7 application release merge is:
+
+`703934871e4df0f63828c7fd6e33d3e6a86b60b1`
+
+Repository record-only commits after this application release do not replace a deployed application identity unless they cause a real changed-component production deployment that is separately verified.
 
 ### API
 
 Current production API application source:
 
-`35113209d9ad43585a6cc5ba167774ab8d13e03c`
+`703934871e4df0f63828c7fd6e33d3e6a86b60b1`
 
 Current production API deployment:
 
-`dpl_VUpPpHN5vjXLWwwXGytxh5Uj3KSo`
+`dpl_GSkdmZDyXoh2RUdoPjC2WCeHeJVi`
 
-Current production API remains `READY`, target `production`, serving `parallax-api-tan.vercel.app`.
+Production properties:
 
-Retained deployment-verification evidence includes:
+- project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
+- target: `production`;
+- state: `READY`;
+- exact Git source: `703934871e4df0f63828c7fd6e33d3e6a86b60b1`;
+- production alias: `parallax-api-tan.vercel.app`;
+- alias error: none.
 
-- main Workstream Spec Validation #505 / run `33134841900` — PASS;
-- main Parallax P2 CI #1159 / run `33134841915` — PASS;
-- production provider/source/private-Blob/lineage/runtime-bootstrap/execution-snapshot preflights — PASS;
-- `GET /health` — HTTP 200 / service `parallax-api` / status `ok`;
-- `GET /ready` — HTTP 200 / database/providers ready;
-- exact deployment runtime `error` / `fatal` scan — clean.
+Post-cutover production evidence:
+
+- production provider preflight — PASS;
+- production delivery-permission preflight — PASS;
+- projected-source preflight — PASS;
+- private Blob SDK and lineage-composition preflights — PASS;
+- production agentic-runtime preflight — PASS;
+- projected-bootstrap preflight — PASS, including process recreation, replay and no-stage-mutation checks;
+- execution-snapshot preflight — PASS with deny-all restore and offline dependency verification;
+- run-event schema guard — PASS;
+- build completed and deployment completed successfully;
+- `GET /health` on `parallax-api-tan.vercel.app` — HTTP 200, service `parallax-api`, status `ok`;
+- `GET /ready` — HTTP 200, status `ready`, `database=ok`, `providers=ok`, `provider_targets=1`;
+- exact deployment `error` / `fatal` runtime scan — clean;
+- main Workstream Spec Validation #575 / run `33193923994` on exact merge source — PASS;
+- main Parallax P2 CI #1250 / run `33193923996` on exact merge source — PASS.
 
 ### Client
 
-Current deployment-verified production client:
+Wave 7 contains no client content delta relative to the already deployment-verified production client. Vercel therefore canceled the path-aware client production attempt for the Wave 7 merge rather than creating a new client deployment.
+
+Current deployment-verified production client remains:
 
 - application source: `f5e7618c1e4262232b5eee9dda3d5f7e724b140e`;
 - production deployment: `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`;
 - target: `production`;
-- alias: `parallax-ashy-one-20.vercel.app`;
-- production root fetch — HTTP 200;
-- build and runtime error/fatal scans — clean.
+- aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app` and `parallax-git-main-lew7.vercel.app`.
 
-This client includes the separately governed and deployment-verified mobile PLAN-handoff reliability fix. Eligible approved active runs may request the already-existing protected `/autonomous` continuation from fresh server-owned Engineering Run truth. The client cannot redefine canonical run state, source authority, provider authority or REVIEW completion.
+The Wave 7 merge-created client deployment attempt `dpl_3TNmABFB7tUimF9LEnMdVckkXHuz` is `CANCELED` because the client tree is unchanged. It is not a deployment and is not represented as a new production identity.
+
+The retained client includes the separately governed, deployment-verified mobile PLAN-handoff reliability fix. Eligible approved active runs may request the existing protected `/autonomous` continuation from fresh server-owned Engineering Run truth. The client cannot redefine canonical run state, source authority, provider authority or REVIEW completion.
 
 The previously parked user run remains preserved. Its individual progression is not claimed unless corresponding durable run/event evidence is observed.
 
@@ -54,131 +77,98 @@ Original Wave 7 entry baseline:
 
 `860c606c34884ba9af4a5ebc886d71147b53bc8c`
 
-Dedicated cumulative integration branch:
+Final cumulative integration branch identity:
 
-`integration/wave7-productization`
+`integration/wave7-productization@eb217315992ac0e20acd978433f3e4a17cdcf565`
 
-Final accepted cumulative Wave 7 integration:
+Final reconciled release candidate:
 
-`eb217315992ac0e20acd978433f3e4a17cdcf565`
+`16aa91e727dcfc3972f392ee918b1c4a92e567be`
 
-Wave 7 S1–S6 are now **ACCEPTED / INTEGRATED** on that branch. This is a development/integration identity, not a production identity.
+Final release PR:
+
+#372
+
+Final application release merge:
+
+`703934871e4df0f63828c7fd6e33d3e6a86b60b1`
+
+Wave 7 S1–S6 are **ACCEPTED / INTEGRATED / MAIN-MERGED / CHANGED-COMPONENT PRODUCTION-DEPLOYMENT-VERIFIED**.
 
 ### W7-S1 — ParallaxBench
 
-`P2-V0.20.1` / #348 — accepted/integrated.
+`P2-V0.20.1` / #348 — accepted and released.
 
 ParallaxBench is a read-only objective-evaluation layer. Benchmark/model judgment cannot override deterministic failure, mutate an Engineering Run, accept source, administer providers/tools, deploy, merge or complete REVIEW.
 
 ### W7-S2 — Agent Run Projection & Control Contract
 
-`P2-V0.20.2` / #349 — accepted/integrated.
+`P2-V0.20.2` / #349 — accepted and released.
 
-The Agent Run projection is a typed projection over the existing canonical Engineering Run/attempt/event/recovery/evaluation evidence. It does not create a second state machine. Control requests reuse existing protected pause/resume/cancel authority.
+The Agent Run projection is a typed view over the existing canonical Engineering Run/attempt/event/recovery/evaluation evidence. It does not create a second state machine. Control requests reuse existing protected pause/resume/cancel authority.
 
 ### W7-S3 — Agent Run Canvas / Development Studio
 
-`P2-V0.20.3` / #351 — accepted/integrated.
+`P2-V0.20.3` / #351 — accepted and released.
 
-The client composes fresh S2 server truth into the Development Studio. Replay-safe continuation may request existing protected autonomy for eligible approved runs but does not create client-side canonical run/source/provider/REVIEW authority.
-
-Its PLAN-handoff reliability behavior was separately backported and deployment-verified in the current production client before wholesale Wave 7 release.
+Development Studio composes fresh server-owned S2 projection truth. Replay-safe continuation may request existing protected autonomy for eligible approved runs, but the client cannot create canonical run/source/provider/REVIEW authority. Its PLAN-handoff reliability behavior had already been separately backported and deployment-verified before the Wave 7 release; the final release therefore required no new client bytes.
 
 ### W7-S4 — Safe Browser Tool Layer v1
 
-`P2-V0.20.4` / #350 — accepted/integrated.
+`P2-V0.20.4` / #350 — accepted and released.
 
-S4 provides Project-scoped non-destructive browser evidence against server-admitted HTTPS targets with bounded navigation, inspection, declarative assertions and viewport screenshots. It exposes no arbitrary JavaScript/network, credentials/cookies/headers, destructive browser action, source acceptance, lifecycle, provider, merge/deploy or REVIEW authority.
+S4 provides Project-scoped non-destructive browser evidence against server-admitted HTTPS targets with bounded navigation, inspection, declarative assertions and viewport screenshots. It exposes no arbitrary JavaScript/network, credential/cookie/header, destructive browser action, source acceptance, lifecycle, provider, merge/deploy or REVIEW authority.
 
 ### W7-S5 — Agentic Observability, Runtime Economics & Retention
 
-`P2-V0.20.5` / #352 — accepted/integrated.
+`P2-V0.20.5` / #352 — accepted and released.
 
-S5 derives bounded query-time evidence from existing authoritative run/attempt/event/worker/evaluation data. It adds no telemetry database or billing ledger. Metric provenance remains explicit `OBSERVED`, `ESTIMATED` or `UNKNOWN`; missing provider usage/cost is not synthesized as zero. Incomplete event windows downgrade or withhold claims. Accepted retention cleanup is a deterministic no-op and adds no canonical deletion authority.
+S5 derives bounded query-time evidence from existing authoritative run/attempt/event/worker/evaluation data. It adds no telemetry database or billing ledger. Metric provenance remains explicit `OBSERVED`, `ESTIMATED` or `UNKNOWN`; absent provider usage/cost is not synthesized as zero. Incomplete event windows downgrade or withhold claims. Accepted retention cleanup is a deterministic no-op and adds no canonical deletion authority.
 
 ### W7-S6 — Integrated Product Proof
 
-`P2-V0.20.6` / #353 — **ACCEPTED / INTEGRATED / CLOSED COMPLETED**.
+`P2-V0.20.6` / #353 — accepted, integrated, released and closed completed.
 
 Final worker head:
 
 `e284d16972e80e40f7d5d7201f638fa72985d052`
 
-Accepted integration merge:
-
-`eb217315992ac0e20acd978433f3e4a17cdcf565`
-
-S6 composes accepted S1/S3/S4/S5 evidence into a bounded integrated product proof across three immutable objective classes:
-
-- `stateful-workflow`;
-- `data-operations`;
-- `public-utility`.
+S6 composes accepted S1/S3/S4/S5 evidence into a bounded integrated product proof across the immutable objective classes `stateful-workflow`, `data-operations` and `public-utility`.
 
 It verifies exact Project / Work Specification / Engineering Run / source-lineage / Preview continuity, recomputes ParallaxBench truth, preserves S5 coverage state, admits only accepted browser evidence, proves bounded recovery/replay where required, preserves deterministic/protected failure precedence, rejects portfolio regressions and stops at `HUMAN_REQUIRED`.
 
 S6 adds no upstream source, lifecycle, provider, browser-capability, merge/deploy or REVIEW authority.
 
-Accepted exact worker evidence:
+## Wave 7 release qualification and reconciliation
 
-- API suite: 906 passed, 1 skipped;
-- Bounded Autonomy #807 / run `33187842726` — PASS;
-- Workstream Spec Validation #568 / run `33188024999` — PASS;
-- release-strength P2 CI #1241 / run `33188025079` — PASS;
-- exact API Preview `dpl_B9HHdHHPYAoeSJhKs897kzTkdykR` — READY with clean build/runtime error scans;
-- authentic `P2-V0.20.6` SpecCritic + SpecCompiler evidence committed.
+The production mobile PLAN-handoff behavior was separately backported during Wave 7, so the accepted cumulative integration history could not be promoted naively without overlapping that history.
 
-## Wave 7 release reconciliation
+The final controlled dual-ancestry release reconciliation preserved the current deployment-verified client and authoritative records while retaining the accepted Wave 7 workflow/API/test/spec content.
 
-Current `main` at release-candidate construction:
+Final candidate `16aa91e727dcfc3972f392ee918b1c4a92e567be` was reconciled against authoritative main baseline `126bd64284bc06f83dd03912cb2346252a7a7f86` with exact merge base and behind-by-zero status. Its final PR #372 contained exactly 39 intended Wave 7 files:
 
-`a29a77fa5abe28c86b527a2a99f4023dc0c975f8`
+- 3 governed workflow files;
+- 24 API/runtime/test surfaces;
+- 12 `P2-V0.20.1`–`P2-V0.20.6` specification / compiled-plan records.
 
-Because the mobile PLAN-handoff fix had been separately backported to production, accepted Wave 7 integration and current main contain overlapping history even though their final client content is the same.
+There was no client delta, authoritative-record delta, database migration, production configuration/credential change, or Project/source/provider/merge/deploy/REVIEW authority expansion.
 
-Content audit established:
+Exact final-candidate qualification:
 
-- current main and accepted Wave 7 integration have the same complete `apps` tree;
-- main changes after the original Wave 7 entry baseline were limited to current authoritative records plus the deployment-verified mobile-hotfix files;
-- a blind history merge is therefore unnecessary and less reliable than controlled content reconciliation.
+- Bounded Autonomy Pilot #811 / run `33193373970` — PASS;
+- Workstream Spec Validation #574 / run `33193374005` — PASS, including committed protected-plan verification;
+  - artifact `9694725556`, digest `sha256:1bedbecdfa8b7ae89b8291a9e6d05fd7bd00068b31ae4e29d27afc1f7a97e38e`;
+- release-strength Parallax P2 CI #1249 / run `33193373971` — PASS, including API/contract regression, client type/state/export, complete browser/Skia acceptance, protected Code/engineering/Reason promotion and regression rejection, and independent DSPy release compilation;
+  - DSPy evidence `9694805120`, digest `sha256:44b959ce5c0af1e84c3d435c9c9082aefc965dbf4ae514c7fa34b2362741027d`;
+  - client-build evidence `9694771313`, digest `sha256:1d6d58ed4bca8de8e73b2f39a1180133b6f494f3ca79bdf3d31389be3da4f6cc`;
+  - evaluation evidence `9694749947`, digest `sha256:f38099e9340af624947cf9af4f4f34bfa1106bca3d19d41fdcd076a437b2cbcd`;
+- exact API Preview `dpl_FAHMsLThoXANZATBfEo4DdJch1ax` — READY, exact source `16aa91e...`, clean build errors-only and exact-deployment runtime error/fatal scans.
 
-A two-parent release reconciliation was constructed:
-
-- branch: `release/wave7-productization-v0206`;
-- exact candidate: `e2743ee17264926adc675834ee38eee108af3111`;
-- parent 1: current main at construction `a29a77fa5abe28c86b527a2a99f4023dc0c975f8`;
-- parent 2: accepted Wave 7 integration `eb217315992ac0e20acd978433f3e4a17cdcf565`;
-- release qualification PR: #370.
-
-The candidate preserves the deployment-verified current-main client bytes and current authoritative records while adopting accepted Wave 7 workflow/API/test/spec trees. Its exact compare to the construction-time main contains only the intended Wave 7 workflow/API/test/spec surfaces: no client delta, no database migration, no production configuration/credential change and no authority expansion.
-
-### Exact release-candidate validation
-
-Exact candidate `e2743ee17264926adc675834ee38eee108af3111` has passed:
-
-- Bounded Autonomy Pilot #808 / run `33189701035` — PASS;
-- Workstream Spec Validation #571 / run `33189881795` — PASS, including protected committed-plan verification;
-  - evidence artifact `9693298547`, digest `sha256:2fd401a8d9078a7d01e9530891ecde444cb3b69afe8ddc29b9ecf0caba33c8d2`;
-- release-strength P2 CI #1244 / run `33189881717` — PASS, including API/contract regression, client type/state/export, complete browser/Skia acceptance, protected Code/engineering/Reason promotion and regression rejection, and independent DSPy release compilation;
-  - DSPy evidence `9693367156`, digest `sha256:8ed8f89bd187d32b2ecc44dd30876fb3fcdfc65cc4d5512fdb59034390a2442a`;
-  - client-build evidence `9693351932`, digest `sha256:4239ca9fbcb43b105ce54521e32c7013906e6962662cb14eb329c02a978662c9`;
-  - evaluation evidence `9693323109`, digest `sha256:7f49f8198cd49d02abbc1b5589a8dfdf19b27d71c798bc4e8cec0da13680478a`;
-- exact API Preview `dpl_E7yGJpknEU1thgE8UXR9v1wYgxUo` — READY, source exact `e2743ee...`, clean errors-only build scan and clean exact-deployment runtime error/fatal scan.
-
-The Vercel client Preview for the release candidate is `CANCELED`, not READY, because there is no client content delta. Client qualification instead rests on byte-identical current-main client content plus the complete client/browser release gate in P2 #1244.
-
-PR #370 is returned to draft after release-strength gates. **No main merge or production deployment has occurred.**
-
-## Record reconciliation effect on the release candidate
-
-This authoritative-record update is being prepared separately from the release code candidate. Once these records are merged to `main`, the main SHA will advance beyond `a29a77...`.
-
-Therefore `e2743ee...` must not be merged afterward without reconciliation. The release branch must be reconciled to the new record-only main head, preserving the accepted Wave 7 code trees, and exact-head release gates/Preview evidence must be rerun for the resulting final candidate before Control Tower may authorize a main merge.
-
-This prevents an otherwise-green candidate from silently being promoted against a stale main baseline.
+Control Tower #347 explicitly authorized only that exact candidate for main merge and the resulting path-aware production API release. PR #372 then merged with an expected-head guard as application source `703934871e4df0f63828c7fd6e33d3e6a86b60b1`.
 
 ## Local-first model routing — P2-V0.19.8
 
-Local-first routing remains production-deployed and unchanged.
+Local-first routing remains production-deployed and unchanged by Wave 7.
 
 Vercel production is intentionally hosted-only. With no admitted local-first configuration, hosted model escalation remains:
 
@@ -190,7 +180,7 @@ Hosted GPT-5.6 traffic uses fixed Vercel AI Gateway transport and request-scoped
 
 Outside Vercel production, one server-owned admitted local model route may precede hosted fallback when the Parallax instance can actually reach the operator-controlled endpoint. Local output must pass the same protected validation and dedicated local credentials remain isolated to `PARALLAX_LOCAL_MODEL_CREDENTIAL_*`.
 
-## Wave 6 retained production baseline
+## Wave 6 retained baseline
 
 Wave 6 Control Tower #263 is closed completed and deployment-verified.
 
@@ -202,7 +192,7 @@ Final Wave 6 production API deployment before local-first integration:
 
 `dpl_2uYwsPsKDFo214mEFxwwXGytxh5Uj3KSo`
 
-The production-deployed local-first release is cumulative with that Wave 6 baseline.
+Wave 7 is cumulative with the accepted Wave 6 and local-first authority boundaries; it does not replace them.
 
 ## Production database and safe deletion
 
@@ -216,21 +206,26 @@ Remaining safe-deletion debt: final authenticated destructive-behavior smoke aga
 
 ### API
 
-Current production API:
+Current deployment-verified Wave 7 API:
+
+- source `703934871e4df0f63828c7fd6e33d3e6a86b60b1`;
+- deployment `dpl_GSkdmZDyXoh2RUdoPjC2WCeHeJVi`.
+
+Immediate fully deployment-verified pre-Wave-7 rollback reference:
 
 - source `35113209d9ad43585a6cc5ba167774ab8d13e03c`;
 - deployment `dpl_VUpPpHN5vjXLWwwXGytxh5Uj3KSo`.
 
-Immediate fully deployment-verified API rollback reference:
+Wave 7 adds no database migration, so API rollback does not require a schema rollback.
 
-- Wave 6 source `55066fccfcb9b4d645cdb87c8b7d061f032d6dec`;
+Retained deeper Wave 6 rollback reference:
+
+- source `55066fccfcb9b4d645cdb87c8b7d061f032d6dec`;
 - deployment `dpl_2uYwsPsKDFo214mEFxwwXGytxh5Uj3KSo`.
-
-Wave 7 has not been production-deployed, so there is no Wave 7 production rollback identity yet.
 
 ### Client
 
-Current production client:
+Current deployment-verified client remains:
 
 - source `f5e7618c1e4262232b5eee9dda3d5f7e724b140e`;
 - deployment `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h`.
@@ -240,7 +235,17 @@ Immediate previous verified client rollback reference:
 - source `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
 - deployment `dpl_9QWFw2B8UgovHoEfhJuSPS2cev7K`.
 
-The mobile PLAN-handoff fix adds no database/API migration.
+No client rollback is required for the Wave 7 release because no client bytes changed.
+
+## Program controls
+
+- GitHub plus the four authoritative project records outrank chat recollection;
+- parent integration/control record #31 serializes cross-wave release truth;
+- app-builder roadmap #32 records the program progression;
+- Wave 7 Control Tower #347 governs the accepted S1–S6 program and final release evidence;
+- every semantic AI/runtime change remains spec-first with stable acceptance IDs and authentic DSPy evidence;
+- deployment, integration, repository-record and production identities remain separate facts;
+- no deployment-verification claim is valid without exact release identity and post-cutover evidence appropriate to the changed component.
 
 ## Durable invariants
 
@@ -261,18 +266,19 @@ The mobile PLAN-handoff fix adds no database/API migration.
 
 ## Next governed implementation boundary
 
-1. Merge this **record-only** authoritative-record reconciliation to `main` after its own repository checks. It must not be treated as a Wave 7 application release.
-2. Reconcile `release/wave7-productization-v0206` onto that new main record head while preserving the accepted Wave 7 code/spec trees and deployment-verified client bytes.
-3. Rerun exact-head Bounded/Workstream/full P2 and changed-component Preview verification on the resulting final release candidate.
-4. Return the exact final candidate to Control Tower #347 for an explicit `main` release decision.
-5. Only after a separate exact-head authorization may Wave 7 code merge to `main`.
-6. Production deployment/promotion is a further separate decision and must be followed by exact deployment identity plus health/readiness/runtime verification before Wave 7 can be recorded as deployment-verified.
+Wave 7 release work is complete and deployment-verified. No Wave 8 or successor program is inferred by this record.
 
-Safe-deletion final authenticated destructive smoke and hosted-to-private inference from Vercel remain separate boundaries.
+Separate remaining boundaries are:
+
+1. complete safe deletion #290 only when a deliberately disposable authenticated production target is available; do not weaken authentication or delete real user content to manufacture evidence;
+2. treat hosted-to-private inference from Vercel as a separate architecture/security/network/deployment workstream if it is later desired;
+3. treat the previously parked authenticated Engineering Run as resumed only when its durable run/event evidence actually advances.
+
+Any next application-building wave should begin through the parent Control Tower / roadmap with an explicit objective, baseline and authority boundary rather than being invented by this release record.
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; Wave 7 S6/release reconciliation uses existing governance and authority boundaries.
-- `ARCHITECTURE.md` v3.12 — updated because accepted S6 establishes the durable integrated-product-proof composition and because Wave 7 now has a durable dual-ancestry release-reconciliation pattern.
-- `DESIGN-SYSTEM.md` v3.1 — unchanged; S6 and release reconciliation establish no new durable visual-system rule.
-- `CURRENT-STATE.md` — updated to record S6 accepted/integrated, cumulative Wave 7 integration `eb217315992ac0e20acd978433f3e4a17cdcf565`, validated reconciled release candidate `e2743ee17264926adc675834ee38eee108af3111`, exact release evidence and the fact that no Wave 7 main merge or production deployment has occurred.
+- `PROJECT-CONSTITUTION.md` v1.4 — unchanged; Wave 7 release used existing governance and authority rules.
+- `ARCHITECTURE.md` v3.12 — unchanged in this final verification phase; it already records the durable S1–S6 architecture and release-reconciliation pattern.
+- `DESIGN-SYSTEM.md` v3.1 — unchanged; Wave 7 release establishes no new durable visual-system rule.
+- `CURRENT-STATE.md` — updated because Wave 7 S1–S6 are now main-integrated and the changed API surfaces are production-deployment-verified at source `703934871e4df0f63828c7fd6e33d3e6a86b60b1` / deployment `dpl_GSkdmZDyXoh2RUdoPjC2WCeHeJVi`; the production client remains unchanged at `f5e7618c1e4262232b5eee9dda3d5f7e724b140e` / `dpl_jPuX7FfDKC1rYcHsf8TH4Xb9Vx4h`.
