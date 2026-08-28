@@ -1,0 +1,104 @@
+{
+  "architecture_decisions": [
+    "Typed Project-scoped, read-only-first Playwright-backed browser capability layer for Parallax evidence collection."
+  ],
+  "work_items": [
+    "Define a browser capability layer for Parallax application evidence collection."
+  ],
+  "validations": [
+    "Ensure browser actions are server-owned typed capabilities, callers/models cannot submit arbitrary commands or JavaScript.",
+    "AC-01: validate protected requirement \u2014 Every browser action resolves through an immutable registered v1 capability; unknown/arbitrary actions are denied before browser execution.",
+    "AC-02: validate protected requirement \u2014 Browser requests bind authenticated canonical Project/run/context and server-owned admitted target identity; cross-Project or caller-invented target authority fails closed.",
+    "AC-03: validate protected requirement \u2014 Navigation to or redirect toward an unadmitted origin is denied without exposing generic network authority.",
+    "AC-04: validate protected requirement \u2014 The public/internal capability contract provides no arbitrary script/eval surface; assertions are declarative and allowlisted.",
+    "AC-05: validate protected requirement \u2014 Tests prove credentials, cookies, authorization headers, password-store data and server secret environment values cannot be requested or serialized as browser evidence.",
+    "AC-06: validate protected requirement \u2014 Tests prove v1 exposes no capability for purchases, destructive submissions, deletion, account changes or other external-state mutation.",
+    "AC-07: validate protected requirement \u2014 DOM/accessibility inspection is normalized and bounded; full unbounded page/DOM payload is not retained as canonical evidence.",
+    "AC-08: validate protected requirement \u2014 Screenshot evidence binds exact context/target/viewport/digest and preserves existing privacy/redaction policy.",
+    "AC-09: validate protected requirement \u2014 Browser evidence cannot override failed protected deterministic validation for the same candidate/source context.",
+    "AC-10: validate protected requirement \u2014 Sessions are ephemeral, Project-bound, bounded in resource/action/time use and reliably destroyed on success/failure/timeout; state cannot leak across Projects.",
+    "AC-11: validate protected requirement \u2014 Policy denial, browser error and timeout are distinct bounded outcomes and can never be serialized as success.",
+    "AC-12: validate protected requirement \u2014 Browser v1 grants no source acceptance, Engineering Run lifecycle, arbitrary network, provider administration, merge/deploy, approval or REVIEW completion authority.",
+    "AC-13: validate protected requirement \u2014 S4 semantic implementation cannot begin until Control Tower accepts W7-S1. Before integration, S4 reconciles to the latest accepted Wave 7 integration head, commits authentic DSPy evidence for `P2-V0.20.4`, passes protected spec validation and applicable exact-head gates, then stops `READY FOR INTEGRATION`."
+  ],
+  "risks": [
+    "No arbitrary browsing, JavaScript, network, credential or destructive-action authority introduced."
+  ],
+  "spec_id": "P2-V0.20.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Typed registered capabilities only",
+      "protected_requirement": "Every browser action resolves through an immutable registered v1 capability; unknown/arbitrary actions are denied before browser execution."
+    },
+    {
+      "id": "AC-02",
+      "title": "Canonical Project/run target binding",
+      "protected_requirement": "Browser requests bind authenticated canonical Project/run/context and server-owned admitted target identity; cross-Project or caller-invented target authority fails closed."
+    },
+    {
+      "id": "AC-03",
+      "title": "Origin/redirect fail-closed policy",
+      "protected_requirement": "Navigation to or redirect toward an unadmitted origin is denied without exposing generic network authority."
+    },
+    {
+      "id": "AC-04",
+      "title": "No arbitrary JavaScript",
+      "protected_requirement": "The public/internal capability contract provides no arbitrary script/eval surface; assertions are declarative and allowlisted."
+    },
+    {
+      "id": "AC-05",
+      "title": "Credential isolation",
+      "protected_requirement": "Tests prove credentials, cookies, authorization headers, password-store data and server secret environment values cannot be requested or serialized as browser evidence."
+    },
+    {
+      "id": "AC-06",
+      "title": "Non-destructive v1",
+      "protected_requirement": "Tests prove v1 exposes no capability for purchases, destructive submissions, deletion, account changes or other external-state mutation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Bounded DOM/accessibility evidence",
+      "protected_requirement": "DOM/accessibility inspection is normalized and bounded; full unbounded page/DOM payload is not retained as canonical evidence."
+    },
+    {
+      "id": "AC-08",
+      "title": "Provenance-bound screenshots",
+      "protected_requirement": "Screenshot evidence binds exact context/target/viewport/digest and preserves existing privacy/redaction policy."
+    },
+    {
+      "id": "AC-09",
+      "title": "Deterministic validation precedence",
+      "protected_requirement": "Browser evidence cannot override failed protected deterministic validation for the same candidate/source context."
+    },
+    {
+      "id": "AC-10",
+      "title": "Session isolation and cleanup",
+      "protected_requirement": "Sessions are ephemeral, Project-bound, bounded in resource/action/time use and reliably destroyed on success/failure/timeout; state cannot leak across Projects."
+    },
+    {
+      "id": "AC-11",
+      "title": "Denial/failure truthfulness",
+      "protected_requirement": "Policy denial, browser error and timeout are distinct bounded outcomes and can never be serialized as success."
+    },
+    {
+      "id": "AC-12",
+      "title": "No authority expansion",
+      "protected_requirement": "Browser v1 grants no source acceptance, Engineering Run lifecycle, arbitrary network, provider administration, merge/deploy, approval or REVIEW completion authority."
+    },
+    {
+      "id": "AC-13",
+      "title": "Dependency and exact-head gate",
+      "protected_requirement": "S4 semantic implementation cannot begin until Control Tower accepts W7-S1. Before integration, S4 reconciles to the latest accepted Wave 7 integration head, commits authentic DSPy evidence for `P2-V0.20.4`, passes protected spec validation and applicable exact-head gates, then stops `READY FOR INTEGRATION`."
+    }
+  ],
+  "critique": [
+    "browser.evidence.isolation_mode"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
