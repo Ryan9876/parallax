@@ -1209,7 +1209,7 @@ class AgenticControlPlane:
             evaluator=evaluator,
             policy=policy,
             protected_validation=protected,
-            qualitative_evidence=refs,
+            qualitative_evidence=(),
         )
         judgment = EvaluatorJudgment(
             candidate_digest=candidate_binding.digest,
