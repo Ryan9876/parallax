@@ -10,10 +10,9 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.bootstrap_observability import record_bootstrap_failure
-from ..code.delivery_readiness import production_source_delivery_ready
 from ..code.domain import WorkflowStage
-from ..code.production_bootstrap import production_source_bootstrap
 from ..code.production_delivery import ProductionDeliveryConfigurationError
+from ..code.production_delivery_lazy import production_source_delivery_lazy
 from ..code.run_events import (
     RunEventConflict,
     RunEventPersistenceError,
@@ -56,11 +55,10 @@ router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
 _AGENTIC_RUNTIME_ENABLE_ENV = "PARALLAX_AGENTIC_RUNTIME_ENABLED"
 
-# Preserve the accepted route-level composition seam used by production tests and
-# integrations while W8-S2 upgrades the implementation behind it. Non-PLAN runs
-# now receive readiness-aware delivery without forcing downstream callers to
-# depend on a new symbol name.
-production_source_delivery = production_source_delivery_ready
+# Preserve the accepted route-level composition seam. W8-S2 changes the
+# implementation behind this name so source bootstrap is immediate while Vercel
+# readiness is deferred until verified REVIEW delivery is actually attempted.
+production_source_delivery = production_source_delivery_lazy
 
 
 def _run_event_sink(session: Session) -> PersistentRunEventSink | None:
@@ -269,35 +267,15 @@ def autonomous(
         if not run.project_id:
             raise HTTPException(422, "Wave 2 autonomous execution requires a Project-bound run")
         delivery_kwargs = {"oidc_token": oidc_token} if isinstance(oidc_token, str) else {}
-
-        # PLAN requires canonical source context for the accepted agentic planner,
-        # but it does not require a Vercel Project. Bootstrap exact repository
-        # lineage through the read-only GitHub boundary and execute exactly one
-        # protected PLAN step. The next client continuation begins from the new
-        # durable IMPLEMENT revision and can then establish Preview readiness.
-        plan_only = getattr(run, "state", None) == WorkflowStage.PLAN.value
-        if plan_only:
-            bootstrap = invoke(
-                lambda: production_source_bootstrap(
-                    svc.runs.session,
-                    owner_subject=svc.owner_subject or "",
-                    allocator=allocator,
-                    project_id=run.project_id or "",
-                    **delivery_kwargs,
-                )
+        source_delivery = invoke(
+            lambda: production_source_delivery(
+                svc.runs.session,
+                owner_subject=svc.owner_subject or "",
+                allocator=allocator,
+                project_id=run.project_id or "",
+                **delivery_kwargs,
             )
-            invoke(lambda: bootstrap.ensure(run, operation_key=payload.operation_key))
-            source_delivery = None
-        else:
-            source_delivery = invoke(
-                lambda: production_source_delivery(
-                    svc.runs.session,
-                    owner_subject=svc.owner_subject or "",
-                    allocator=allocator,
-                    project_id=run.project_id or "",
-                    **delivery_kwargs,
-                )
-            )
+        )
 
         if agentic_enabled:
             try:
@@ -318,8 +296,6 @@ def autonomous(
                 legacy_executor,
                 source_delivery=source_delivery,
             )
-        if plan_only:
-            runtime.coordinator.max_steps = 1
 
     result = invoke(
         lambda: runtime.run(
