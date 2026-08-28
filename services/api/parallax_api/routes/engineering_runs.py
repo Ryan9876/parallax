@@ -56,6 +56,12 @@ router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
 _AGENTIC_RUNTIME_ENABLE_ENV = "PARALLAX_AGENTIC_RUNTIME_ENABLED"
 
+# Preserve the accepted route-level composition seam used by production tests and
+# integrations while W8-S2 upgrades the implementation behind it. Non-PLAN runs
+# now receive readiness-aware delivery without forcing downstream callers to
+# depend on a new symbol name.
+production_source_delivery = production_source_delivery_ready
+
 
 def _run_event_sink(session: Session) -> PersistentRunEventSink | None:
     """Activate Wave 4 observation only after explicit deployment authority.
@@ -269,7 +275,7 @@ def autonomous(
         # lineage through the read-only GitHub boundary and execute exactly one
         # protected PLAN step. The next client continuation begins from the new
         # durable IMPLEMENT revision and can then establish Preview readiness.
-        plan_only = run.state == WorkflowStage.PLAN.value
+        plan_only = getattr(run, "state", None) == WorkflowStage.PLAN.value
         if plan_only:
             bootstrap = invoke(
                 lambda: production_source_bootstrap(
@@ -284,7 +290,7 @@ def autonomous(
             source_delivery = None
         else:
             source_delivery = invoke(
-                lambda: production_source_delivery_ready(
+                lambda: production_source_delivery(
                     svc.runs.session,
                     owner_subject=svc.owner_subject or "",
                     allocator=allocator,
