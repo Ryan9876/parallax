@@ -75,7 +75,7 @@ def _run(*, project_id: str | None = PROJECT, state: str = "REVIEW", fail_test: 
     run.attempts = [
         _attempt(1, stage="BUILD", attempt_number=1),
         _attempt(2, stage="TEST", attempt_number=1, status="FAILED" if fail_test else "PASSED", failure_code="TEST_FAILED" if fail_test else None),
-        _attempt(3, stage="TEST", attempt_number=2),
+        _attempt(3, stage="TEST", attempt_number=2, status="FAILED" if fail_test else "PASSED", failure_code="TEST_FAILED" if fail_test else None),
         _attempt(4, stage="VERIFY", attempt_number=1),
         _attempt(5, stage="REVIEW", attempt_number=1, status="PAUSED"),
     ]
@@ -162,7 +162,12 @@ def test_query_time_metrics_preserve_observed_estimated_and_unknown_truth() -> N
 def test_event_backed_interventions_are_observed_and_replay_duplicates_do_not_double_count() -> None:
     pause_attempt = "00000000-0000-4000-8000-000000000005"
     control = _event(1, event_key="pause-control", attempt_id=pause_attempt)
-    duplicate = _event(99, event_key="pause-control", attempt_id=pause_attempt)
+    duplicate = RunEvent(
+        id="10000000-0000-4000-8000-000000000099",
+        sequence=99,
+        created_at=NOW,
+        append=control.append,
+    )
     review = _event(
         2,
         event_key="review-required",
