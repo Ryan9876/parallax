@@ -153,7 +153,13 @@ function apiServer() {
     response.end(encoded);
   }
 
-  return createServer((request, response) => {
+  async function body(request) {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
+  }
+
+  return createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (request.method === 'OPTIONS') {
       cors(response, origin);
@@ -175,6 +181,34 @@ function apiServer() {
     if (pathname === '/v1/engineering-runs/activate' && request.method === 'POST') {
       engineeringRun = engineeringRun ?? activatedRun();
       return json(response, 200, engineeringRun, origin);
+    }
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/autonomous` && request.method === 'POST') {
+      const payload = await body(request);
+      assert(engineeringRun?.state === 'PLAN', 'mobile spec: automatic autonomy must begin from the activated PLAN state');
+      assert(payload.expected_revision === engineeringRun.revision, 'mobile spec: automatic autonomy used a stale run revision');
+      assert(payload.operation_key === `autonomous-auto-${RUN_ID}-${engineeringRun.revision}`, 'mobile spec: automatic autonomy operation identity is not deterministic');
+      const now = new Date().toISOString();
+      engineeringRun = {
+        ...engineeringRun,
+        state: 'REVIEW',
+        revision: engineeringRun.revision + 1,
+        updated_at: now,
+        attempts: [{
+          id: '66666666-6666-4666-8666-666666666666',
+          stage: 'PLAN',
+          attempt_number: 1,
+          status: 'PASSED',
+          failure_code: null,
+          evidence: { protected_success: true },
+          started_at: now,
+          completed_at: now,
+        }],
+      };
+      return json(response, 200, {
+        run: engineeringRun,
+        stop_reason: 'REVIEW_REQUIRED',
+        steps: [{ stage: 'PLAN', outcome: 'SUCCEEDED', attempt_id: '66666666-6666-4666-8666-666666666666', replayed: false, tool_id: 'protected-plan' }],
+      }, origin);
     }
     if (pathname === `/v1/engineering-runs/${RUN_ID}/events` && request.method === 'GET') {
       return json(response, 200, { events: [], next_after_sequence: 0, has_more: false }, origin);
