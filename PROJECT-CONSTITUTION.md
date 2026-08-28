@@ -1,6 +1,6 @@
 # Parallax 2.0 Project Constitution
 
-Version: 1.4
+Version: 1.5
 Status: Authoritative
 
 ## Product purpose
@@ -23,6 +23,7 @@ Parallax 2.0 is an outcome-focused AI reasoning and software-engineering environ
 12. **The Parallax development-policy baseline is inherited by every Parallax-developed project.** Project-specific policy may add stricter requirements or capability-specific validation, but it may not silently weaken the platform baseline for specification binding, canonical identity, source lineage, tool authority, durable checkpoints, bounded autonomy, stall/recovery controls, protected evaluation, evidence integrity, rollback, or human-control boundaries.
 13. **Development efficiency is optimized for validated outcome time, not raw worker activity.** Parallax's own development and every Project it develops must prefer critical-path reduction, impact-aware validation, safe reuse, early conflict detection, right-sized workstreams and measured bottleneck reduction. Efficiency mechanisms may reduce redundant work but may never weaken exact-head evidence, source lineage, privacy, authorization, protected promotion, rollback or human-control requirements.
 14. **Single-user Parallax production promotion is standing pre-authorized while the owner remains the only real production user.** Once a Parallax release or hotfix has passed the applicable exact-head release gates and has a viable rollback path, the development operator may merge and promote that validated candidate to Parallax production without requesting a separate per-release approval. This standing authority expires automatically when additional real users begin relying on Parallax production, or immediately if the owner revokes it. It does not waive validation, evidence, rollback, least-privilege, or security boundaries and does not authorize unrelated destructive database operations, data loss, broader credential/provider scope, materially new external commitments, or weakening protected acceptance or evaluation controls.
+15. **Plain language is the default product language.** Primary user-facing copy must use natural, outcome-oriented wording that a capable non-software-engineer can understand wherever technical precision is not required. Internal stage names, object names, IDs, status codes, provider details, logs, and engineering evidence remain available through clearly secondary technical-detail surfaces when useful. Plain language may simplify presentation but may not conceal consequences, uncertainty, required human approval, security boundaries, failures, or authoritative system state.
 
 ## Inherited development policy
 
