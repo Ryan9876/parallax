@@ -1,283 +1,181 @@
 # Parallax 2.0 Architecture
 
-Version: 3.11
+Version: 3.12
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.11 is a bounded architectural update to v3.10, not a platform rewrite. The complete v3.10 architecture at repository commit `edcac5abc2b1a920d460a15ec3ec81aa2909884f` is incorporated by reference. Every v3.10 durable contract that is not explicitly changed below remains authoritative, including canonical Project/Work Specification/Engineering Run authority, immutable accepted source lineage, single-writer IMPLEMENT mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, project-scoped tool/provider authority, logical workspace deletion/retention, protected evaluation, Preview/REVIEW ceilings, governed release evidence, and accepted `P2-V0.19.8` local-first model routing.
+Architecture v3.12 is a bounded architectural update to v3.11, not a platform rewrite. The complete v3.11 architecture at repository commit `a29a77fa5abe28c86b527a2a99f4023dc0c975f8` is incorporated by reference. Every v3.11 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, accepted `P2-V0.19.8` local-first routing, and accepted Wave 7 S1-S5 productization contracts.
 
-This version records the accepted Wave 7 development architecture through W7-S5 (`P2-V0.20.1`–`P2-V0.20.5`). These capabilities are integrated on `integration/wave7-productization` at `00a9e66e2f87a1f992d375b4217845b8f072e11d`; they are not thereby merged to `main` or production-deployed. Production truth remains separately authoritative in `CURRENT-STATE.md`.
+This version records accepted W7-S6 (`P2-V0.20.6`), the final cumulative Wave 7 integration identity, and the governed release-reconciliation pattern required because the mobile PLAN-handoff behavior was independently backported to production during Wave 7.
 
-## Current system shape
+## Accepted Wave 7 cumulative architecture
 
-Parallax remains a universal Expo / React Native client backed by a Python FastAPI intelligence service, PostgreSQL/Supabase persistence, private immutable object storage, Vercel Sandbox isolation and bounded external-provider adapters.
+Wave 7 now consists of six accepted cumulative layers:
 
-The authority flow remains:
+1. **S1 — ParallaxBench**: read-only objective evaluation and protected comparison evidence.
+2. **S2 — Agent Run projection/control**: typed projection over the existing canonical Engineering Run and already-authorized pause/resume/cancel operations.
+3. **S3 — Development Studio / Agent Run Canvas**: client composition over fresh server-owned run truth, including replay-safe bounded continuation requests without client-side canonical authority.
+4. **S4 — Safe Browser Tool Layer v1**: Project-scoped non-destructive browser evidence against server-admitted targets, with bounded navigation/inspection/assertion/screenshot behavior and no arbitrary JavaScript/network/destructive authority.
+5. **S5 — Agentic observability/economics/retention**: query-time evidence aggregation with explicit `OBSERVED` / `ESTIMATED` / `UNKNOWN` semantics, bounded event coverage and no telemetry ledger or canonical deletion authority.
+6. **S6 — Integrated Product Proof**: read-only composition that proves the accepted S1-S5 product path across materially different application objectives without acquiring upstream authority.
 
-```text
-Authenticated principal
-      ↓
-Canonical Project.id + approved Work Specification
-      ↓
-Engineering Run + accepted source lineage
-      ↓
-server-owned planning / optional Wave 6 agentic orchestration
-      ↓
-non-authoritative candidate work
-      ↓
-deny-all candidate validation + independent evaluation
-      ↓
-ProtectedImplementationRuntime
-      ↓
-single-writer safe mutation + lineage CAS acceptance
-      ↓
-exact-lineage BUILD / TEST / VERIFY
-      ↓
-GitHub branch/PR + Vercel Preview
-      ↓
-protected evaluation
-      ↓
-operator REVIEW
-```
+Final accepted cumulative Wave 7 integration:
 
-Wave 6 S1–S6 plus W6-R1 are production-deployed and release-verified. Agent planning, team orchestration, evaluation, routing, competition and selected-candidate replay evidence remain orchestration/evidence layers only; they do not gain direct Project/spec, Engineering Run transition, source-head, provider-administration, merge, production-deployment or REVIEW authority.
+`integration/wave7-productization@eb217315992ac0e20acd978433f3e4a17cdcf565`
 
-## Wave 7 productization architecture
+This is an integration identity, not a production identity.
 
-Wave 7 adds productization and measured-autonomy layers around the existing canonical authority model. Through S5, it does not create a second execution state machine, source authority, provider authority, deployment authority or REVIEW bypass.
+## W7-S6 — Integrated Product Proof
 
-### W7-S1 — ParallaxBench
+S6 adds `integrated_product_proof` as a bounded evidence-composition layer over accepted S1/S3/S4/S5 contracts. It owns no Project, Work Specification, Engineering Run, source-lineage, provider, browser-capability, deployment or REVIEW authority.
 
-ParallaxBench is a read-only objective-evaluation layer. It consumes bounded development/evaluation evidence and produces comparison evidence for protected promotion decisions. Benchmark or model judgment cannot override deterministic/protected failure, mutate an Engineering Run, accept source, administer providers/tools, deploy, merge or complete REVIEW.
+The server-owned immutable proof portfolio contains three materially different objective classes:
 
-### W7-S2 — Agent Run projection and control contract
+- `stateful-workflow`;
+- `data-operations`;
+- `public-utility`.
 
-The Agent Run projection is a typed projection over the existing server-owned Engineering Run, attempts, run events, worker recovery and evaluation/delivery evidence. It does not create a second run state machine.
+For each admitted scenario, the proof binds and verifies:
 
-Projection identity is bound to canonical Project, run, approved Work Specification revision/digest and acceptance IDs. Projection controls are limited to already-authorized server-side pause/resume/cancel operations and require the current Project/run/revision/state contract. The client cannot supply source lineage, provider authority or lifecycle truth through this surface.
+- canonical Project identity;
+- approved Work Specification identity/revision/digest;
+- Engineering Run identity and canonical server state;
+- accepted source-lineage identity;
+- exact Preview/release-lineage identity where Preview evidence is required;
+- fresh S3 projection truth;
+- S5 observability projection revision/fingerprint and explicit coverage state;
+- canonical ParallaxBench result recomputation against the server-owned predeclared baseline;
+- admitted S4 browser target/evidence only;
+- bounded retry/recovery/replay evidence where required by the scenario;
+- deterministic/protected failure precedence;
+- predeclared non-protected value dimensions and portfolio-level regression rejection.
 
-Observed, estimated and unknown economic values remain distinct; an unknown value is not represented as zero.
+S6 proof output is evidence, not authority. It may conclude only within the existing autonomous ceiling and cannot complete operator REVIEW. `HUMAN_REQUIRED` remains the release boundary.
 
-### W7-S3 — Agent Run Canvas / Development Studio
+### Safe proof serialization
 
-The Development Studio composes the accepted S2 server-owned projection/control contract into the client. The client may present canonical run state/evidence and request existing bounded server operations; it cannot become canonical state authority.
+The integrated proof may expose bounded identities, result classifications, coverage state, deterministic validation outcome, predeclared metric/value summaries, recovery/replay indicators and safe browser assertion summaries.
 
-Approved active runs may make a replay-safe bounded autonomous-continuation request using fresh server truth. Reconnect behavior cannot fabricate state, alter source authority or bypass the protected REVIEW/HUMAN_REQUIRED ceiling.
+It must not serialize or expose:
 
-### W7-S4 — Safe Browser Tool Layer v1
+- source bytes or patches;
+- credentials, cookies, authorization values or provider secrets;
+- raw provider payloads;
+- prompts, hidden reasoning or private scratchpad;
+- unrestricted logs;
+- browser observations containing sensitive content;
+- sensitive/full target URLs where the accepted browser contract requires redaction;
+- merge/deploy tokens or provider-administration material.
 
-The browser layer is a Project-scoped, non-destructive evidence capability admitted through the existing tool-authority registry.
+## Protected precedence and failure degradation
 
-V1 supports only bounded navigation, inspection, declarative assertion and viewport screenshot evidence against server-admitted HTTPS targets. Same-origin/off-origin policy, redirect validation, sensitive-observation redaction, action/time/output bounds and mandatory cleanup remain server-owned.
+The following rules remain non-weakenable:
 
-The browser capability exposes no arbitrary JavaScript/eval, generic fetch/request, credential/cookie/header manipulation, click/fill/upload/download, destructive API or unrestricted network authority. Browser evidence cannot override deterministic validation, accept source, transition a run, administer a provider/tool, merge, deploy or complete REVIEW.
+- deterministic/protected failure outranks benchmark/evaluator/browser/Preview success;
+- incomplete S5 event coverage cannot be presented as complete observation;
+- absent authoritative provider usage/cost remains `UNKNOWN`, not zero;
+- missing or inadmissible browser evidence cannot be replaced with fabricated success;
+- stale or mismatched Project/spec/run/source/Preview identity fails the proof rather than being normalized away;
+- required recovery/replay evidence missing or inconsistent fails that proof criterion;
+- one scenario's value improvement cannot compensate for correctness, safety, privacy or governance regression;
+- no proof result can mutate canonical source, transition an Engineering Run, administer tools/providers, merge, deploy or complete REVIEW.
 
-### W7-S5 — Agentic observability, runtime economics and retention
+## Release-reconciliation architecture
 
-S5 is a query-time evidence-aggregation layer over existing canonical server-owned data. It deliberately does not add a telemetry database, billing ledger, scheduler or new canonical retention/deletion store.
+Wave 7 development used a dedicated integration branch from the accepted entry baseline. During the wave, the mobile PLAN-handoff reliability fix originating in S3 was separately backported to `main` and deployment-verified before the full Wave 7 release.
 
-The accepted metric contract derives bounded values from Engineering Runs/attempts, run events, worker executions and accepted evaluation/delivery evidence. Metric truth is explicit:
+By the time S6 completed, current `main` and the accepted Wave 7 integration branch therefore contained overlapping history for the same client behavior even though their final `apps` trees were byte-identical.
 
-- `OBSERVED` — directly derivable from complete authoritative evidence;
-- `ESTIMATED` — bounded derivation where complete direct observation is unavailable;
-- `UNKNOWN` — insufficient authoritative evidence; never silently converted to zero.
+The governed release pattern is consequently **content reconciliation with dual ancestry**, not blind history replay:
 
-Provider usage/cost remain `UNKNOWN` until authoritative billable/provider evidence exists. This is preferable to inferred or synthetic cost truth.
+1. start from the exact current `main` baseline;
+2. preserve current deployment-verified client bytes and current authoritative records;
+3. preserve accepted Wave 7 integration ancestry as a second parent;
+4. adopt only the accepted Wave 7 workflow/API/test/spec trees not already represented by current main;
+5. verify the exact candidate diff contains no accidental client, database, production-config, credential or authority regression;
+6. rerun exact-head protected/release gates and Preview evidence before any main-release decision.
 
-Deterministic validation is the effective quality authority. Positive qualitative evaluation or a READY Preview cannot turn a deterministic failure into a successful quality result.
+The first validated reconciled release candidate is:
 
-Run-event aggregation is replay-safe and Project/run-bound. Duplicate deterministic event identities do not double-count; conflicting replay content fails closed. Per-run event reads and Project history are bounded. When a bounded event window is incomplete relative to the authoritative latest sequence, S5 marks coverage incomplete and downgrades or withholds event-dependent claims rather than presenting partial evidence as complete observation.
+`release/wave7-productization-v0206@e2743ee17264926adc675834ee38eee108af3111`
 
-S5 can populate the accepted S2 known-state economics presentation but cannot redefine S2 identity/control authority or require client-side metric inference.
+with parents:
 
-Retention cleanup in the accepted S5 implementation is a deterministic query-time no-op. It may report the bounded retention policy but cannot delete or mutate Projects, Work Specifications, Engineering Runs, attempts/events, worker state, accepted source lineage, provider/delivery evidence or release records. Any future persisted derived-telemetry retention store would require a separate governed architecture/data lifecycle decision.
+- current main at construction: `a29a77fa5abe28c86b527a2a99f4023dc0c975f8`;
+- accepted Wave 7 integration: `eb217315992ac0e20acd978433f3e4a17cdcf565`.
 
-### Wave 7 cumulative integration boundary
+Its client tree remains byte-identical to current main. Its exact diff to that main baseline is limited to intended Wave 7 governed workflows, API/runtime/tests and `P2-V0.20.1`–`P2-V0.20.6` specification/compiled-plan records.
 
-Accepted Wave 7 S1–S5 are cumulative at `integration/wave7-productization` SHA `00a9e66e2f87a1f992d375b4217845b8f072e11d`.
+This reconciliation is not itself a production deployment and does not authorize a main merge.
 
-This integration SHA is a development/integration identity, not a production identity. W7-S6 Integrated Product Proof remains the downstream acceptance/release boundary. A future Wave 7 production release must still satisfy exact-head protected gates, deployment prerequisites, exact release identity and post-cutover verification; no S1–S5 integration result by itself authorizes a `main` merge or production promotion.
+## Release qualification retained
 
-## Model routing architecture
+A Wave 7 release is not deployment-verified merely because the cumulative integration or reconciled release candidate is green.
 
-### Hosted baseline
+Before a production claim, the governed path still requires:
 
-With no admitted local-first configuration, runtime escalation remains exactly:
+- exact-head protected specification/evidence gates;
+- full API/client/browser regression and protected promotion evaluation;
+- independent DSPy release compilation;
+- exact release identity;
+- applicable Vercel Preview evidence;
+- Control Tower authorization for the exact main-release candidate;
+- a distinct production deployment/promotion decision;
+- exact production deployment identity;
+- post-cutover health/readiness checks for changed services;
+- runtime error/fatal inspection;
+- authoritative `CURRENT-STATE.md` reconciliation after deployment verification.
 
-1. `openai/gpt-5.6-luna`;
-2. `openai/gpt-5.6-terra`;
-3. `openai/gpt-5.6-sol`.
+A path-aware Vercel cancellation for a component with no content delta is not recorded as a READY Preview. The unchanged component may instead rely on exact byte identity plus the repository's full component/build/browser release gates, while changed components still require applicable exact Preview evidence.
 
-Hosted production model identity and transport remain server-owned. Canonical hosted GPT-5.6 model IDs use the fixed OpenAI-compatible Vercel AI Gateway endpoint. A validated request-scoped Vercel runtime OIDC token is the automatic hosted-production credential authority. Process-environment `VERCEL_OIDC_TOKEN` is not runtime model-provider authority. There is no silent direct-OpenAI fallback.
+## Authority invariants retained
 
-Existing explicit `DSPY_API_BASE` / `DSPY_API_KEY` settings remain a deliberate whole-transport operator/development override. When that explicit override is present, local-first routing is disabled rather than combining two independently configurable transport paths.
-
-### Local-first route policy
-
-`P2-V0.19.8` introduces one optional server-owned local route that may precede the hosted chain only for a Parallax instance that can actually reach the configured operator-controlled inference endpoint.
-
-The effective non-production/local-self-hosted order is therefore:
-
-```text
-optional admitted local route
-      ↓ on provider failure or protected-validation rejection
-Luna
-      ↓
-Terra
-      ↓
-Sol
-```
-
-A successful local result must pass the same existing protected validator used for hosted results. Local output does not receive a weaker acceptance path. A local provider failure records bounded sanitized attempt evidence and advances to the next admitted hosted route. A local protected-validation failure records `validation_failed` and advances without modifying the validator or acceptance policy.
-
-The route is configuration-driven but not caller-controlled. Model identity, provider kind, endpoint and optional credential slot are resolved from server-owned configuration before model execution.
-
-### Vercel production boundary
-
-Vercel production is intentionally hosted-only under `P2-V0.19.8`.
-
-When `VERCEL_ENV=production`, enabling local-first routing fails closed before any local endpoint request, whether the configured endpoint is loopback or remote HTTPS. This is an architectural boundary, not a temporary implementation limitation: a hosted Vercel function reaching a private/self-hosted inference service requires a separate architecture, network-security, identity, availability and deployment workstream.
-
-The local-first capability therefore does not create an implicit tunnel, public local-model exposure, Vercel-to-LAN assumption or unrestricted network path.
-
-### Provider/transport isolation
-
-A local endpoint applies only to its exact admitted local model. It cannot rebind or redirect the canonical hosted GPT-5.6 routes.
-
-Admitted local providers are constrained by provider/model-namespace compatibility. Endpoint configuration fails closed on malformed URLs, endpoint userinfo, query strings, fragments, malformed ports, unsupported provider/model combinations and non-loopback plaintext HTTP. Loopback plaintext HTTP is permitted only for appropriate local/self-hosted development use outside Vercel production; non-loopback endpoints require HTTPS.
-
-Local model configuration cannot create generic network, source, tool or provider authority. It is only a model-transport binding consumed by the existing reasoning/implementation model seam.
-
-### Credential isolation
-
-Local endpoint credentials, when needed, may be resolved only through the dedicated server-owned `PARALLAX_LOCAL_MODEL_CREDENTIAL_*` environment-variable namespace.
-
-A configured local credential slot cannot name arbitrary process environment variables and cannot reuse reserved hosted/provider authority such as AI Gateway, Vercel OIDC, database, GitHub/Vercel delivery or other application secrets.
-
-Credentials are excluded from prompts, model outputs, attempt records, logs, persisted engineering evidence, client payloads, source packages and Sandbox environments.
-
-### Diagnostics
-
-Model-route evidence is deliberately bounded. A route attempt may expose only admitted model/provider identity, status, duration and sanitized exception class where applicable. Raw exception text, authorization values, endpoint credentials, prompts and generated content are not part of the routing evidence contract.
-
-## Authority retained from v3.10
-
-Wave 7 productization and local-first routing grant none of the following authority unless already explicitly provided by an existing protected server contract:
+Wave 7 S1-S6 and release reconciliation grant none of the following authority unless already explicitly provided by an existing protected server contract:
 
 - Project creation/ownership or cross-Project access;
 - Work Specification approval/amendment;
-- Engineering Run stage transition beyond the existing protected server operations;
-- accepted source-lineage creation or head advancement outside the existing single-writer boundary;
+- Engineering Run state truth or unapproved transition authority;
+- accepted source-lineage creation/head advancement outside the single-writer boundary;
 - filesystem/shell or arbitrary-command execution;
-- unrestricted HTTP/network access;
-- tool-capability creation or approval;
+- unrestricted HTTP/network or arbitrary browser JavaScript authority;
+- tool-capability creation/approval;
 - provider spending/administration;
-- GitHub repository/branch/PR merge authority;
-- Vercel project/production promotion authority;
-- approval, `REVIEW` completion or human-boundary bypass.
+- GitHub merge authority;
+- Vercel production promotion authority;
+- approval, REVIEW completion or human-boundary bypass.
 
-Canonical identity, source acceptance and execution remain controlled by the existing Project/spec/run/lineage contracts. Candidate model, benchmark, browser, projection and observability output is evidence, not authority.
+Canonical identity, deterministic validation, source acceptance, execution and release authority remain controlled by the existing protected Project/spec/run/lineage/provider contracts. Benchmark, model, agent, browser, projection, observability and integrated-proof output remains evidence, not authority.
 
-## Wave 6 runtime architecture retained
-
-The accepted Wave 6 production composition remains cumulative with local-first routing and the accepted Wave 7 development layers:
-
-- S1 agent adapter/evidence admission binds exact Project/run/spec/acceptance/source identity;
-- S2 chooses the smallest adequate admitted team and bounds coordination/reassignment;
-- candidate work is non-canonical until protected integration;
-- disposable candidate BUILD/TEST/VERIFY executes in deny-all Vercel Sandbox materializations with no application-secret environment;
-- S3 independent evaluation cannot override deterministic failure;
-- S4 routes only among already admissible strategies and cannot trade correctness/safety/privacy/governance for economics;
-- S5 competition/synthesis cannot select failed or unvalidated candidates and synthesized candidates require fresh exact validation;
-- one selected candidate reaches `ProtectedImplementationRuntime`;
-- selected-candidate artifacts are private immutable replay evidence only;
-- `ProtectedImplementationRuntime` and the source-lineage CAS remain the only canonical IMPLEMENT/source writer boundary;
-- exact accepted lineage is required for authoritative BUILD/TEST/VERIFY and delivery;
-- Preview remains the ordinary autonomous publication ceiling;
-- operator REVIEW remains the autonomous authority ceiling.
-
-Local-first model routing may be used by an eligible model-consuming seam outside Vercel production, but it cannot alter any of these authority boundaries. Wave 7 projection/browser/observability layers consume or present the existing authority/evidence plane and likewise cannot replace it.
-
-## Persistence and deletion retained
-
-Accepted Wave 7 S1–S5 and `P2-V0.19.8` add no new canonical authority store. S5 specifically adds no telemetry migration or billing ledger.
-
-PostgreSQL/Supabase remains authoritative for application metadata, Projects, Work Specifications, Engineering Runs/attempts, durable worker executions, authorized users, source-lineage manifests/heads and activated observation data. Private immutable object storage remains authoritative for source objects and selected-candidate replay artifacts.
-
-Logical workspace deletion remains a tombstone/visibility operation, not evidence purge. Protected Work Specifications, Engineering Runs, attempts/events, source lineage and immutable provider/evaluation evidence remain retained. Deleting a Project never deletes linked GitHub/Vercel resources.
-
-## Execution and provider boundaries retained
-
-Vercel Sandbox remains the isolated execution plane for protected accepted-lineage and disposable candidate validation. Registered commands only, deny-all networking by default, bounded resources and empty application-secret environment remain non-weakenable.
-
-GitHub/Vercel delivery remains project-scoped and server-registered. Request-scoped Vercel OIDC and exact repository/connector/Preview target binding remain separate from model routing. A local model endpoint or credential cannot be interpreted as GitHub/Vercel delivery authority.
-
-Provider actions and replay identities remain durable and bounded. Replaying an already accepted exact provider action resolves the accepted delivery record instead of duplicating mutation/publication.
-
-The Wave 7 browser capability is separately constrained to admitted non-destructive browser evidence; it is not a substitute for the protected GitHub/Vercel provider or Sandbox execution planes.
-
-## Production topology and release contract
+## Production topology retained
 
 The two long-lived application projects remain:
 
 1. `parallax` — Expo/static web client;
 2. `parallax-api` — FastAPI service.
 
-`main` remains the production source branch. Path-aware build behavior may retain a previously verified component artifact when a change does not affect that component root.
+`main` remains the production source branch. Vercel production remains hosted-only for model routing under `P2-V0.19.8`; enabling local-first configuration in Vercel production fails closed. Hosted-to-private inference remains a separate architecture/security/network/deployment workstream.
 
-A release is not deployment-verified merely because source is integrated. Promotion still requires applicable exact-head CI/evaluation, production prerequisite/preflight success, exact production deployment identity, health/readiness checks, runtime-error inspection and evidence-based state reconciliation.
+No Wave 7 S1-S6 database migration is introduced by this architectural revision.
 
-For model-routing changes, production verification must additionally prove that the hosted-production path remains healthy and server-owned. Local/self-hosted execution cannot be truthfully claimed as Vercel-production behavior because Vercel production intentionally rejects local-first configuration.
+## Evidence for this revision
 
-Accepted Wave 7 S1–S5 are integration-only at this revision. Their green worker/Preview evidence demonstrates candidate validity; it is not production verification.
+Accepted S6 worker:
 
-## Failure degradation additions
+- exact worker head `e284d16972e80e40f7d5d7201f638fa72985d052`;
+- Workstream Spec Validation #568 / run `33188024999` — PASS;
+- Bounded Autonomy #807 / run `33187842726` — PASS;
+- release-strength P2 CI #1241 / run `33188025079` — PASS;
+- exact API Preview `dpl_B9HHdHHPYAoeSJhKs897kzTkdykR` — READY;
+- PR #368 accepted/integrated as cumulative SHA `eb217315992ac0e20acd978433f3e4a17cdcf565`.
 
-In addition to all v3.10 failure rules:
+Reconciled release candidate:
 
-- local-first enabled in Vercel production → fail closed before local provider request;
-- empty, duplicate, malformed or unsupported local route configuration → fail before model execution;
-- local model identity colliding with the hosted chain → reject configuration;
-- local provider/model namespace mismatch → reject configuration;
-- non-loopback plaintext HTTP local endpoint → reject configuration;
-- endpoint userinfo/query/fragment or malformed port → reject configuration;
-- local credential slot outside `PARALLAX_LOCAL_MODEL_CREDENTIAL_*` → reject configuration;
-- missing configured local credential → sanitized transport-configuration failure;
-- local provider failure → bounded sanitized evidence then hosted fallback where policy permits;
-- local protected-validation rejection → `validation_failed` then hosted fallback;
-- hosted production request OIDC unavailable → fail hosted production model request; never substitute local credentials or process `VERCEL_OIDC_TOKEN`;
-- browser target/action outside the admitted bounded S4 policy → deny without widening network/tool authority;
-- cross-Project or cross-run observability evidence → fail closed;
-- conflicting replayed event identity → fail closed;
-- bounded event window incomplete → mark coverage incomplete and downgrade/withhold event-dependent S5 claims;
-- provider usage/cost evidence absent → return `UNKNOWN`, not zero or synthetic estimate;
-- S5 retention cleanup request → deterministic no-op under the accepted query-time-only retention contract.
+- exact candidate `e2743ee17264926adc675834ee38eee108af3111`;
+- Bounded Autonomy #808 / run `33189701035` — PASS;
+- Workstream Spec Validation #571 / run `33189881795` — PASS;
+- release-strength P2 CI #1244 / run `33189881717` — PASS;
+- API Preview `dpl_E7yGJpknEU1thgE8UXR9v1wYgxUo` — READY, clean build and runtime error/fatal scans;
+- client Preview canceled because there is no client content delta; client type/state/export/browser/Skia release gates passed in P2 #1244.
 
-## Security invariants
-
-No provider secret, production root secret, Vercel execution credential or local-model credential is shipped to the client, browser evidence surface or Sandbox process.
-
-User/model/agent content cannot redefine authentication, Project ownership, Work Specification approval, required acceptance criteria, accepted source lineage, worker ownership, deterministic validation, agent/team/evaluator/routing/competition policy, tool capabilities, executable commands, provider targets, hosted endpoint/credential admission, local route configuration, local credential slots, browser target/action admission, observability metric definitions/provenance rules, protected evaluation, run-event activation or deployment state.
-
-The local-first route, Wave 7 browser tool and S5 observability surface add bounded evidence capabilities; they do not widen the canonical platform trust perimeter.
-
-## Deployment and integration evidence for this architectural revision
-
-Local-first production revision retained:
-
-- accepted semantic worker `457541490aae196ee9e8cb65434f7b5570b829fc`;
-- integration PR #345;
-- integrated application source `35113209d9ad43585a6cc5ba167774ab8d13e03c`;
-- production API deployment `dpl_VUpPpHN5vjXLWwwXGytxh5Uj3KSo` — READY;
-- main Workstream Spec Validation #505 / run `33134841900` — PASS;
-- main Parallax P2 CI #1159 / run `33134841915` — PASS;
-- production `/health` and `/ready` — HTTP 200;
-- exact-deployment `error`/`fatal` runtime scan — clean.
-
-Wave 7 integration evidence through S5:
-
-- W7-S4 PR #357 accepted worker `cda9e1e2c1de73ff20dbae8637fbdac63f810166`, Workstream #549, Bounded #789, P2 #1220, READY Preview `dpl_fpME2HH7x5jAQdL1haaPXLdhUJqK`, integrated as `e98526bccd8e62530098a7e59991d837b515be0c`;
-- W7-S5 PR #360 accepted worker `26297f3fe3bbce4eca687c8a20b65d03b8476db9`, authentic DSPy run #182 / `33180827909`, Workstream #565 / `33184346124`, Bounded #804 / `33182504539`, release P2 #1237 / `33184346191`, READY Preview `dpl_E3iA7BbET4ZCt8TMFAjdJ1LMxrkb`, integrated as `00a9e66e2f87a1f992d375b4217845b8f072e11d`.
-
-The Wave 7 evidence proves accepted cumulative development integration through S5. It does not prove a Wave 7 `main` merge or production deployment.
+These facts validate the Wave 7 release candidate. They do not record a Wave 7 merge to `main` or production deployment.
