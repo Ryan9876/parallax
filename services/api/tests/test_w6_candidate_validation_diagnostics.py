@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from sqlalchemy.orm import sessionmaker
 
 from parallax_api.code.agentic_runtime import (
+    CandidateAdmissionFailure,
     CandidateValidationResult,
+    _candidate_admission_phase,
     _candidate_validation_failure_diagnostic,
 )
 from parallax_api.code.autonomy import AutonomyCoordinator, AutonomyStopReason
@@ -194,5 +197,98 @@ def test_failed_implement_persists_only_bounded_candidate_diagnostic(tmp_path) -
         assert "Bearer" not in encoded
         assert evidence["diagnostic_evidence"]["candidate_validation_failure"]["source_lineage_accepted"] is False
         assert evidence["diagnostic_evidence"]["candidate_validation_failure"]["production_deployed"] is False
+    finally:
+        session.close()
+
+
+
+def _phase_diagnostic() -> dict[str, object]:
+    return {
+        "candidate_admission_failure": {
+            "candidate_id": "candidate-primary",
+            "phase": "INDEPENDENT_EVALUATION",
+            "failure_kind": "VALUE_CONTRACT_ERROR",
+            "candidate_is_canonical_lineage": False,
+            "accepts_source_lineage": False,
+            "source_lineage_accepted": False,
+            "engineering_run_transitioned": False,
+            "review_completed": False,
+            "production_deployed": False,
+        }
+    }
+
+
+def test_candidate_admission_phase_classifies_without_exception_text() -> None:
+    with pytest.raises(CandidateAdmissionFailure) as captured:
+        with _candidate_admission_phase("candidate-primary", "INDEPENDENT_EVALUATION"):
+            raise ValueError("Bearer super-secret provider payload workspace_root=/tmp/private")
+
+    diagnostic = captured.value.diagnostic_evidence
+    assert diagnostic == _phase_diagnostic()["candidate_admission_failure"]
+    encoded = json.dumps(diagnostic, sort_keys=True)
+    assert "Bearer" not in encoded
+    assert "super-secret" not in encoded
+    assert "provider payload" not in encoded
+    assert "workspace_root" not in encoded
+
+
+def test_candidate_admission_phase_diagnostic_is_strictly_allow_listed() -> None:
+    safe = ImplementationRuntimeError(
+        "bounded failure",
+        diagnostic_evidence=_phase_diagnostic(),
+    )
+    assert safe.diagnostic_evidence == _phase_diagnostic()
+
+    unsafe = _phase_diagnostic()
+    unsafe["candidate_admission_failure"]["exception_message"] = "Bearer must-never-persist"  # type: ignore[index]
+    rejected = ImplementationRuntimeError(
+        "bounded failure",
+        diagnostic_evidence=unsafe,
+    )
+    assert rejected.diagnostic_evidence is None
+
+
+class _PhaseDiagnosticImplementationRuntime:
+    def execute(self, **_kwargs):
+        raise ImplementationContractError(
+            "bounded candidate admission failed",
+            mutation_applied=False,
+            diagnostic_evidence=_phase_diagnostic(),
+        )
+
+
+def test_failed_implement_persists_only_bounded_candidate_phase(tmp_path) -> None:
+    session, service, run = _service(tmp_path)
+    try:
+        planned = AutonomyCoordinator(service, _Executor()).run(
+            run_id=run.id,
+            operation_key="candidate-phase-plan",
+            expected_revision=run.revision,
+        )
+        assert planned.run.state == "IMPLEMENT"
+
+        result = AutonomyCoordinator(
+            service,
+            _Executor(),
+            implementation_runtime=_PhaseDiagnosticImplementationRuntime(),
+        ).run(
+            run_id=run.id,
+            operation_key="candidate-phase-implement",
+            expected_revision=planned.run.revision,
+        )
+
+        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
+        assert result.run.state == "FAILED"
+        attempt = next(item for item in result.run.attempts if item.stage == "IMPLEMENT")
+        evidence = json.loads(attempt.evidence_json)
+        assert evidence["mutation_applied"] is False
+        assert evidence["diagnostic_evidence"] == _phase_diagnostic()
+        phase = evidence["diagnostic_evidence"]["candidate_admission_failure"]
+        assert phase["phase"] == "INDEPENDENT_EVALUATION"
+        assert phase["failure_kind"] == "VALUE_CONTRACT_ERROR"
+        assert phase["source_lineage_accepted"] is False
+        assert phase["engineering_run_transitioned"] is False
+        assert phase["review_completed"] is False
+        assert phase["production_deployed"] is False
     finally:
         session.close()
