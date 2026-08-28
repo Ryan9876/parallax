@@ -248,7 +248,7 @@ try {
 
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await desktop.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await desktop.getByText('Observability', { exact: true }).click();
+  await desktop.getByRole('button', { name: 'Activity', exact: true }).click();
   await desktop.getByText('Run observability', { exact: true }).waitFor({ timeout: 8000 });
   await desktop.getByTestId('run-event-11').getByText('Operator review required before completion.').waitFor({ timeout: 8000 });
   await desktop.getByText('System Health', { exact: true }).waitFor();
@@ -283,9 +283,9 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await mobile.getByRole('tab', { name: 'Build', exact: true }).click();
+  await mobile.getByRole('tab', { name: 'Progress', exact: true }).click();
   await mobile.getByTestId('mobile-build-workspace').waitFor({ timeout: 8000 });
-  await mobile.getByRole('button', { name: 'Open build details', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Open technical build details', exact: true }).click();
   await mobile.getByText('Run observability', { exact: true }).waitFor({ timeout: 8000 });
   await mobile.getByTestId('live-build-focused-navigation').waitFor();
 
@@ -342,7 +342,7 @@ try {
 
   const tablet = await browser.newPage({ viewport: { width: 834, height: 1112 } });
   await tablet.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await tablet.getByText('Observability', { exact: true }).click();
+  await tablet.getByRole('button', { name: 'Activity', exact: true }).click();
   await tablet.getByTestId('live-build-focused-navigation').waitFor({ timeout: 8000 });
   await tablet.getByRole('tab', { name: 'Code', exact: true }).click();
   const tabletFileSelector = tablet.getByRole('button', { name: 'Inspect file src/index.ts' });
@@ -370,9 +370,9 @@ try {
 
   const failedMobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await failedMobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await failedMobile.getByRole('tab', { name: 'Build', exact: true }).click();
+  await failedMobile.getByRole('tab', { name: 'Progress', exact: true }).click();
   await failedMobile.getByTestId('mobile-build-workspace').waitFor({ timeout: 8000 });
-  await failedMobile.getByRole('button', { name: 'Open build details', exact: true }).click();
+  await failedMobile.getByRole('button', { name: 'Open technical build details', exact: true }).click();
   await failedMobile.getByRole('tab', { name: 'Run', exact: true }).click();
   await failedMobile.getByTestId('live-build-durable-failure').waitFor({ timeout: 8000 });
   await failedMobile.getByText('IMPLEMENT failed', { exact: true }).waitFor();

@@ -1,13 +1,13 @@
 # Parallax 2.0 Design System
 
-Version: 3.1
+Version: 3.2
 Status: Authoritative
 
 ## Design direction
 
 Parallax is a premium reasoning and engineering workspace that should feel calm, capable, legible and authored. Conversation remains the primary creation surface. Governed engineering state becomes visibly inspectable when it matters, but the product must not feel like a generic IDE, log console or dense operations dashboard.
 
-Wave 4 replaces the prior Deep Violet Optical visual identity with **Warm Editorial Observatory**, based on the approved Parallax home and Observability mockups.
+Wave 4 established the **Warm Editorial Observatory** visual identity. Wave 8 adds a human-centered interaction and content standard: primary surfaces use natural, outcome-oriented language and mobile behaves as a guided control surface rather than a compressed engineering workspace.
 
 The dominant visual language is:
 
@@ -21,7 +21,7 @@ The dominant visual language is:
 - editorial display hierarchy paired with highly legible application typography;
 - subtle organic topographic / landscape depth that never competes with content.
 
-Content and authoritative state win every visual competition. No visual effect may imply engineering progress before the server records it.
+Content and authoritative state win every visual competition. No visual effect or simplified wording may imply engineering progress before the server records it.
 
 ## Brand identity
 
@@ -99,7 +99,7 @@ Exact values may be tuned by protected browser/screenshot validation while prese
 
 ## Typography
 
-Wave 4 uses a coordinated editorial and application hierarchy.
+Wave 4 uses a coordinated editorial and application hierarchy. Wave 8 makes legibility a protected interaction requirement rather than allowing small type to preserve dense layouts.
 
 ### Display
 
@@ -116,9 +116,32 @@ Display typography should feel composed rather than decorative:
 
 Navigation, controls, conversation body, metadata, tables, statuses and forms use system-native sans-serif typography for reliability and accessibility.
 
+At phone width:
+
+- ordinary primary body copy targets at least 16 CSS px;
+- primary navigation and actionable control labels target at least 14 CSS px;
+- orientation labels and secondary metadata target at least 12 CSS px;
+- dense technical-detail text may use 12 CSS px when necessary but must remain readable and selectable;
+- layouts reflow before reducing important text below these targets.
+
 ### Technical text
 
 Code, diffs, command output, hashes, source-lineage IDs and similar technical evidence use a platform monospace stack. Technical text remains selectable and must not be rasterized into decorative canvases.
+
+## Content design and product language
+
+Plain language is the default product voice.
+
+- Primary copy explains outcomes, meaning and next actions before implementation mechanics.
+- Prefer familiar verbs such as `Create`, `Review`, `Continue`, `Check`, `Try again`, `View progress`, and `Choose project` over internal operation names.
+- Primary surfaces must not require users to understand software-engineering object names, lifecycle codes, provider terminology, raw error codes, IDs, revisions, bindings or evidence models unless those concepts are necessary to the decision at hand.
+- Canonical technical terms remain available through clearly labeled secondary surfaces such as `Technical details`, detailed build views, Observability and audit/evidence views.
+- Important messages should answer, in order where practical: **what happened, what it means, what the user can do next**.
+- Simplification must not euphemize destructive actions, hide uncertainty, conceal a failure, obscure a required human decision, or imply work completed before authoritative state says so.
+- Screen-reader labels follow the same plain-language rule as visible copy.
+- Error copy shown by default is human-readable; raw server/provider messages belong in technical detail unless the raw wording itself is already the clearest safe explanation.
+
+Canonical system terminology is still valid in engineering/audit contexts. The rule is progressive disclosure, not deletion of technical evidence.
 
 ## Material and depth
 
@@ -243,27 +266,39 @@ Substantive response text appears as SSE delivers it. An optional compact **live
 - the composer remains an in-flow dock below the flexible thread;
 - page navigation alone must not simulate a global processing state.
 
-## Work Specification surface
+## Build plan / Work Specification surface
 
-Work Specification remains an implementation contract, not a ticket dashboard.
+The canonical server object remains the Work Specification, but ordinary product copy presents it as the user's **build plan**.
 
-- `SPEC · DRAFT/APPROVED` remains explicit;
-- revision identity remains visible;
-- title/objective are primary;
-- draft uses restrained rust/teal/neutral treatment rather than danger;
-- approved uses olive/sage treatment plus explicit `APPROVED` text;
-- acceptance criteria read as contract clauses, not KPI tiles;
+- objective and intended outcome are primary;
+- acceptance criteria are presented as `What success looks like` or equivalent plain language;
+- constraints become `Important limits`, open questions become `Questions to resolve`, and risks become `Things to watch` where those translations preserve meaning;
+- draft state is described as waiting for review/approval rather than exposing `DRAFT` as the primary label;
+- approved state uses olive/sage treatment plus clear `Approved` language;
+- revision, exact canonical status, confidence and the `Work Specification` object name remain available in Technical details;
 - approval is an obvious accessible operator action;
 - expansion/collapse preserves conversation rhythm;
 - mobile controls remain non-overlapping and touch-safe.
 
-## Engineering Run surface
+## Progress / Engineering Run surface
 
-Engineering execution presents durable server truth rather than simulated progress.
+The canonical Engineering Run continues to provide durable server truth. Ordinary mobile product copy presents that truth as **Progress** and groups low-level stages into a stable five-step user journey:
 
-- current authoritative stage is the anchor;
-- exact Work Specification revision and acceptance identity remain available;
-- completed/current/pending stage states come from server facts;
+`Define → Plan → Create → Check → Review`
+
+The deterministic presentation mapping is:
+
+- `SPECIFY` / Work Specification preparation → `Define`;
+- `PLAN` → `Plan`;
+- `IMPLEMENT` and `BUILD` → `Create`;
+- `TEST` and `VERIFY` → `Check`;
+- `REVIEW` → `Review`;
+- `COMPLETE` marks the journey complete;
+- failure, pause or cancellation retains the authoritative server state and is attached to the mapped current/resume step without inventing progress.
+
+Primary progress surfaces should show the current step, overall position, what is happening now and the next meaningful action. Exact stage name, raw status, retry/correction/recovery attempts, IDs and evidence remain available through Technical details or the detailed engineering view.
+
+- completed/current/pending states come from server facts;
 - retry, correction, recovery and human-required states are explicit;
 - visual treatment never implies a transition before server state changes;
 - historical unbound runs remain clearly distinguished;
@@ -271,7 +306,7 @@ Engineering execution presents durable server truth rather than simulated progre
 
 ## Observability workspace
 
-Observability is a governed view of actual Parallax execution, not a replacement runtime.
+Observability is a governed technical view of actual Parallax execution, not a replacement runtime. Because the user deliberately entered a technical inspection surface, canonical engineering terminology is appropriate here when it improves precision.
 
 ### Run pipeline
 
@@ -416,17 +451,20 @@ Conversation and Project cleanup is a deliberate workspace-management action, no
 
 ## Mobile and narrow layouts
 
-Do not shrink the desktop dashboard.
+Do not shrink the desktop dashboard. Mobile is a guided control surface for understanding progress, making decisions, giving direction and inspecting results.
 
 At phone width:
 
-- use focused sections such as `Run`, `Activity`, `Code`, `Tests`, `Evidence`, `Health`;
-- stage pipeline may scroll horizontally if needed;
-- file selection moves to a drawer/sheet or dedicated picker;
-- code/diff/terminal receive full practical width;
-- utility-rail cards stack or move into tabs;
-- primary navigation collapses to a mobile-appropriate control;
-- all normal creation/conversation capability remains available.
+- persistent orientation should make the current Project/conversation context understandable;
+- primary navigation uses a small stable set of destinations, currently `Chat`, `Progress`, and `Project` for the guided mobile shell;
+- the Progress surface exposes the five-step `Define → Plan → Create → Check → Review` journey rather than seven low-level engineering stages;
+- show one dominant task or decision at a time and move secondary engineering evidence behind progressive disclosure;
+- explicitly communicate **where the user is, what Parallax is doing now, and what the user should do next**;
+- avoid forcing users to jump among several screens merely to reconstruct process state;
+- code/diff/terminal and other dense engineering views remain available as dedicated detail surfaces rather than competing with primary workflow guidance;
+- utility-rail cards stack or move into dedicated secondary surfaces;
+- all normal creation/conversation capability remains available;
+- important text reflows rather than shrinking below the phone typography targets.
 
 ## Mobile web viewport and keyboard
 
@@ -443,14 +481,15 @@ Existing protected keyboard rules remain unchanged in intent:
 ## Accessibility
 
 - normal product text remains selectable and semantically exposed;
-- touch targets are approximately 44×44 pt where practical;
+- touch targets are approximately 44×44 pt or larger where practical;
 - state always includes readable text/icon meaning in addition to color;
 - focus treatment is visible against both forest and warm surfaces;
 - contrast is validated for text, controls and statuses;
 - no primary action depends on hover;
 - motion is never the only carrier of progress/state;
 - reduced motion and reduced graphics preserve equivalent capability;
-- code/diff/terminal views remain keyboard navigable on web.
+- code/diff/terminal views remain keyboard navigable on web;
+- plain-language accessibility labels describe the user action rather than exposing internal implementation terminology unnecessarily.
 
 ## Reduced motion and reduced graphics
 
@@ -462,23 +501,23 @@ Reduced graphics removes topographic/landscape/gradient decoration while preserv
 
 ### SPEC_AMENDMENT
 
-A deliberate boundary, not a generic error. Preserve conversation and requested change, explain that approved objective changed, use calm neutral/teal/olive treatment and keep navigation/composer available.
+A deliberate boundary, not a generic error. Preserve conversation and requested change. Primary copy should explain in plain language that the new request is different from the approved plan and offer only the protected choices the server permits. Canonical `SPEC_AMENDMENT` terminology may remain in Technical details/audit surfaces.
 
 ### Recoverable failure
 
-Use warm warning treatment and explicit reason/next action from protected classification. Do not imply retry is available when server policy does not allow it.
+Use warm warning treatment and explicit human-readable reason/next action from protected classification. Do not imply retry is available when server policy does not allow it. Raw failure codes belong in Technical details unless they are themselves meaningful user language.
 
 ### HUMAN_REQUIRED / REVIEW
 
-Use clear operator-attention treatment, distinct from ordinary failure and ordinary live execution. The UI cannot convert these boundaries into automatic progress.
+Use clear operator-attention treatment, distinct from ordinary failure and ordinary live execution. Primary copy may say `Ready for your review` or equivalent, while technical surfaces preserve the exact state. The UI cannot convert these boundaries into automatic progress.
 
 ### ERROR / unavailable telemetry
 
-Preserve durable content. Secret-bearing diagnostics and hidden reasoning are never product copy. Missing event/health data renders `Unavailable`/`Degraded` rather than fabricated success.
+Preserve durable content. Secret-bearing diagnostics and hidden reasoning are never product copy. Missing event/health data renders `Unavailable`/`Degraded` rather than fabricated success. Primary error copy explains the user impact first; safe raw diagnostics remain secondary.
 
 ## Visual acceptance and anti-drift rules
 
-Wave 4 implementation must convert the approved home and Observability mockups into repeatable browser/screenshot assertions.
+Wave 4 implementation converted the approved home and Observability mockups into repeatable browser/screenshot assertions. Wave 8 adds mobile usability and content assertions.
 
 Protected visual relationships include:
 
@@ -488,11 +527,14 @@ Protected visual relationships include:
 - dominant central work area;
 - narrower right utility rail;
 - consistent warm card radius/material;
-- run pipeline prominence;
+- run pipeline prominence in technical observability surfaces;
 - compact KPI row;
-- Live Build/event content as the largest operational surface;
+- Live Build/event content as the largest operational technical surface;
 - teal live state, rust action state and restrained olive support state;
-- responsive mobile reflow rather than desktop miniaturization.
+- responsive mobile reflow rather than desktop miniaturization;
+- phone primary navigation/control text at readable sizes and touch targets approximately 44 pt or larger;
+- a stable five-step plain-language mobile progress journey derived only from authoritative server state;
+- technical terminology hidden from ordinary primary mobile workflow surfaces until the user asks for detail.
 
 Centralized theme tokens are the required source for product colors. One-off local colors should be exceptional and justified.
 

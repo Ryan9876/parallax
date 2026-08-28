@@ -26,7 +26,7 @@ const conversation = {
   created_at: '2026-08-26T14:00:00Z', updated_at: '2026-08-26T14:00:00Z',
   messages: [
     { id: 'clearance-user', role: 'user', content: 'Add a simple About page to this application.', status: 'complete', created_at: '2026-08-26T14:00:00Z' },
-    { id: 'clearance-assistant', role: 'assistant', content: 'The build objective is captured and ready for specification review.', status: 'complete', created_at: '2026-08-26T14:00:05Z' },
+    { id: 'clearance-assistant', role: 'assistant', content: 'The build objective is captured and ready for build plan review.', status: 'complete', created_at: '2026-08-26T14:00:05Z' },
   ],
 };
 const project = {
@@ -81,7 +81,7 @@ try {
   page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
   await page.goto('http://127.0.0.1:8767', { waitUntil: 'networkidle' });
   await page.getByTestId('mobile-guided-shell').waitFor({ timeout: 10000 });
-  await page.getByLabel('Review specification').waitFor({ timeout: 5000 });
+  await page.getByLabel('Review build plan').waitFor({ timeout: 5000 });
   const response = page.getByLabel('Parallax response').last();
   await response.waitFor({ timeout: 5000 });
 

@@ -34,64 +34,85 @@ function StatusRow({ label, value, tone = 'neutral' }: { label: string; value: s
   );
 }
 
-function Fact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.fact}>
       <Text style={styles.factLabel}>{label}</Text>
-      <Text numberOfLines={2} selectable={mono} style={[styles.factValue, mono && styles.mono]}>{value}</Text>
+      <Text numberOfLines={2} style={styles.factValue}>{value}</Text>
     </View>
   );
 }
 
-function shortId(value: string | null): string {
-  if (!value) return 'Unavailable';
-  return value.length <= 22 ? value : `${value.slice(0, 9)}…${value.slice(-7)}`;
+function responseStatus(phase: string): string {
+  if (phase === 'ERROR') return 'Needs attention';
+  if (phase === 'SPEC_AMENDMENT' || phase === 'HUMAN_REQUIRED') return 'Ready for you';
+  if (phase === 'IDLE' || phase === 'COMPLETE') return 'Ready';
+  return 'Working';
+}
+
+function runStatus(run: EngineeringRunDto): string {
+  const stage = (run.state === 'FAILED' || run.state === 'PAUSED' || run.state === 'CANCELLED') && run.resume_stage
+    ? run.resume_stage
+    : run.state;
+  const labels: Record<string, string> = {
+    SPECIFY: 'Defining the goal',
+    PLAN: 'Planning',
+    IMPLEMENT: 'Creating',
+    BUILD: 'Preparing the result',
+    TEST: 'Checking',
+    VERIFY: 'Final checks',
+    REVIEW: 'Ready for review',
+    COMPLETE: 'Complete',
+  };
+  if (run.state === 'FAILED') return 'Needs attention';
+  if (run.state === 'PAUSED') return 'Paused';
+  if (run.state === 'CANCELLED') return 'Stopped';
+  return labels[stage] ?? 'In progress';
 }
 
 export function EditorialUtilityRail({ width = 296, apiOnline, phase, mode, run, specification, projectId, projectBindingStatus }: Props) {
   const bound = run?.binding_status === 'APPROVED_SPEC_BOUND';
-  const passed = run ? new Set(run.attempts.filter((attempt) => attempt.status === 'PASSED').map((attempt) => attempt.stage)) : new Set<string>();
-  const evidence = ['BUILD', 'TEST', 'VERIFY'].filter((stage) => passed.has(stage));
   const phaseTone = phase === 'ERROR' ? 'rust' : phase === 'IDLE' || phase === 'COMPLETE' ? 'olive' : 'teal';
   const projectValue = projectBindingStatus === 'HISTORICAL_UNBOUND'
-    ? 'Historical · unbound'
+    ? 'Older conversation'
     : projectId
-      ? shortId(projectId)
+      ? 'Project selected'
       : mode === 'reason'
-        ? 'Not required'
-        : 'Unavailable';
+        ? 'Not needed for this chat'
+        : 'Choose a project';
+  const planValue = specification
+    ? specification.status === 'APPROVED' ? 'Approved' : 'Ready for review'
+    : mode === 'reason' ? 'Not needed yet' : 'Not created';
 
   return (
     <View style={[styles.rail, { width }]} testID="editorial-utility-rail">
       <View style={styles.railHeading}>
-        <Text style={styles.railKicker}>Context</Text>
-        <Text style={styles.railTitle}>Workspace facts</Text>
-        <Text style={styles.railIntro}>Only current application and protected run evidence appears here.</Text>
+        <Text style={styles.railKicker}>At a glance</Text>
+        <Text style={styles.railTitle}>What’s happening</Text>
+        <Text style={styles.railIntro}>A simple view of the current conversation and build progress.</Text>
       </View>
 
-      <Card eyebrow="Connection" title="Workspace status">
-        <StatusRow label="API" value={apiOnline ? 'Available' : 'Unavailable'} tone={apiOnline ? 'olive' : 'rust'} />
-        <StatusRow label="Response" value={phase.toLowerCase()} tone={phaseTone} />
-        <Text style={styles.note}>Unavailable evidence is not interpreted as healthy or complete.</Text>
+      <Card eyebrow="Parallax" title="Current status">
+        <StatusRow label="Service" value={apiOnline ? 'Available' : 'Unavailable'} tone={apiOnline ? 'olive' : 'rust'} />
+        <StatusRow label="Conversation" value={responseStatus(phase)} tone={phaseTone} />
+        {!apiOnline ? <Text style={styles.note}>Some actions may not work until the service is available again.</Text> : null}
       </Card>
 
-      <Card eyebrow="Identity" title="Active context">
-        <Fact label="Mode" value={mode === 'code' ? 'Code' : 'Reason'} />
-        <Fact label="Project" value={projectValue} mono={Boolean(projectId)} />
-        <Fact label="Specification" value={specification ? `R${specification.revision} · ${specification.status}` : 'Unavailable'} />
+      <Card eyebrow="Your work" title="Current context">
+        <Fact label="Activity" value={mode === 'code' ? 'Build' : 'Ask'} />
+        <Fact label="Project" value={projectValue} />
+        <Fact label="Build plan" value={planValue} />
       </Card>
 
-      <Card eyebrow="Execution" title="Engineering run">
+      <Card eyebrow="Progress" title="Build status">
         {run ? (
           <>
-            <StatusRow label="Binding" value={bound ? 'Approved spec' : 'Historical'} tone={bound ? 'olive' : 'neutral'} />
-            <StatusRow label="Stage" value={run.state} tone={['FAILED', 'CANCELLED'].includes(run.state) ? 'rust' : 'teal'} />
-            <Fact label="Run ID" value={shortId(run.id)} mono />
-            <Fact label="Passed evidence" value={evidence.length ? evidence.join(' · ') : 'None yet'} />
-            {run.last_failure_code ? <Fact label="Latest failure" value={run.last_failure_code} mono /> : null}
+            <StatusRow label="Plan" value={bound ? 'Approved' : 'View only'} tone={bound ? 'olive' : 'neutral'} />
+            <StatusRow label="Right now" value={runStatus(run)} tone={['FAILED', 'CANCELLED'].includes(run.state) ? 'rust' : run.state === 'COMPLETE' ? 'olive' : 'teal'} />
+            {run.last_failure_code ? <Text style={styles.note}>Something needs attention before the work can continue. Open Progress for details.</Text> : null}
           </>
         ) : (
-          <Text style={styles.empty}>No authoritative Engineering Run is attached to this conversation.</Text>
+          <Text style={styles.empty}>{mode === 'code' ? 'No build is running yet.' : 'Start a build when you are ready to create or change an application.'}</Text>
         )}
       </Card>
     </View>
@@ -111,9 +132,9 @@ const styles = StyleSheet.create({
     borderLeftColor: palette.border,
   },
   railHeading: { paddingHorizontal: 3, marginBottom: 4 },
-  railKicker: { color: palette.olive700, fontSize: 8, fontWeight: '800', letterSpacing: 1.05, textTransform: 'uppercase', marginBottom: 4 },
-  railTitle: { color: palette.charcoal950, fontSize: 20, lineHeight: 24, fontWeight: '600', letterSpacing: -0.45, fontFamily: serif },
-  railIntro: { color: palette.charcoal600, fontSize: 9, lineHeight: 14, marginTop: 5 },
+  railKicker: { color: palette.olive700, fontSize: 12, lineHeight: 16, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 },
+  railTitle: { color: palette.charcoal950, fontSize: 21, lineHeight: 26, fontWeight: '600', letterSpacing: -0.45, fontFamily: serif },
+  railIntro: { color: palette.charcoal600, fontSize: 13, lineHeight: 19, marginTop: 5 },
   card: {
     borderRadius: 18,
     backgroundColor: 'rgba(251,247,238,0.96)',
@@ -125,20 +146,19 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 7 },
   },
-  cardEyebrow: { color: palette.charcoal450, fontSize: 7, lineHeight: 10, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '800', marginBottom: 3 },
-  cardTitle: { color: palette.charcoal950, fontSize: 15, lineHeight: 19, fontWeight: '700', marginBottom: 12, fontFamily: serif },
-  row: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
-  label: { flex: 1, color: palette.charcoal600, fontSize: 10 },
-  pill: { minHeight: 24, maxWidth: 136, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9, borderRadius: 999 },
-  pillText: { color: palette.charcoal950, fontSize: 8, lineHeight: 11, fontWeight: '800' },
+  cardEyebrow: { color: palette.charcoal450, fontSize: 11, lineHeight: 15, textTransform: 'uppercase', letterSpacing: 0.7, fontWeight: '800', marginBottom: 3 },
+  cardTitle: { color: palette.charcoal950, fontSize: 16, lineHeight: 21, fontWeight: '700', marginBottom: 12, fontFamily: serif },
+  row: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
+  label: { flex: 1, color: palette.charcoal600, fontSize: 13, lineHeight: 18 },
+  pill: { minHeight: 30, maxWidth: 150, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, borderRadius: 999 },
+  pillText: { color: palette.charcoal950, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   neutral: { backgroundColor: palette.cream200 },
   teal: { backgroundColor: palette.teal100 },
   olive: { backgroundColor: palette.olive200 },
   rust: { backgroundColor: palette.rust100 },
-  fact: { marginBottom: 10 },
-  factLabel: { color: palette.charcoal450, fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.65, marginBottom: 3 },
-  factValue: { color: palette.charcoal800, fontSize: 10, lineHeight: 15, fontWeight: '600' },
-  mono: { fontFamily: Platform.OS === 'web' ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined, fontWeight: '500' },
-  note: { color: palette.charcoal600, fontSize: 9, lineHeight: 14, marginTop: 3 },
-  empty: { color: palette.charcoal600, fontSize: 10, lineHeight: 16 },
+  fact: { marginBottom: 11 },
+  factLabel: { color: palette.charcoal450, fontSize: 11, lineHeight: 15, textTransform: 'uppercase', letterSpacing: 0.55, marginBottom: 3 },
+  factValue: { color: palette.charcoal800, fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  note: { color: palette.charcoal600, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  empty: { color: palette.charcoal600, fontSize: 13, lineHeight: 20 },
 });

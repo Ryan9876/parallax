@@ -95,9 +95,9 @@ try {
   await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
   await page.getByTestId('mobile-guided-shell').waitFor({ timeout: 10000 });
   assert(await page.getByRole('tab', { name: 'Observability' }).count() === 0, 'mobile evidence: Observability must not be a primary mobile destination');
-  await page.getByRole('tab', { name: 'Build' }).click();
+  await page.getByRole('tab', { name: 'Progress' }).click();
   await page.getByTestId('mobile-build-workspace').waitFor({ timeout: 5000 });
-  await page.getByLabel('Open build details', { exact: true }).click();
+  await page.getByLabel('Open technical build details', { exact: true }).click();
   await page.getByText('Run observability', { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText('Sequence 3', { exact: true }).waitFor({ timeout: 10000 });
 
@@ -113,6 +113,6 @@ try {
   assert(supportBox && supportBox.y < after.bottom && supportBox.y + supportBox.height > after.top, 'mobile evidence: lower evidence content is not reachable');
   assert(errors.length === 0, `mobile evidence: browser errors: ${errors.join(' | ')}`);
   await page.screenshot({ path: `${evidenceDir}/mobile-progressive-build-evidence.png`, fullPage: true });
-  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, primaryDestinations: ['Chat', 'Build', 'Project'], observabilityPrimary: false, durableSequence: 3, before, after, progressiveDisclosure: true }, null, 2));
+  console.log(JSON.stringify({ viewport: { width: 390, height: 844 }, primaryDestinations: ['Chat', 'Progress', 'Project'], observabilityPrimary: false, durableSequence: 3, before, after, progressiveDisclosure: true }, null, 2));
   await page.close();
 } finally { await browser?.close(); await new Promise((resolve) => web.close(resolve)); await new Promise((resolve) => api.close(resolve)); }
