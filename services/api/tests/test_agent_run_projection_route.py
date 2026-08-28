@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from parallax_api.routes.agent_run_projection import AgentRunProjectionRead, get_agent_run_projection
+from parallax_api.code.agent_run_projection import build_agent_run_projection
 from parallax_api.models import EngineeringRun
+from parallax_api.routes import agent_run_projection as projection_routes
+from parallax_api.routes.agent_run_projection import (
+    AgentRunProjectionControl,
+    AgentRunProjectionRead,
+    control_agent_run_projection,
+    get_agent_run_projection,
+)
 
 
 PROJECT = "11111111-1111-4111-8111-111111111111"
@@ -28,6 +35,24 @@ class FakeProjectionService:
         ]
 
 
+class FakeFacade:
+    def __init__(self, svc: FakeProjectionService):
+        self.svc = svc
+        self.control_requests = []
+
+    def project(self, *, project_id: str, run_id: str):
+        run = self.svc.get(run_id)
+        assert project_id == run.project_id
+        return build_agent_run_projection(
+            run=run,
+            acceptance_ids=("AC-01", "AC-02"),
+        )
+
+    def control(self, projection, request):
+        self.control_requests.append((projection, request))
+        return SimpleNamespace(run=self.svc.run, attempt_id="00000000-0000-4000-8000-000000000001", replayed=False)
+
+
 def _run() -> EngineeringRun:
     run = EngineeringRun(
         id=RUN,
@@ -47,17 +72,71 @@ def _run() -> EngineeringRun:
     return run
 
 
-def test_projection_route_exposes_typed_read_only_contract_without_event_plane(monkeypatch) -> None:
-    monkeypatch.delenv("PARALLAX_RUN_EVENTS_ENABLED", raising=False)
-    payload = get_agent_run_projection(RUN, svc=FakeProjectionService(_run()))
+def test_projection_route_exposes_typed_v2_read_contract(monkeypatch) -> None:
+    svc = FakeProjectionService(_run())
+    facade = FakeFacade(svc)
+    monkeypatch.setattr(projection_routes, "_projection_service", lambda value: facade)
+
+    payload = get_agent_run_projection(RUN, svc=svc)
     response = AgentRunProjectionRead.model_validate(payload)
 
+    assert response.projection_version == 2
     assert response.identity.project_id == PROJECT
     assert response.identity.run_id == RUN
     assert response.identity.acceptance_ids == ["AC-01", "AC-02"]
     assert response.current_state == "REVIEW"
     assert response.run_revision == 6
-    assert response.advertised_controls == []
-    assert response.transitions_engineering_run is False
+    assert [item.kind for item in response.advertised_controls] == ["pause", "cancel"]
+    assert response.deterministic_disposition == "PENDING"
+    assert response.creates_lifecycle_authority is False
     assert response.accepts_source_lineage is False
     assert response.performs_production_deployment is False
+
+
+def test_projection_control_route_binds_path_run_project_revision_state_and_request_identity(monkeypatch) -> None:
+    svc = FakeProjectionService(_run())
+    facade = FakeFacade(svc)
+    monkeypatch.setattr(projection_routes, "_projection_service", lambda value: facade)
+
+    response = control_agent_run_projection(
+        RUN,
+        AgentRunProjectionControl(
+            request_id="operator-pause-1",
+            project_id=PROJECT,
+            expected_revision=6,
+            expected_state="REVIEW",
+            action="pause",
+        ),
+        svc=svc,
+    )
+
+    assert response["run"]["id"] == RUN
+    assert response["run"]["project_id"] == PROJECT
+    assert response["attempt_id"] == "00000000-0000-4000-8000-000000000001"
+    assert response["replayed"] is False
+    _, request = facade.control_requests[-1]
+    assert request.request_id == "operator-pause-1"
+    assert request.project_id == PROJECT
+    assert request.run_id == RUN
+    assert request.expected_revision == 6
+    assert request.expected_state == "REVIEW"
+    assert request.action == "pause"
+    assert request.operation_key == "agent-projection:pause:operator-pause-1"
+
+
+def test_projection_control_body_forbids_caller_invented_fields() -> None:
+    try:
+        AgentRunProjectionControl.model_validate(
+            {
+                "request_id": "operator-pause-1",
+                "project_id": PROJECT,
+                "expected_revision": 6,
+                "expected_state": "REVIEW",
+                "action": "pause",
+                "source_lineage_ref": "src:" + "b" * 64,
+            }
+        )
+    except Exception as exc:
+        assert "extra" in str(exc).lower()
+    else:  # pragma: no cover
+        raise AssertionError("control schema accepted caller-supplied source authority")
