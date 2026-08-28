@@ -269,7 +269,7 @@ try {
     await withApi({ projects: [] }, async (state) => {
       await withPage({ width: 390, height: 844 }, async (page) => {
         await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-        await page.getByLabel('Build mode').click();
+        await page.getByLabel('Build').click();
         await page.getByText('Choose a project for Build').waitFor({ timeout: 5000 });
         await page.getByLabel('Project name').fill('Mobile Builder');
         await page.getByLabel('Repository identity').fill('owner/mobile-builder');
