@@ -4,14 +4,15 @@ from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
 import json
+import math
 import re
 from types import MappingProxyType
 from typing import Iterable, Mapping
+from uuid import UUID
 
 from parallax_api.code.agent_run_projection import (
     AgentRunProjection,
     DeterministicDisposition,
-    ProjectionKnownState,
 )
 from parallax_api.code.agentic_observability import AgenticRunObservability
 from parallax_api.code.domain import AttemptStatus, WorkflowStage
@@ -40,10 +41,77 @@ _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 _TOKEN_RE = re.compile(r"^[a-z][a-z0-9._-]{1,63}$")
 _REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,191}$")
 _REASON_RE = re.compile(r"^[A-Z][A-Z0-9_]{1,95}$")
+_LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
+_AC_RE = re.compile(r"^AC-[0-9]{2,3}$")
 
 
 class IntegratedProductProofError(ValueError):
-    """Fail-closed error for malformed, cross-context, or non-canonical S6 evidence."""
+    """Fail closed for malformed, cross-context, or non-canonical S6 evidence."""
+
+
+def _token(value: str, field: str) -> str:
+    if not isinstance(value, str) or _TOKEN_RE.fullmatch(value) is None:
+        raise IntegratedProductProofError(f"{field} must be a bounded token")
+    return value
+
+
+def _reference(value: str, field: str) -> str:
+    if not isinstance(value, str) or _REF_RE.fullmatch(value) is None:
+        raise IntegratedProductProofError(f"{field} must be a bounded reference")
+    return value
+
+
+def _optional_reference(value: str | None, field: str) -> str | None:
+    if value is None:
+        return None
+    return _reference(value, field)
+
+
+def _uuid(value: str, field: str) -> str:
+    if not isinstance(value, str):
+        raise IntegratedProductProofError(f"{field} must be UUID text")
+    try:
+        return str(UUID(value))
+    except (TypeError, ValueError) as exc:
+        raise IntegratedProductProofError(f"{field} must be UUID text") from exc
+
+
+def _sha(value: str, field: str) -> str:
+    if not isinstance(value, str) or _SHA_RE.fullmatch(value) is None:
+        raise IntegratedProductProofError(f"{field} must be lowercase sha256 hex")
+    return value
+
+
+def _lineage(value: str, field: str) -> str:
+    if not isinstance(value, str) or _LINEAGE_RE.fullmatch(value) is None:
+        raise IntegratedProductProofError(f"{field} must be an exact protected lineage identity")
+    return value
+
+
+def _optional_lineage(value: str | None, field: str) -> str | None:
+    if value is None:
+        return None
+    return _lineage(value, field)
+
+
+def _acceptance_ids(values: Iterable[str]) -> tuple[str, ...]:
+    result = tuple(values)
+    if not result or len(result) != len(set(result)):
+        raise IntegratedProductProofError("acceptance_ids must be unique and non-empty")
+    if any(not isinstance(item, str) or _AC_RE.fullmatch(item) is None for item in result):
+        raise IntegratedProductProofError("acceptance_ids are invalid")
+    return result
+
+
+def _reason(value: str) -> str:
+    if not isinstance(value, str) or _REASON_RE.fullmatch(value) is None:
+        raise IntegratedProductProofError("reason_code must be a bounded uppercase token")
+    return value
+
+
+def _digest(value: object) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return sha256(encoded).hexdigest()
 
 
 class ProofObjectiveClass(StrEnum):
@@ -100,12 +168,7 @@ class IntegratedProofScenario:
         object.__setattr__(self, "value_dimension", value_dimension)
         object.__setattr__(self, "benchmark_case_id", _token(self.benchmark_case_id, "benchmark_case_id"))
         object.__setattr__(self, "repository_shape", _token(self.repository_shape, "repository_shape"))
-        acceptance = tuple(self.required_acceptance_ids)
-        if not acceptance or len(acceptance) != len(set(acceptance)):
-            raise IntegratedProductProofError("required_acceptance_ids must be unique and non-empty")
-        if any(re.fullmatch(r"AC-[0-9]{2,3}", item) is None for item in acceptance):
-            raise IntegratedProductProofError("required_acceptance_ids are invalid")
-        object.__setattr__(self, "required_acceptance_ids", acceptance)
+        object.__setattr__(self, "required_acceptance_ids", _acceptance_ids(self.required_acceptance_ids))
         object.__setattr__(self, "baseline_candidate_id", _token(self.baseline_candidate_id, "baseline_candidate_id"))
         for field in ("requires_recovery", "requires_parent_lineage", "requires_preview", "requires_browser"):
             if not isinstance(getattr(self, field), bool):
@@ -231,11 +294,27 @@ class ScenarioProofRecord:
     reason_code: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "scenario_id", _token(self.scenario_id, "scenario_id"))
+        scenario_id = _token(self.scenario_id, "scenario_id")
+        scenario = WAVE7_PROOF_SCENARIOS.get(scenario_id)
+        if scenario is None:
+            raise IntegratedProductProofError("scenario record is not part of the immutable Wave 7 portfolio")
+        object.__setattr__(self, "scenario_id", scenario_id)
         object.__setattr__(self, "scenario_version", _reference(self.scenario_version, "scenario_version"))
         object.__setattr__(self, "objective_class", _token(self.objective_class, "objective_class"))
+        object.__setattr__(self, "project_id", _uuid(self.project_id, "project_id"))
+        object.__setattr__(self, "work_specification_id", _uuid(self.work_specification_id, "work_specification_id"))
+        object.__setattr__(self, "run_id", _uuid(self.run_id, "run_id"))
+        if not isinstance(self.work_specification_revision, int) or isinstance(self.work_specification_revision, bool) or self.work_specification_revision < 1:
+            raise IntegratedProductProofError("work_specification_revision must be >= 1")
+        if not isinstance(self.run_revision, int) or isinstance(self.run_revision, bool) or self.run_revision < 0:
+            raise IntegratedProductProofError("run_revision must be >= 0")
+        object.__setattr__(self, "run_state", _reference(self.run_state, "run_state"))
+        object.__setattr__(self, "work_specification_digest", _sha(self.work_specification_digest, "work_specification_digest"))
+        object.__setattr__(self, "acceptance_ids", _acceptance_ids(self.acceptance_ids))
+        object.__setattr__(self, "source_lineage_ref", _lineage(self.source_lineage_ref, "source_lineage_ref"))
+        object.__setattr__(self, "parent_source_lineage_ref", _optional_lineage(self.parent_source_lineage_ref, "parent_source_lineage_ref"))
+        object.__setattr__(self, "preview_deployment_id", _optional_reference(self.preview_deployment_id, "preview_deployment_id"))
         for field in (
-            "work_specification_digest",
             "projection_fingerprint",
             "observability_fingerprint",
             "benchmark_case_digest",
@@ -245,17 +324,33 @@ class ScenarioProofRecord:
             object.__setattr__(self, field, _sha(getattr(self, field), field))
         if self.browser_target_digest is not None:
             object.__setattr__(self, "browser_target_digest", _sha(self.browser_target_digest, "browser_target_digest"))
-        evidence_digests = tuple(_sha(item, "browser_evidence_digest") for item in self.browser_evidence_digests)
-        object.__setattr__(self, "browser_evidence_digests", evidence_digests)
+        object.__setattr__(
+            self,
+            "browser_evidence_digests",
+            tuple(_sha(item, "browser_evidence_digest") for item in self.browser_evidence_digests),
+        )
         try:
             object.__setattr__(self, "observability_coverage", ProofCoverageState(self.observability_coverage))
             object.__setattr__(self, "browser_state", ProofBrowserState(self.browser_state))
+            BenchmarkDimension(self.value_dimension)
+            ComparisonOutcome(self.value_outcome)
+            ParallaxBenchDisposition(self.benchmark_disposition)
+            DeterministicDisposition(self.deterministic_disposition)
         except ValueError as exc:
             raise IntegratedProductProofError("invalid proof record state") from exc
+        object.__setattr__(self, "final_handoff", _optional_reference(self.final_handoff, "final_handoff"))
         for field in ("value_materially_improved", "recovery_proven", "protected_passed", "evidence_complete"):
             if not isinstance(getattr(self, field), bool):
                 raise IntegratedProductProofError(f"{field} must be bool")
         object.__setattr__(self, "reason_code", _reason(self.reason_code))
+
+        if (
+            self.scenario_version != scenario.scenario_version
+            or self.objective_class != scenario.objective_class.value
+            or self.acceptance_ids != scenario.required_acceptance_ids
+            or self.value_dimension != scenario.value_dimension.value
+        ):
+            raise IntegratedProductProofError("scenario record metadata does not match immutable S6 policy")
 
     @property
     def fingerprint(self) -> str:
@@ -338,8 +433,8 @@ class IntegratedProductProofResult:
             raise IntegratedProductProofError("unsupported integrated proof version")
         object.__setattr__(self, "portfolio_digest", _sha(self.portfolio_digest, "portfolio_digest"))
         fingerprints = tuple(_sha(item, "scenario_fingerprint") for item in self.scenario_fingerprints)
-        if len(fingerprints) != len(WAVE7_PROOF_SCENARIOS):
-            raise IntegratedProductProofError("aggregate proof must contain the complete immutable scenario portfolio")
+        if len(fingerprints) != len(WAVE7_PROOF_SCENARIOS) or len(fingerprints) != len(set(fingerprints)):
+            raise IntegratedProductProofError("aggregate proof requires one result for every immutable scenario")
         object.__setattr__(self, "scenario_fingerprints", fingerprints)
         for field in ("protected_passed", "evidence_complete", "material_value_demonstrated"):
             if not isinstance(getattr(self, field), bool):
@@ -352,6 +447,10 @@ class IntegratedProductProofResult:
         object.__setattr__(self, "reason_code", _reason(self.reason_code))
         if self.autonomous_ceiling != "HUMAN_REQUIRED":
             raise IntegratedProductProofError("integrated proof cannot raise the autonomous REVIEW ceiling")
+        if disposition is ProofDisposition.RELEASE_QUALIFIED and not (
+            self.protected_passed and self.evidence_complete and self.material_value_demonstrated
+        ):
+            raise IntegratedProductProofError("release-qualified proof requires complete protected value evidence")
 
     @property
     def release_qualified(self) -> bool:
@@ -422,9 +521,9 @@ def build_scenario_proof(
     if not isinstance(benchmark_result, ParallaxBenchResult):
         raise IntegratedProductProofError("S6 requires canonical ParallaxBench result evidence")
 
-    identity = projection.identity
     _validate_scenario_case(scenario, benchmark_case)
     _validate_identity_continuity(
+        scenario=scenario,
         projection=projection,
         observability=observability,
         benchmark_case=benchmark_case,
@@ -440,9 +539,11 @@ def build_scenario_proof(
     if recomputed.result_digest != benchmark_result.result_digest or recomputed.fingerprint != benchmark_result.fingerprint:
         raise IntegratedProductProofError("benchmark result does not match exact canonical benchmark inputs")
 
+    identity = projection.identity
     lineage = projection.latest_source_lineage_ref
-    if lineage is None or not lineage.startswith("src:") or len(lineage) != 68:
+    if lineage is None:
         raise IntegratedProductProofError("proof requires exact accepted source lineage")
+    lineage = _lineage(lineage, "source_lineage_ref")
     if projection.delivery.source_lineage_ref != lineage:
         raise IntegratedProductProofError("delivery lineage does not match the canonical projection lineage")
     if benchmark_challenger.binding.source_context_digest != lineage.removeprefix("src:"):
@@ -478,7 +579,7 @@ def build_scenario_proof(
         not scenario.requires_preview
         or (
             projection.delivery.preview_deployment_id is not None
-            and projection.delivery.preview_status is not None
+            and projection.delivery.preview_status == "READY"
             and projection.delivery.source_lineage_ref == lineage
         )
     )
@@ -603,10 +704,12 @@ def safe_scenario_proof_json(record: ScenarioProofRecord) -> str:
 
 
 def _validate_scenario_case(scenario: IntegratedProofScenario, case: BenchmarkCase) -> None:
-    expected_dimensions = tuple(sorted(
-        (BenchmarkDimension.PROTECTED_CORRECTNESS, scenario.value_dimension),
-        key=lambda item: item.value,
-    ))
+    expected_dimensions = tuple(
+        sorted(
+            (BenchmarkDimension.PROTECTED_CORRECTNESS, scenario.value_dimension),
+            key=lambda item: item.value,
+        )
+    )
     if (
         case.case_id != scenario.benchmark_case_id
         or case.case_version != scenario.scenario_version
@@ -615,13 +718,14 @@ def _validate_scenario_case(scenario: IntegratedProofScenario, case: BenchmarkCa
         or case.acceptance_ids != scenario.required_acceptance_ids
         or case.comparable_dimensions != expected_dimensions
         or case.fixture_digest != scenario.fixture_digest
-        or case.expected_ceiling is ProtectedCeiling.DETERMINISTIC_BLOCKED
+        or case.expected_ceiling is not ProtectedCeiling.HUMAN_REQUIRED
     ):
         raise IntegratedProductProofError("benchmark case does not match immutable S6 scenario policy")
 
 
 def _validate_identity_continuity(
     *,
+    scenario: IntegratedProofScenario,
     projection: AgentRunProjection,
     observability: AgenticRunObservability,
     benchmark_case: BenchmarkCase,
@@ -666,8 +770,7 @@ def _validate_identity_continuity(
     )
     if challenger_identity != expected:
         raise IntegratedProductProofError("benchmark challenger crosses canonical Work Specification identity")
-    scenario = next((item for item in _SCENARIOS if item.benchmark_case_id == benchmark_case.case_id), None)
-    if scenario is None or benchmark_baseline.binding.candidate_id != scenario.baseline_candidate_id:
+    if benchmark_baseline.binding.candidate_id != scenario.baseline_candidate_id:
         raise IntegratedProductProofError("benchmark baseline is not the predeclared server-owned scenario baseline")
 
 
@@ -679,25 +782,29 @@ def _ordinary_lifecycle_complete(projection: AgentRunProjection) -> bool:
         WorkflowStage.TEST.value,
         WorkflowStage.VERIFY.value,
     )
-    by_stage = {stage: [item for item in projection.tasks if item.stage == stage] for stage in required}
-    if any(not rows for rows in by_stage.values()):
-        return False
-    return all(rows[-1].status == AttemptStatus.PASSED.value for rows in by_stage.values())
+    for stage in required:
+        rows = [item for item in projection.tasks if item.stage == stage]
+        if not rows or rows[-1].status != AttemptStatus.PASSED.value:
+            return False
+    return True
 
 
 def _recovery_proven(projection: AgentRunProjection) -> bool:
     recovery = projection.recovery
+    numeric = (
+        recovery.checkpoint_revision,
+        recovery.retry_count,
+        recovery.no_progress_count,
+        recovery.oscillation_count,
+    )
     return (
         recovery.execution_id is not None
         and recovery.state is not None
+        and all(value is not None and isinstance(value, int) and value >= 0 for value in numeric)
         and recovery.checkpoint_revision is not None
         and recovery.checkpoint_revision >= 1
         and recovery.retry_count is not None
         and recovery.retry_count >= 1
-        and recovery.no_progress_count is not None
-        and recovery.no_progress_count >= 0
-        and recovery.oscillation_count is not None
-        and recovery.oscillation_count >= 0
     )
 
 
@@ -741,11 +848,11 @@ def _browser_proof(
             or record.target_digest != target.digest
         ):
             raise IntegratedProductProofError("browser evidence record crosses admitted target identity")
+        digests.append(record.digest)
         if record.outcome is not BrowserOutcome.SUCCEEDED:
-            return ProofBrowserState.FAILED, target.digest, tuple(item.digest for item in browser.records)
+            return ProofBrowserState.FAILED, target.digest, tuple(digests)
         if record.action is BrowserAction.ASSERT and record.assertion_passed is True:
             assertion_passed = True
-        digests.append(record.digest)
     return (
         ProofBrowserState.PASSED if assertion_passed else ProofBrowserState.FAILED,
         target.digest,
@@ -758,32 +865,3 @@ def _comparison(result: ParallaxBenchResult, dimension: BenchmarkDimension):
         if item.dimension is dimension:
             return item
     raise IntegratedProductProofError("benchmark result is missing a required comparison")
-
-
-def _token(value: str, field: str) -> str:
-    if not isinstance(value, str) or _TOKEN_RE.fullmatch(value) is None:
-        raise IntegratedProductProofError(f"{field} must be a bounded token")
-    return value
-
-
-def _reference(value: str, field: str) -> str:
-    if not isinstance(value, str) or _REF_RE.fullmatch(value) is None:
-        raise IntegratedProductProofError(f"{field} must be a bounded reference")
-    return value
-
-
-def _sha(value: str, field: str) -> str:
-    if not isinstance(value, str) or _SHA_RE.fullmatch(value) is None:
-        raise IntegratedProductProofError(f"{field} must be lowercase sha256 hex")
-    return value
-
-
-def _reason(value: str) -> str:
-    if not isinstance(value, str) or _REASON_RE.fullmatch(value) is None:
-        raise IntegratedProductProofError("reason_code must be a bounded uppercase token")
-    return value
-
-
-def _digest(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return sha256(encoded).hexdigest()
