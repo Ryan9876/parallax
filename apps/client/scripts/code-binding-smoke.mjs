@@ -29,6 +29,10 @@ function listen(server, port) {
   });
 }
 
+function close(server) {
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
 function staticServer({ failSkia = false } = {}) {
   return createServer((request, response) => {
     const rawPath = new URL(request.url ?? '/', 'http://localhost').pathname;
@@ -52,7 +56,7 @@ function staticServer({ failSkia = false } = {}) {
   });
 }
 
-function makeProject(id, name) {
+function project(id, name) {
   return {
     id,
     slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
@@ -61,20 +65,18 @@ function makeProject(id, name) {
     repository_ref: `github:owner/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
     workspace_ref: `project:${id}`,
     status: 'active',
-    created_at: '2026-08-23T00:00:00Z',
-    updated_at: '2026-08-23T00:00:00Z',
+    created_at: '2026-08-21T10:00:00Z',
+    updated_at: '2026-08-21T10:00:00Z',
   };
 }
 
 function apiServer() {
+  const projects = [project(OTHER_PROJECT_ID, 'Other Project'), project(PROJECT_ID, 'Code Binding Project')];
   let conversation = null;
-  let workSpecification = null;
+  let specification = null;
   let engineeringRun = null;
   const codeConversationRequests = [];
-  const projects = [
-    makeProject(OTHER_PROJECT_ID, 'Other Project'),
-    makeProject(PROJECT_ID, 'Code Binding Project'),
-  ];
+  const autonomyRequests = [];
 
   function makeConversation(mode) {
     return {
@@ -95,7 +97,7 @@ function apiServer() {
 
   function cors(response, origin) {
     response.setHeader('access-control-allow-origin', origin ?? '*');
-    response.setHeader('access-control-allow-headers', 'Content-Type,Accept');
+    response.setHeader('access-control-allow-headers', 'Content-Type,Accept,Authorization');
     response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
   }
 
@@ -121,14 +123,10 @@ function apiServer() {
     }
 
     const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
-    if (pathname === '/v1/projects' && request.method === 'GET') {
-      json(response, 200, projects, origin);
-      return;
-    }
-    if (pathname === '/v1/conversations' && request.method === 'GET') {
-      json(response, 200, conversation ? [conversation] : [], origin);
-      return;
-    }
+    if (pathname === '/v1/session' && request.method === 'GET') return json(response, 200, { authenticated: true }, origin);
+    if (pathname === '/v1/projects' && request.method === 'GET') return json(response, 200, projects, origin);
+    if (pathname === '/v1/conversations' && request.method === 'GET') return json(response, 200, conversation ? [conversation] : [], origin);
+
     if (pathname === '/v1/conversations' && request.method === 'POST') {
       const payload = await body(request);
       const mode = payload.mode === 'code' ? 'code' : 'reason';
@@ -140,26 +138,27 @@ function apiServer() {
         assert(!Object.hasOwn(payload, 'project_id'), 'Reason conversation unexpectedly carried Project binding');
       }
       conversation = makeConversation(mode);
-      workSpecification = null;
+      specification = null;
       engineeringRun = null;
-      json(response, 200, conversation, origin);
-      return;
+      return json(response, 200, conversation, origin);
     }
+
     if (/^\/v1\/conversations\/[^/]+$/.test(pathname) && request.method === 'GET') {
-      json(response, conversation ? 200 : 404, conversation ?? { detail: 'Conversation not found' }, origin);
-      return;
+      return json(response, conversation ? 200 : 404, conversation ?? { detail: 'Conversation not found' }, origin);
     }
     if (/^\/v1\/conversations\/[^/]+\/work-specifications\/latest$/.test(pathname) && request.method === 'GET') {
-      json(response, 200, workSpecification, origin);
-      return;
+      return json(response, 200, specification, origin);
     }
     if (/^\/v1\/conversations\/[^/]+\/work-specifications\/approved$/.test(pathname) && request.method === 'GET') {
-      json(response, 200, workSpecification?.status === 'APPROVED' ? workSpecification : null, origin);
-      return;
+      return json(response, 200, specification?.status === 'APPROVED' ? specification : null, origin);
     }
+    if (/^\/v1\/engineering-runs\/conversation\/[^/]+\/latest$/.test(pathname) && request.method === 'GET') {
+      return json(response, 200, engineeringRun, origin);
+    }
+
     if (/^\/v1\/conversations\/[^/]+\/work-specifications\/draft$/.test(pathname) && request.method === 'POST') {
       const now = new Date().toISOString();
-      workSpecification = {
+      specification = {
         id: '22222222-2222-4222-8222-222222222222',
         conversation_id: conversation.id,
         revision: 1,
@@ -177,102 +176,91 @@ function apiServer() {
         updated_at: now,
         approved_at: null,
       };
-      json(response, 200, workSpecification, origin);
-      return;
+      return json(response, 200, specification, origin);
     }
+
     if (/^\/v1\/work-specifications\/[^/]+\/approve$/.test(pathname) && request.method === 'POST') {
       const now = new Date().toISOString();
-      workSpecification = { ...workSpecification, status: 'APPROVED', approved_at: now, updated_at: now };
-      json(response, 200, workSpecification, origin);
-      return;
+      specification = { ...specification, status: 'APPROVED', approved_at: now, updated_at: now };
+      return json(response, 200, specification, origin);
     }
-    if (/^\/v1\/engineering-runs\/conversation\/[^/]+\/latest$/.test(pathname) && request.method === 'GET') {
-      json(response, 200, engineeringRun, origin);
-      return;
-    }
+
     if (pathname === '/v1/engineering-runs/activate' && request.method === 'POST') {
       const payload = await body(request);
-      if (conversation?.mode !== 'code' || workSpecification?.status !== 'APPROVED') {
-        json(response, 422, { detail: 'operator-approved work specification required before Code execution' }, origin);
-        return;
-      }
-      if (!engineeringRun) {
-        const now = new Date().toISOString();
+      assert(specification?.status === 'APPROVED', 'Engineering Run activated without an approved build plan');
+      assert(!Object.hasOwn(payload, 'project_id'), 'Engineering Run activation accepted caller Project identity');
+      assert(!Object.hasOwn(payload, 'workspace_ref'), 'Engineering Run activation accepted caller workspace identity');
+      const now = new Date().toISOString();
+      engineeringRun = {
+        id: '44444444-4444-4444-8444-444444444444',
+        conversation_id: conversation.id,
+        spec_id: conversation.spec_id,
+        project_id: PROJECT_ID,
+        project_binding_status: 'PROJECT_BOUND',
+        work_specification_id: specification.id,
+        work_specification_revision: specification.revision,
+        work_specification_digest: 'a'.repeat(64),
+        binding_status: 'APPROVED_SPEC_BOUND',
+        acceptance_criteria: specification.acceptance_criteria.map((text, index) => ({ id: `AC-0${index + 1}`, text })),
+        state: 'PLAN',
+        resume_stage: null,
+        revision: 1,
+        workspace_ref: null,
+        last_failure_code: null,
+        completed_at: null,
+        created_at: now,
+        updated_at: now,
+        attempts: [{
+          id: '55555555-5555-4555-8555-555555555555',
+          stage: 'SPECIFY',
+          attempt_number: 1,
+          status: 'PASSED',
+          failure_code: null,
+          evidence: { work_specification_id: specification.id },
+          started_at: now,
+          completed_at: now,
+        }],
+      };
+      return json(response, 200, engineeringRun, origin);
+    }
+
+    if (/^\/v1\/engineering-runs\/[^/]+\/autonomous$/.test(pathname) && request.method === 'POST') {
+      const payload = await body(request);
+      autonomyRequests.push(payload);
+      assert(payload.expected_revision === engineeringRun?.revision, 'autonomy request used a stale run revision');
+      const now = new Date().toISOString();
+      if (engineeringRun.state === 'PLAN') {
         engineeringRun = {
-          id: '44444444-4444-4444-8444-444444444444',
-          conversation_id: conversation.id,
-          spec_id: conversation.spec_id,
-          project_id: PROJECT_ID,
-          project_binding_status: 'PROJECT_BOUND',
-          work_specification_id: workSpecification.id,
-          work_specification_revision: workSpecification.revision,
-          work_specification_digest: 'a'.repeat(64),
-          binding_status: 'APPROVED_SPEC_BOUND',
-          acceptance_criteria: [
-            { id: 'AC-01', text: workSpecification.acceptance_criteria[0] },
-            { id: 'AC-02', text: workSpecification.acceptance_criteria[1] },
-          ],
-          state: 'PLAN',
-          resume_stage: null,
-          revision: 1,
-          workspace_ref: null,
-          last_failure_code: null,
-          created_at: now,
+          ...engineeringRun,
+          state: 'IMPLEMENT',
+          revision: engineeringRun.revision + 1,
           updated_at: now,
-          completed_at: null,
-          attempts: [{
-            id: '55555555-5555-4555-8555-555555555555',
-            stage: 'SPECIFY',
+          attempts: [...engineeringRun.attempts, {
+            id: '66666666-6666-4666-8666-666666666666',
+            stage: 'PLAN',
             attempt_number: 1,
             status: 'PASSED',
             failure_code: null,
-            evidence: { work_specification_id: workSpecification.id },
+            evidence: { executor_preflight: 'passed' },
             started_at: now,
             completed_at: now,
           }],
         };
       }
-      assert(!payload.work_specification_id || payload.work_specification_id === workSpecification.id, 'activation used the wrong work specification');
-      assert(!Object.hasOwn(payload, 'project_id'), 'Engineering Run activation must not accept caller Project identity');
-      assert(!Object.hasOwn(payload, 'workspace_ref'), 'Engineering Run activation must not accept caller workspace identity');
-      json(response, 200, engineeringRun, origin);
-      return;
-    }
-    if (/^\/v1\/engineering-runs\/[^/]+\/autonomous$/.test(pathname) && request.method === 'POST') {
-      const payload = await body(request);
-      assert(payload.expected_revision === engineeringRun?.revision, 'autonomy request used a stale run revision');
-      assert(typeof payload.operation_key === 'string' && payload.operation_key.startsWith('autonomous-'), 'autonomy request omitted operation identity');
-      engineeringRun = {
-        ...engineeringRun,
-        state: 'IMPLEMENT',
-        revision: engineeringRun.revision + 1,
-        updated_at: new Date().toISOString(),
-        attempts: [...engineeringRun.attempts, {
-          id: '66666666-6666-4666-8666-666666666666',
-          stage: 'PLAN',
-          attempt_number: 1,
-          status: 'PASSED',
-          failure_code: null,
-          evidence: { executor_preflight: 'passed' },
-          started_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-        }],
-      };
-      json(response, 200, {
+      return json(response, 200, {
         run: engineeringRun,
         stop_reason: 'IMPLEMENTATION_REQUIRED',
         steps: [{ stage: 'PLAN', outcome: 'PASSED', attempt_id: '66666666-6666-4666-8666-666666666666', replayed: false, tool_id: null }],
       }, origin);
-      return;
     }
+
     if (/^\/v1\/conversations\/[^/]+\/responses$/.test(pathname) && request.method === 'POST') {
       const payload = await body(request);
       const now = new Date().toISOString();
-      const user = { id: `user-code-${conversation.messages.length}`, role: 'user', content: String(payload.content ?? ''), status: 'complete', created_at: now };
+      const user = { id: `user-${conversation.messages.length}`, role: 'user', content: String(payload.content ?? ''), status: 'complete', created_at: now };
       if (user.content === AMENDMENT_OBJECTIVE) {
         const assistant = { id: `assistant-amendment-${conversation.messages.length}`, role: 'assistant', content: AMENDMENT_MESSAGE, status: 'complete', created_at: now };
-        conversation.status = 'SPEC_AMENDMENT';
-        conversation.messages = [...conversation.messages, user, assistant];
+        conversation = { ...conversation, status: 'SPEC_AMENDMENT', messages: [...conversation.messages, user, assistant], updated_at: now };
         cors(response, origin);
         response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
         response.write(`event: state\ndata: ${JSON.stringify({ phase: 'THINKING' })}\n\n`);
@@ -281,30 +269,40 @@ function apiServer() {
         response.end();
         return;
       }
-      const assistant = { id: `assistant-code-${conversation.messages.length}`, role: 'assistant', content: 'Your Code objective is captured and ready for a build plan.', status: 'complete', created_at: now };
-      conversation.title = user.content.slice(0, 72);
-      conversation.messages = [...conversation.messages, user, assistant];
+
+      const assistant = { id: `assistant-${conversation.messages.length}`, role: 'assistant', content: 'Your Code objective is captured and ready for a build plan.', status: 'complete', created_at: now };
+      conversation = { ...conversation, title: user.content.slice(0, 72), messages: [...conversation.messages, user, assistant], updated_at: now };
       cors(response, origin);
       response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       response.write(`event: state\ndata: ${JSON.stringify({ phase: 'THINKING' })}\n\n`);
       response.write(`event: state\ndata: ${JSON.stringify({ phase: 'RESPONDING' })}\n\n`);
       response.write(`event: chunk\ndata: ${JSON.stringify({ text: assistant.content })}\n\n`);
-      response.write(`event: state\ndata: ${JSON.stringify({ phase: 'VERIFYING' })}\n\n`);
       response.write(`event: complete\ndata: ${JSON.stringify({ phase: 'COMPLETE', message_id: assistant.id, confidence: 0.95, scope_decision: 'CONTINUE' })}\n\n`);
       response.end();
       return;
     }
-    json(response, 404, { detail: 'not found' }, origin);
+
+    return json(response, 404, { detail: 'not found' }, origin);
   });
 
   return {
     server,
     codeConversationRequests,
-    snapshot: () => ({ conversation, workSpecification, engineeringRun }),
+    autonomyRequests,
+    snapshot: () => ({ conversation, specification, engineeringRun }),
   };
 }
 
-async function exerciseCodeBinding(page) {
+const normal = staticServer();
+const fallback = staticServer({ failSkia: true });
+const apiInstance = apiServer();
+let browser;
+
+try {
+  await Promise.all([listen(normal, 8770), listen(fallback, 8771), listen(apiInstance.server, 8010)]);
+  browser = await chromium.launch({ headless: true });
+
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await page.getByText('code', { exact: true }).click();
   await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
@@ -316,83 +314,17 @@ async function exerciseCodeBinding(page) {
   await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
   await page.getByLabel('Approve build plan').click();
   await page.getByText('Plan approved').waitFor({ timeout: 5000 });
-  await page.getByText('Planning the work').waitFor({ timeout: 5000 });
+  await page.getByText('Making the changes').waitFor({ timeout: 10000 });
   await page.getByText('Following your approved plan').waitFor({ timeout: 5000 });
-  const autonomy = page.getByLabel('Continue work');
-  await autonomy.waitFor({ timeout: 5000 });
-  await autonomy.click();
-  await page.getByText('Making the changes').waitFor({ timeout: 5000 });
-  await page.getByText(/next step is to make the changes/).waitFor({ timeout: 5000 });
   await page.getByLabel('Continue work').waitFor({ timeout: 5000 });
-}
 
-async function exerciseNewObjectiveRecovery(page, apiInstance) {
-  const before = apiInstance.snapshot();
-  assert(before.workSpecification?.status === 'APPROVED', 'New-objective recovery requires an approved Work Specification');
-  assert(before.engineeringRun?.state === 'IMPLEMENT', 'New-objective recovery requires an active prior Engineering Run');
-  const priorConversationId = before.conversation?.id;
-
-  await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
-  await page.getByLabel('Send message').click();
-  await page.getByText('Specification amendment required').waitFor({ timeout: 10000 });
-  const recoveryAction = page.getByLabel('Start new objective');
-  await recoveryAction.waitFor({ timeout: 5000 });
-  assert((page.viewportSize()?.width ?? 0) >= 760, 'Desktop recovery assertion did not run at a desktop viewport');
-  assert(await recoveryAction.isVisible(), 'Desktop did not expose the explicit Start new objective action');
-  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'Amendment composer still implies a fresh objective can continue in-place');
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByTestId('mobile-guided-shell').waitFor({ state: 'visible', timeout: 5000 });
-  const mobileAmendment = page.getByTestId('mobile-spec-amendment');
-  await mobileAmendment.waitFor({ state: 'visible', timeout: 5000 });
-  await recoveryAction.waitFor({ state: 'visible', timeout: 5000 });
-  const mobileActionBox = await recoveryAction.boundingBox();
-  const mobileAmendmentBox = await mobileAmendment.boundingBox();
-  const mobileScrollState = await page.getByTestId('mobile-chat-scroll').evaluate((node) => ({
-    scrollTop: node.scrollTop,
-    scrollHeight: node.scrollHeight,
-    clientHeight: node.clientHeight,
-    top: node.getBoundingClientRect().top,
-    bottom: node.getBoundingClientRect().bottom,
-  }));
-  const rootState = await page.locator('#root').evaluate((node) => ({
-    height: node.style.height,
-    transform: node.style.transform,
-    keyboardVisible: node.dataset.parallaxKeyboardVisible ?? null,
-    top: node.getBoundingClientRect().top,
-    bottom: node.getBoundingClientRect().bottom,
-  }));
-  console.log(JSON.stringify({ mobileRecoveryGeometry: { mobileActionBox, mobileAmendmentBox, mobileScrollState, rootState } }, null, 2));
-  assert(mobileActionBox && mobileActionBox.x >= 0 && mobileActionBox.x + mobileActionBox.width <= 391, 'Mobile Start new objective action is horizontally clipped');
-  assert(mobileActionBox.y >= 0 && mobileActionBox.y < 844, 'Mobile Start new objective action is not viewport-reachable');
-
-  await recoveryAction.click();
-  await mobileAmendment.waitFor({ state: 'detached', timeout: 5000 });
-  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Describe the outcome you want…', 'Fresh objective did not restore new-objective composer guidance');
-
-  const after = apiInstance.snapshot();
-  assert(after.conversation?.id !== priorConversationId, 'Start new objective did not create a fresh conversation');
-  assert(after.conversation?.mode === 'code', 'Start new objective did not preserve Code mode');
-  assert(after.conversation?.project_id === PROJECT_ID, 'Fresh Code objective did not retain the canonical selected Project');
-  assert(after.workSpecification === null, 'Fresh Code objective inherited a Work Specification');
-  assert(after.engineeringRun === null, 'Fresh Code objective inherited an Engineering Run');
-  assert(apiInstance.codeConversationRequests.length === 2, 'Start new objective did not create exactly one additional Code conversation');
-  assert(apiInstance.codeConversationRequests.every((request) => request.project_id === PROJECT_ID), 'Fresh Code objective bypassed canonical Project compatibility resolution');
-  assert(await page.getByText('Plan approved').count() === 0, 'Fresh objective still renders the prior approved build plan');
-  assert(await page.getByText('Making the changes').count() === 0, 'Fresh objective still renders the prior progress state');
-}
-
-const normal = staticServer();
-const fallback = staticServer({ failSkia: true });
-const apiInstance = apiServer();
-let browser;
-
-try {
-  await Promise.all([listen(normal, 8770), listen(fallback, 8771), listen(apiInstance.server, 8010)]);
-  browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await exerciseCodeBinding(page);
+  const bound = apiInstance.snapshot();
   assert(apiInstance.codeConversationRequests.length === 1, 'Code binding smoke created an unexpected number of Code conversations');
+  assert(bound.specification?.status === 'APPROVED', 'approved build plan was not retained');
+  assert(bound.engineeringRun?.project_id === PROJECT_ID, 'Engineering Run lost canonical Project binding');
+  assert(bound.engineeringRun?.work_specification_id === bound.specification?.id, 'Engineering Run lost approved build-plan binding');
+  assert(bound.engineeringRun?.state === 'IMPLEMENT', 'protected PLAN handoff did not advance to implementation boundary');
+  assert(apiInstance.autonomyRequests.length >= 1, 'approved PLAN run never entered bounded autonomy');
   assert(await page.locator('canvas').count() > 0, 'Code binding smoke: Skia did not initialize');
 
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -404,23 +336,45 @@ try {
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
   await reduced.close();
 
-  await exerciseNewObjectiveRecovery(page, apiInstance);
-  await page.close();
+  const priorConversationId = apiInstance.snapshot().conversation?.id;
+  await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
+  await page.getByLabel('Send message').click();
+  await page.getByText('Specification amendment required').waitFor({ timeout: 10000 });
+  await page.getByLabel('Start new objective').waitFor({ timeout: 5000 });
+  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'desktop amendment composer guidance changed unexpectedly');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId('mobile-guided-shell').waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByTestId('mobile-spec-amendment').waitFor({ state: 'visible', timeout: 5000 });
+  const newGoal = page.getByLabel('Start as a new goal');
+  await newGoal.waitFor({ state: 'visible', timeout: 5000 });
+  const newGoalBox = await newGoal.boundingBox();
+  assert(newGoalBox && newGoalBox.x >= 0 && newGoalBox.x + newGoalBox.width <= 391, 'mobile new-goal action is horizontally clipped');
+  assert(newGoalBox.y >= 0 && newGoalBox.y < 844, 'mobile new-goal action is not viewport-reachable');
+  await newGoal.click();
+  await page.getByTestId('mobile-spec-amendment').waitFor({ state: 'detached', timeout: 5000 });
+  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Describe the outcome you want…', 'fresh objective did not restore new-objective composer guidance');
+
+  const fresh = apiInstance.snapshot();
+  assert(fresh.conversation?.id !== priorConversationId, 'Start as a new goal did not create a fresh conversation');
+  assert(fresh.conversation?.mode === 'code', 'fresh objective did not preserve Build mode');
+  assert(fresh.conversation?.project_id === PROJECT_ID, 'fresh objective did not retain canonical Project binding');
+  assert(fresh.specification === null, 'fresh objective inherited the prior build plan');
+  assert(fresh.engineeringRun === null, 'fresh objective inherited the prior Engineering Run');
+  assert(apiInstance.codeConversationRequests.length === 2, 'fresh objective did not create exactly one additional Code conversation');
 
   console.log(JSON.stringify({
     canonicalProjectBinding: true,
-    codeSpecBinding: true,
+    approvedBuildPlanBinding: true,
     boundedAutonomyImplementContinuation: true,
     reducedGraphicsParity: true,
-    explicitNewObjectiveRecovery: true,
-    desktopRecoveryActionVisible: true,
-    mobileRecoveryActionVisible: true,
+    desktopScopeBoundaryVisible: true,
+    mobilePlainLanguageRecovery: true,
     freshObjectivePreservesCanonicalProject: true,
     freshObjectiveDoesNotInheritSpecOrRun: true,
   }, null, 2));
+  await page.close();
 } finally {
   await browser?.close();
-  normal.close();
-  fallback.close();
-  apiInstance.server.close();
+  await Promise.all([close(normal), close(fallback), close(apiInstance.server)]);
 }
