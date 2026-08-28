@@ -76,7 +76,7 @@ export function MobileHeader({ mode, projectId, conversationTitle, onModeChange,
     : shortProject(projectId);
 
   return (
-    <View style={styles.header} testID="mobile-workspace-header">
+    <View style={[styles.header, Platform.OS === 'web' && styles.headerWebAccountSpace]} testID="mobile-workspace-header">
       <View style={styles.headerIdentity}>
         <ParallaxLogo size={34} />
         <View style={styles.headerCopy}>
@@ -602,6 +602,7 @@ const mono = Platform.OS === 'web' ? 'ui-monospace, SFMono-Regular, Menlo, Conso
 
 const styles = StyleSheet.create({
   header: { minHeight: 78, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: 'rgba(251,247,238,0.98)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  headerWebAccountSpace: { paddingRight: 68 },
   headerIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerCopy: { flex: 1, minWidth: 0 },
   brand: { color: palette.charcoal950, fontSize: 20, lineHeight: 23, fontWeight: '700', fontFamily: serif },
