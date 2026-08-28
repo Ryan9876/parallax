@@ -281,7 +281,7 @@ function apiServer() {
         response.end();
         return;
       }
-      const assistant = { id: `assistant-code-${conversation.messages.length}`, role: 'assistant', content: 'The Code objective is captured and ready for an explicit Work Specification.', status: 'complete', created_at: now };
+      const assistant = { id: `assistant-code-${conversation.messages.length}`, role: 'assistant', content: 'Your Code objective is captured and ready for a build plan.', status: 'complete', created_at: now };
       conversation.title = user.content.slice(0, 72);
       conversation.messages = [...conversation.messages, user, assistant];
       cors(response, origin);
@@ -311,19 +311,20 @@ async function exerciseCodeBinding(page) {
   await page.getByLabel('Select Project Code Binding Project').click();
   await page.getByLabel('Message Parallax').fill('Implement the approved Code objective.');
   await page.getByLabel('Send message').click();
-  await page.getByText(/The Code objective is captured/).first().waitFor({ timeout: 10000 });
-  await page.getByLabel('Capture work specification').click();
-  await page.getByText('SPEC · DRAFT').waitFor({ timeout: 5000 });
-  await page.getByLabel('Approve work specification').click();
-  await page.getByText('SPEC · APPROVED').waitFor({ timeout: 5000 });
-  await page.getByText('Code run · PLAN').waitFor({ timeout: 5000 });
-  await page.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
-  const autonomy = page.getByLabel('Run autonomously');
+  await page.getByText(/Your Code objective is captured/).first().waitFor({ timeout: 10000 });
+  await page.getByLabel('Create build plan').click();
+  await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
+  await page.getByLabel('Approve build plan').click();
+  await page.getByText('Plan approved').waitFor({ timeout: 5000 });
+  await page.getByText('Planning the work').waitFor({ timeout: 5000 });
+  await page.getByText('Following your approved plan').waitFor({ timeout: 5000 });
+  await page.getByText('STEP 2 OF 5').waitFor({ timeout: 5000 });
+  const autonomy = page.getByLabel('Continue work');
   await autonomy.waitFor({ timeout: 5000 });
   await autonomy.click();
-  await page.getByText('Code run · IMPLEMENT').waitFor({ timeout: 5000 });
-  await page.getByText(/protected implementation can continue here/).waitFor({ timeout: 5000 });
-  await page.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
+  await page.getByText('Making the changes').waitFor({ timeout: 5000 });
+  await page.getByText(/next step is to make the changes/).waitFor({ timeout: 5000 });
+  await page.getByLabel('Continue work').waitFor({ timeout: 5000 });
 }
 
 async function exerciseNewObjectiveRecovery(page, apiInstance) {
@@ -378,8 +379,8 @@ async function exerciseNewObjectiveRecovery(page, apiInstance) {
   assert(after.engineeringRun === null, 'Fresh Code objective inherited an Engineering Run');
   assert(apiInstance.codeConversationRequests.length === 2, 'Start new objective did not create exactly one additional Code conversation');
   assert(apiInstance.codeConversationRequests.every((request) => request.project_id === PROJECT_ID), 'Fresh Code objective bypassed canonical Project compatibility resolution');
-  assert(await page.getByText('SPEC · APPROVED').count() === 0, 'Fresh objective still renders the prior approved Work Specification');
-  assert(await page.getByText(/Code run ·/).count() === 0, 'Fresh objective still renders the prior Engineering Run');
+  assert(await page.getByText('Plan approved').count() === 0, 'Fresh objective still renders the prior approved build plan');
+  assert(await page.getByText('Making the changes').count() === 0, 'Fresh objective still renders the prior progress state');
 }
 
 const normal = staticServer();
@@ -398,9 +399,9 @@ try {
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
-  await reduced.getByText('Code run · IMPLEMENT').waitFor({ timeout: 5000 });
-  await reduced.getByText(/BOUND · WORK SPEC R1 · 2 ACCEPTANCE CRITERIA/).waitFor({ timeout: 5000 });
-  await reduced.getByLabel('Run autonomously').waitFor({ timeout: 5000 });
+  await reduced.getByText('Making the changes').waitFor({ timeout: 5000 });
+  await reduced.getByText('Following your approved plan').waitFor({ timeout: 5000 });
+  await reduced.getByLabel('Continue work').waitFor({ timeout: 5000 });
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
   await reduced.close();
 
