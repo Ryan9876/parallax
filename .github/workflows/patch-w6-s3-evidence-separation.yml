@@ -10,103 +10,14 @@ permissions:
 
 jobs:
   patch-and-test:
-    if: github.event.head_commit.message == 'chore(validation): stage Wave 6 S3 evidence separation patch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: hotfix/w6-s3-evidence-separation
           fetch-depth: 0
-      - name: Apply correction and focused regression
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('services/api/parallax_api/code/agentic_runtime.py')
-          text = path.read_text(encoding='utf-8')
-          old = '            qualitative_evidence=refs,\n'
-          new = '            qualitative_evidence=(),\n'
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one duplicated S3 evidence seam')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
-          cat > services/api/tests/test_w6_s3_evidence_separation.py <<'PY'
-          from __future__ import annotations
-          from types import SimpleNamespace
-          from parallax_api.code.agentic_runtime import AgenticControlPlane, CandidateValidationResult
-          from parallax_api.evaluation.agent_judgment import CandidateBinding, EvaluationOutcome
-
-          PROJECT_ID = '11111111-1111-4111-8111-111111111111'
-          RUN_ID = '22222222-2222-4222-8222-222222222222'
-          WORK_SPEC_ID = '33333333-3333-4333-8333-333333333333'
-          PRODUCER_DIGEST = 'a' * 64
-
-          def binding():
-              return CandidateBinding(
-                  project_id=PROJECT_ID,
-                  run_id=RUN_ID,
-                  work_specification_id=WORK_SPEC_ID,
-                  work_specification_revision=1,
-                  work_specification_digest='b' * 64,
-                  acceptance_ids=('AC-01',),
-                  candidate_lineage_digest='c' * 64,
-                  candidate_revision_id='revision:candidate-primary',
-                  candidate_attempt_id='attempt:candidate-primary',
-                  producer_identity_digest=PRODUCER_DIGEST,
-              )
-
-          def stage(name, passed):
-              prefix = {'BUILD': '1', 'TEST': '2', 'VERIFY': '3'}[name]
-              return name, {
-                  'protected_success': passed,
-                  'tool_id': name.lower(),
-                  'invocation_digest': prefix * 64,
-                  'stdout_digest': '4' * 64,
-                  'stderr_digest': '5' * 64,
-                  'exit_code': 0 if passed else 1,
-                  'timed_out': False,
-              }
-
-          def control():
-              return object.__new__(AgenticControlPlane)
-
-          def test_passing_protected_refs_are_evaluated_once():
-              validation = CandidateValidationResult(
-                  content_digest='c' * 64,
-                  file_count=1,
-                  total_bytes=1,
-                  stage_evidence=(stage('BUILD', True), stage('TEST', True), stage('VERIFY', True)),
-              )
-              protected, record = control()._evaluation(
-                  run=SimpleNamespace(project_id=PROJECT_ID),
-                  candidate_id='candidate-primary',
-                  candidate_binding=binding(),
-                  validation=validation,
-                  producer_digests=(PRODUCER_DIGEST,),
-              )
-              assert protected.passed is True
-              assert record.outcome is EvaluationOutcome.SUPPORTED
-              assert len(protected.evidence_refs) == 3
-              assert len(record.evidence_refs) == 3
-              assert {r.identity for r in record.evidence_refs} == {r.identity for r in protected.evidence_refs}
-
-          def test_failed_protected_validation_blocks_without_duplicate_ref_error():
-              validation = CandidateValidationResult(
-                  content_digest='c' * 64,
-                  file_count=1,
-                  total_bytes=1,
-                  stage_evidence=(stage('BUILD', False),),
-              )
-              protected, record = control()._evaluation(
-                  run=SimpleNamespace(project_id=PROJECT_ID),
-                  candidate_id='candidate-primary',
-                  candidate_binding=binding(),
-                  validation=validation,
-                  producer_digests=(PRODUCER_DIGEST,),
-              )
-              assert protected.passed is False
-              assert record.outcome is EvaluationOutcome.DETERMINISTIC_BLOCKED
-              assert len(record.evidence_refs) == 1
-          PY
+      - name: Apply correction
+        run: python scripts/patch_w6_s3_evidence_separation.py
       - name: Install test dependencies
         run: python -m pip install -e 'services/api[dev]'
       - name: Run focused regressions
@@ -114,7 +25,7 @@ jobs:
       - name: Self-remove and commit durable diff
         run: |
           git diff --check
-          git rm .github/workflows/patch-w6-s3-evidence-separation.yml
+          git rm .github/workflows/patch-w6-s3-evidence-separation.yml scripts/patch_w6_s3_evidence_separation.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add services/api/parallax_api/code/agentic_runtime.py services/api/tests/test_w6_s3_evidence_separation.py
