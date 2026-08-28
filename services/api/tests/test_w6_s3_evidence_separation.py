@@ -1,15 +1,4 @@
-from pathlib import Path
-
-runtime = Path('services/api/parallax_api/code/agentic_runtime.py')
-text = runtime.read_text(encoding='utf-8')
-old = '            qualitative_evidence=refs,\n'
-new = '            qualitative_evidence=(),\n'
-if text.count(old) != 1:
-    raise SystemExit(f'expected exactly one duplicated S3 evidence seam, found {text.count(old)}')
-runtime.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-test = Path('services/api/tests/test_w6_s3_evidence_separation.py')
-test.write_text('''from __future__ import annotations
+from __future__ import annotations
 
 from types import SimpleNamespace
 
@@ -98,4 +87,3 @@ def test_failed_protected_validation_blocks_without_duplicate_ref_error() -> Non
     assert protected.passed is False
     assert record.outcome is EvaluationOutcome.DETERMINISTIC_BLOCKED
     assert len(record.evidence_refs) == 1
-''', encoding='utf-8')
