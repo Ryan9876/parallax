@@ -252,7 +252,10 @@ def test_durable_plan_advances_to_implement_without_preview_target(tmp_path):
                 title="Advance PLAN without hosting registration",
                 objective="Prove protected PLAN is durable without a Vercel Preview target.",
                 constraints=["Do not resolve or create a Preview target during PLAN."],
-                acceptance_criteria=["PLAN advances durably to IMPLEMENT."],
+                acceptance_criteria=[
+                    "PLAN advances durably to IMPLEMENT.",
+                    "No Vercel Preview delivery is invoked while PLAN advances.",
+                ],
                 risks=["A hidden hosting prerequisite could block PLAN."],
                 open_questions=[],
                 confidence=0.99,
