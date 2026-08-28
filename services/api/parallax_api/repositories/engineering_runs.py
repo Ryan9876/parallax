@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session, selectinload
 from ..models import EngineeringAttempt, EngineeringRun, utcnow
 
 
+_MAX_PROJECT_HISTORY = 25
+
+
 @dataclass(frozen=True, slots=True)
 class RecordedMutation:
     run: EngineeringRun
@@ -54,6 +57,27 @@ class EngineeringRunRepository:
             .execution_options(populate_existing=True)
         )
         return self.session.scalar(statement)
+
+    def list_for_project(self, *, project_id: str, limit: int = 10) -> tuple[EngineeringRun, ...]:
+        """Return a small deterministic Project-scoped history with attempts eagerly loaded."""
+
+        if not isinstance(project_id, str) or not project_id:
+            raise ValueError("project_id is required")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= _MAX_PROJECT_HISTORY:
+            raise ValueError(f"engineering run project history limit must be between 1 and {_MAX_PROJECT_HISTORY}")
+        rows = self.session.scalars(
+            select(EngineeringRun)
+            .where(EngineeringRun.project_id == project_id)
+            .options(selectinload(EngineeringRun.attempts))
+            .order_by(
+                EngineeringRun.updated_at.desc(),
+                EngineeringRun.created_at.desc(),
+                EngineeringRun.id.asc(),
+            )
+            .limit(limit)
+            .execution_options(populate_existing=True)
+        ).all()
+        return tuple(rows)
 
     def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
         run_id = self.session.scalar(
