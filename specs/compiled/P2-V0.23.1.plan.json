@@ -1,0 +1,131 @@
+{
+  "architecture_decisions": [
+    "AC-01"
+  ],
+  "work_items": [
+    "AC-01"
+  ],
+  "validations": [
+    "AC-08",
+    "AC-02: validate protected requirement — Every new candidate is non-runtime and non-executable until explicit approval/admission. Discovery never returns an admitted/runtime skill by side effect.",
+    "AC-03: validate protected requirement — Tier A/B/C/D and provenance states are deterministic. Curated-only/unknown upstream cannot satisfy automatic-admission provenance.",
+    "AC-04: validate protected requirement — License state is explicit. `UNKNOWN` is not treated as allowed; prohibited license state blocks admission.",
+    "AC-05: validate protected requirement — Focused/adversarial fixtures detect generic execution/network, credential handling, policy-bypass and unauthorized production/destructive claims without executing candidate content.",
+    "AC-06: validate protected requirement — Tests prove intake never invokes subprocess/shell/package install/MCP start/raw HTTP/browser execution from candidate instructions.",
+    "AC-07: validate protected requirement — Exact replay is idempotent. Same upstream/version with changed material digest produces explicit conflict/HUMAN_REQUIRED or BLOCKED, never replacement.",
+    "AC-09: validate protected requirement — Successful admission calls/uses existing `SkillRegistry.admit`; unapproved/tampered/undeclarable contracts retain existing failure semantics.",
+    "AC-10: validate protected requirement — Tool candidates and skill-required capability declarations cannot construct, approve, enable or mutate `ToolCapability` authority in S2.",
+    "AC-11: validate protected requirement — Runtime retrieval exposes admitted skills only and final deterministic choice remains the existing `SkillSelector`, including HUMAN_REQUIRED on missing capability/incompatible repository/ambiguity.",
+    "AC-12: validate protected requirement — Catalog/operator output contains bounded metadata/reason codes/digests but no raw secrets, unrestricted source bodies, executable handles, hidden reasoning or provider credentials.",
+    "AC-13: validate protected requirement — Global catalog cannot accept Project-private source/evidence as reusable public candidate material without an explicit future protected policy.",
+    "AC-14: validate protected requirement — Source observations can be supplied through a bounded adapter/interface and tested without granting live arbitrary network authority.",
+    "AC-15: validate protected requirement — Existing governed-skill tests, tool capability authority tests, provider/browser authority tests and full API regressions remain green.",
+    "AC-17: validate protected requirement — Final implementation head passes focused tests, Workstream Spec Validation, P2 CI, Bounded Autonomy and applicable protected release gates. Changed production components are deployment-verified before recorded as deployed.",
+    "AC-18: validate protected requirement — When the S2 contract is accepted/released, `ARCHITECTURE.md` and `CURRENT-STATE.md` are updated because this introduces a durable supply-chain/capability architecture. `PROJECT-CONSTITUTION.md` changes only if existing security/human-control principles prove insufficient. `DESIGN-SYSTEM.md` changes only if a user-facing capability-management surface establishes durable new presentation rules."
+  ],
+  "risks": [
+    "AC-16"
+  ],
+  "spec_id": "P2-V0.23.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical candidate identity",
+      "protected_requirement": "Candidate identity is bounded, deterministic and changes when material source/version/content facts change."
+    },
+    {
+      "id": "AC-02",
+      "title": "Quarantine by default",
+      "protected_requirement": "Every new candidate is non-runtime and non-executable until explicit approval/admission. Discovery never returns an admitted/runtime skill by side effect."
+    },
+    {
+      "id": "AC-03",
+      "title": "Source-tier/provenance semantics",
+      "protected_requirement": "Tier A/B/C/D and provenance states are deterministic. Curated-only/unknown upstream cannot satisfy automatic-admission provenance."
+    },
+    {
+      "id": "AC-04",
+      "title": "License semantics",
+      "protected_requirement": "License state is explicit. `UNKNOWN` is not treated as allowed; prohibited license state blocks admission."
+    },
+    {
+      "id": "AC-05",
+      "title": "Static prohibited-signal inspection",
+      "protected_requirement": "Focused/adversarial fixtures detect generic execution/network, credential handling, policy-bypass and unauthorized production/destructive claims without executing candidate content."
+    },
+    {
+      "id": "AC-06",
+      "title": "No candidate execution",
+      "protected_requirement": "Tests prove intake never invokes subprocess/shell/package install/MCP start/raw HTTP/browser execution from candidate instructions."
+    },
+    {
+      "id": "AC-07",
+      "title": "Replay and conflict handling",
+      "protected_requirement": "Exact replay is idempotent. Same upstream/version with changed material digest produces explicit conflict/HUMAN_REQUIRED or BLOCKED, never replacement."
+    },
+    {
+      "id": "AC-08",
+      "title": "Explicit approval identity",
+      "protected_requirement": "Approval is exact-candidate + exact-source/content + exact-policy + exact-PortableSkill-digest bound. Any mismatch fails closed."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing registry remains authoritative",
+      "protected_requirement": "Successful admission calls/uses existing `SkillRegistry.admit`; unapproved/tampered/undeclarable contracts retain existing failure semantics."
+    },
+    {
+      "id": "AC-10",
+      "title": "Tool authority separation",
+      "protected_requirement": "Tool candidates and skill-required capability declarations cannot construct, approve, enable or mutate `ToolCapability` authority in S2."
+    },
+    {
+      "id": "AC-11",
+      "title": "Admitted-only runtime retrieval",
+      "protected_requirement": "Runtime retrieval exposes admitted skills only and final deterministic choice remains the existing `SkillSelector`, including HUMAN_REQUIRED on missing capability/incompatible repository/ambiguity."
+    },
+    {
+      "id": "AC-12",
+      "title": "Safe serialization",
+      "protected_requirement": "Catalog/operator output contains bounded metadata/reason codes/digests but no raw secrets, unrestricted source bodies, executable handles, hidden reasoning or provider credentials."
+    },
+    {
+      "id": "AC-13",
+      "title": "Public/private isolation",
+      "protected_requirement": "Global catalog cannot accept Project-private source/evidence as reusable public candidate material without an explicit future protected policy."
+    },
+    {
+      "id": "AC-14",
+      "title": "Synthetic source adapter contract",
+      "protected_requirement": "Source observations can be supplied through a bounded adapter/interface and tested without granting live arbitrary network authority."
+    },
+    {
+      "id": "AC-15",
+      "title": "No regression of current skills/tools",
+      "protected_requirement": "Existing governed-skill tests, tool capability authority tests, provider/browser authority tests and full API regressions remain green."
+    },
+    {
+      "id": "AC-16",
+      "title": "Authentic DSPy gate",
+      "protected_requirement": "Authentic DSPy SpecCritic + SpecCompiler evidence for this exact spec is committed and protected `--require-dspy` validation passes before semantic implementation. Any temporary workflow/evidence-generation change is restored byte-for-byte before implementation qualification."
+    },
+    {
+      "id": "AC-17",
+      "title": "Exact-head qualification",
+      "protected_requirement": "Final implementation head passes focused tests, Workstream Spec Validation, P2 CI, Bounded Autonomy and applicable protected release gates. Changed production components are deployment-verified before recorded as deployed."
+    },
+    {
+      "id": "AC-18",
+      "title": "Durable-record reconciliation",
+      "protected_requirement": "When the S2 contract is accepted/released, `ARCHITECTURE.md` and `CURRENT-STATE.md` are updated because this introduces a durable supply-chain/capability architecture. `PROJECT-CONSTITUTION.md` changes only if existing security/human-control principles prove insufficient. `DESIGN-SYSTEM.md` changes only if a user-facing capability-management surface establishes durable new presentation rules."
+    }
+  ],
+  "critique": [
+    "The first accepted slice must turn bounded external-source metadata and inspected candidate content into deterministic, replay-safe quarantined candidate records, explain trust/admission state, and bridge an explicitly approved exact Parallax skill contract into the existing `SkillRegistry` without changing the existing deterministic `SkillSelector` or Project-scoped `ToolCapabilityRegistry` authority model."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
