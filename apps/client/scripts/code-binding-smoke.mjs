@@ -339,7 +339,8 @@ try {
   const priorConversationId = apiInstance.snapshot().conversation?.id;
   await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
   await page.getByLabel('Send message').click();
-  await page.getByText('Your request changed').waitFor({ timeout: 10000 });
+  const desktopAmendment = page.getByText(/This request goes beyond the plan you approved\./).locator('..');
+  await desktopAmendment.getByText('Your request changed', { exact: true }).waitFor({ timeout: 10000 });
   await page.getByLabel('Start a new goal').waitFor({ timeout: 5000 });
   assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this goal…', 'desktop amendment composer guidance changed unexpectedly');
 
