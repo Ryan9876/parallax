@@ -8,7 +8,7 @@ from pathlib import Path, PurePosixPath
 
 from .domain import WorkflowStage
 from .execution import ExecutionPolicyError, ExecutionSpec
-from .sandbox_execution import RegisteredCommand
+from .sandbox_execution import ProtectedCommandRegistry, RegisteredCommand
 
 
 class ValidationProfileError(ExecutionPolicyError):
@@ -85,6 +85,51 @@ def _root_files(root: Path, pattern: str) -> tuple[Path, ...]:
     return tuple(sorted(path for path in root.glob(pattern) if path.is_file() and not path.is_symlink()))
 
 
+def _is_regular_file(path: Path) -> bool:
+    return path.is_file() and not path.is_symlink()
+
+
+def _is_regular_dir(path: Path) -> bool:
+    return path.is_dir() and not path.is_symlink()
+
+
+def _is_established_parallax_python_root(root: Path) -> bool:
+    """Recognize only the source shape covered by the legacy protected commands.
+
+    Parallax is deliberately a mixed Python/Node repository. Root-level
+    `package.json` must therefore not turn its existing protected Python
+    validation into Node or ambiguity. Generic Python admission remains a
+    separately governed future profile.
+    """
+
+    return (
+        _is_regular_file(root / "services/api/pyproject.toml")
+        and _is_regular_dir(root / "services/api/parallax_api")
+        and _is_regular_file(root / "services/api/tests/test_code_execution_kernel.py")
+        and _is_regular_file(root / "services/api/tests/test_code_autonomy.py")
+        and _is_regular_dir(root / "scripts")
+    )
+
+
+def _legacy_parallax_commands() -> tuple[RegisteredCommand, ...]:
+    registry = ProtectedCommandRegistry()
+    commands: list[RegisteredCommand] = []
+    for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
+        spec = registry.spec_for(stage, operation_key="validation-profile")
+        executable, args = registry.invocation_for(stage)
+        commands.append(
+            RegisteredCommand(
+                stage=stage,
+                tool_id=spec.tool_id,
+                command=executable,
+                args=args,
+                working_directory=spec.working_directory,
+                timeout_seconds=spec.timeout_seconds,
+            )
+        )
+    return tuple(commands)
+
+
 def select_validation_profile(root: Path) -> ValidationProfile:
     """Select one immutable server-owned validation profile from source shape.
 
@@ -96,14 +141,28 @@ def select_validation_profile(root: Path) -> ValidationProfile:
         raise ValidationProfileError("validation workspace root is invalid")
     resolved = root.resolve(strict=True)
 
+    # Preserve the exact historical Parallax protected-validation contract even
+    # though the repository is intentionally mixed Python/Node. This check is
+    # narrow enough that an arbitrary Python project cannot inherit commands
+    # that target Parallax-specific paths.
+    if _is_established_parallax_python_root(resolved):
+        return ValidationProfile(
+            profile_id=ValidationProfileCode.PYTHON,
+            ecosystem="python",
+            root=".",
+            target=None,
+            commands=_legacy_parallax_commands(),
+        )
+
     root_solutions = _root_files(resolved, "*.sln")
     root_projects = _root_files(resolved, "*.csproj")
     python_markers = tuple(
-        path for name in ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
-        if (path := resolved / name).is_file() and not path.is_symlink()
+        path
+        for name in ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
+        if _is_regular_file(path := resolved / name)
     )
     node_marker = resolved / "package.json"
-    has_node = node_marker.is_file() and not node_marker.is_symlink()
+    has_node = _is_regular_file(node_marker)
 
     ecosystems = int(bool(root_solutions or root_projects)) + int(bool(python_markers)) + int(has_node)
     if ecosystems == 0:
@@ -146,17 +205,7 @@ def select_validation_profile(root: Path) -> ValidationProfile:
         )
 
     if python_markers:
-        return ValidationProfile(
-            profile_id=ValidationProfileCode.PYTHON,
-            ecosystem="python",
-            root=".",
-            target=None,
-            commands=(
-                RegisteredCommand(WorkflowStage.BUILD, "build", "python", ("-m", "compileall", "-q", "."), timeout_seconds=180),
-                RegisteredCommand(WorkflowStage.TEST, "test", "python", ("-m", "pytest", "-q"), timeout_seconds=300),
-                RegisteredCommand(WorkflowStage.VERIFY, "verify", "python", ("-m", "pytest", "-q"), timeout_seconds=300),
-            ),
-        )
+        raise ValidationProfileError("PYTHON_FIXED_VALIDATION_UNAVAILABLE")
 
     # package.json is deterministic Node evidence, but executing repository-defined
     # package scripts would cross the authority boundary. Until a fixed offline
