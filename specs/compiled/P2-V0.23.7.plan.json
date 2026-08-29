@@ -1,129 +1,189 @@
 {
   "architecture_decisions": [
-    "The proposed architecture decision is to implement a recovery path for the Repository Authorization Required error in the Compact Parallax implementation. This will involve creating a new endpoint for requesting a short-lived provider consent URL for the Project's exact canonical GitHub repository, complete explicit authorization in the provider UI, and then retry the same durable Engineering Run."
+    "The architecture decision involves adding a narrow server-owned authorization service adjacent to existing repository authority composition. This service resolves the Project's repository through existing owner-scoped authority, requires `github:owner/repository`, and constructs only: - connector: released server-owned `github/parallax-runtime` configuration; - subject: `{ \"type\": \"app\" }`; - `authorizationDetails`: exact one-repository GitHub App installation authorization generated from existing policy; - bounded server-chosen expiration; - no client-defined return URL, webhook, prompt, installation ID, scopes/resources or additional parameters. Provider timeout/request failure, non-2xx response, malformed body, missing URL/expiry, or unsafe URL fails closed. Raw provider payloads are not returned or durably persisted."
   ],
   "work_items": [
-    "Create a new endpoint for requesting a short-lived provider consent URL for the Project's exact canonical GitHub repository. Complete explicit authorization in the provider UI. Then retry the same durable Engineering Run."
+    "Implement the server-owned authorization service as a new component within the existing repository authority composition. This service should be responsible for resolving the Project's repository through existing owner-scoped authority, requiring `github:owner/repository`, and constructing only the necessary authorization details."
   ],
   "validations": [
-    "The proposed validation is to ensure that the new endpoint is correctly implemented and that the provider consent URL is returned as expected. The client should be able to request a short-lived provider consent URL for the Project's exact canonical GitHub repository, complete explicit authorization in the provider UI, and then retry the same durable Engineering Run.",
-    "AC-01: validate protected requirement \u2014 Only an authenticated owner can initiate repository authorization for a Project, and repository identity is resolved only from the canonical Project binding.",
-    "AC-02: validate protected requirement \u2014 The service always uses the released server-owned GitHub connector and the exact existing `github_app_installation` authorization detail for one canonical repository and fixed delivery permissions. Client input cannot alter these values.",
-    "AC-03: validate protected requirement \u2014 Authorization initiation uses request/deployment-scoped Vercel OIDC and introduces no PAT, reusable personal token, user credential, or stored provider bearer.",
-    "AC-04: validate protected requirement \u2014 The server calls only the fixed Connect authorization endpoint with bounded timeout and no redirect following. Provider timeout, transport error, non-2xx, malformed body or missing fields fail closed.",
-    "AC-05: validate protected requirement \u2014 Only a bounded HTTPS authorization URL on the explicit provider allowlist is returned. Malicious schemes, credentials, unexpected origins, ports, malformed/oversized values and unsafe redirects are rejected.",
-    "AC-06: validate protected requirement \u2014 The public API returns only status, validated authorization URL and normalized expiry. Provider request/verifier identifiers, raw payloads and tokens are neither returned nor durably stored.",
-    "AC-07: validate protected requirement \u2014 The autonomous client can distinguish `REPOSITORY_AUTHORIZATION_REQUIRED` through a bounded structured error code without parsing a human message. Generic provider failures do not masquerade as repository consent.",
-    "AC-08: validate protected requirement \u2014 Authorization initiation does not change Engineering Run state/revision, approved Work Specification, source lineage, provider delivery state, or target repository contents.",
-    "AC-09: validate protected requirement \u2014 Web and mobile surfaces show an accessible `Authorize repository` action only for the exact authorization-required condition, while preserving the existing saved-progress and same-run `Try again` behavior.",
-    "AC-10: validate protected requirement \u2014 The client opens only the server-validated authorization URL through the platform external-link mechanism. It does not receive provider bearer tokens or authorization verifier material.",
-    "AC-11: validate protected requirement \u2014 After a mocked successful provider consent, retrying the same run uses the ordinary exact-repository token request and exact-one-repository GitHub verification before source/provider authority is accepted.",
-    "AC-12: validate protected requirement \u2014 Canceled, expired, wrong-repository or otherwise incomplete consent does not mark the Project ready; retry returns to the authorization-required boundary without source mutation.",
-    "AC-13: validate protected requirement \u2014 Existing credential-free public source bootstrap, Python full-experience behavior, OT Time `.NET` source-only acceptance path, validation snapshots, delivery-mode behavior and REVIEW ceiling remain green.",
-    "AC-14: validate protected requirement \u2014 The change cannot add repository installation coverage silently, select all repositories, grant arbitrary permissions, mutate source before explicit provider consent, merge, deploy production, approve work or complete REVIEW.",
-    "AC-15: validate protected requirement \u2014 Before semantic release is treated as viable, a non-mutating preview/runtime diagnostic proves the production-style OIDC identity can create an exact-repository Connect authorization request and that the returned URL passes the released safe-origin validator. Diagnostic request/verifier values are not printed and temporary diagnostic code is removed before merge.",
-    "AC-16: validate protected requirement \u2014 After release and explicit exact-repository provider consent, the existing Decision Ledger trial continues through the normal authenticated path using the same canonical Project/approved specification or a governed exact equivalent, with no out-of-band source edits, and records accepted source, protected validation, Vercel Preview and REVIEW evidence.",
-    "AC-17: validate protected requirement \u2014 If provider consent or the replay exposes another product boundary, it is recorded honestly and receives separate governance rather than weakening authorization or benchmark gates.",
-    "AC-18: validate protected requirement \u2014 This exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full tests, client/browser acceptance, Bounded Autonomy, protected promotion evaluation and standard release gates before merge/deployment."
+    "Validate that the server-owned authorization service correctly resolves the Project's repository through existing owner-scoped authority, requires `github:owner/repository`, and constructs only the necessary authorization details. This validation should be performed using automated tests and manual verification.",
+    "AC-01: validate protected requirement \u2014 Only an authenticated owner can initiate repository authorization for a Project, and repository identity is resolved exclusively from canonical Project state.",
+    "AC-02: validate protected requirement \u2014 The authorization service always uses the released GitHub connector and fixed exact-repository GitHub App authorization detail. Browser input cannot alter connector, repository or authority.",
+    "AC-03: validate protected requirement \u2014 Authorization initiation uses request/deployment-scoped Vercel OIDC and introduces no PAT, reusable personal token, user credential or persisted provider bearer.",
+    "AC-04: validate protected requirement \u2014 Only the fixed Connect authorization endpoint is called with bounded timeout/no redirect following. Timeout, transport error, non-2xx or malformed response fails closed.",
+    "AC-05: validate protected requirement \u2014 Only a bounded HTTPS consent URL on the explicit provider origin allowlist is returned. Malicious scheme, userinfo, foreign host/port, malformed or oversized URL is rejected.",
+    "AC-06: validate protected requirement \u2014 The API returns only status, validated authorization URL and normalized expiry. Provider request/verifier IDs, raw payloads and tokens are not returned or durably stored.",
+    "AC-07: validate protected requirement \u2014 The autonomy client receives `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without message parsing. Generic provider failures cannot trigger repository-consent UI.",
+    "AC-08: validate protected requirement \u2014 Creating/opening a consent request does not mutate Project repository source, Engineering Run state/revision, Work Specification, lineage, deployment or REVIEW state.",
+    "AC-09: validate protected requirement \u2014 A typed read-only provider operation deterministically distinguishes existing commit-bearing, existing empty and missing/unauthorized repositories under exact repository scope.",
+    "AC-10: validate protected requirement \u2014 Provider outage, 404/403, credential failure, malformed response or ordinary `SOURCE_NOT_FOUND` alone cannot initialize greenfield lineage.",
+    "AC-11: validate protected requirement \u2014 A dedicated greenfield initialization operation can create a root lineage with zero files and canonical empty digest/provenance. Ordinary repository/template/starter packages remain non-empty by contract.",
+    "AC-12: validate protected requirement \u2014 Zero-file manifests/materialization are accepted only for a root `greenfield` lineage with exact invariants; forged empty implementation/non-greenfield lineage is rejected.",
+    "AC-13: validate protected requirement \u2014 IMPLEMENT must produce at least one protected source file and a changed non-root implementation lineage before BUILD/TEST/VERIFY can pass.",
+    "AC-14: validate protected requirement \u2014 PLAN through VERIFY on an empty repository performs no GitHub commit/ref/source mutation. Tests prove the initialization write action cannot be invoked before verified REVIEW delivery.",
+    "AC-15: validate protected requirement \u2014 At REVIEW, the fixed GitHub initialization action can create an empty tree, zero-parent provenance-bound commit and default-branch ref without force, and exact read-back proves the result.",
+    "AC-16: validate protected requirement \u2014 Retry reuses an existing baseline only if commit message/identity, zero parents, empty tree, Project/run/root lineage and default ref match exactly. Any unrelated head fails closed.",
+    "AC-17: validate protected requirement \u2014 After baseline initialization, accepted implementation is committed on the bounded Parallax branch from that baseline, not on default, and existing PR read-back semantics prove exact head/base identity.",
+    "AC-18: validate protected requirement \u2014 Vercel Preview is created from the exact accepted implementation commit and existing Preview read-back proves repository/source revision/target identity before delivery evidence is accepted.",
+    "AC-19: validate protected requirement \u2014 Greenfield delivery records exact initialization, branch, accepted commit, PR and Preview provider/audit evidence without raw credentials/provider payloads and remains replay-safe.",
+    "AC-20: validate protected requirement \u2014 Web/mobile surfaces show an accessible `Authorize repository` action only for the exact consent condition and preserve same-run `Try again`, current progress and saved work.",
+    "AC-21: validate protected requirement \u2014 After mocked/provider-approved consent, the same Engineering Run retries through the ordinary scoped token exchange and exact-one-repository GitHub verification before greenfield inspection/source authority is accepted.",
+    "AC-22: validate protected requirement \u2014 Canceled, expired, wrong-repository or incomplete consent never marks Project/repository ready and does not create greenfield lineage/source mutation.",
+    "AC-23: validate protected requirement \u2014 Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, repository-root lineage, ordinary GitHub branch/commit/PR delivery, delivery-mode behavior, snapshots and REVIEW ceiling remain green.",
+    "AC-24: validate protected requirement \u2014 Runtime/provider/client code does not inspect Decision Ledger identity or target name; change cannot grant all-repository authority, arbitrary source mutation, production promotion, work approval or REVIEW completion.",
+    "AC-25: validate protected requirement \u2014 Before semantic release is treated as viable, a non-mutating preview/runtime diagnostic proves production-style OIDC can create the exact-repository Connect authorization request and the returned URL passes the released validator. Request/verifier values are not printed and diagnostic code is removed before merge.",
+    "AC-26: validate protected requirement \u2014 After explicit exact-repository consent, the canonical Decision Ledger trial proceeds without out-of-band source edits through greenfield root, accepted source, protected BUILD/TEST/VERIFY, bounded GitHub branch/PR publication, Vercel Preview and REVIEW, with exact evidence recorded.",
+    "AC-27: validate protected requirement \u2014 If consent, empty initialization, implementation, provider delivery or Preview exposes another boundary, it is recorded and separately governed rather than weakening gates.",
+    "AC-28: validate protected requirement \u2014 This exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full API tests, client/browser acceptance, Bounded Autonomy, protected promotion evaluation and applicable release gates before merge/deployment."
   ],
   "risks": [
-    "The proposed risk is to ensure that the new endpoint is correctly implemented and that the provider consent URL is returned as expected. The client should be able to request a short-lived provider consent URL for the Project's exact canonical GitHub repository, complete explicit authorization in the provider UI, and then retry the same durable Engineering Run."
+    "The risk associated with the server-owned authorization service is the potential for unauthorized access to the Project's repository. This risk can be mitigated by implementing strict access controls and monitoring the service for any suspicious activity."
   ],
   "spec_id": "P2-V0.23.7",
   "protected_acceptance_map": [
     {
       "id": "AC-01",
       "title": "Exact owner/Project binding",
-      "protected_requirement": "Only an authenticated owner can initiate repository authorization for a Project, and repository identity is resolved only from the canonical Project binding."
+      "protected_requirement": "Only an authenticated owner can initiate repository authorization for a Project, and repository identity is resolved exclusively from canonical Project state."
     },
     {
       "id": "AC-02",
       "title": "Fixed connector and authorization detail",
-      "protected_requirement": "The service always uses the released server-owned GitHub connector and the exact existing `github_app_installation` authorization detail for one canonical repository and fixed delivery permissions. Client input cannot alter these values."
+      "protected_requirement": "The authorization service always uses the released GitHub connector and fixed exact-repository GitHub App authorization detail. Browser input cannot alter connector, repository or authority."
     },
     {
       "id": "AC-03",
       "title": "Request-scoped server identity",
-      "protected_requirement": "Authorization initiation uses request/deployment-scoped Vercel OIDC and introduces no PAT, reusable personal token, user credential, or stored provider bearer."
+      "protected_requirement": "Authorization initiation uses request/deployment-scoped Vercel OIDC and introduces no PAT, reusable personal token, user credential or persisted provider bearer."
     },
     {
       "id": "AC-04",
-      "title": "Safe provider operation",
-      "protected_requirement": "The server calls only the fixed Connect authorization endpoint with bounded timeout and no redirect following. Provider timeout, transport error, non-2xx, malformed body or missing fields fail closed."
+      "title": "Safe provider authorization operation",
+      "protected_requirement": "Only the fixed Connect authorization endpoint is called with bounded timeout/no redirect following. Timeout, transport error, non-2xx or malformed response fails closed."
     },
     {
       "id": "AC-05",
       "title": "Safe consent URL",
-      "protected_requirement": "Only a bounded HTTPS authorization URL on the explicit provider allowlist is returned. Malicious schemes, credentials, unexpected origins, ports, malformed/oversized values and unsafe redirects are rejected."
+      "protected_requirement": "Only a bounded HTTPS consent URL on the explicit provider origin allowlist is returned. Malicious scheme, userinfo, foreign host/port, malformed or oversized URL is rejected."
     },
     {
       "id": "AC-06",
-      "title": "Minimal response surface",
-      "protected_requirement": "The public API returns only status, validated authorization URL and normalized expiry. Provider request/verifier identifiers, raw payloads and tokens are neither returned nor durably stored."
+      "title": "Minimal public response",
+      "protected_requirement": "The API returns only status, validated authorization URL and normalized expiry. Provider request/verifier IDs, raw payloads and tokens are not returned or durably stored."
     },
     {
       "id": "AC-07",
-      "title": "Structured recovery classification",
-      "protected_requirement": "The autonomous client can distinguish `REPOSITORY_AUTHORIZATION_REQUIRED` through a bounded structured error code without parsing a human message. Generic provider failures do not masquerade as repository consent."
+      "title": "Structured exact recovery signal",
+      "protected_requirement": "The autonomy client receives `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without message parsing. Generic provider failures cannot trigger repository-consent UI."
     },
     {
       "id": "AC-08",
-      "title": "Existing run preserved",
-      "protected_requirement": "Authorization initiation does not change Engineering Run state/revision, approved Work Specification, source lineage, provider delivery state, or target repository contents."
+      "title": "Authorization does not mutate work",
+      "protected_requirement": "Creating/opening a consent request does not mutate Project repository source, Engineering Run state/revision, Work Specification, lineage, deployment or REVIEW state."
     },
     {
       "id": "AC-09",
-      "title": "Recovery UX",
-      "protected_requirement": "Web and mobile surfaces show an accessible `Authorize repository` action only for the exact authorization-required condition, while preserving the existing saved-progress and same-run `Try again` behavior."
+      "title": "Exact repository inspection",
+      "protected_requirement": "A typed read-only provider operation deterministically distinguishes existing commit-bearing, existing empty and missing/unauthorized repositories under exact repository scope."
     },
     {
       "id": "AC-10",
-      "title": "External consent handling",
-      "protected_requirement": "The client opens only the server-validated authorization URL through the platform external-link mechanism. It does not receive provider bearer tokens or authorization verifier material."
+      "title": "Empty state requires positive proof",
+      "protected_requirement": "Provider outage, 404/403, credential failure, malformed response or ordinary `SOURCE_NOT_FOUND` alone cannot initialize greenfield lineage."
     },
     {
       "id": "AC-11",
-      "title": "Retry proves readiness",
-      "protected_requirement": "After a mocked successful provider consent, retrying the same run uses the ordinary exact-repository token request and exact-one-repository GitHub verification before source/provider authority is accepted."
+      "title": "Explicit zero-file root contract",
+      "protected_requirement": "A dedicated greenfield initialization operation can create a root lineage with zero files and canonical empty digest/provenance. Ordinary repository/template/starter packages remain non-empty by contract."
     },
     {
       "id": "AC-12",
-      "title": "Cancel/expiry stays fail-closed",
-      "protected_requirement": "Canceled, expired, wrong-repository or otherwise incomplete consent does not mark the Project ready; retry returns to the authorization-required boundary without source mutation."
+      "title": "Greenfield manifest integrity",
+      "protected_requirement": "Zero-file manifests/materialization are accepted only for a root `greenfield` lineage with exact invariants; forged empty implementation/non-greenfield lineage is rejected."
     },
     {
       "id": "AC-13",
-      "title": "Public-source and W8 regression protection",
-      "protected_requirement": "Existing credential-free public source bootstrap, Python full-experience behavior, OT Time `.NET` source-only acceptance path, validation snapshots, delivery-mode behavior and REVIEW ceiling remain green."
+      "title": "Non-empty implementation required",
+      "protected_requirement": "IMPLEMENT must produce at least one protected source file and a changed non-root implementation lineage before BUILD/TEST/VERIFY can pass."
     },
     {
       "id": "AC-14",
-      "title": "No authority expansion",
-      "protected_requirement": "The change cannot add repository installation coverage silently, select all repositories, grant arbitrary permissions, mutate source before explicit provider consent, merge, deploy production, approve work or complete REVIEW."
+      "title": "No pre-REVIEW repository mutation",
+      "protected_requirement": "PLAN through VERIFY on an empty repository performs no GitHub commit/ref/source mutation. Tests prove the initialization write action cannot be invoked before verified REVIEW delivery."
     },
     {
       "id": "AC-15",
-      "title": "Provider capability proof",
-      "protected_requirement": "Before semantic release is treated as viable, a non-mutating preview/runtime diagnostic proves the production-style OIDC identity can create an exact-repository Connect authorization request and that the returned URL passes the released safe-origin validator. Diagnostic request/verifier values are not printed and temporary diagnostic code is removed before merge."
+      "title": "Typed empty-baseline action",
+      "protected_requirement": "At REVIEW, the fixed GitHub initialization action can create an empty tree, zero-parent provenance-bound commit and default-branch ref without force, and exact read-back proves the result."
     },
     {
       "id": "AC-16",
-      "title": "Canonical W9 replay",
-      "protected_requirement": "After release and explicit exact-repository provider consent, the existing Decision Ledger trial continues through the normal authenticated path using the same canonical Project/approved specification or a governed exact equivalent, with no out-of-band source edits, and records accepted source, protected validation, Vercel Preview and REVIEW evidence."
+      "title": "Initialization idempotency and stale protection",
+      "protected_requirement": "Retry reuses an existing baseline only if commit message/identity, zero parents, empty tree, Project/run/root lineage and default ref match exactly. Any unrelated head fails closed."
     },
     {
       "id": "AC-17",
-      "title": "Failure remains evidence",
-      "protected_requirement": "If provider consent or the replay exposes another product boundary, it is recorded honestly and receives separate governance rather than weakening authorization or benchmark gates."
+      "title": "Greenfield accepted-source publication",
+      "protected_requirement": "After baseline initialization, accepted implementation is committed on the bounded Parallax branch from that baseline, not on default, and existing PR read-back semantics prove exact head/base identity."
     },
     {
       "id": "AC-18",
+      "title": "Preview exactness",
+      "protected_requirement": "Vercel Preview is created from the exact accepted implementation commit and existing Preview read-back proves repository/source revision/target identity before delivery evidence is accepted."
+    },
+    {
+      "id": "AC-19",
+      "title": "Durable delivery evidence",
+      "protected_requirement": "Greenfield delivery records exact initialization, branch, accepted commit, PR and Preview provider/audit evidence without raw credentials/provider payloads and remains replay-safe."
+    },
+    {
+      "id": "AC-20",
+      "title": "Recovery UX",
+      "protected_requirement": "Web/mobile surfaces show an accessible `Authorize repository` action only for the exact consent condition and preserve same-run `Try again`, current progress and saved work."
+    },
+    {
+      "id": "AC-21",
+      "title": "Consent retry proves authority",
+      "protected_requirement": "After mocked/provider-approved consent, the same Engineering Run retries through the ordinary scoped token exchange and exact-one-repository GitHub verification before greenfield inspection/source authority is accepted."
+    },
+    {
+      "id": "AC-22",
+      "title": "Cancel/expiry stays fail-closed",
+      "protected_requirement": "Canceled, expired, wrong-repository or incomplete consent never marks Project/repository ready and does not create greenfield lineage/source mutation."
+    },
+    {
+      "id": "AC-23",
+      "title": "Existing paths do not regress",
+      "protected_requirement": "Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, repository-root lineage, ordinary GitHub branch/commit/PR delivery, delivery-mode behavior, snapshots and REVIEW ceiling remain green."
+    },
+    {
+      "id": "AC-24",
+      "title": "No benchmark backdoor or authority expansion",
+      "protected_requirement": "Runtime/provider/client code does not inspect Decision Ledger identity or target name; change cannot grant all-repository authority, arbitrary source mutation, production promotion, work approval or REVIEW completion."
+    },
+    {
+      "id": "AC-25",
+      "title": "Provider capability proof",
+      "protected_requirement": "Before semantic release is treated as viable, a non-mutating preview/runtime diagnostic proves production-style OIDC can create the exact-repository Connect authorization request and the returned URL passes the released validator. Request/verifier values are not printed and diagnostic code is removed before merge."
+    },
+    {
+      "id": "AC-26",
+      "title": "Canonical W9 replay",
+      "protected_requirement": "After explicit exact-repository consent, the canonical Decision Ledger trial proceeds without out-of-band source edits through greenfield root, accepted source, protected BUILD/TEST/VERIFY, bounded GitHub branch/PR publication, Vercel Preview and REVIEW, with exact evidence recorded."
+    },
+    {
+      "id": "AC-27",
+      "title": "Failure remains evidence",
+      "protected_requirement": "If consent, empty initialization, implementation, provider delivery or Preview exposes another boundary, it is recorded and separately governed rather than weakening gates."
+    },
+    {
+      "id": "AC-28",
       "title": "Authentic DSPy and exact-head release gates",
-      "protected_requirement": "This exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full tests, client/browser acceptance, Bounded Autonomy, protected promotion evaluation and standard release gates before merge/deployment."
+      "protected_requirement": "This exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full API tests, client/browser acceptance, Bounded Autonomy, protected promotion evaluation and applicable release gates before merge/deployment."
     }
   ],
   "critique": [
-    "The specification does not explicitly state the exact repository identifier that must be used for the provider consent URL. This omission could lead to confusion and potential security risks."
+    "The specification does not explicitly address the requirement for a governed zero-source greenfield root that can be created without an existing parent commit. This omission could lead to issues in the production environment where the greenfield root is not properly initialized, potentially causing data loss or inconsistencies."
   ],
   "dspy_run": {
     "executed": true,
