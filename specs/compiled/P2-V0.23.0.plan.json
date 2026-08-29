@@ -1,0 +1,128 @@
+{
+  "architecture_decisions": [
+    "Immutable real-world template"
+  ],
+  "work_items": [
+    "Introduce a bounded immutable evaluation record containing stable template ID/version, title, objective class, repository-shape class, ordered requirement IDs/text, existing ParallaxBench comparable dimensions, expected protected ceiling and deterministic fixture digest."
+  ],
+  "validations": [
+    "Duplicate `(template_id, template_version)` with different content fails closed.",
+    "AC-01: validate protected requirement \u2014 The template validates stable bounded ID/version and deterministic digest; duplicate identity with different material content fails closed.",
+    "AC-02: validate protected requirement \u2014 The committed fixture contains exactly DL-01 through DL-12 with frozen outcomes, repository shape, comparable dimensions and REVIEW ceiling, and contains no reference implementation.",
+    "AC-03: validate protected requirement \u2014 The binder accepts valid canonical Project + approved Work Specification identity only, including positive revision, exact digest and unique canonical acceptance IDs.",
+    "AC-04: validate protected requirement \u2014 Every DL-01\u2026DL-12 token appears exactly once across canonical acceptance text. Missing/duplicate tokens fail closed; extra canonical acceptance criteria remain in the resulting case.",
+    "AC-05: validate protected requirement \u2014 Successful binding returns the existing BenchmarkCase with exact canonical identity and template digest; protected-floor/comparison semantics remain unchanged.",
+    "AC-06: validate protected requirement \u2014 No model/evaluator rewrites or semantically substitutes missing requirement coverage during admission.",
+    "AC-07: validate protected requirement \u2014 Intervention/time/cost/UX evidence uses trustworthy state/provenance; missing evidence remains unknown/unavailable rather than favorable zero.",
+    "AC-08: validate protected requirement \u2014 The runbook distinguishes required approvals, clarification, corrective intervention, retry/recovery and prohibited out-of-band source edits.",
+    "AC-09: validate protected requirement \u2014 Fixture/template/safe evidence contain no credentials, secrets, real user data, hidden reasoning, provider payloads, source bytes/patches or reference solution.",
+    "AC-10: validate protected requirement \u2014 Static/adversarial coverage proves runtime/provider/source-delivery/client behavior does not inspect Decision Ledger template identity, benchmark mode or expected outcome.",
+    "AC-11: validate protected requirement \u2014 The extension cannot accept source, transition Engineering Runs, grant capability/provider authority, mutate target repositories, merge, deploy production, approve or complete REVIEW.",
+    "AC-12: validate protected requirement \u2014 Existing ParallaxBench, protected evaluation, integrated product proof and full API authority/regression tests remain green.",
+    "AC-13: validate protected requirement \u2014 Authentic DSPy SpecCritic + SpecCompiler evidence for this exact spec is committed and protected `--require-dspy` validation passes before semantic implementation; any temporary evidence workflow is restored byte-for-byte.",
+    "AC-14: validate protected requirement \u2014 Final implementation head passes focused tests, Workstream Spec Validation, P2 CI, Bounded Autonomy and applicable protected release gates; changed production components are deployment-verified before being recorded as deployed.",
+    "AC-15: validate protected requirement \u2014 After release, Decision Ledger v1 runs through a normal authenticated Project with no out-of-band source editing and records exact Project/spec/run/source/Preview/REVIEW identity plus trustworthy evaluation evidence.",
+    "AC-16: validate protected requirement \u2014 A failed or HUMAN_REQUIRED first trial is recorded honestly and may establish reference diagnostic evidence; no gate or authentication boundary is weakened to manufacture success.",
+    "AC-17: validate protected requirement \u2014 Any semantic product fix discovered by the trial is documented first and receives its own approved workstream/spec boundary."
+  ],
+  "risks": [
+    "No favorable zero defaults, no intervention/time/cost/UX evidence, no prohibited out-of-band source edits, no source edits, no model/evaluator rewrites, no semantically substitutes missing requirement coverage during admission, no source edits, no credentials, secrets, real user data, hidden reasoning, provider payloads, source bytes/patches, no trusted state/provenance, no adversary expansion, no full API authority/regression tests, no protected release gates, no authenticated Project with no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing, no out-of-band source editing"
+  ],
+  "spec_id": "P2-V0.23.0",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Immutable template identity",
+      "protected_requirement": "The template validates stable bounded ID/version and deterministic digest; duplicate identity with different material content fails closed."
+    },
+    {
+      "id": "AC-02",
+      "title": "Frozen Decision Ledger fixture",
+      "protected_requirement": "The committed fixture contains exactly DL-01 through DL-12 with frozen outcomes, repository shape, comparable dimensions and REVIEW ceiling, and contains no reference implementation."
+    },
+    {
+      "id": "AC-03",
+      "title": "Deterministic canonical binding",
+      "protected_requirement": "The binder accepts valid canonical Project + approved Work Specification identity only, including positive revision, exact digest and unique canonical acceptance IDs."
+    },
+    {
+      "id": "AC-04",
+      "title": "Exact requirement coverage",
+      "protected_requirement": "Every DL-01\u2026DL-12 token appears exactly once across canonical acceptance text. Missing/duplicate tokens fail closed; extra canonical acceptance criteria remain in the resulting case."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing BenchmarkCase compatibility",
+      "protected_requirement": "Successful binding returns the existing BenchmarkCase with exact canonical identity and template digest; protected-floor/comparison semantics remain unchanged."
+    },
+    {
+      "id": "AC-06",
+      "title": "No unconstrained semantic admission",
+      "protected_requirement": "No model/evaluator rewrites or semantically substitutes missing requirement coverage during admission."
+    },
+    {
+      "id": "AC-07",
+      "title": "Evidence integrity",
+      "protected_requirement": "Intervention/time/cost/UX evidence uses trustworthy state/provenance; missing evidence remains unknown/unavailable rather than favorable zero."
+    },
+    {
+      "id": "AC-08",
+      "title": "Intervention protocol",
+      "protected_requirement": "The runbook distinguishes required approvals, clarification, corrective intervention, retry/recovery and prohibited out-of-band source edits."
+    },
+    {
+      "id": "AC-09",
+      "title": "Safe artifacts",
+      "protected_requirement": "Fixture/template/safe evidence contain no credentials, secrets, real user data, hidden reasoning, provider payloads, source bytes/patches or reference solution."
+    },
+    {
+      "id": "AC-10",
+      "title": "No benchmark-only runtime path",
+      "protected_requirement": "Static/adversarial coverage proves runtime/provider/source-delivery/client behavior does not inspect Decision Ledger template identity, benchmark mode or expected outcome."
+    },
+    {
+      "id": "AC-11",
+      "title": "No authority expansion",
+      "protected_requirement": "The extension cannot accept source, transition Engineering Runs, grant capability/provider authority, mutate target repositories, merge, deploy production, approve or complete REVIEW."
+    },
+    {
+      "id": "AC-12",
+      "title": "Compatibility regressions remain green",
+      "protected_requirement": "Existing ParallaxBench, protected evaluation, integrated product proof and full API authority/regression tests remain green."
+    },
+    {
+      "id": "AC-13",
+      "title": "Authentic DSPy gate",
+      "protected_requirement": "Authentic DSPy SpecCritic + SpecCompiler evidence for this exact spec is committed and protected `--require-dspy` validation passes before semantic implementation; any temporary evidence workflow is restored byte-for-byte."
+    },
+    {
+      "id": "AC-14",
+      "title": "Exact-head implementation qualification",
+      "protected_requirement": "Final implementation head passes focused tests, Workstream Spec Validation, P2 CI, Bounded Autonomy and applicable protected release gates; changed production components are deployment-verified before being recorded as deployed."
+    },
+    {
+      "id": "AC-15",
+      "title": "Controlled reference trial",
+      "protected_requirement": "After release, Decision Ledger v1 runs through a normal authenticated Project with no out-of-band source editing and records exact Project/spec/run/source/Preview/REVIEW identity plus trustworthy evaluation evidence."
+    },
+    {
+      "id": "AC-16",
+      "title": "Failure remains evidence",
+      "protected_requirement": "A failed or HUMAN_REQUIRED first trial is recorded honestly and may establish reference diagnostic evidence; no gate or authentication boundary is weakened to manufacture success."
+    },
+    {
+      "id": "AC-17",
+      "title": "Follow-up fixes are separately governed",
+      "protected_requirement": "Any semantic product fix discovered by the trial is documented first and receives its own approved workstream/spec boundary."
+    }
+  ],
+  "critique": [
+    ":\n- Existing ParallaxBench remains the evaluation contract and protected correctness remains a hard floor.\n- The objective template is immutable/versioned before the run starts; material brief drift changes its digest.\n- Benchmark identity is evaluation evidence only and grants no source, provider, deployment, merge, lifecycle, approval or REVIEW authority.\n- Runtime/provider/source-delivery/client code may not inspect benchmark ID/version/digest or expected result to special-case behavior.\n- The real trial uses normal authenticated Project \u2192 Build plan \u2192 Engineering Run \u2192 accepted source \u2192 Preview \u2192 REVIEW behavior.\n- After the real trial begins, no human or external agent manually edits target source.\n- Corrections go through Parallax and remain observable as intervention/recovery evidence.\n- Required plan approval and final REVIEW are expected boundaries, not undesirable intervention.\n- Missing cost/time/intervention evidence remains unknown/unavailable; no favorable zero defaults.\n- Preview remains the autonomous publication ceiling and REVIEW remains human-required.\n- The first admitted real-world app-builder benchmark is Decision Ledger v1, an independent responsive web application with browser-persistent state, CRUD, search/filter, import/export, accessibility and automated tests. It requires no third-party backend, production secret or external account.\n- The benchmark must expose ordinary product quality and failure modes.\n- It must not create a benchmark-only runtime, provider, source, lifecycle, authentication or expected-answer path."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
