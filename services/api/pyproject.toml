@@ -16,6 +16,7 @@ dependencies = [
   "pydantic-settings>=2.10,<3",
   "dspy>=3.3,<4",
   "httpx>=0.28,<1",
+  "PyJWT[crypto]>=2.10,<3",
   "vercel>=0.9,<0.10",
   "vercel-sandbox>=0.4,<0.5",
 ]
