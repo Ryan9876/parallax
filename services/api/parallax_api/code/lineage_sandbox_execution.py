@@ -174,6 +174,14 @@ class SameLineageVercelSandboxExecutor:
         cleanup_error: Exception | None = None
         try:
             self.policy.validate(spec)
+            # The caller spec is a stage-authorization envelope, not repository
+            # command authority. Preserve the inherited anti-injection boundary:
+            # reject any altered tool/args/cwd/timeout before accepted source is
+            # reconstructed. Repository-specific commands are derived only after
+            # exact lineage materialization below.
+            registered_spec = self.registry.spec_for(spec.stage, operation_key=spec.operation_key)
+            if spec != registered_spec:
+                raise ExecutionPolicyError("protected execution spec is not the server-registered stage envelope")
             identity = self._identity(project_ref, run_id)
             if not isinstance(source_lineage_ref, str) or not source_lineage_ref:
                 raise SameLineageExecutionError("accepted source lineage identity is required")
