@@ -9,6 +9,21 @@ import { ProjectCompatibilityGate } from './src/components/ProjectCompatibilityG
 
 type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
 
+function canCreateWebGlContext(): boolean {
+  if (typeof document === 'undefined') return false;
+
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(
+      canvas.getContext('webgl2')
+      || canvas.getContext('webgl')
+      || canvas.getContext('experimental-webgl' as 'webgl'),
+    );
+  } catch {
+    return false;
+  }
+}
+
 function register(AppComponent: React.ComponentType) {
   function ProjectAwareApp() {
     return (
@@ -26,6 +41,7 @@ function register(AppComponent: React.ComponentType) {
 
 async function boot() {
   try {
+    if (!canCreateWebGlContext()) throw new Error('WebGL is unavailable');
     await LoadSkiaWeb({ locateFile: (file: string) => `/${file}` });
     (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = false;
     const { default: App } = await import('./src/App');

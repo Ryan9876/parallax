@@ -449,6 +449,24 @@ async function inspectFallback(browser, report) {
   await page.close();
 }
 
+async function inspectWebGlPreflight(report) {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--disable-webgl', '--disable-software-rasterizer'],
+  });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  await page.goto('http://127.0.0.1:8765', { waitUntil: 'networkidle' });
+  await page.getByLabel('Message Parallax').waitFor({ timeout: 10000 });
+  await page.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
+  assert(await page.locator('canvas').count() === 0, 'WebGL preflight: reduced-graphics workspace should not mount canvases');
+  assert(await page.evaluate(() => !document.createElement('canvas').getContext('webgl')), 'WebGL preflight: test browser unexpectedly created a WebGL context');
+  assert(errors.length === 0, `WebGL preflight: browser errors: ${errors.join(' | ')}`);
+  report.webglPreflight = { reducedGraphicsWorkspace: true, canvasCount: 0, browserErrors: 0 };
+  await browser.close();
+}
+
 const normal = staticServer();
 const fallback = staticServer({ failSkia: true });
 const api = apiServer();
@@ -459,6 +477,7 @@ const report = {
   liveResponseTreatment: null,
   buildPlan: null,
   fallback: null,
+  webglPreflight: null,
 };
 let browser;
 
@@ -469,6 +488,7 @@ try {
   await inspectViewport(browser, 'tablet', 768, 1024, report);
   await inspectViewport(browser, 'desktop', 1440, 900, report);
   await inspectFallback(browser, report);
+  await inspectWebGlPreflight(report);
   writeFileSync(`${evidenceDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
 } finally {
