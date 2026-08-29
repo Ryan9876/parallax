@@ -19,6 +19,11 @@ DOTNET_ARCHIVE_SHA512 = (
 )
 LIBICU_PACKAGE = "libicu78"
 LIBICU_VERSION = "78.2-2ubuntu1"
+LIBICU_ARCHIVE_URL = (
+    "https://archive.ubuntu.com/ubuntu/pool/main/i/icu/"
+    "libicu78_78.2-2ubuntu1_amd64.deb"
+)
+LIBICU_ARCHIVE_SHA256 = "c8b97930f9e365d6d00978144b468ac8397ef07d2fb2c453869f05fc3a98c4ca"
 _PROTECTED_SOURCE_ROOT = "/vercel/sandbox"
 _SNAPSHOT_ID = re.compile(r"^snap_[A-Za-z0-9_-]{8,160}$")
 _SANDBOX_ID = re.compile(r"^sbx_[A-Za-z0-9_-]{8,160}$")
@@ -93,8 +98,6 @@ def main() -> None:
         allow={
             "builds.dotnet.microsoft.com": (),
             "archive.ubuntu.com": (),
-            "security.ubuntu.com": (),
-            "azure.archive.ubuntu.com": (),
         }
     )
     with session():
@@ -144,28 +147,31 @@ def main() -> None:
             if os_release != "ubuntu:26.04":
                 raise RuntimeError(f"unexpected provisioning operating system: {os_release}")
 
-            _must_pass(
+            icu_download_code = (
+                "import hashlib,pathlib,urllib.request;"
+                f"u={LIBICU_ARCHIVE_URL!r};p=pathlib.Path('/tmp/libicu78.deb');"
+                "urllib.request.urlretrieve(u,p);"
+                "h=hashlib.sha256(p.read_bytes()).hexdigest();"
+                f"assert h=={LIBICU_ARCHIVE_SHA256!r},h;print(h)"
+            )
+            icu_digest = _must_pass(
                 instance.run_process(
-                    "sudo",
-                    ["apt-get", "update"],
-                    env={"DEBIAN_FRONTEND": "noninteractive"},
+                    "python",
+                    ["-c", icu_download_code],
+                    env={},
                     kill_after=120,
                     capture_output=True,
                 ),
-                "Ubuntu package index refresh",
-            )
+                "ICU artifact download and checksum verification",
+            ).strip()
+            if icu_digest != LIBICU_ARCHIVE_SHA256:
+                raise RuntimeError("ICU checksum evidence drifted")
             _must_pass(
                 instance.run_process(
                     "sudo",
-                    [
-                        "apt-get",
-                        "install",
-                        "-y",
-                        "--no-install-recommends",
-                        f"{LIBICU_PACKAGE}={LIBICU_VERSION}",
-                    ],
+                    ["dpkg", "-i", "/tmp/libicu78.deb"],
                     env={"DEBIAN_FRONTEND": "noninteractive"},
-                    kill_after=120,
+                    kill_after=90,
                     capture_output=True,
                 ),
                 "pinned ICU installation",
@@ -182,18 +188,22 @@ def main() -> None:
             ).strip()
             if installed_icu != f"{LIBICU_PACKAGE}={LIBICU_VERSION}":
                 raise RuntimeError(f"unexpected ICU package identity: {installed_icu}")
+            _must_pass(
+                instance.run_process("rm", ["-f", "/tmp/libicu78.deb"], env={}, kill_after=30, capture_output=True),
+                "remove ICU package artifact",
+            )
 
-            download_code = (
-                "import hashlib, pathlib, urllib.request; "
-                f"u={DOTNET_ARCHIVE_URL!r}; p=pathlib.Path('/tmp/dotnet-sdk.tar.gz'); "
-                "urllib.request.urlretrieve(u, p); "
-                "h=hashlib.sha512(p.read_bytes()).hexdigest(); "
-                f"assert h == {DOTNET_ARCHIVE_SHA512!r}, h; print(h)"
+            dotnet_download_code = (
+                "import hashlib,pathlib,urllib.request;"
+                f"u={DOTNET_ARCHIVE_URL!r};p=pathlib.Path('/tmp/dotnet-sdk.tar.gz');"
+                "urllib.request.urlretrieve(u,p);"
+                "h=hashlib.sha512(p.read_bytes()).hexdigest();"
+                f"assert h=={DOTNET_ARCHIVE_SHA512!r},h;print(h)"
             )
             digest = _must_pass(
                 instance.run_process(
                     "python",
-                    ["-c", download_code],
+                    ["-c", dotnet_download_code],
                     env={},
                     kill_after=120,
                     capture_output=True,
