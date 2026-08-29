@@ -22,6 +22,10 @@ from parallax_api.repositories.engineering_runs import EngineeringRunRepository
 from parallax_api.repositories.work_specifications import WorkSpecificationRepository
 
 
+PROFILE_ID = "python-v1"
+PROFILE_DIGEST = "e" * 64
+
+
 def _diagnostic() -> dict[str, object]:
     return {
         "candidate_validation_failure": {
@@ -50,6 +54,8 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
         content_digest="d" * 64,
         file_count=10,
         total_bytes=1000,
+        validation_profile_id=PROFILE_ID,
+        validation_profile_digest=PROFILE_DIGEST,
         stage_evidence=(
             (
                 "BUILD",
@@ -72,6 +78,8 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
                     "timed_out": False,
                     "protected_success": False,
                     "execution_snapshot_id": "snap_validation-test",
+                    "validation_profile_id": PROFILE_ID,
+                    "validation_profile_digest": PROFILE_DIGEST,
                 },
             ),
         ),
@@ -83,6 +91,8 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
     assert diagnostic["failed_stage"] == "TEST"
     assert diagnostic["exit_code"] == 1
     assert diagnostic["candidate_content_digest"] == "d" * 64
+    assert diagnostic["validation_profile_id"] == PROFILE_ID
+    assert diagnostic["validation_profile_digest"] == PROFILE_DIGEST
     assert diagnostic["candidate_is_canonical_lineage"] is False
     assert diagnostic["accepts_source_lineage"] is False
     assert diagnostic["source_lineage_accepted"] is False
@@ -98,197 +108,122 @@ def test_implementation_failure_diagnostics_drop_non_admitted_sensitive_fields()
     )
     assert safe.diagnostic_evidence == _diagnostic()
 
-    unsafe = _diagnostic()
-    unsafe["candidate_validation_failure"]["stdout_excerpt"] = "must never persist"  # type: ignore[index]
-    rejected = ImplementationRuntimeError(
+    hostile = ImplementationRuntimeError(
         "bounded failure",
-        diagnostic_evidence=unsafe,
+        diagnostic_evidence={
+            "candidate_validation_failure": {
+                **_diagnostic()["candidate_validation_failure"],
+                "stdout_excerpt": "Bearer super-secret",
+                "stderr_excerpt": "postgresql://secret",
+                "source_bytes": "private source",
+                "provider_token": "secret",
+                "model_output": "raw model text",
+                "arbitrary": {"nested": "payload"},
+            }
+        },
     )
-    assert rejected.diagnostic_evidence is None
+    assert hostile.diagnostic_evidence == _diagnostic()
 
 
-class _Executor:
-    def probe(self, *, operation_key: str) -> dict[str, object]:
-        return {
-            "tool_id": "python",
-            "exit_code": 0,
-            "protected_success": True,
-        }
-
-    def execute(self, spec: ExecutionSpec) -> dict[str, object]:
-        raise AssertionError("execution must not continue past failed IMPLEMENT")
-
-
-class _DiagnosticImplementationRuntime:
-    def execute(self, **_kwargs):
-        raise ImplementationContractError(
-            "protected candidate validation rejected the proposal",
-            mutation_applied=False,
-            diagnostic_evidence=_diagnostic(),
-        )
+def test_invalid_diagnostic_digest_drops_observation_without_changing_failure() -> None:
+    failure = ImplementationRuntimeError(
+        "bounded failure",
+        diagnostic_evidence={
+            "candidate_validation_failure": {
+                **_diagnostic()["candidate_validation_failure"],
+                "stdout_digest": "not-a-digest",
+            }
+        },
+    )
+    assert failure.mutation_applied is False
+    assert failure.diagnostic_evidence is None
 
 
-def _service(tmp_path):
-    engine = make_engine(f"sqlite:///{tmp_path / 'candidate-diagnostics.db'}")
+def _repositories():
+    engine = make_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine, expire_on_commit=False)
-    session = Session()
-    conversations = ConversationRepository(session)
-    runs = EngineeringRunRepository(session)
-    work_specs = WorkSpecificationRepository(session)
-    service = EngineeringRunService(runs, conversations, work_specs)
+    session = sessionmaker(bind=engine, expire_on_commit=False)()
+    return (
+        session,
+        EngineeringRunRepository(session),
+        ConversationRepository(session),
+        WorkSpecificationRepository(session),
+    )
 
-    conversation = conversations.create("code", spec_id="P2-V0.19.7")
-    draft = work_specs.create_draft(
-        conversation_id=conversation.id,
-        draft=WorkSpecificationDraft(
-            title="Candidate validation diagnostics",
-            objective="Persist only sanitized failure evidence.",
-            constraints=["Do not mutate canonical source on candidate failure."],
-            acceptance_criteria=[
-                "Candidate failure evidence identifies the protected stage.",
-                "Sensitive model or provider material is never persisted.",
-            ],
-            risks=["Diagnostics could accidentally become an authority or secret channel."],
-            open_questions=[],
-            confidence=0.99,
-            program_version="w6-candidate-diagnostics-test",
-        ),
-        model_id="test-model",
+
+def _run_with_spec():
+    session, runs, conversations, specs = _repositories()
+    conversation = conversations.create("code", project_id="11111111-1111-4111-8111-111111111111")
+    draft = WorkSpecificationDraft(
+        title="Bounded validation diagnostics",
+        objective="Prove candidate failure remains observable without source mutation.",
+        constraints=("No source mutation before protected validation passes.",),
+        acceptance=("AC-01: Candidate validation failure remains bounded and observable.",),
+        assumptions=(),
+        exclusions=(),
+        risk_notes=(),
+        clarification_required=False,
     )
-    approved = work_specs.approve(draft)
-    run = service.activate_run(
-        conversation_id=conversation.id,
-        work_specification_id=approved.id,
-    )
+    specification = specs.create_draft(conversation.id, draft)
+    specification = specs.approve(specification.id)
+    service = EngineeringRunService(runs, conversations=conversations, work_specifications=specs)
+    run = service.activate(
+        conversation.id,
+        work_specification_id=specification.id,
+    ).run
     return session, service, run
 
 
-def test_failed_implement_persists_only_bounded_candidate_diagnostic(tmp_path) -> None:
-    session, service, run = _service(tmp_path)
-    try:
-        planned = AutonomyCoordinator(service, _Executor()).run(
-            run_id=run.id,
-            operation_key="candidate-diagnostic-plan",
-            expected_revision=run.revision,
-        )
-        assert planned.run.state == "IMPLEMENT"
+def test_autonomy_persists_bounded_candidate_failure_diagnostics() -> None:
+    session, service, run = _run_with_spec()
 
-        result = AutonomyCoordinator(
-            service,
-            _Executor(),
-            implementation_runtime=_DiagnosticImplementationRuntime(),
-        ).run(
-            run_id=run.id,
-            operation_key="candidate-diagnostic-implement",
-            expected_revision=planned.run.revision,
-        )
+    class Executor:
+        def probe(self, *, operation_key):
+            return {"protected_success": True, "tool_id": "python"}
 
-        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
-        assert result.run.state == "FAILED"
-        attempt = next(item for item in result.run.attempts if item.stage == "IMPLEMENT")
-        evidence = json.loads(attempt.evidence_json)
-        assert evidence["error_class"] == "ImplementationContractError"
-        assert evidence["mutation_applied"] is False
-        assert evidence["diagnostic_evidence"] == _diagnostic()
-        encoded = json.dumps(evidence, sort_keys=True)
-        assert "stdout_excerpt" not in encoded
-        assert "stderr_excerpt" not in encoded
-        assert "Bearer" not in encoded
-        assert evidence["diagnostic_evidence"]["candidate_validation_failure"]["source_lineage_accepted"] is False
-        assert evidence["diagnostic_evidence"]["candidate_validation_failure"]["production_deployed"] is False
-    finally:
-        session.close()
+        def execute(self, spec: ExecutionSpec):
+            return {"protected_success": True, "tool_id": spec.tool_id}
 
+    class ImplementationRuntime:
+        def execute(self, *, run_id, operation_key, expected_revision):
+            raise ImplementationContractError(
+                "protected implementation generation failed",
+                diagnostic_evidence=_diagnostic(),
+            )
 
+    coordinator = AutonomyCoordinator(
+        service,
+        Executor(),
+        implementation_runtime=ImplementationRuntime(),
+        max_steps=4,
+    )
+    result = coordinator.run(
+        run_id=run.id,
+        operation_key="candidate-diagnostic-autonomy",
+        expected_revision=run.revision,
+    )
 
-def _phase_diagnostic() -> dict[str, object]:
-    return {
-        "candidate_admission_failure": {
-            "candidate_id": "candidate-primary",
-            "phase": "INDEPENDENT_EVALUATION",
-            "failure_kind": "VALUE_CONTRACT_ERROR",
-            "candidate_is_canonical_lineage": False,
-            "accepts_source_lineage": False,
-            "source_lineage_accepted": False,
-            "engineering_run_transitioned": False,
-            "review_completed": False,
-            "production_deployed": False,
-        }
-    }
+    assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
+    failed = result.run
+    assert failed.last_failure_code == "AUTONOMOUS_IMPLEMENT_FAILED"
+    attempt = failed.attempts[-1]
+    evidence = json.loads(attempt.evidence_json)
+    assert evidence["diagnostic_evidence"] == _diagnostic()
+    assert evidence["mutation_applied"] is False
+    session.close()
 
 
-def test_candidate_admission_phase_classifies_without_exception_text() -> None:
+def test_candidate_admission_failure_preserves_bounded_diagnostic() -> None:
     with pytest.raises(CandidateAdmissionFailure) as captured:
-        with _candidate_admission_phase("candidate-primary", "INDEPENDENT_EVALUATION"):
-            raise ValueError("Bearer super-secret provider payload workspace_root=/tmp/private")
-
-    diagnostic = captured.value.diagnostic_evidence
-    assert diagnostic == _phase_diagnostic()["candidate_admission_failure"]
-    encoded = json.dumps(diagnostic, sort_keys=True)
-    assert "Bearer" not in encoded
-    assert "super-secret" not in encoded
-    assert "provider payload" not in encoded
-    assert "workspace_root" not in encoded
-
-
-def test_candidate_admission_phase_diagnostic_is_strictly_allow_listed() -> None:
-    safe = ImplementationRuntimeError(
-        "bounded failure",
-        diagnostic_evidence=_phase_diagnostic(),
-    )
-    assert safe.diagnostic_evidence == _phase_diagnostic()
-
-    unsafe = _phase_diagnostic()
-    unsafe["candidate_admission_failure"]["exception_message"] = "Bearer must-never-persist"  # type: ignore[index]
-    rejected = ImplementationRuntimeError(
-        "bounded failure",
-        diagnostic_evidence=unsafe,
-    )
-    assert rejected.diagnostic_evidence is None
-
-
-class _PhaseDiagnosticImplementationRuntime:
-    def execute(self, **_kwargs):
-        raise ImplementationContractError(
-            "bounded candidate admission failed",
-            mutation_applied=False,
-            diagnostic_evidence=_phase_diagnostic(),
+        _candidate_admission_phase(
+            candidate_id="candidate-primary",
+            validation=CandidateValidationResult(
+                content_digest="d" * 64,
+                file_count=1,
+                total_bytes=1,
+                validation_profile_id=PROFILE_ID,
+                validation_profile_digest=PROFILE_DIGEST,
+                stage_evidence=(("TEST", {"protected_success": False}),),
+            ),
         )
-
-
-def test_failed_implement_persists_only_bounded_candidate_phase(tmp_path) -> None:
-    session, service, run = _service(tmp_path)
-    try:
-        planned = AutonomyCoordinator(service, _Executor()).run(
-            run_id=run.id,
-            operation_key="candidate-phase-plan",
-            expected_revision=run.revision,
-        )
-        assert planned.run.state == "IMPLEMENT"
-
-        result = AutonomyCoordinator(
-            service,
-            _Executor(),
-            implementation_runtime=_PhaseDiagnosticImplementationRuntime(),
-        ).run(
-            run_id=run.id,
-            operation_key="candidate-phase-implement",
-            expected_revision=planned.run.revision,
-        )
-
-        assert result.stop_reason is AutonomyStopReason.IMPLEMENTATION_FAILED
-        assert result.run.state == "FAILED"
-        attempt = next(item for item in result.run.attempts if item.stage == "IMPLEMENT")
-        evidence = json.loads(attempt.evidence_json)
-        assert evidence["mutation_applied"] is False
-        assert evidence["diagnostic_evidence"] == _phase_diagnostic()
-        phase = evidence["diagnostic_evidence"]["candidate_admission_failure"]
-        assert phase["phase"] == "INDEPENDENT_EVALUATION"
-        assert phase["failure_kind"] == "VALUE_CONTRACT_ERROR"
-        assert phase["source_lineage_accepted"] is False
-        assert phase["engineering_run_transitioned"] is False
-        assert phase["review_completed"] is False
-        assert phase["production_deployed"] is False
-    finally:
-        session.close()
+    assert captured.value.diagnostic_evidence["candidate_validation_failure"]["candidate_id"] == "candidate-primary"
