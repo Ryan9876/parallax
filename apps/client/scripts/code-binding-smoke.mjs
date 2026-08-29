@@ -310,7 +310,7 @@ try {
   await page.getByLabel('Message Parallax').fill('Implement the approved build goal.');
   await page.getByLabel('Send message').click();
   await page.getByText(/Your build goal is captured/).first().waitFor({ timeout: 10000 });
-  await page.getByLabel('Create build plan').click();
+  await page.getByLabel('Build plan', { exact: true }).getByRole('button', { name: 'Create build plan' }).click();
   await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
   await page.getByLabel('Approve build plan').click();
   await page.getByText('Plan approved').waitFor({ timeout: 5000 });
