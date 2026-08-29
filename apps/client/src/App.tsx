@@ -14,6 +14,7 @@ import { LivingSurface } from './components/LivingSurface';
 import { LaserTypesetter } from './components/LaserTypesetter';
 import { ParallaxLogo } from './components/ParallaxLogo';
 import { EngineeringRunStatus } from './components/EngineeringRunStatus';
+import { GuidedWorkflowCard } from './components/GuidedWorkflowCard';
 import { WorkSpecificationStatus } from './components/WorkSpecificationStatus';
 import { EditorialNavigationRail, type EditorialShellView } from './components/EditorialNavigationRail';
 import { EditorialProjectWorkspace } from './components/EditorialProjectWorkspace';
@@ -23,15 +24,16 @@ import {
   MobileAmendmentNotice,
   MobileBottomNavigation,
   MobileBuildWorkspace,
-  MobileContextCard,
   MobileHeader,
   MobileProjectWorkspace,
   MobileSpecificationDetail,
   type MobileDestination,
 } from './components/mobile/MobileExperience';
+import { MobileGuidedContextCard } from './components/mobile/MobileGuidedContextCard';
 import { LiveBuildWorkspace } from './components/observability/LiveBuildWorkspace';
 import { initialResponseState, motionForPhase, responseReducer } from './state/responseState';
 import { api, AuthenticationRequiredError, type ConversationDto, type MessageDto, type ResponseStreamEvent } from './lib/api';
+import { getWorkflowGuidance } from './lib/workflowGuidance';
 import { useEngineeringRun } from './hooks/useEngineeringRun';
 import { useWorkSpecification } from './hooks/useWorkSpecification';
 import { palette } from './theme';
@@ -110,6 +112,16 @@ export default function App() {
   const observabilityAvailable = mode === 'code' && Boolean(engineering.run);
   const amendmentActive = state.phase === 'SPEC_AMENDMENT' || activeConversation?.status === 'SPEC_AMENDMENT';
   const mobileBuildActive = Boolean(mobileRun && !['COMPLETE', 'CANCELLED'].includes(mobileRun.state));
+  const workflowGuidance = getWorkflowGuidance({
+    mode,
+    phase: state.phase,
+    conversationStatus: activeConversation?.status,
+    specification: workSpecification.specification,
+    run: engineering.run,
+    canDraft: canDraftWorkSpecification && mode === 'code',
+    hasApprovedSpecification: Boolean(workSpecification.approvedSpecification),
+    runError: engineering.error,
+  });
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -429,6 +441,15 @@ export default function App() {
     }
   }, [applyConversation, conversationId, lockAccess, mobileActionBusy, state.phase, workSpecification]);
 
+  const guidedAction = React.useMemo<(() => void) | null>(() => {
+    if (workflowGuidance.actionIntent === 'create-plan') return () => { void workSpecification.draft(); };
+    if (workflowGuidance.actionIntent === 'continue-work') return () => { void engineering.resume(); };
+    if (workflowGuidance.actionIntent === 'open-activity' && observabilityAvailable) return () => selectWorkspace('observability');
+    if (workflowGuidance.actionIntent === 'continue-approved') return () => { void resumeApprovedScope(); };
+    if (workflowGuidance.actionIntent === 'start-new-goal') return () => { void startConversation(mode); };
+    return null;
+  }, [engineering, mode, observabilityAvailable, resumeApprovedScope, selectWorkspace, startConversation, workflowGuidance.actionIntent, workSpecification]);
+
   if (!accessResolved) {
     return (
       <View style={styles.accessRoot}>
@@ -539,15 +560,20 @@ export default function App() {
                         onResumeApprovedScope={() => void resumeApprovedScope()}
                       />
                     ) : (
-                      <MobileContextCard
+                      <MobileGuidedContextCard
+                        mode={mode}
+                        phase={state.phase}
+                        conversationStatus={activeConversation?.status}
                         specification={mobileSpecification}
                         run={mode === 'code' ? mobileRun : null}
                         canDraft={mobileCanDraftWorkSpecification && mode === 'code'}
-                        busy={workSpecification.busy}
-                        error={workSpecification.error}
+                        hasApprovedSpecification={Boolean(mobileApprovedSpecification)}
+                        busy={workSpecification.busy || engineering.busy}
+                        error={workSpecification.error || engineering.error}
                         onCapture={() => void workSpecification.draft()}
                         onReviewSpecification={() => mobileSpecification && setMobileDetail('specification')}
                         onOpenBuild={() => setMobileDestination('build')}
+                        onContinueWork={() => void engineering.resume()}
                       />
                     )}
                     {mobileActionError ? <Text style={styles.mobileActionError}>{mobileActionError}</Text> : null}
@@ -695,6 +721,14 @@ export default function App() {
             {workspaceView === 'conversation' ? (
               <>
                 <View style={styles.governedContext}>
+                  {mode === 'code' ? (
+                    <GuidedWorkflowCard
+                      guidance={workflowGuidance}
+                      busy={workSpecification.busy || engineering.busy || mobileActionBusy}
+                      onPrimaryAction={guidedAction}
+                    />
+                  ) : null}
+
                   <WorkSpecificationStatus
                     specification={workSpecification.specification}
                     busy={workSpecification.busy}
