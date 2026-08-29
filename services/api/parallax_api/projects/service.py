@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .model import Project
 from .repository import ProjectConflictError, ProjectRepository
-from .schemas import ProjectCreate, slug_from_name
+from .schemas import ProjectCreate, ProjectDeliveryModeUpdate, slug_from_name
 
 
 class ProjectNotFoundError(LookupError):
@@ -14,6 +14,10 @@ class ProjectValidationError(ValueError):
 
 
 class ProjectDeleteConflictError(RuntimeError):
+    pass
+
+
+class ProjectDeliveryModeConflictError(RuntimeError):
     pass
 
 
@@ -47,18 +51,26 @@ class ProjectService:
             raise ProjectNotFoundError("Project not found")
         return project
 
+    def update_delivery_mode(self, *, project_id: str, owner_subject: str, request: ProjectDeliveryModeUpdate) -> Project:
+        project = self.get(project_id=project_id, owner_subject=owner_subject)
+        if project.delivery_mode == request.delivery_mode:
+            return project
+        active_states = self.repository.nonterminal_run_states(project.id)
+        if active_states.difference({"SPECIFY", "PLAN"}):
+            raise ProjectDeliveryModeConflictError("Project delivery mode is locked after implementation begins")
+        return self.repository.update_delivery_mode(project, request.delivery_mode)
+
     def delete(self, *, project_id: str, owner_subject: str) -> None:
         project = self.get(project_id=project_id, owner_subject=owner_subject)
         if self.repository.has_nonterminal_run(project.id):
-            raise ProjectDeleteConflictError(
-                "Project has active engineering work. Cancel or complete it before deleting the Project."
-            )
+            raise ProjectDeleteConflictError("Project has active engineering work. Cancel or complete it before deleting the Project.")
         self.repository.soft_delete(project)
 
 
 __all__ = [
     "ProjectConflictError",
     "ProjectDeleteConflictError",
+    "ProjectDeliveryModeConflictError",
     "ProjectNotFoundError",
     "ProjectService",
     "ProjectValidationError",
