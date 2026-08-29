@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Date: 2026-08-28
+Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
@@ -18,16 +18,18 @@ W8-S4 application release merge:
 
 W8-S2 remains independently production-deployed and infrastructure-verified. Its original authenticated OT Time defect replay is still pending and is not replaced by W8-S3 or W8-S4 release evidence. Wave 8 therefore has no further planned implementation slice, but its control remains open until that authenticated acceptance debt is resolved or explicitly dispositioned.
 
+A bounded QA password fallback for the existing Google-linked, Parallax-authorized test user is now client production-deployment-verified. Ordinary `/` remains Google-only; `/?qa=1` alone exposes private recovery/password sign-in controls. The fallback still exchanges only a transient Supabase token through the existing server-side Google-provider/allowlist/session boundary. It creates no public sign-up, server auth change, schema change, provider secret, or stored token/password.
+
 ### Client
 
 Current production client:
 
-- application source: `17b62ec2649224e2beeacd6c9b2ce23d01af8028`;
-- production deployment: `dpl_BAbUpv63PUFxmCHM6JDDkf2SsFNJ`;
+- application source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
+- production deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - target: `production`;
 - state / ready state: `READY`;
-- exact Git source: `17b62ec2649224e2beeacd6c9b2ce23d01af8028`;
+- exact Git source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
 - Git source verification: verified;
 - aliases: `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, `parallax-git-main-lew7.vercel.app`;
 - alias error: none.
@@ -46,6 +48,34 @@ W8-S4 client evidence:
 - production errors-only build inspection shows a successful completed build;
 - exact production deployment error/fatal runtime scan after cutover returned no matching logs;
 - authenticated Vercel fetch of `parallax-ashy-one-20.vercel.app` returned HTTP 200 and the Parallax 2.0 application shell.
+
+
+### QA authenticated-browser fallback
+
+Workstream: #389
+
+Release PR: #390
+
+Governing specification: `P2-V0.22.1`
+
+Qualified worker head: `d470208b98a148512fbeb300255e97a9bd9e6514`
+
+Application release merge: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`
+
+Production client deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`
+
+The QA fallback is **MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**:
+
+- exact-head Workstream Spec Validation run `33229323953` — PASS;
+- exact-head Bounded Autonomy Pilot run `33229323990` — PASS;
+- exact-head P2 CI run `33229323928` — PASS;
+- exact-head Preview `dpl_7yKbmEUPT3NnDQ6BBej6UJHoC8fe` — READY;
+- expected-head merge #390 — PASS;
+- exact-merge production deployment `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM` — READY;
+- live normal root exposes only Google; live `/?qa=1` exposes the secondary QA email/password/recovery controls while retaining Google as primary;
+- post-cutover client runtime-error scan — clean.
+
+The remaining user-controlled step is private password enrollment from the recovery email, followed by secure managed-browser sign-in and the W8-S2 authenticated OT Time replay. Passwords and recovery tokens are never accepted in chat or recorded here.
 
 ### API
 
@@ -245,10 +275,10 @@ W8-S4 adds no database migration.
 
 ### Client
 
-Current W8-S4 production client:
+Current QA-fallback production client:
 
-- application source `17b62ec2649224e2beeacd6c9b2ce23d01af8028`;
-- deployment `dpl_BAbUpv63PUFxmCHM6JDDkf2SsFNJ`.
+- application source `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
+- deployment `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`.
 
 Immediate deployment-verified W8-S3 rollback reference:
 
