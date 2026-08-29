@@ -106,3 +106,26 @@ def test_private_repository_visibility_falls_back_to_exact_credential_path() -> 
     with pytest.raises(ProviderClientError, match="REPOSITORY_AUTHORIZATION_REQUIRED"):
         client.resolve_repository(REPOSITORY)
     assert constructed == 1
+
+
+def test_ambiguous_anonymous_repository_metadata_does_not_gain_public_authority() -> None:
+    def ambiguous(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"full_name": "Ryan9876/ot-time", "default_branch": "main"},
+        )
+
+    constructed = False
+
+    def authenticated_factory():
+        nonlocal constructed
+        constructed = True
+        raise AssertionError("ambiguous anonymous metadata must fail closed")
+
+    client = PublicFirstGitHubReadClient(
+        PublicGitHubReadClient(transport=httpx.MockTransport(ambiguous)),
+        LazyAuthenticatedGitHubReadClient(authenticated_factory),
+    )
+    with pytest.raises(ProviderClientError, match="REPOSITORY_NOT_PUBLIC"):
+        client.resolve_repository(REPOSITORY)
+    assert constructed is False
