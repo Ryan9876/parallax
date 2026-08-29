@@ -39,18 +39,22 @@ def runtime_vercel_oidc_token(
 ) -> str | None:
     """Resolve server-owned Vercel deployment identity for runtime provider calls.
 
-    A valid request-scoped Vercel token has precedence when present. In
-    production, Vercel Connect also exposes the deployment OIDC token through
-    ``VERCEL_OIDC_TOKEN``; that server-injected environment value is the bounded
-    fallback used when no valid request token exists. No client Authorization
-    header, cookie, query value, or application credential participates in this
-    resolution. Non-production callers without a valid request token retain the
-    existing no-provider-authority behavior and return ``None``.
+    A valid request-scoped Vercel token has precedence when present. A present
+    but malformed request-scoped token fails closed rather than being replaced
+    by another identity source. When that header is absent, production Vercel
+    Connect may use the server-injected deployment OIDC token from
+    ``VERCEL_OIDC_TOKEN``. No client Authorization header, cookie, query value,
+    or application credential participates in this resolution. Non-production
+    callers without a valid request token retain the existing no-provider-
+    authority behavior and return ``None``.
     """
 
-    request_token = _runtime_oidc_value(headers.get(_RUNTIME_OIDC_HEADER))
-    if request_token is not None:
-        return request_token
+    raw_request_token = headers.get(_RUNTIME_OIDC_HEADER)
+    if raw_request_token is not None:
+        request_token = _runtime_oidc_value(raw_request_token)
+        if request_token is not None:
+            return request_token
+        raise ProductionDeliveryConfigurationError("runtime Vercel OIDC credential is malformed")
 
     runtime_environment = environment if environment is not None else (os.getenv("VERCEL_ENV") or "unknown")
     if runtime_environment == "production":
