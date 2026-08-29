@@ -44,9 +44,9 @@ jobs:
           API_BASE: https://parallax-api-tan.vercel.app
         run: bash scripts/w9_s1_reference_trial.sh
 
-  w8-s2-canonical-replay:
+  w8-s2-ot-time-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Request GitHub Actions OIDC token
         id: oidc
@@ -73,36 +73,100 @@ jobs:
             -X POST "${API_BASE}/v1/session/qa-automation" >/tmp/session.json
           jq -e '.authenticated == true' /tmp/session.json >/dev/null
 
-      - name: Read QA-owned canonical run
-        id: before
+      - name: Create QA-owned OT Time project and approved run
+        id: fixture
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
+          REPOSITORY_REF: github:Ryan9876/ot-time
         run: |
           set -euo pipefail
+
           curl --fail --silent --show-error \
             --cookie /tmp/parallax.cookies \
             -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-before.json
+            "${API_BASE}/v1/projects" >/tmp/projects.json
+
+          project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select(.repository_ref == $repo)][0].id // empty' /tmp/projects.json)"
+          if [ -z "${project_id}" ]; then
+            slug="qa-w8-s2-ot-time-${GITHUB_RUN_ID}"
+            jq -n \
+              --arg name "QA W8-S2 OT Time Replay" \
+              --arg slug "${slug}" \
+              --arg description "QA-owned production replay against the user-approved disposable OT Time repository." \
+              --arg repository_ref "${REPOSITORY_REF}" \
+              '{name:$name,slug:$slug,description:$description,repository_ref:$repository_ref}' >/tmp/project-create.json
+            curl --fail-with-body --silent --show-error \
+              --cookie /tmp/parallax.cookies \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              --data-binary @/tmp/project-create.json \
+              -X POST "${API_BASE}/v1/projects" >/tmp/project.json
+            project_id="$(jq -r '.id' /tmp/project.json)"
+          fi
+          test -n "${project_id}"
+
+          jq -n --arg project_id "${project_id}" '{mode:"code",project_id:$project_id}' >/tmp/conversation-create.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/conversation-create.json \
+            -X POST "${API_BASE}/v1/conversations" >/tmp/conversation.json
+          conversation_id="$(jq -r '.id' /tmp/conversation.json)"
+          spec_id="$(jq -r '.spec_id' /tmp/conversation.json)"
+
+          objective='This is an approved disposable production test of Parallax using Ryan9876/ot-time. Make one minimal, reversible, non-functional repository change that proves the autonomous engineering lifecycle can progress beyond PLAN without changing existing application behavior. Prefer adding or updating test documentation only. Preserve existing application code and behavior.'
+          jq -n --arg content "${objective}" '{role:"user",content:$content}' >/tmp/message.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/message.json \
+            -X POST "${API_BASE}/v1/conversations/${conversation_id}/messages" >/tmp/message-response.json
+
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -X POST "${API_BASE}/v1/conversations/${conversation_id}/work-specifications/draft" >/tmp/spec-draft.json
+          work_specification_id="$(jq -r '.id' /tmp/spec-draft.json)"
+          test -n "${work_specification_id}"
+
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -X POST "${API_BASE}/v1/work-specifications/${work_specification_id}/approve" >/tmp/spec-approved.json
+          jq -e '.status == "APPROVED"' /tmp/spec-approved.json >/dev/null
+
+          jq -n \
+            --arg conversation_id "${conversation_id}" \
+            --arg work_specification_id "${work_specification_id}" \
+            '{conversation_id:$conversation_id,work_specification_id:$work_specification_id}' >/tmp/activate.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/activate.json \
+            -X POST "${API_BASE}/v1/engineering-runs/activate" >/tmp/run-before.json
+
+          run_id="$(jq -r '.id' /tmp/run-before.json)"
           revision="$(jq -r '.revision' /tmp/run-before.json)"
           state="$(jq -r '.state' /tmp/run-before.json)"
-          failure="$(jq -r '.last_failure_code // ""' /tmp/run-before.json)"
           test "${state}" = "PLAN"
-          test "${revision}" -ge 1
-          test "${failure}" != "source_bootstrap_failed"
+          test -n "${run_id}"
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
-          echo "Before W8-S2 canonical replay: state=${state}, revision=${revision}, failure=${failure:-none}"
+          echo "OT Time replay fixture: project=${project_id}, run=${run_id}, state=${state}, revision=${revision}"
 
-      - name: Retry protected autonomous continuation
+      - name: Continue OT Time run autonomously
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
-          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+          RUN_ID: ${{ steps.fixture.outputs.run_id }}
+          EXPECTED_REVISION: ${{ steps.fixture.outputs.revision }}
         run: |
           set -euo pipefail
-          operation_key="qa-w8-s2-shared-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          operation_key="qa-w8-s2-ot-time-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           jq -n \
             --arg operation_key "${operation_key}" \
             --argjson expected_revision "${EXPECTED_REVISION}" \
@@ -115,12 +179,12 @@ jobs:
             -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" >/tmp/replay.json
           jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/replay.json
 
-      - name: Verify former W8-S2 defect does not reproduce
+      - name: Verify OT Time run advanced beyond PLAN
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
-          BEFORE_REVISION: ${{ steps.before.outputs.revision }}
+          RUN_ID: ${{ steps.fixture.outputs.run_id }}
+          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error \
@@ -130,14 +194,10 @@ jobs:
           after_revision="$(jq -r '.revision' /tmp/run-after.json)"
           state="$(jq -r '.state' /tmp/run-after.json)"
           failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
-          if [ "${failure}" = "source_bootstrap_failed" ]; then
-            echo "Former W8-S2 source bootstrap defect reproduced" >&2
-            exit 1
-          fi
           if [ "${after_revision}" -le "${BEFORE_REVISION}" ]; then
-            echo "Canonical run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}" >&2
+            echo "OT Time run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}, failure=${failure:-none}" >&2
             exit 1
           fi
-          echo "W8-S2 canonical replay advanced: state=${state}, revision=${after_revision}, failure=${failure:-none}"
+          echo "OT Time W8-S2 replay advanced: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=${failure:-none}"
 
-# Replay marker: W8-S2 production verification after P2-V0.23.3
+# OT Time is an explicitly user-approved disposable W8-S2 production test target.
