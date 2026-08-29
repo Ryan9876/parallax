@@ -5,7 +5,7 @@ import os
 from pathlib import PurePosixPath
 import time
 
-from parallax_api.execution_environment import execution_snapshot_id
+from parallax_api.execution_environment import execution_snapshot_id_for_profile
 
 from .dependency_preparation import preparation_network_policy, run_dependency_preparation
 from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy
@@ -31,9 +31,11 @@ class SameLineageExecutionError(RuntimeError):
 class SameLineageVercelSandboxExecutor:
     """Execute protected stages only against one reconstructed accepted lineage.
 
-    Runtime dependencies come from one server-pinned, source-free Vercel Sandbox
-    snapshot. The accepted lineage is transferred after the snapshot is restored,
-    and execution remains deny-all network with no application environment.
+    Runtime dependencies come from server-owned, source-free Vercel Sandbox
+    snapshots selected only from the admitted validation profile. The accepted
+    lineage is transferred after snapshot restoration, and execution retains the
+    established bounded PREPARE then deny-all validation contract with no
+    application environment.
     """
 
     def __init__(
@@ -44,13 +46,19 @@ class SameLineageVercelSandboxExecutor:
         policy: ProtectedCommandPolicy | None = None,
         project_id: str | None = None,
         snapshot_id: str | None = None,
+        dotnet_snapshot_id: str | None = None,
     ) -> None:
         self.allocator = allocator
         self.registry = registry or ProtectedCommandRegistry()
         self.policy = policy or ProtectedCommandPolicy()
         self.project_id = project_id or os.getenv("VERCEL_PROJECT_ID")
+        self.common_snapshot_id = snapshot_id
+        self.dotnet_snapshot_id = dotnet_snapshot_id
         try:
-            self.snapshot_id = execution_snapshot_id(snapshot_id)
+            if snapshot_id is not None:
+                execution_snapshot_id_for_profile("python-v1", common_explicit=snapshot_id)
+            if dotnet_snapshot_id is not None:
+                execution_snapshot_id_for_profile("dotnet-v1", dotnet_explicit=dotnet_snapshot_id)
         except ValueError as exc:
             raise SameLineageExecutionError("server-owned execution snapshot identity is invalid") from exc
 
@@ -180,6 +188,7 @@ class SameLineageVercelSandboxExecutor:
         execution_spec = spec
         validation_profile_id: str | None = None
         validation_profile_digest: str | None = None
+        selected_snapshot_id: str | None = None
         cleanup_error: Exception | None = None
         preparation_evidence: dict[str, object] = {
             "dependency_preparation_required": False,
@@ -201,13 +210,21 @@ class SameLineageVercelSandboxExecutor:
             profile = select_validation_profile(workspace.path)
             validation_profile_id = profile.profile_id.value
             validation_profile_digest = profile.digest
+            try:
+                selected_snapshot_id = execution_snapshot_id_for_profile(
+                    validation_profile_id,
+                    common_explicit=self.common_snapshot_id,
+                    dotnet_explicit=self.dotnet_snapshot_id,
+                )
+            except ValueError as exc:
+                raise SameLineageExecutionError("qualified execution snapshot is unavailable for validation profile") from exc
             execution_spec = profile.spec_for(spec.stage, operation_key=spec.operation_key)
             self.policy.validate(execution_spec)
             command, args = profile.invocation_for(spec.stage)
 
             self._require_provider_identity()
             session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
-            snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
+            snapshot_source = SnapshotSource(snapshot_id=selected_snapshot_id)
             with session():
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
@@ -228,8 +245,8 @@ class SameLineageVercelSandboxExecutor:
                     tags={"parallax": "same-lineage", "stage": spec.stage.value.lower()},
                 ) as instance:
                     restored_snapshot_id = getattr(instance, "current_snapshot_id", None)
-                    if restored_snapshot_id != self.snapshot_id:
-                        raise SameLineageExecutionError("sandbox did not restore the server-pinned execution snapshot")
+                    if restored_snapshot_id != selected_snapshot_id:
+                        raise SameLineageExecutionError("sandbox did not restore the profile-qualified execution snapshot")
                     self._transfer_source(instance, files)
                     preparation_evidence = run_dependency_preparation(
                         instance,
@@ -263,7 +280,7 @@ class SameLineageVercelSandboxExecutor:
                     "source_total_bytes": lineage.total_bytes,
                     "fresh_repository_checkout": False,
                     "git_source": False,
-                    "execution_snapshot_id": self.snapshot_id,
+                    "execution_snapshot_id": selected_snapshot_id,
                     "execution_snapshot_verified": True,
                     "validation_profile_id": validation_profile_id,
                     "validation_profile_digest": validation_profile_digest,
@@ -280,18 +297,18 @@ class SameLineageVercelSandboxExecutor:
                 stderr=_sanitized_provider_error(exc),
                 timed_out="timeout" in type(exc).__name__.lower(),
             )
-            evidence.update(
-                {
-                    "lineage_source_transfer": False,
-                    "fresh_repository_checkout": False,
-                    "git_source": False,
-                    "execution_snapshot_id": self.snapshot_id,
-                    "execution_snapshot_verified": False,
-                    "validation_profile_id": validation_profile_id,
-                    "validation_profile_digest": validation_profile_digest,
-                    **preparation_evidence,
-                }
-            )
+            failure_details: dict[str, object] = {
+                "lineage_source_transfer": False,
+                "fresh_repository_checkout": False,
+                "git_source": False,
+                "execution_snapshot_verified": False,
+                "validation_profile_id": validation_profile_id,
+                "validation_profile_digest": validation_profile_digest,
+                **preparation_evidence,
+            }
+            if selected_snapshot_id is not None:
+                failure_details["execution_snapshot_id"] = selected_snapshot_id
+            evidence.update(failure_details)
         finally:
             if workspace is not None:
                 try:

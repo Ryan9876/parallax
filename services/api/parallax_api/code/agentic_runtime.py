@@ -11,7 +11,7 @@ import tempfile
 import time
 from typing import Callable, Protocol
 
-from parallax_api.execution_environment import execution_snapshot_id
+from parallax_api.execution_environment import execution_snapshot_id_for_profile
 from parallax_api.intelligence.implementation_generation import (
     AcceptanceRequirement,
     ImplementationGeneration,
@@ -343,12 +343,18 @@ class VercelCandidateValidationExecutor:
         policy: ProtectedCommandPolicy | None = None,
         project_id: str | None = None,
         snapshot_id: str | None = None,
+        dotnet_snapshot_id: str | None = None,
     ) -> None:
         self.registry = registry or ProtectedCommandRegistry()
         self.policy = policy or ProtectedCommandPolicy()
         self.project_id = project_id or os.getenv("VERCEL_PROJECT_ID")
+        self.common_snapshot_id = snapshot_id
+        self.dotnet_snapshot_id = dotnet_snapshot_id
         try:
-            self.snapshot_id = execution_snapshot_id(snapshot_id)
+            if snapshot_id is not None:
+                execution_snapshot_id_for_profile("python-v1", common_explicit=snapshot_id)
+            if dotnet_snapshot_id is not None:
+                execution_snapshot_id_for_profile("dotnet-v1", dotnet_explicit=dotnet_snapshot_id)
         except ValueError as exc:
             raise AgenticRuntimeError("server-owned execution snapshot identity is invalid") from exc
 
@@ -439,8 +445,55 @@ class VercelCandidateValidationExecutor:
         if not self.project_id:
             raise AgenticRuntimeError("Vercel project identity is unavailable for candidate validation")
 
+        try:
+            selected_snapshot_id = execution_snapshot_id_for_profile(
+                profile.profile_id.value,
+                common_explicit=self.common_snapshot_id,
+                dotnet_explicit=self.dotnet_snapshot_id,
+            )
+        except ValueError:
+            failure_spec = profile.spec_for(
+                WorkflowStage.BUILD,
+                operation_key=f"{operation_key[:120]}:candidate:snapshot",
+            )
+            evidence = _bounded_evidence(
+                failure_spec,
+                exit_code=None,
+                duration_ms=0,
+                stdout="",
+                stderr="EXECUTION_PROFILE_UNAVAILABLE",
+            )
+            evidence.update(
+                {
+                    "dependency_preparation_required": profile.preparation is not None,
+                    "dependency_preparation_succeeded": False,
+                    "dependency_preparation_code": "EXECUTION_PROFILE_UNAVAILABLE",
+                    "dependency_preparation_duration_ms": 0,
+                    "dependency_probe_exit_code": None,
+                    "dependency_prepare_exit_code": None,
+                    "validation_network_locked": False,
+                    "candidate_content_digest": content_digest,
+                    "candidate_file_count": len(files),
+                    "candidate_total_bytes": total_bytes,
+                    "validation_profile_id": profile.profile_id.value,
+                    "validation_profile_digest": profile.digest,
+                    "execution_snapshot_verified": False,
+                    "network_policy": "not-created",
+                    "candidate_is_canonical_lineage": False,
+                    "accepts_source_lineage": False,
+                }
+            )
+            return CandidateValidationResult(
+                content_digest=content_digest,
+                file_count=len(files),
+                total_bytes=total_bytes,
+                validation_profile_id=profile.profile_id.value,
+                validation_profile_digest=profile.digest,
+                stage_evidence=((WorkflowStage.BUILD.value, evidence),),
+            )
+
         session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
-        snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
+        snapshot_source = SnapshotSource(snapshot_id=selected_snapshot_id)
         stage_evidence: list[tuple[str, dict[str, object]]] = []
         preparation_seconds = (
             profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds
@@ -462,7 +515,7 @@ class VercelCandidateValidationExecutor:
                 destroy=True,
                 tags={"parallax": "agentic-candidate-validation"},
             ) as instance:
-                if getattr(instance, "current_snapshot_id", None) != self.snapshot_id:
+                if getattr(instance, "current_snapshot_id", None) != selected_snapshot_id:
                     raise AgenticRuntimeError("candidate sandbox did not restore the pinned execution snapshot")
                 self._transfer_source(instance, files)
                 try:
@@ -492,7 +545,7 @@ class VercelCandidateValidationExecutor:
                             "candidate_total_bytes": total_bytes,
                             "validation_profile_id": profile.profile_id.value,
                             "validation_profile_digest": profile.digest,
-                            "execution_snapshot_id": self.snapshot_id,
+                            "execution_snapshot_id": selected_snapshot_id,
                             "execution_snapshot_verified": True,
                             "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded",
                             "candidate_is_canonical_lineage": False,
@@ -553,7 +606,7 @@ class VercelCandidateValidationExecutor:
                             "candidate_total_bytes": total_bytes,
                             "validation_profile_id": profile.profile_id.value,
                             "validation_profile_digest": profile.digest,
-                            "execution_snapshot_id": self.snapshot_id,
+                            "execution_snapshot_id": selected_snapshot_id,
                             "execution_snapshot_verified": True,
                             "network_policy": "deny-all",
                             "candidate_is_canonical_lineage": False,

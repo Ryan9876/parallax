@@ -60,7 +60,7 @@ class FakeSnapshotSource:
 
 
 class Instance:
-    current_snapshot_id = "snap_test-runtime"
+    current_snapshot_id = "snap_test-dotnet-runtime"
     fs = Filesystem()
 
 
@@ -73,7 +73,8 @@ def test_prepare_failure_returns_bounded_candidate_result_not_http500_path(tmp_p
     (tmp_path / "OtTime.sln").write_text("fixture", encoding="utf-8")
     executor = VercelCandidateValidationExecutor(
         project_id="prj_test",
-        snapshot_id="snap_test-runtime",
+        snapshot_id="snap_test-common-runtime",
+        dotnet_snapshot_id="snap_test-dotnet-runtime",
     )
     executor._sdk = lambda: (lambda: Context(), FakeNetworkPolicy, FakeSnapshotSource, Sandbox())
 
@@ -103,5 +104,6 @@ def test_prepare_failure_returns_bounded_candidate_result_not_http500_path(tmp_p
     assert evidence["protected_success"] is False
     assert evidence["dependency_preparation_code"] == "DEPENDENCY_PREPARATION_FAILED"
     assert evidence["validation_network_locked"] is True
+    assert evidence["execution_snapshot_id"] == "snap_test-dotnet-runtime"
     assert evidence["candidate_is_canonical_lineage"] is False
     assert evidence["accepts_source_lineage"] is False
