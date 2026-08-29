@@ -210,10 +210,39 @@ def _candidate_validation_failure_diagnostic(
         "source_lineage_accepted": False,
         "production_deployed": False,
     }
-    for key in ("invocation_digest", "stdout_digest", "stderr_digest"):
+    for key in (
+        "invocation_digest",
+        "stdout_digest",
+        "stderr_digest",
+        "dependency_stdout_digest",
+        "dependency_stderr_digest",
+    ):
         digest = _sha256_value(evidence.get(key))
         if digest is not None:
             diagnostic[key] = digest
+
+    preparation_code = evidence.get("dependency_preparation_code")
+    if preparation_code in {
+        "NOT_REQUIRED",
+        "READY",
+        "EXECUTION_PROFILE_UNAVAILABLE",
+        "DEPENDENCY_PREPARATION_FAILED",
+        "VALIDATION_NETWORK_LOCK_FAILED",
+    }:
+        diagnostic["dependency_preparation_code"] = preparation_code
+    for key in (
+        "dependency_preparation_required",
+        "dependency_preparation_succeeded",
+        "validation_network_locked",
+    ):
+        value = evidence.get(key)
+        if isinstance(value, bool):
+            diagnostic[key] = value
+    for key in ("dependency_probe_exit_code", "dependency_prepare_exit_code"):
+        value = evidence.get(key)
+        if value is None or (isinstance(value, int) and not isinstance(value, bool)):
+            diagnostic[key] = value
+
     content_digest = _sha256_value(validation.content_digest)
     if content_digest is not None:
         diagnostic["candidate_content_digest"] = content_digest

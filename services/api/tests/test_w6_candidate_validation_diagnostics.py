@@ -74,6 +74,15 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
                     "timed_out": False,
                     "protected_success": False,
                     "execution_snapshot_id": "snap_validation-test",
+                    "dependency_preparation_required": True,
+                    "dependency_preparation_succeeded": False,
+                    "dependency_preparation_code": "DEPENDENCY_PREPARATION_FAILED",
+                    "dependency_probe_exit_code": 0,
+                    "dependency_prepare_exit_code": 1,
+                    "dependency_stdout_digest": "f" * 64,
+                    "dependency_stderr_digest": "1" * 64,
+                    "validation_network_locked": True,
+                    "dependency_raw_output": "Bearer must-never-persist",
                 },
             ),
         ),
@@ -89,8 +98,17 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
     assert diagnostic["accepts_source_lineage"] is False
     assert diagnostic["source_lineage_accepted"] is False
     assert diagnostic["production_deployed"] is False
+    assert diagnostic["dependency_preparation_required"] is True
+    assert diagnostic["dependency_preparation_succeeded"] is False
+    assert diagnostic["dependency_preparation_code"] == "DEPENDENCY_PREPARATION_FAILED"
+    assert diagnostic["dependency_probe_exit_code"] == 0
+    assert diagnostic["dependency_prepare_exit_code"] == 1
+    assert diagnostic["dependency_stdout_digest"] == "f" * 64
+    assert diagnostic["dependency_stderr_digest"] == "1" * 64
+    assert diagnostic["validation_network_locked"] is True
     assert "stdout_excerpt" not in diagnostic
     assert "stderr_excerpt" not in diagnostic
+    assert "dependency_raw_output" not in diagnostic
 
 
 def test_implementation_failure_diagnostics_drop_non_admitted_sensitive_fields() -> None:
