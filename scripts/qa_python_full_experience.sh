@@ -39,9 +39,10 @@ api "${API_BASE}/v1/projects" >/tmp/parallax-python-projects.json
 project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select((.repository_ref // "" | ascii_downcase) == ($repo | ascii_downcase))][0].id // empty' /tmp/parallax-python-projects.json)"
 if [ -z "${project_id}" ]; then
   echo "QA phase: project creation"
+  project_slug="qa-python-full-experience-${GITHUB_RUN_ID:-fixture}"
   jq -n \
     --arg name "QA Python Full Experience" \
-    --arg slug "qa-python-full-experience" \
+    --arg slug "${project_slug}" \
     --arg description "QA-only source-only acceptance fixture against the dedicated minimal Python repository; no source publication or application deployment." \
     --arg repository_ref "${REPOSITORY_REF}" \
     '{name:$name,slug:$slug,description:$description,repository_ref:$repository_ref,delivery_mode:"source-only"}' \
