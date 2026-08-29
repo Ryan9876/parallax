@@ -1,0 +1,46 @@
+{
+  "architecture_decisions": [
+    "No changes are required to the architecture."
+  ],
+  "work_items": [
+    "No changes are required to the work item."
+  ],
+  "validations": [
+    "No changes are required to the validation.",
+    "AC-01: validate protected requirement — A GitHub-signed OIDC token is accepted only when issuer, audience, repository, main ref, exact workflow ref, workflow-dispatch event, and GitHub-hosted runner claims all match.",
+    "AC-02: validate protected requirement — The API issues a session only when `parallax.qa.ai@gmail.com` exists in `authorized_users`, is active, and already has a bound Google auth user ID.",
+    "AC-03: validate protected requirement — Neither repository code nor workflow configuration stores the QA password, refresh token, Supabase service-role key, Parallax access token, or another long-lived QA credential.",
+    "AC-04: validate protected requirement — Google login, hidden human QA password fallback, session expiry, logout, owner/member access and protected-route behavior remain unchanged.",
+    "AC-05: validate protected requirement — The dedicated workflow can establish a production Parallax session and invoke the existing protected autonomous endpoint for run `af617b0b-5297-427c-a40d-90d58f59a20a` without owner browser interaction.",
+    "AC-06: validate protected requirement — A replay passes only if durable run evidence advances beyond the former PLAN revision-1 missing-static-target failure without `source_bootstrap_failed` / `ProductionDeliveryConfigurationError`; provider/runtime evidence stays within the existing REVIEW/Preview authority ceiling.",
+    "AC-07: validate protected requirement — Forged, malformed, expired, not-yet-valid, wrong-audience, wrong-repository, wrong-ref, wrong-workflow, wrong-event, self-hosted-runner, and JWKS-verification failures produce no Parallax session and cannot fall back to another authentication method.",
+    "AC-08: validate protected requirement — If the dedicated QA allowlist row is missing, revoked, inactive, or no longer Google-bound, the machine assertion is denied even when the GitHub Actions OIDC assertion itself is valid.",
+    "AC-09: validate protected requirement — The GitHub workflow run provides a durable provider-side run identity and bounded execution evidence while raw OIDC tokens, cookies, passwords, refresh tokens, and provider credentials remain absent from committed artifacts and application logs.",
+    "AC-10: validate protected requirement — The exact qualified API source is deployed READY before the workflow runs; the automation session endpoint succeeds only from the merged trusted workflow; ordinary Google and hidden human QA login behavior remain unchanged; post-replay API/runtime errors and durable run state are inspected before any completion claim or authoritative-record update."
+  ],
+  "risks": [
+    "No changes are required to the risk."
+  ],
+  "spec_id": "P2-V0.22.2",
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Exact machine identity only","protected_requirement":"A GitHub-signed OIDC token is accepted only when issuer, audience, repository, main ref, exact workflow ref, workflow-dispatch event, and GitHub-hosted runner claims all match."},
+    {"id":"AC-02","title":"Existing QA authorization remains authoritative","protected_requirement":"The API issues a session only when `parallax.qa.ai@gmail.com` exists in `authorized_users`, is active, and already has a bound Google auth user ID."},
+    {"id":"AC-03","title":"No reusable QA secret","protected_requirement":"Neither repository code nor workflow configuration stores the QA password, refresh token, Supabase service-role key, Parallax access token, or another long-lived QA credential."},
+    {"id":"AC-04","title":"Normal auth is unchanged","protected_requirement":"Google login, hidden human QA password fallback, session expiry, logout, owner/member access and protected-route behavior remain unchanged."},
+    {"id":"AC-05","title":"Production replay is autonomous","protected_requirement":"The dedicated workflow can establish a production Parallax session and invoke the existing protected autonomous endpoint for run `af617b0b-5297-427c-a40d-90d58f59a20a` without owner browser interaction."},
+    {"id":"AC-06","title":"W8-S2 proof remains evidence-based","protected_requirement":"A replay passes only if durable run evidence advances beyond the former PLAN revision-1 missing-static-target failure without `source_bootstrap_failed` / `ProductionDeliveryConfigurationError`; provider/runtime evidence stays within the existing REVIEW/Preview authority ceiling."},
+    {"id":"AC-07","title":"Trust failures remain fail-closed","protected_requirement":"Forged, malformed, expired, not-yet-valid, wrong-audience, wrong-repository, wrong-ref, wrong-workflow, wrong-event, self-hosted-runner, and JWKS-verification failures produce no Parallax session and cannot fall back to another authentication method."},
+    {"id":"AC-08","title":"QA revocation and binding remain effective","protected_requirement":"If the dedicated QA allowlist row is missing, revoked, inactive, or no longer Google-bound, the machine assertion is denied even when the GitHub Actions OIDC assertion itself is valid."},
+    {"id":"AC-09","title":"Automation is auditable without credential leakage","protected_requirement":"The GitHub workflow run provides a durable provider-side run identity and bounded execution evidence while raw OIDC tokens, cookies, passwords, refresh tokens, and provider credentials remain absent from committed artifacts and application logs."},
+    {"id":"AC-10","title":"Production verification is exact and regression-safe","protected_requirement":"The exact qualified API source is deployed READY before the workflow runs; the automation session endpoint succeeds only from the merged trusted workflow; ordinary Google and hidden human QA login behavior remain unchanged; post-replay API/runtime errors and durable run state are inspected before any completion claim or authoritative-record update."}
+  ],
+  "critique": [
+    "The API trust must remain exact-workflow, short-lived and no-more-privileged than the existing QA user; autonomous W8-S2 replay is evidence, not additional release authority."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
