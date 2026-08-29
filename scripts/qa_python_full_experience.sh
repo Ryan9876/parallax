@@ -15,11 +15,21 @@ api() {
     "$@"
 }
 
-curl --fail --silent --show-error \
-  --cookie-jar "${COOKIE_JAR}" \
-  -H "Authorization: Bearer ${OIDC_TOKEN}" \
-  -X POST "${API_BASE}/v1/session/qa-automation" >/tmp/parallax-python-session.json
-jq -e '.authenticated == true' /tmp/parallax-python-session.json >/dev/null
+authenticated=0
+for attempt in $(seq 1 36); do
+  status="$(curl --silent --show-error \
+    --output /tmp/parallax-python-session.json \
+    --write-out '%{http_code}' \
+    --cookie-jar "${COOKIE_JAR}" \
+    -H "Authorization: Bearer ${OIDC_TOKEN}" \
+    -X POST "${API_BASE}/v1/session/qa-automation" || true)"
+  if [ "${status}" = "200" ] && jq -e '.authenticated == true' /tmp/parallax-python-session.json >/dev/null 2>&1; then
+    authenticated=1
+    break
+  fi
+  sleep 10
+done
+test "${authenticated}" = "1"
 
 api "${API_BASE}/v1/projects" >/tmp/parallax-python-projects.json
 project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select(.repository_ref == $repo)][0].id // empty' /tmp/parallax-python-projects.json)"
