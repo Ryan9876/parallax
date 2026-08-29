@@ -1,0 +1,127 @@
+name: W8-S2 QA Canonical Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/w8-s2-qa-replay.yml
+      - services/api/parallax_api/services/github_actions_identity.py
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: w8-s2-qa-canonical-replay
+  cancel-in-progress: false
+
+jobs:
+  replay-canonical-qa-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Request GitHub Actions OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${request_url}" | jq -r '.value')"
+          test -n "${token}"
+          test "${token}" != "null"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+
+      - name: Establish bounded Parallax QA session
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          API_BASE: https://parallax-api-tan.vercel.app
+        run: |
+          set -euo pipefail
+          authenticated=0
+          for attempt in $(seq 1 36); do
+            status="$(curl --silent --show-error \
+              --output /tmp/session.json \
+              --write-out '%{http_code}' \
+              --cookie-jar /tmp/parallax.cookies \
+              -H "Authorization: Bearer ${OIDC_TOKEN}" \
+              -X POST "${API_BASE}/v1/session/qa-automation" || true)"
+            if [ "${status}" = "200" ] && jq -e '.authenticated == true' /tmp/session.json >/dev/null 2>&1; then
+              authenticated=1
+              break
+            fi
+            sleep 10
+          done
+          test "${authenticated}" = "1"
+
+      - name: Read QA-owned canonical run
+        id: before
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
+          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-before.json
+          revision="$(jq -r '.revision' /tmp/run-before.json)"
+          state="$(jq -r '.state' /tmp/run-before.json)"
+          failure="$(jq -r '.last_failure_code // ""' /tmp/run-before.json)"
+          test "${state}" = "PLAN"
+          test "${revision}" -ge 1
+          test "${failure}" != "source_bootstrap_failed"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+          echo "Before W8-S2 canonical replay: state=${state}, revision=${revision}, failure=${failure:-none}"
+
+      - name: Retry protected autonomous continuation
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
+          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
+          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+        run: |
+          set -euo pipefail
+          operation_key="qa-w8-s2-canonical-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          jq -n \
+            --arg operation_key "${operation_key}" \
+            --argjson expected_revision "${EXPECTED_REVISION}" \
+            '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/autonomous.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/autonomous.json \
+            -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" >/tmp/replay.json
+          jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/replay.json
+
+      - name: Verify former W8-S2 defect does not reproduce
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
+          RUN_ID: a3a32343-507a-4384-a9bd-2fddaa0ce7fc
+          BEFORE_REVISION: ${{ steps.before.outputs.revision }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-after.json
+          after_revision="$(jq -r '.revision' /tmp/run-after.json)"
+          state="$(jq -r '.state' /tmp/run-after.json)"
+          failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
+          if [ "${failure}" = "source_bootstrap_failed" ]; then
+            echo "Former W8-S2 source bootstrap defect reproduced" >&2
+            exit 1
+          fi
+          if [ "${after_revision}" -le "${BEFORE_REVISION}" ]; then
+            echo "Canonical run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}" >&2
+            exit 1
+          fi
+          echo "W8-S2 canonical replay advanced: state=${state}, revision=${after_revision}, failure=${failure:-none}"
