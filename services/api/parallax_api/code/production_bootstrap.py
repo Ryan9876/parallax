@@ -13,6 +13,11 @@ from ..tools.providers import (
     GitHubProviderActions,
 )
 from ..tools.providers.github_client import GitHubRestProviderClient
+from ..tools.providers.public_github_client import (
+    LazyAuthenticatedGitHubReadClient,
+    PublicFirstGitHubReadClient,
+    PublicGitHubReadClient,
+)
 from ..tools.registry import ToolCapabilityRegistry
 from .delivery_readiness import _configuration_raw, _provisioning_profile
 from .production_delivery import ProductionDeliveryConfigurationError
@@ -27,7 +32,7 @@ from .source_delivery_composition import (
 class VercelConnectGitHubBootstrapCredentialProvider(
     RepositoryAuthorizationAwareGitHubCredentialProvider
 ):
-    """Use the existing request-scoped Connect exchange with read-only GitHub scope."""
+    """Legacy private-repository bootstrap credential path through Vercel Connect."""
 
     @staticmethod
     def delivery_authorization_details(repository: str) -> list[dict[str, object]]:
@@ -69,21 +74,20 @@ def production_source_bootstrap(
     oidc_token: str | None = None,
     github_transport: httpx.BaseTransport | None = None,
     github_scope_transport: httpx.BaseTransport | None = None,
+    public_github_transport: httpx.BaseTransport | None = None,
 ) -> ProjectedRepositoryLineageBootstrap:
-    """Compose canonical repository lineage without requiring a Vercel target.
+    """Compose canonical repository lineage independently from deployment selection.
 
-    PLAN needs exact repository source context. It does not need hosting metadata.
-    The server derives one accepted Connect profile from the existing protected
-    delivery configuration, requests an exact repository-scoped read credential,
-    and exposes only GitHub read capabilities to the bootstrap path.
+    PLAN needs exact repository source context, not hosting metadata. Public GitHub
+    repositories are read through a bounded anonymous GET-only client. Only a
+    repository that is hidden from anonymous GitHub resolution constructs the
+    existing exact-repository Vercel Connect credential path for private access.
     """
 
     if not isinstance(owner_subject, str) or not owner_subject.strip():
         raise ProductionDeliveryConfigurationError(
             "owner-scoped production source bootstrap requires an authenticated subject"
         )
-    encoded = _configuration_raw(preview_targets_json)
-    profile = _provisioning_profile(encoded)
 
     projects = ProjectRepository(session)
     project = projects.get_for_owner(project_id, owner_subject.strip())
@@ -103,14 +107,24 @@ def production_source_bootstrap(
         vercel_capability_id=f"cap:vercel-inert:{project.id}",
         actor_ref="actor:parallax-runtime",
     )
-    credentials = VercelConnectGitHubBootstrapCredentialProvider(
-        profile.github_connector,
-        oidc_token=oidc_token,
-        request_delivery_permissions=True,
-        transport=github_transport,
-        github_transport=github_scope_transport,
+
+    def authenticated_client() -> GitHubRestProviderClient:
+        encoded = _configuration_raw(preview_targets_json)
+        profile = _provisioning_profile(encoded)
+        credentials = VercelConnectGitHubBootstrapCredentialProvider(
+            profile.github_connector,
+            oidc_token=oidc_token,
+            request_delivery_permissions=True,
+            transport=github_transport,
+            github_transport=github_scope_transport,
+        )
+        return GitHubRestProviderClient(credentials)
+
+    source_client = PublicFirstGitHubReadClient(
+        PublicGitHubReadClient(transport=public_github_transport),
+        LazyAuthenticatedGitHubReadClient(authenticated_client),
     )
-    github = GitHubProviderActions(registry, GitHubRestProviderClient(credentials))
+    github = GitHubProviderActions(registry, source_client)
     bindings = OwnerScopedProjectBindingResolver(projects, owner_subject=owner_subject.strip())
     return ProjectedRepositoryLineageBootstrap(
         allocator=allocator,
