@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from ..auth import AccessPrincipal, access_principal
 from ..db import get_session
 from .repository import ProjectConflictError, ProjectRepository
-from .schemas import ProjectCreate, ProjectRead
+from .schemas import ProjectCreate, ProjectDeliveryModeUpdate, ProjectRead
 from .service import (
     ProjectDeleteConflictError,
+    ProjectDeliveryModeConflictError,
     ProjectNotFoundError,
     ProjectService,
     ProjectValidationError,
@@ -54,6 +55,25 @@ def read_project(
         return svc.get(project_id=project_id, owner_subject=principal.subject)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@router.patch("/{project_id}/delivery", response_model=ProjectRead)
+def update_project_delivery(
+    project_id: str,
+    request: ProjectDeliveryModeUpdate,
+    principal: AccessPrincipal = Depends(access_principal),
+    svc: ProjectService = Depends(service),
+):
+    try:
+        return svc.update_delivery_mode(
+            project_id=project_id,
+            owner_subject=principal.subject,
+            request=request,
+        )
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    except ProjectDeliveryModeConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
