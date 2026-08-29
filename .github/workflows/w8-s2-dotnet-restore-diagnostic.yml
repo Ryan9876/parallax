@@ -1,0 +1,41 @@
+name: W8-S2 .NET Restore Diagnostic
+
+on:
+  push:
+    branches:
+      - qa/w8-s2-p2-v0-23-6-replay
+    paths:
+      - .github/workflows/w8-s2-dotnet-restore-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ryan9876/ot-time
+          ref: main
+          path: ot-time
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.424
+      - name: Restore and report bounded NuGet diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          status=0
+          dotnet restore ot-time/OtTime.sln --nologo --verbosity diagnostic >/tmp/restore.log 2>&1 || status=$?
+          echo "RESTORE_EXIT=${status}"
+          echo '--- NuGet/MSBuild error codes ---'
+          grep -Eo '(NU|NETSDK|MSB)[0-9]{4}' /tmp/restore.log | sort -u || true
+          echo '--- HTTPS hosts observed ---'
+          grep -Eo 'https://[A-Za-z0-9._-]+' /tmp/restore.log | sed 's#https://##' | sort -u || true
+          if [ "${status}" -ne 0 ]; then
+            echo '--- bounded error lines ---'
+            grep -Ei '(^|[^A-Za-z])(error|NU[0-9]{4}|NETSDK[0-9]{4}|MSB[0-9]{4})' /tmp/restore.log | tail -80 || true
+            exit "${status}"
+          fi
