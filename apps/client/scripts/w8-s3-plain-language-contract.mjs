@@ -9,6 +9,7 @@ const header = read('../src/components/EditorialWorkspaceHeader.tsx');
 const progress = read('../src/components/EngineeringRunStatus.tsx');
 const projectGate = read('../src/components/ProjectCompatibilityGate.tsx');
 const mobile = read('../src/components/mobile/MobileExperience.tsx');
+const conversationRoute = read('../../../services/api/parallax_api/routes/conversations.py');
 
 function assert(condition, message) {
   if (!condition) throw new Error(`w8-s3 plain-language contract: ${message}`);
@@ -109,4 +110,30 @@ assert(mobile.includes('Parallax finished the work and the result is ready.'), '
 assert(mobile.includes('Project ID:'), 'raw Project identity must remain available in mobile technical details');
 assert(mobile.includes('Binding status:'), 'raw binding status must remain available in mobile technical details');
 
-console.log('PASS: W8-S3 ordinary shell, headers, project chooser, mobile context, and progress surfaces default to plain language while technical detail remains available on demand.');
+const forbiddenServerCopy = [
+  'approved specification amendment',
+  'Capture the Work Specification',
+  'governed Code execution',
+  'Parallax model provider',
+  'active conversation context exceeded protected limits',
+  'Your conversation is preserved; retry or refine the request',
+];
+for (const phrase of forbiddenServerCopy) {
+  assert(!conversationRoute.includes(phrase), `server-originated ordinary message still exposes engineering language: ${phrase}`);
+}
+const requiredServerCopy = [
+  'Your request is different from the plan you approved.',
+  'Next, create a build plan so you can review what Parallax will do',
+  'Parallax is busy right now. Your message is saved.',
+  'Parallax is temporarily unavailable. Your message is saved.',
+  'This conversation has become too long to continue safely.',
+  'Parallax couldn’t finish that response. Your conversation is saved.',
+];
+for (const phrase of requiredServerCopy) {
+  assert(conversationRoute.includes(phrase), `required plain-language server message is missing: ${phrase}`);
+}
+assert(conversationRoute.includes('"error": exc.error_code'), 'server must retain machine-readable coordination error codes');
+assert(conversationRoute.includes('"trace": exc.trace.as_public_dict()'), 'server must retain technical trace evidence separately from ordinary copy');
+assert(conversationRoute.includes('result.scope.decision is ScopeDecision.SPEC_AMENDMENT'), 'plain-language copy must not remove the canonical amendment decision boundary');
+
+console.log('PASS: W8-S3 ordinary shell, headers, project chooser, server messages, mobile context, and progress surfaces default to plain language while technical detail and machine-readable authority remain available on demand.');
