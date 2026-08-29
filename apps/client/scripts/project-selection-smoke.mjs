@@ -232,9 +232,9 @@ try {
         assert(JSON.stringify(state.conversationPosts[0]) === JSON.stringify({ mode: 'reason' }), 'Reason startup payload changed or acquired Project binding');
         assert(state.projectGets === 0, 'Project API should remain lazy during ordinary Reason startup');
 
-        await page.getByText('code', { exact: true }).click();
-        await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
-        await page.getByLabel('Select Project Beta').click();
+        await page.getByLabel('Build').click();
+        await page.getByText('Choose a project for Build').waitFor({ timeout: 5000 });
+        await page.getByLabel('Select project Beta').click();
         await page.getByText('PROJECT · Beta').waitFor({ timeout: 5000 });
 
         const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
@@ -272,8 +272,8 @@ try {
         await page.getByLabel('Build').click();
         await page.getByText('Choose a project for Build').waitFor({ timeout: 5000 });
         await page.getByLabel('Project name').fill('Mobile Builder');
-        await page.getByLabel('Repository identity').fill('owner/mobile-builder');
-        await page.getByLabel('Create Project').click();
+        await page.getByLabel('Repository (optional)').fill('owner/mobile-builder');
+        await page.getByLabel('Create project').click();
         await page.getByTestId('mobile-workspace-header').getByText('Mobile Builder', { exact: true }).waitFor({ timeout: 5000 });
 
         assert(state.projectPosts.length === 1, 'mobile create flow did not call Project creation exactly once');
@@ -295,7 +295,7 @@ try {
     await withApi({ projects: [project(ALPHA_ID, 'Stale Alpha')], rejectCode: true }, async (state) => {
       await withPage({ width: 1440, height: 900 }, async (page) => {
         await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-        await page.getByText('code', { exact: true }).click();
+        await page.getByLabel('Build').click();
         await page.getByText('Project not found').waitFor({ timeout: 5000 });
 
         const codePosts = state.conversationPosts.filter((payload) => payload.mode === 'code');
@@ -313,7 +313,7 @@ try {
     }, async (state) => {
       await withPage({ width: 1440, height: 900 }, async (page) => {
         await page.goto('http://127.0.0.1:8774', { waitUntil: 'networkidle' });
-        await page.getByText('HISTORICAL CODE · UNBOUND').waitFor({ timeout: 5000 });
+        await page.getByText('OLDER BUILD · NO PROJECT').waitFor({ timeout: 5000 });
         assert(state.projectGets === 0, 'historical-unbound conversation silently looked up or inferred a Project on open');
         assert(state.conversationPosts.length === 0, 'historical-unbound conversation was silently rebound through conversation creation');
       });
