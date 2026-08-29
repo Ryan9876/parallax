@@ -229,7 +229,7 @@ try {
 
   await page.goto('http://127.0.0.1:8767', { waitUntil: 'networkidle' });
   await page.getByTestId('mobile-guided-shell').waitFor({ timeout: 10000 });
-  await page.getByText('Parallax couldn’t continue this step', { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText('Something needs attention', { exact: true }).waitFor({ timeout: 10000 });
 
   await page.getByRole('tab', { name: 'Progress' }).click();
   await page.getByTestId('mobile-build-workspace').waitFor({ timeout: 5000 });
