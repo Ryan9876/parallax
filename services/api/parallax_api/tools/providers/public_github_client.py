@@ -16,9 +16,9 @@ class _UnavailableCredentialProvider:
 class PublicGitHubReadClient(GitHubRestProviderClient):
     """Anonymous GitHub REST access restricted to the inherited GET-only read surface.
 
-    GitHub returns repository metadata anonymously only for public repositories.
-    This client deliberately cannot issue any mutating request; authenticated
-    branch/commit/PR publication remains on the existing scoped client.
+    The repository metadata response must explicitly prove ``private == false``
+    before anonymous source authority is accepted. A private or ambiguous response
+    is not treated as public and cannot fall through to anonymous source reads.
     """
 
     def __init__(
@@ -64,6 +64,15 @@ class PublicGitHubReadClient(GitHubRestProviderClient):
         except Exception as exc:
             raise ProviderClientError("PROVIDER_ERROR") from exc
 
+    def resolve_repository(self, repository_ref: str):
+        response = self._send("GET", repository_ref, self._repo_path(repository_ref))
+        self._raise_status(response, not_found="REPOSITORY_NOT_FOUND")
+        payload = self._json(response)
+        if not isinstance(payload, dict) or payload.get("private") is not False:
+            raise ProviderClientError("REPOSITORY_NOT_PUBLIC")
+        # Reuse the established exact-identity/default-branch/head validation.
+        return super().resolve_repository(repository_ref)
+
 
 class LazyAuthenticatedGitHubReadClient:
     """Construct the credentialed client only after anonymous visibility fails."""
@@ -88,11 +97,12 @@ class LazyAuthenticatedGitHubReadClient:
 
 
 class PublicFirstGitHubReadClient:
-    """Use credential-free public reads first; fall back only for a hidden repo.
+    """Use credential-free public reads first; fall back only for an inaccessible repo.
 
-    A public repository never asks the deployment provider for a GitHub token.
-    A repository that is not visible anonymously may still use the existing
-    exact-repository credential path, preserving private-repository behavior.
+    A verified public repository never asks a deployment provider for a GitHub
+    token. Only GitHub's ordinary anonymous 404 may select the existing exact-
+    repository credential path for a private/inaccessible repository. Ambiguous
+    metadata is rejected rather than reclassified as private.
     """
 
     def __init__(
