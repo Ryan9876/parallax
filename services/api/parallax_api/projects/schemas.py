@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -12,6 +13,7 @@ REPOSITORY_REF_PATTERN = re.compile(
     r"(?P<owner>[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?)/"
     r"(?P<repo>[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?)$"
 )
+ProjectDeliveryMode = Literal["source-only", "vercel-preview"]
 
 
 def normalize_slug(value: str) -> str:
@@ -48,6 +50,7 @@ class ProjectCreate(BaseModel):
     slug: str | None = Field(default=None, max_length=80)
     description: str | None = Field(default=None, max_length=2000)
     repository_ref: str | None = Field(default=None, max_length=240)
+    delivery_mode: ProjectDeliveryMode = "source-only"
 
     @field_validator("name")
     @classmethod
@@ -76,6 +79,11 @@ class ProjectCreate(BaseModel):
         return normalize_repository_ref(value) if value is not None else None
 
 
+class ProjectDeliveryModeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    delivery_mode: ProjectDeliveryMode
+
+
 class ProjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -85,6 +93,7 @@ class ProjectRead(BaseModel):
     description: str | None
     repository_ref: str | None
     workspace_ref: str
+    delivery_mode: ProjectDeliveryMode
     status: str
     created_at: datetime
     updated_at: datetime

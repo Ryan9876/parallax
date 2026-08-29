@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { EngineeringRunDto } from '../lib/api';
+import { authenticatedRequest, type EngineeringRunDto } from '../lib/api';
 import {
   getEngineeringRunFailure,
   subscribeEngineeringRunFailures,
@@ -9,8 +9,10 @@ import { palette } from '../theme';
 
 const RAW_STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
 const AUTONOMOUS_STAGES = ['PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY'];
+const DELIVERY_MUTABLE_STAGES = ['SPECIFY', 'PLAN'];
 type EngineeringRunView = EngineeringRunDto & { autonomy_stop_reason?: string | null };
 type JourneyStatus = 'complete' | 'current' | 'pending' | 'failed' | 'paused' | 'cancelled';
+type DeliveryMode = 'source-only' | 'vercel-preview';
 
 const JOURNEY = [
   { key: 'define', label: 'Define', description: 'Agree on the goal and what success looks like.' },
@@ -104,6 +106,70 @@ function boundaryMessage(run: EngineeringRunDto, stopReason?: string | null): st
   return null;
 }
 
+async function readDeliveryMode(projectId: string): Promise<DeliveryMode> {
+  const response = await authenticatedRequest(`/v1/projects/${projectId}`);
+  if (!response.ok) throw new Error(`Project delivery settings are unavailable (${response.status}).`);
+  const payload = await response.json() as { delivery_mode?: unknown };
+  if (payload.delivery_mode !== 'source-only' && payload.delivery_mode !== 'vercel-preview') {
+    throw new Error('Project delivery settings are invalid.');
+  }
+  return payload.delivery_mode;
+}
+
+async function writeDeliveryMode(projectId: string, deliveryMode: DeliveryMode): Promise<DeliveryMode> {
+  const response = await authenticatedRequest(`/v1/projects/${projectId}/delivery`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delivery_mode: deliveryMode }),
+  });
+  if (!response.ok) {
+    let message = `Delivery setting could not be changed (${response.status}).`;
+    try {
+      const payload = await response.json() as { detail?: unknown };
+      if (typeof payload.detail === 'string' && payload.detail.trim()) message = payload.detail;
+    } catch {
+      // Keep the bounded status fallback.
+    }
+    throw new Error(message);
+  }
+  const payload = await response.json() as { delivery_mode?: unknown };
+  if (payload.delivery_mode !== 'source-only' && payload.delivery_mode !== 'vercel-preview') {
+    throw new Error('Project delivery settings are invalid.');
+  }
+  return payload.delivery_mode;
+}
+
+async function downloadAcceptedSource(projectId: string, runId: string): Promise<void> {
+  if (Platform.OS !== 'web') throw new Error('Source download is available from the web or desktop app.');
+  const response = await authenticatedRequest(`/v1/projects/${projectId}/engineering-runs/${runId}/source-download`);
+  if (!response.ok) {
+    let message = `Source download is unavailable (${response.status}).`;
+    try {
+      const payload = await response.json() as { detail?: unknown };
+      if (typeof payload.detail === 'string' && payload.detail.trim()) message = payload.detail;
+    } catch {
+      // Binary or empty error responses keep the status fallback.
+    }
+    throw new Error(message);
+  }
+  const body = await response.blob();
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename="([^"]+)"/i);
+  const filename = match?.[1] ?? `parallax-source-${runId.slice(0, 8)}.zip`;
+  const objectUrl = URL.createObjectURL(body);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function TechnicalDetails({ run, stopReason, error }: { run: EngineeringRunDto; stopReason?: string | null; error?: string | null }) {
   const [open, setOpen] = React.useState(false);
   const passed = run.attempts.filter((item) => item.status === 'PASSED').map((item) => item.stage);
@@ -159,6 +225,58 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
   const currentIndex = currentJourneyIndex(run);
   const currentStep = JOURNEY[currentIndex] ?? JOURNEY[0]!;
   const complete = run.state === 'COMPLETE';
+  const [deliveryMode, setDeliveryMode] = React.useState<DeliveryMode | null>(null);
+  const [deliveryBusy, setDeliveryBusy] = React.useState(false);
+  const [deliveryError, setDeliveryError] = React.useState<string | null>(null);
+  const projectId = run.project_id;
+  const canChangeDelivery = Boolean(projectId) && bound && DELIVERY_MUTABLE_STAGES.includes(run.state);
+  const canDownloadSource = Boolean(projectId) && run.state === 'REVIEW' && deliveryMode === 'source-only' && Platform.OS === 'web';
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      setDeliveryMode(null);
+      setDeliveryError(null);
+      return () => { cancelled = true; };
+    }
+    void readDeliveryMode(projectId)
+      .then((mode) => {
+        if (!cancelled) {
+          setDeliveryMode(mode);
+          setDeliveryError(null);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setDeliveryError(cause instanceof Error ? cause.message : 'Delivery settings are unavailable.');
+      });
+    return () => { cancelled = true; };
+  }, [projectId, run.state]);
+
+  const chooseDelivery = React.useCallback(async (nextMode: DeliveryMode) => {
+    if (!projectId || deliveryBusy || !canChangeDelivery || nextMode === deliveryMode) return;
+    setDeliveryBusy(true);
+    setDeliveryError(null);
+    try {
+      setDeliveryMode(await writeDeliveryMode(projectId, nextMode));
+    } catch (cause) {
+      setDeliveryError(cause instanceof Error ? cause.message : 'Delivery setting could not be changed.');
+    } finally {
+      setDeliveryBusy(false);
+    }
+  }, [canChangeDelivery, deliveryBusy, deliveryMode, projectId]);
+
+  const downloadSource = React.useCallback(async () => {
+    if (!projectId || deliveryBusy || !canDownloadSource) return;
+    setDeliveryBusy(true);
+    setDeliveryError(null);
+    try {
+      await downloadAcceptedSource(projectId, run.id);
+    } catch (cause) {
+      setDeliveryError(cause instanceof Error ? cause.message : 'Source download failed.');
+    } finally {
+      setDeliveryBusy(false);
+    }
+  }, [canDownloadSource, deliveryBusy, projectId, run.id]);
 
   return (
     <View style={styles.card} accessibilityLabel={`Progress: ${friendlyState(run)}`}>
@@ -199,6 +317,64 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
       {requestError ? <Text style={styles.requestError} accessibilityLiveRegion="polite">{requestError}</Text> : null}
       {!bound ? <Text style={styles.warning}>This older work is saved for reference, but it cannot continue as approved work.</Text> : null}
 
+      {projectId && deliveryMode ? (
+        <View style={styles.deliveryPanel} accessibilityLabel="Project delivery">
+          <View style={styles.deliveryHeader}>
+            <Text style={styles.deliveryKicker}>DELIVERY</Text>
+            {!canChangeDelivery ? <Text style={styles.deliveryLocked}>SET FOR THIS BUILD</Text> : null}
+          </View>
+          <Text style={styles.deliveryTitle}>
+            {deliveryMode === 'source-only' ? 'Download source' : 'Vercel Preview'}
+          </Text>
+          <Text style={styles.deliveryCopy}>
+            {deliveryMode === 'source-only'
+              ? 'Keep the verified result in Parallax so it can be downloaded and deployed to IIS, locally, or somewhere else.'
+              : 'Publish the verified result through the configured Vercel Preview path.'}
+          </Text>
+          {canChangeDelivery ? (
+            <View style={styles.deliveryChoices}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Use downloadable source delivery"
+                accessibilityState={{ selected: deliveryMode === 'source-only', disabled: deliveryBusy }}
+                disabled={deliveryBusy}
+                onPress={() => void chooseDelivery('source-only')}
+                style={[styles.deliveryChoice, deliveryMode === 'source-only' && styles.deliveryChoiceSelected]}
+              >
+                <Text style={[styles.deliveryChoiceText, deliveryMode === 'source-only' && styles.deliveryChoiceTextSelected]}>Download source</Text>
+                <Text style={styles.deliveryChoiceMeta}>IIS · local · other</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Use Vercel Preview delivery"
+                accessibilityState={{ selected: deliveryMode === 'vercel-preview', disabled: deliveryBusy }}
+                disabled={deliveryBusy}
+                onPress={() => void chooseDelivery('vercel-preview')}
+                style={[styles.deliveryChoice, deliveryMode === 'vercel-preview' && styles.deliveryChoiceSelected]}
+              >
+                <Text style={[styles.deliveryChoiceText, deliveryMode === 'vercel-preview' && styles.deliveryChoiceTextSelected]}>Vercel Preview</Text>
+                <Text style={styles.deliveryChoiceMeta}>Hosted preview</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {canDownloadSource ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Download verified source"
+              disabled={deliveryBusy}
+              onPress={() => void downloadSource()}
+              style={[styles.downloadButton, deliveryBusy && styles.disabledButton]}
+            >
+              <Text style={styles.downloadButtonText}>{deliveryBusy ? 'Preparing download…' : 'Download verified source'}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {run.state === 'REVIEW' && deliveryMode === 'source-only' && Platform.OS !== 'web' ? (
+            <Text style={styles.deliveryHint}>Open this project on web or desktop to download the verified source package.</Text>
+          ) : null}
+          {deliveryError ? <Text accessibilityLiveRegion="polite" style={styles.requestError}>{deliveryError}</Text> : null}
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel={effectiveError ? 'Try again' : 'Continue work'} accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : effectiveError ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}
         {canPause && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Pause work" disabled={busy} onPress={onPause} style={styles.actionButton}><Text style={styles.action}>Pause</Text></TouchableOpacity>}
@@ -237,6 +413,22 @@ const styles = StyleSheet.create({
   boundary: { color: palette.teal700, marginTop: 10, fontSize: 14, lineHeight: 21, fontWeight: '700', maxWidth: 740 },
   requestError: { color: palette.danger, marginTop: 10, fontSize: 14, lineHeight: 21, fontWeight: '700', maxWidth: 740 },
   warning: { color: palette.warning, marginTop: 10, fontSize: 14, lineHeight: 21, maxWidth: 740 },
+  deliveryPanel: { marginTop: 16, padding: 14, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, backgroundColor: palette.cream150 },
+  deliveryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  deliveryKicker: { color: palette.olive700, fontSize: 11, lineHeight: 15, fontWeight: '800', letterSpacing: 0.8 },
+  deliveryLocked: { color: palette.charcoal600, fontSize: 10, lineHeight: 14, fontWeight: '800', letterSpacing: 0.5 },
+  deliveryTitle: { color: palette.charcoal950, fontSize: 16, lineHeight: 21, fontWeight: '800', marginTop: 5 },
+  deliveryCopy: { color: palette.charcoal600, fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 720 },
+  deliveryChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  deliveryChoice: { minWidth: 150, flexGrow: 1, flexBasis: 180, minHeight: 62, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.ivory50 },
+  deliveryChoiceSelected: { borderColor: palette.teal600, backgroundColor: 'rgba(36,139,139,0.08)' },
+  deliveryChoiceText: { color: palette.charcoal800, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  deliveryChoiceTextSelected: { color: palette.teal700 },
+  deliveryChoiceMeta: { color: palette.charcoal600, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  downloadButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 12, paddingHorizontal: 15, borderRadius: 12, backgroundColor: palette.teal600 },
+  downloadButtonText: { color: palette.ivory50, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  disabledButton: { opacity: 0.62 },
+  deliveryHint: { color: palette.charcoal600, fontSize: 12, lineHeight: 18, marginTop: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   actionButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 15, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.ivory50 },
   primaryButton: { borderColor: palette.teal600, backgroundColor: palette.teal600 },

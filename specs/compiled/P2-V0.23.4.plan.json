@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "The proposed architecture separates source-repository access, protected engineering execution, and deployment-provider selection, ensuring that Parallax can build applications that are deployed through Vercel, downloaded for IIS/local/manual deployment, or later delivered through another provider without requiring a Vercel Project or Vercel deployment target merely to progress through the Engineering Run lifecycle."
+  ],
+  "work_items": [
+    "Implement a source bootstrap mechanism that allows Parallax to access and resolve GitHub repositories without requiring a Vercel Project. This should include a mechanism for anonymous GitHub access and a mechanism for private repositories to remain fail-closed."
+  ],
+  "validations": [
+    "Validate that the proposed source bootstrap mechanism works as expected and that it does not regress existing Vercel Preview delivery.",
+    "AC-01: validate protected requirement — A Project bound to exact public repository `github:Ryan9876/ot-time` can bootstrap canonical source and advance beyond PLAN without a Vercel Project, Vercel Preview target, or Vercel Connect GitHub credential.",
+    "AC-02: validate protected requirement — Anonymous GitHub access can perform only exact repository resolve/tree/file reads. Branch, commit, pull-request, provider-project, deployment, environment, secret, merge, or promotion operations cannot use the anonymous path.",
+    "AC-03: validate protected requirement — A private or non-public repository cannot use anonymous fallback. Missing exact-repository credentials return an explicit authorization-required state before source mutation.",
+    "AC-04: validate protected requirement — PLAN/IMPLEMENT/BUILD/TEST/VERIFY preserve current Project/spec/run binding, accepted-lineage identity, protected commands, deterministic validation, and fail-closed behavior.",
+    "AC-05: validate protected requirement — A `source-only` run that passes protected validation reaches REVIEW with exact accepted-source handoff evidence and makes no Vercel readiness, Project, Preview, deployment, alias, domain, environment, or promotion request.",
+    "AC-06: validate protected requirement — `vercel-preview` retains exact registered/discovered target identity, exact GitHub publication identity, READY Preview requirement, replay behavior, and Preview-only autonomous ceiling.",
+    "AC-07: validate protected requirement — Source-only delivery records canonical Project/run/work-spec/source-lineage/content identity and a safe handoff identifier only. It contains no raw source bytes, provider credentials, storage secrets, arbitrary URLs, or hidden reasoning, and exact retry resolves the same handoff without duplicate mutation.",
+    "AC-08: validate protected requirement — Runtime composition selects source authority independently from delivery mode, with a narrow delivery interface that can support Vercel today and IIS/local/other adapters later without changing protected engineering semantics.",
+    "AC-09: validate protected requirement — After exact release deployment, a QA-owned canonical Project bound to `github:Ryan9876/ot-time` advances beyond PLAN revision 1 through ordinary authenticated production APIs without `REPOSITORY_AUTHORIZATION_REQUIRED` or a Vercel-target prerequisite. No out-of-band source edit or auth bypass is used.",
+    "AC-10: validate protected requirement — No reusable PAT, broad GitHub bearer, owner impersonation, cross-tenant Project access, arbitrary provider administration, production promotion, or REVIEW-completion authority is added."
+  ],
+  "risks": [
+    "The proposed architecture introduces new risks, such as the potential for unauthorized access to GitHub repositories and the potential for unauthorized credential changes. These risks should be carefully managed and mitigated."
+  ],
+  "spec_id": "P2-V0.23.4",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Public repository bootstrap is deployment-independent",
+      "protected_requirement": "A Project bound to exact public repository `github:Ryan9876/ot-time` can bootstrap canonical source and advance beyond PLAN without a Vercel Project, Vercel Preview target, or Vercel Connect GitHub credential."
+    },
+    {
+      "id": "AC-02",
+      "title": "Anonymous source authority is read-only",
+      "protected_requirement": "Anonymous GitHub access can perform only exact repository resolve/tree/file reads. Branch, commit, pull-request, provider-project, deployment, environment, secret, merge, or promotion operations cannot use the anonymous path."
+    },
+    {
+      "id": "AC-03",
+      "title": "Private repositories remain fail-closed",
+      "protected_requirement": "A private or non-public repository cannot use anonymous fallback. Missing exact-repository credentials return an explicit authorization-required state before source mutation."
+    },
+    {
+      "id": "AC-04",
+      "title": "Protected lifecycle remains exact-lineage bound",
+      "protected_requirement": "PLAN/IMPLEMENT/BUILD/TEST/VERIFY preserve current Project/spec/run binding, accepted-lineage identity, protected commands, deterministic validation, and fail-closed behavior."
+    },
+    {
+      "id": "AC-05",
+      "title": "Source-only REVIEW requires no Vercel",
+      "protected_requirement": "A `source-only` run that passes protected validation reaches REVIEW with exact accepted-source handoff evidence and makes no Vercel readiness, Project, Preview, deployment, alias, domain, environment, or promotion request."
+    },
+    {
+      "id": "AC-06",
+      "title": "Existing Vercel Preview delivery does not regress",
+      "protected_requirement": "`vercel-preview` retains exact registered/discovered target identity, exact GitHub publication identity, READY Preview requirement, replay behavior, and Preview-only autonomous ceiling."
+    },
+    {
+      "id": "AC-07",
+      "title": "Download/handoff evidence is bounded and replay-safe",
+      "protected_requirement": "Source-only delivery records canonical Project/run/work-spec/source-lineage/content identity and a safe handoff identifier only. It contains no raw source bytes, provider credentials, storage secrets, arbitrary URLs, or hidden reasoning, and exact retry resolves the same handoff without duplicate mutation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Deployment provider is optional and extensible",
+      "protected_requirement": "Runtime composition selects source authority independently from delivery mode, with a narrow delivery interface that can support Vercel today and IIS/local/other adapters later without changing protected engineering semantics."
+    },
+    {
+      "id": "AC-09",
+      "title": "OT Time production proof",
+      "protected_requirement": "After exact release deployment, a QA-owned canonical Project bound to `github:Ryan9876/ot-time` advances beyond PLAN revision 1 through ordinary authenticated production APIs without `REPOSITORY_AUTHORIZATION_REQUIRED` or a Vercel-target prerequisite. No out-of-band source edit or auth bypass is used."
+    },
+    {
+      "id": "AC-10",
+      "title": "No authority widening",
+      "protected_requirement": "No reusable PAT, broad GitHub bearer, owner impersonation, cross-tenant Project access, arbitrary provider administration, production promotion, or REVIEW-completion authority is added."
+    }
+  ],
+  "critique": [
+    "The specification does not explicitly mention a material implementation risk or omission. The text focuses on the architecture and acceptance anchors, which are important for ensuring the system's functionality and security. No specific material issue is identified based on the provided information."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5-coder:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

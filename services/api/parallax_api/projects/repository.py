@@ -34,6 +34,7 @@ class ProjectRepository:
         name: str,
         description: str | None,
         repository_ref: str | None,
+        delivery_mode: str = "source-only",
     ) -> Project:
         project_id = str(uuid4())
         project = Project(
@@ -44,6 +45,7 @@ class ProjectRepository:
             description=description,
             repository_ref=repository_ref,
             workspace_ref=f"project:{project_id}",
+            delivery_mode=delivery_mode,
             status="active",
         )
         self.session.add(project)
@@ -74,16 +76,25 @@ class ProjectRepository:
         )
         return self.session.scalar(statement)
 
-    def has_nonterminal_run(self, project_id: str) -> bool:
-        statement = (
-            select(EngineeringRun.id)
-            .where(
+    def nonterminal_run_states(self, project_id: str) -> frozenset[str]:
+        rows = self.session.scalars(
+            select(EngineeringRun.state).where(
                 EngineeringRun.project_id == project_id,
                 EngineeringRun.state.notin_(terminal_run_states()),
             )
-            .limit(1)
-        )
-        return self.session.scalar(statement) is not None
+        ).all()
+        return frozenset(rows)
+
+    def has_nonterminal_run(self, project_id: str) -> bool:
+        return bool(self.nonterminal_run_states(project_id))
+
+    def update_delivery_mode(self, project: Project, delivery_mode: str) -> Project:
+        project.delivery_mode = delivery_mode
+        project.updated_at = utcnow()
+        self.session.add(project)
+        self.session.commit()
+        self.session.refresh(project)
+        return project
 
     def soft_delete(self, project: Project) -> None:
         project.status = "deleted"

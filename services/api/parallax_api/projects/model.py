@@ -38,6 +38,7 @@ class Project(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     repository_ref: Mapped[str | None] = mapped_column(String(240), nullable=True)
     workspace_ref: Mapped[str] = mapped_column(String(100))
+    delivery_mode: Mapped[str] = mapped_column(String(32), default="source-only")
     status: Mapped[str] = mapped_column(String(24), default="active", index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

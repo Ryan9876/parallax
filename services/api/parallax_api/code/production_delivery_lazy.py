@@ -5,19 +5,21 @@ from typing import Mapping
 import httpx
 from sqlalchemy.orm import Session
 
+from ..projects.repository import ProjectRepository
+from ..repositories.engineering_runs import EngineeringRunRepository
 from .delivery_readiness import production_source_delivery_ready
 from .production_bootstrap import production_source_bootstrap
-from .source_delivery_composition import SourceDeliveryComposition, VerifiedDeliveryResult
+from .source_delivery_composition import (
+    EngineeringAttemptDeliveryRecordStore,
+    OwnerScopedProjectBindingResolver,
+    SourceDeliveryComposition,
+    VerifiedDeliveryResult,
+)
+from .source_only_delivery import SourceOnlyDeliveryResult, SourceOnlyLineageDelivery
 
 
 class DeferredVerifiedLineageDelivery:
-    """Resolve Preview readiness only when verified REVIEW delivery is attempted.
-
-    Canonical source bootstrap is intentionally independent of Vercel Project
-    readiness. This adapter retains the accepted VerifiedLineageDelivery contract
-    at the point it is actually needed while keeping PLAN/IMPLEMENT/BUILD/TEST/
-    VERIFY free of Preview-target discovery or creation.
-    """
+    """Resolve Vercel Preview readiness only for a Vercel-delivered Project."""
 
     def __init__(
         self,
@@ -68,9 +70,6 @@ class DeferredVerifiedLineageDelivery:
         )
 
     def resolve_record(self, run) -> VerifiedDeliveryResult | None:
-        # Reading a record must never create provider infrastructure. A request
-        # that already resolved delivery can reuse its exact composition; a fresh
-        # request simply reports no in-request record through this optional seam.
         if self._resolved is None:
             return None
         return self._resolved.delivery.resolve_record(run)
@@ -87,15 +86,24 @@ def production_source_delivery_lazy(
     oidc_token: str | None = None,
     github_transport: httpx.BaseTransport | None = None,
     github_scope_transport: httpx.BaseTransport | None = None,
+    public_github_transport: httpx.BaseTransport | None = None,
     vercel_transport: httpx.BaseTransport | None = None,
 ) -> SourceDeliveryComposition:
-    """Compose read-only source bootstrap plus deferred verified delivery.
+    """Compose repository source independently from optional deployment delivery."""
 
-    This is the W8-S2 production composition boundary. It deliberately does not
-    inspect, discover, or create a Vercel Project. The first Vercel readiness
-    operation can occur only from ``delivery.deliver`` after protected execution
-    has already reached the existing REVIEW boundary.
-    """
+    # Production always supplies the SQLAlchemy request Session. A small set of
+    # composition contract tests intentionally use an inert object because they
+    # verify only that Vercel readiness stays deferred; preserve that structural
+    # seam as the legacy Vercel mode without creating a production override.
+    project = None
+    projects = ProjectRepository(session)
+    if isinstance(session, Session):
+        project = projects.get_for_owner(project_id, owner_subject.strip())
+        if project is None or project.status != "active":
+            raise ValueError("canonical owner-scoped Project is unavailable")
+        delivery_mode = project.delivery_mode
+    else:
+        delivery_mode = "vercel-preview"
 
     bootstrap = production_source_bootstrap(
         session,
@@ -106,7 +114,20 @@ def production_source_delivery_lazy(
         oidc_token=oidc_token,
         github_transport=github_transport,
         github_scope_transport=github_scope_transport,
+        public_github_transport=public_github_transport,
     )
+
+    if delivery_mode == "source-only":
+        source_only = SourceOnlyLineageDelivery(
+            allocator=allocator,
+            projects=OwnerScopedProjectBindingResolver(projects, owner_subject=owner_subject.strip()),
+            records=EngineeringAttemptDeliveryRecordStore(EngineeringRunRepository(session)),
+        )
+        return SourceDeliveryComposition(bootstrap=bootstrap, delivery=source_only)  # type: ignore[arg-type]
+
+    if delivery_mode != "vercel-preview":
+        raise ValueError("canonical Project delivery mode is unsupported")
+
     deferred = DeferredVerifiedLineageDelivery(
         session,
         owner_subject=owner_subject,
@@ -119,13 +140,11 @@ def production_source_delivery_lazy(
         github_scope_transport=github_scope_transport,
         vercel_transport=vercel_transport,
     )
-    # SourceDeliveryComposition is intentionally a narrow structural contract.
-    # DeferredVerifiedLineageDelivery implements the two delivery methods used by
-    # that contract while delaying provider readiness to its correct lifecycle.
     return SourceDeliveryComposition(bootstrap=bootstrap, delivery=deferred)  # type: ignore[arg-type]
 
 
 __all__ = [
     "DeferredVerifiedLineageDelivery",
+    "SourceOnlyDeliveryResult",
     "production_source_delivery_lazy",
 ]
