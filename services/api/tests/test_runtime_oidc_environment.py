@@ -28,6 +28,16 @@ def test_valid_request_oidc_takes_precedence_over_environment(monkeypatch) -> No
     )
 
 
+def test_malformed_request_oidc_does_not_fall_back_to_environment(monkeypatch) -> None:
+    monkeypatch.setenv("VERCEL_OIDC_TOKEN", VALID_ENV)
+
+    with pytest.raises(ProductionDeliveryConfigurationError, match="malformed"):
+        runtime_vercel_oidc_token(
+            {"x-vercel-oidc-token": "short"},
+            environment="production",
+        )
+
+
 def test_production_without_valid_server_oidc_fails_closed(monkeypatch) -> None:
     monkeypatch.delenv("VERCEL_OIDC_TOKEN", raising=False)
 
