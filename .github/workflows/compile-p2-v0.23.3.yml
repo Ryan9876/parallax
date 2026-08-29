@@ -7,13 +7,19 @@ on:
     paths:
       - specs/P2-V0.23.3.md
       - .github/workflows/compile-p2-v0.23.3.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - specs/P2-V0.23.3.md
+      - .github/workflows/compile-p2-v0.23.3.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: compile-p2-v0-23-3
+  group: compile-p2-v0-23-3-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
