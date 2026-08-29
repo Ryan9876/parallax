@@ -1,6 +1,6 @@
 # Parallax 2.0 Design System
 
-Version: 3.2
+Version: 3.3
 Status: Authoritative
 
 ## Design direction
@@ -303,6 +303,20 @@ Primary progress surfaces should show the current step, overall position, what i
 - visual treatment never implies a transition before server state changes;
 - historical unbound runs remain clearly distinguished;
 - ordinary operator controls appear only when the protected state machine permits them.
+
+## Delivery choice and source handoff
+
+Delivery is presented as an outcome choice inside the existing **Progress / Engineering Run** surface, not as a separate provider-administration workspace. The UI remains subordinate to authoritative Project and Engineering Run state.
+
+- During `SPECIFY` and `PLAN`, a Project-bound approved run may show the server-owned delivery choice.
+- `Download source` is the plain-language presentation of `source-only`; supporting copy may name IIS, local, or another deployment environment as examples without implying Parallax deployed there.
+- `Vercel Preview` is the explicit hosted-preview choice; selecting it does not imply a Preview exists until provider evidence says so.
+- Once implementation begins, delivery selection becomes read-only for that active build. The client must not offer a mode change the server would reject.
+- At `REVIEW`, a successful `source-only` handoff may expose `Download verified source` on web/desktop only after the server has recorded the exact accepted-lineage handoff.
+- Mobile may explain that the verified package can be downloaded from web/desktop rather than pretending a native download or deployment occurred.
+- Delivery controls use the existing warm card, teal interaction, olive support, readable text, explicit selected state, and approximately 44 pt actionable-target rules. Color alone never identifies the selected delivery mode.
+- Provider names stay secondary to the user outcome. Technical details preserve canonical `source-only` / `vercel-preview`, lineage, handoff, Preview and audit identities when inspection requires them.
+- Download success means only that the exact verified source package was handed to the user. It must never be styled or worded as IIS/local/other deployment success without separate deployment evidence.
 
 ## Observability workspace
 
