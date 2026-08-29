@@ -1,0 +1,202 @@
+from pathlib import Path
+import re
+
+merge_sha = "fcb6abf4f794e038bcf48daac8d3400f006a18d8"
+qualified_sha = "0965969da3224ebe62e8a33348440b5753e76d6e"
+production_deployment = "dpl_57xiHUKBm3qK4HAA47kYzc9mJM13"
+preview_deployment = "dpl_DzZAGtehR5cU9pMPbEanXH7DgeLH"
+
+architecture = Path("ARCHITECTURE.md")
+text = architecture.read_text(encoding="utf-8")
+if "Version: 3.14" not in text:
+    raise SystemExit("unexpected architecture version")
+text = text.replace("Version: 3.14", "Version: 3.15", 1)
+old_intro = (
+    "Architecture v3.14 is a bounded architectural update to v3.13, not a platform rewrite. "
+    "The complete v3.13 architecture at repository commit `cd30205770507fc17a0f388785f5021e3800db89` is incorporated by reference. "
+    "Every v3.13 durable contract not explicitly changed below remains authoritative,"
+)
+new_intro = (
+    "Architecture v3.15 is a bounded architectural update to v3.14, not a platform rewrite. "
+    "The complete v3.14 architecture at repository commit `e97dd3deed83be39884fd6e165021d978f736b83` is incorporated by reference. "
+    "Every v3.14 durable contract not explicitly changed below remains authoritative,"
+)
+if old_intro not in text:
+    raise SystemExit("architecture introduction anchor missing")
+text = text.replace(old_intro, new_intro, 1)
+
+anchor = "## W9-S1 — Real-world benchmark admission without runtime authority"
+if anchor not in text:
+    raise SystemExit("W9-S1 architecture anchor missing")
+s2_arch = """## W9-S2 — Governed skill intake and capability catalog
+
+W9-S2 (`P2-V0.23.1`) adds a server-owned supply-chain boundary for reusable skill and tool metadata. It extends the accepted governed-skill architecture without turning external sources into an executable plugin store and without changing the Project-scoped tool/provider authority model.
+
+### Candidate identity, quarantine and replay
+
+External observations are normalized into bounded `SkillCandidate` records with deterministic identity derived from material source, upstream version/ref, content digest and scope facts. Candidate records are quarantined by default and grant no runtime or tool authority. Exact replay is idempotent; the same logical upstream/version with changed material content is recorded as an explicit conflict requiring human review rather than silently replacing trusted material.
+
+Candidate serialization exposes only bounded metadata, reason codes and digests. Raw source bodies, credentials, unrestricted execution handles, provider secrets and hidden reasoning are not part of the safe catalog projection. Project-private observations remain Project-scoped and cannot become reusable global candidate material through this contract.
+
+### Provenance, license and static policy classification
+
+The intake policy classifies server-owned source tiers, authoritative provenance, license state and bounded static risk signals. Official ecosystem and vendor-native provenance can be represented directly; curated discovery is a lead only and must resolve to an inspectable authoritative source before it can satisfy admission provenance. Unknown or ambiguous provenance remains unknown/ambiguous rather than being upgraded by popularity or model preference.
+
+License state is explicit. Unknown, review-required and prohibited license states remain distinct. Static inspection may block or require human review for generic execution, arbitrary network behavior, credential handling, policy bypass, hidden-install behavior, unauthorized production/destructive claims and similar authority-expanding instructions. Inspection is metadata analysis only: candidate scripts, commands, packages, MCP servers, prompts and URLs are never executed by intake.
+
+### Exact approval and existing registry authority
+
+A candidate cannot become a trusted skill merely because it was discovered or classified favorably. Approval binds the exact candidate identity, source/content digest, intake-policy digest and exact `PortableSkill` digest. Any mismatch fails closed.
+
+Successful skill admission still passes through the pre-existing `SkillRegistry.admit` exact-digest and declarable-capability checks. The existing deterministic `SkillSelector` remains the final runtime selection mechanism. Catalog retrieval exposes admitted skills only; quarantined, blocked, rejected, superseded or merely approved candidate metadata cannot participate in runtime selection.
+
+### Tool authority remains separate
+
+Tool candidates are catalog metadata only. Intake cannot create, approve, enable or mutate `ToolCapability`, provider capability, browser authority, shell/filesystem authority, arbitrary network authority, merge/deployment authority or REVIEW authority. A skill declaring that it requires a capability does not manufacture that capability. Existing Project-scoped capability snapshots and provider/tool registries remain authoritative.
+
+### Source-adapter boundary
+
+S2 defines a bounded `CandidateSourceAdapter`/server-owned source-registry interface and initial metadata roots for the official Agent Skills ecosystem and official MCP Registry. These definitions identify reviewed discovery roots; they do not grant live arbitrary network access. Synthetic adapters prove the intake contract without external execution. A future live source adapter that requires new network/provider authority must use an existing sufficiently bounded provider contract or receive a separately reviewed capability specification.
+
+W9-S2 introduces no database migration, public marketplace, user-facing management UI, production-promotion authority or automatic package/MCP installation. The first released slice is an in-process backend contract intended to support later controlled persistence/API/UI work without weakening the established authority boundaries.
+
+"""
+text = text.replace(anchor, s2_arch + anchor, 1)
+text = text.replace(
+    "Wave 7 S1-S6, W8-S2, W9-S1 and release reconciliation grant none of the following authority",
+    "Wave 7 S1-S6, W8-S2, W9-S1, W9-S2 and release reconciliation grant none of the following authority",
+    1,
+)
+architecture.write_text(text, encoding="utf-8")
+
+current = Path("CURRENT-STATE.md")
+state = current.read_text(encoding="utf-8")
+status_pattern = re.compile(r"^Status: \*\*.*?\*\*$", re.MULTILINE)
+new_status = (
+    "Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / "
+    "QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / "
+    "W9-S1 + W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED WITH W9-S1 CONTROLLED REAL-WORLD TRIAL PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**"
+)
+state, count = status_pattern.subn(new_status, state, count=1)
+if count != 1:
+    raise SystemExit("CURRENT-STATE status anchor missing")
+
+old_truth = "Parallax production now includes the deployment-verified W9-S1 real-world benchmark-admission layer in the API while retaining the existing deployment-verified client, QA authentication fallback, Wave 8 guided experience and earlier Waves 1–7 runtime/productization baseline."
+new_truth = (
+    "Parallax production now includes the deployment-verified W9-S1 real-world benchmark-admission layer and the W9-S2 governed skill-intake/capability-catalog backend in the API while retaining the existing deployment-verified client, QA authentication fallback, Wave 8 guided experience and earlier Waves 1–7 runtime/productization baseline.\n\n"
+    "W9-S2 does not make internet-discovered content executable. External skill/tool observations remain quarantined metadata until exact approval and existing registry admission succeed; tool/provider authority remains separately Project-scoped. The released S2 slice adds no live arbitrary crawler, package/MCP installation, database migration or user-facing marketplace."
+)
+if old_truth not in state:
+    raise SystemExit("current production truth anchor missing")
+state = state.replace(old_truth, new_truth, 1)
+
+old_api = "- application source: `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;\n- production deployment: `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`;"
+if old_api not in state:
+    raise SystemExit("API source/deployment anchor missing")
+state = state.replace(old_api, f"- application source: `{merge_sha}`;\n- production deployment: `{production_deployment}`;", 1)
+
+api_verify_anchor = "W9-S1 post-cutover verification:\n"
+if api_verify_anchor not in state:
+    raise SystemExit("API verification anchor missing")
+s2_verify = f"""W9-S2 post-cutover verification:
+
+- production build cloned exact merge `{merge_sha}`;
+- production provider preflight — PASS;
+- scoped delivery-permission preflight — PASS;
+- projected-source preflight — PASS;
+- private Blob/immutable-lineage composition preflight — PASS;
+- agentic-runtime round-trip preflight — PASS;
+- projected-bootstrap process-recreation/replay/no-stage-mutation checks — PASS;
+- deny-all execution-snapshot/offline dependency check — PASS;
+- production run-event schema guard — PASS;
+- build completed successfully and outputs deployed;
+- `https://parallax-api-tan.vercel.app/health` — HTTP 200, service `ok`;
+- `https://parallax-api-tan.vercel.app/ready` — HTTP 200, database/providers `ok`, one provider target;
+- exact-deployment error/fatal runtime scan — no matching logs.
+
+"""
+state = state.replace(api_verify_anchor, s2_verify + api_verify_anchor, 1)
+
+rollback_pattern = re.compile(
+    r"Immediate API rollback reference remains the deployment-verified W8-S3 API:\n\n- source `91be7cd9a7fa088f7cebd061d9f9147ac148282c`;\n- deployment `dpl_D2PAQhX7d2zzZbUZ8J4gAipzVu3M`\."
+)
+state, count = rollback_pattern.subn(
+    "Immediate API rollback reference is the deployment-verified W9-S1 API:\n\n- source `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;\n- deployment `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`.",
+    state,
+    count=1,
+)
+if count != 1:
+    raise SystemExit("rollback anchor missing")
+
+wave8_anchor = "## Wave 8 retained state"
+if wave8_anchor not in state:
+    raise SystemExit("Wave 8 anchor missing")
+s2_state = f"""## Wave 9 S2 — Governed skill intake and capability catalog
+
+Control Tower: #391
+
+Workstream: #395
+
+Release PR: #397
+
+Governing specification: `P2-V0.23.1`
+
+Final qualified worker head:
+
+`{qualified_sha}`
+
+Application release merge:
+
+`{merge_sha}`
+
+Production API deployment:
+
+`{production_deployment}`
+
+W9-S2 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
+
+### Released capability boundary
+
+The deployed backend contract adds:
+
+- deterministic bounded `SkillCandidate` identity for skill/tool observations;
+- quarantine by default with explicit provenance, source-tier, license and static-policy reason codes;
+- exact replay idempotency and changed-content conflict handling instead of silent replacement;
+- Project-private catalog isolation;
+- safe catalog metadata that excludes raw source bodies, credentials, provider secrets, unrestricted execution handles and hidden reasoning;
+- exact `SkillCandidateApproval` binding to candidate identity, source/content digest, intake-policy digest and exact `PortableSkill` digest;
+- final admission through the pre-existing `SkillRegistry.admit` contract;
+- runtime retrieval limited to catalog-admitted skills followed by the existing deterministic `SkillSelector`;
+- server-owned source definitions for the official Agent Skills ecosystem and official MCP Registry metadata roots;
+- a bounded source-adapter interface proven with synthetic fixtures and no candidate-content execution.
+
+The release does **not** add live arbitrary internet crawling, generic shell/network execution, package installation, MCP server startup, tool-capability mutation, provider administration, merge/deployment authority, REVIEW authority, database persistence/migration or a user-facing skill marketplace. Tool candidates remain metadata only; a skill's requested capability cannot grant itself that capability.
+
+### Authentic DSPy and exact-head qualification
+
+Authentic pre-implementation DSPy evidence:
+
+- evidence workflow run `33229695444` executed SpecCritic + SpecCompiler for exact `P2-V0.23.1`;
+- repository-approved local fallback model `ollama_chat/qwen2.5:0.5b` was used because no provider key was available in the evidence workflow;
+- exact generated plan committed as `specs/compiled/P2-V0.23.1.plan.json`;
+- plan blob `41afe19e7104c756dff94d0c1c11fc04d56fd7f3`;
+- the temporary S2 evidence workflow was removed before semantic implementation qualification.
+
+Final exact-head qualification at `{qualified_sha}`:
+
+- Workstream Spec Validation `33230538004` — PASS;
+- Bounded Autonomy `33230537997` — PASS;
+- P2 CI `33230537996` — PASS;
+- full API regression — `966 passed, 1 skipped, 4 existing collection warnings`;
+- full client type/state/export/browser/Skia regression — PASS;
+- protected promotion/regression rejection — PASS;
+- normal DSPy release compilation — PASS;
+- exact API Preview `{preview_deployment}` — READY.
+
+Expected-head merge #397 produced GitHub-verified main commit `{merge_sha}`. Production deployment `{production_deployment}` cloned that exact commit and completed the existing provider, scoped-delivery, projected-source, private-Blob/lineage, agentic-runtime, process-recreation/replay, deny-all execution-snapshot and schema preflights before deployment. Post-cutover `/health` and `/ready` are HTTP 200 and the exact-deployment error/fatal scan is clean.
+
+W9-S2 changes no client application bytes, so current deployment-verified client identity remains unchanged.
+
+"""
+state = state.replace(wave8_anchor, s2_state + wave8_anchor, 1)
+current.write_text(state, encoding="utf-8")
