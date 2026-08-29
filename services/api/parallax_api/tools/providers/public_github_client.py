@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Protocol
 
 import httpx
 
 from .common import ProviderClientError
 from .github_client import GitHubRestProviderClient
+
+
+class _GitHubReadClient(Protocol):
+    def resolve_repository(self, repository_ref: str): ...
+
+    def read_tree(self, repository_ref: str, source_revision: str, *, max_entries: int): ...
+
+    def read_file(self, repository_ref: str, source_revision: str, path: str, *, max_bytes: int): ...
 
 
 class _UnavailableCredentialProvider:
@@ -14,11 +23,11 @@ class _UnavailableCredentialProvider:
 
 
 class PublicGitHubReadClient(GitHubRestProviderClient):
-    """Anonymous GitHub REST access restricted to the inherited GET-only read surface.
+    """Legacy anonymous GitHub REST read surface used by bounded tests/adapters.
 
-    The repository metadata response must explicitly prove ``private == false``
-    before anonymous source authority is accepted. A private or ambiguous response
-    is not treated as public and cannot fall through to anonymous source reads.
+    Production public-source bootstrap no longer relies on this client's shared
+    anonymous REST quota. The metadata response must still explicitly prove
+    ``private == false`` before this legacy adapter accepts public authority.
     """
 
     def __init__(
@@ -75,7 +84,7 @@ class PublicGitHubReadClient(GitHubRestProviderClient):
 
 
 class LazyAuthenticatedGitHubReadClient:
-    """Construct the credentialed client only after anonymous visibility fails."""
+    """Construct the credentialed client only after public visibility fails."""
 
     def __init__(self, factory: Callable[[], GitHubRestProviderClient]) -> None:
         self._factory = factory
@@ -97,23 +106,23 @@ class LazyAuthenticatedGitHubReadClient:
 
 
 class PublicFirstGitHubReadClient:
-    """Use credential-free public reads first; fall back only when necessary.
+    """Use credential-free public reads first; fall back only when source is hidden.
 
-    A verified public repository normally never asks a deployment provider for
-    a GitHub token. GitHub can throttle a shared anonymous egress address even
-    for a public repository; that narrow failure falls back to the existing
-    exact-repository credential path. Ambiguous metadata is rejected rather
-    than reclassified as private.
+    Public-source provider failures such as throttling, timeout, invalid response,
+    or unavailability remain public-source failures. They must not silently create
+    a deployment-provider dependency. Only a repository that is not visible to
+    the public source transport may enter the existing exact-repository private
+    credential path.
     """
 
     def __init__(
         self,
-        public_client: PublicGitHubReadClient,
+        public_client: _GitHubReadClient,
         authenticated_client: LazyAuthenticatedGitHubReadClient,
     ) -> None:
         self._public = public_client
         self._authenticated = authenticated_client
-        self._selected: object | None = None
+        self._selected: _GitHubReadClient | None = None
 
     def resolve_repository(self, repository_ref: str):
         try:
@@ -121,13 +130,13 @@ class PublicFirstGitHubReadClient:
             self._selected = self._public
             return value
         except ProviderClientError as exc:
-            if str(exc) not in {"REPOSITORY_NOT_FOUND", "PROVIDER_RATE_LIMITED"}:
+            if str(exc) != "REPOSITORY_NOT_FOUND":
                 raise
         value = self._authenticated.resolve_repository(repository_ref)
         self._selected = self._authenticated
         return value
 
-    def _reader(self):
+    def _reader(self) -> _GitHubReadClient:
         if self._selected is None:
             raise ProviderClientError("REPOSITORY_NOT_RESOLVED")
         return self._selected
