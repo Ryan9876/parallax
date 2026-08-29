@@ -21,22 +21,24 @@ from ..services.conversations import ConversationService
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
 AMENDMENT_MESSAGE = (
-    "This request materially changes the approved objective. "
-    "An approved specification amendment is required before I continue against the new objective."
+    "Your request is different from the plan you approved. "
+    "Parallax stopped before changing that approved work. "
+    "Continue the approved work, or start a new goal for the new request."
 )
 
 CODE_OBJECTIVE_CAPTURED_MESSAGE = (
-    "Objective captured. Capture the Work Specification to continue with governed Code execution."
+    "I have your goal. Next, create a build plan so you can review what Parallax will do "
+    "before any changes are made."
 )
 
 MODEL_CAPACITY_RECOVERY_MESSAGE = (
-    "Model capacity is temporarily unavailable. Your message is saved; "
-    "when capacity returns, continue from here instead of sending it again."
+    "Parallax is busy right now. Your message is saved. "
+    "Try again in a moment; you do not need to send it again."
 )
 
 MODEL_PROVIDER_RECOVERY_MESSAGE = (
-    "Parallax model provider is temporarily unavailable. Your message is saved; "
-    "when service returns, continue from here instead of sending it again."
+    "Parallax is temporarily unavailable. Your message is saved. "
+    "Try again in a moment; you do not need to send it again."
 )
 
 
@@ -45,7 +47,7 @@ def _coordination_failure_message(exc: ResponseCoordinationFailure) -> str:
         return MODEL_CAPACITY_RECOVERY_MESSAGE
     if exc.error_code == "MODEL_PROVIDER_UNAVAILABLE":
         return MODEL_PROVIDER_RECOVERY_MESSAGE
-    return f"{exc.public_message} Your conversation is preserved; retry or refine the request."
+    return "Parallax couldn’t finish that response. Your conversation is saved. Try again or adjust your request."
 
 
 def service(
@@ -174,7 +176,7 @@ async def stream_response(
                     "phase": "ERROR",
                     "error": "CONTEXT_LIMIT",
                     "recoverable": True,
-                    "message": "The active conversation context exceeded protected limits. Your conversation is preserved.",
+                    "message": "This conversation has become too long to continue safely. Your conversation is saved. Start a new conversation or shorten the request, then try again.",
                 },
             )
             return
@@ -197,7 +199,7 @@ async def stream_response(
                     "phase": "ERROR",
                     "error": type(exc).__name__,
                     "recoverable": True,
-                    "message": "Parallax could not complete this response. Your conversation is preserved.",
+                    "message": "Parallax couldn’t finish that response. Your conversation is saved. Try again.",
                 },
             )
             return
@@ -226,7 +228,7 @@ async def stream_response(
                     "phase": "ERROR",
                     "error": "MISSING_REASON_ANSWER",
                     "recoverable": True,
-                    "message": "Parallax could not complete this response. Your conversation is preserved.",
+                    "message": "Parallax couldn’t finish that response. Your conversation is saved. Try again.",
                 },
             )
             return
