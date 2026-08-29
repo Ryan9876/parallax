@@ -9,6 +9,8 @@ PROJECT_ID = "11111111-1111-4111-8111-111111111111"
 RUN_ID = "22222222-2222-4222-8222-222222222222"
 WORK_SPEC_ID = "33333333-3333-4333-8333-333333333333"
 PRODUCER_DIGEST = "a" * 64
+PROFILE_ID = "python-v1"
+PROFILE_DIGEST = "d" * 64
 
 
 def _binding() -> CandidateBinding:
@@ -48,6 +50,8 @@ def test_passing_protected_refs_are_evaluated_once() -> None:
         content_digest="c" * 64,
         file_count=1,
         total_bytes=1,
+        validation_profile_id=PROFILE_ID,
+        validation_profile_digest=PROFILE_DIGEST,
         stage_evidence=(
             _stage("BUILD", True),
             _stage("TEST", True),
@@ -75,6 +79,8 @@ def test_failed_protected_validation_blocks_without_duplicate_ref_error() -> Non
         content_digest="c" * 64,
         file_count=1,
         total_bytes=1,
+        validation_profile_id=PROFILE_ID,
+        validation_profile_digest=PROFILE_DIGEST,
         stage_evidence=(_stage("BUILD", False),),
     )
     protected, record = _control()._evaluation(
