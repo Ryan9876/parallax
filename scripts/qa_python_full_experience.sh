@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This marker change triggers the post-fallback production acceptance replay.
+# This marker change triggers the source-only handoff diagnostic replay.
 
 : "${OIDC_TOKEN:?OIDC_TOKEN is required}"
 : "${API_BASE:?API_BASE is required}"
