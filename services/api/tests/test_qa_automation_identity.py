@@ -37,14 +37,26 @@ class _JwkClient:
         return _SigningKey()
 
 
-def test_accepts_exact_trusted_workflow(monkeypatch):
+def _install_valid_decode(monkeypatch, **overrides):
     monkeypatch.setattr(identity, "_jwk_client", _JwkClient())
-    monkeypatch.setattr(identity.jwt, "decode", lambda *args, **kwargs: _claims())
+    monkeypatch.setattr(identity.jwt, "decode", lambda *args, **kwargs: _claims(**overrides))
+
+
+def test_accepts_exact_trusted_manual_workflow(monkeypatch):
+    _install_valid_decode(monkeypatch)
 
     result = identity.verify_github_actions_identity(TOKEN)
 
     assert result.repository == "Ryan9876/parallax"
     assert result.run_id == "12345"
+
+
+def test_accepts_exact_trusted_main_push_workflow(monkeypatch):
+    _install_valid_decode(monkeypatch, event_name="push")
+
+    result = identity.verify_github_actions_identity(TOKEN)
+
+    assert result.workflow_ref == identity.QA_AUTOMATION_WORKFLOW_REF
 
 
 @pytest.mark.parametrize(
@@ -58,12 +70,7 @@ def test_accepts_exact_trusted_workflow(monkeypatch):
     ],
 )
 def test_rejects_wrong_trust_claim(monkeypatch, claim, value):
-    monkeypatch.setattr(identity, "_jwk_client", _JwkClient())
-    monkeypatch.setattr(
-        identity.jwt,
-        "decode",
-        lambda *args, **kwargs: _claims(**{claim: value}),
-    )
+    _install_valid_decode(monkeypatch, **{claim: value})
 
     with pytest.raises(identity.GitHubActionsIdentityError):
         identity.verify_github_actions_identity(TOKEN)
@@ -82,8 +89,7 @@ def test_rejects_signature_or_standard_claim_failure(monkeypatch):
 
 
 def test_rejects_missing_run_id(monkeypatch):
-    monkeypatch.setattr(identity, "_jwk_client", _JwkClient())
-    monkeypatch.setattr(identity.jwt, "decode", lambda *args, **kwargs: _claims(run_id=""))
+    _install_valid_decode(monkeypatch, run_id="")
 
     with pytest.raises(identity.GitHubActionsIdentityError):
         identity.verify_github_actions_identity(TOKEN)
