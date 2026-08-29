@@ -97,7 +97,6 @@ def main() -> None:
     with session():
         with sandbox.create_sandbox(
             project_id=project_id,
-            runtime="python3.13",
             execution_time_limit=300,
             persistent=False,
             network_policy=policy,
