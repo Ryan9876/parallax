@@ -125,7 +125,17 @@ export function getWorkflowGuidance(input: WorkflowGuidanceInput): WorkflowGuida
     );
   }
 
-  if (input.mode === 'code' && (input.runError || run?.state === 'FAILED')) {
+  if (input.mode === 'code' && input.runError && !run) {
+    return guidance(
+      'failed',
+      'STATUS UNAVAILABLE',
+      'Progress is temporarily unavailable',
+      'Parallax could not load the current build progress. Your saved work is still here, and no new action is being assumed.',
+      'attention',
+    );
+  }
+
+  if (input.mode === 'code' && (run?.state === 'FAILED' || Boolean(run && input.runError))) {
     return guidance(
       'failed',
       'NEEDS ATTENTION',
