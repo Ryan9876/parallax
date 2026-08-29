@@ -1,0 +1,42 @@
+name: QA Python Full Experience
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/qa-python-full-experience.yml
+      - scripts/qa_python_full_experience.sh
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: qa-python-full-experience
+  cancel-in-progress: false
+
+jobs:
+  source-only-python-full-experience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Request GitHub Actions OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
+          token="$(curl --fail --silent --show-error -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${request_url}" | jq -r '.value')"
+          test -n "${token}"
+          test "${token}" != "null"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+      - name: Run source-only Python full experience
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          API_BASE: https://parallax-api-tan.vercel.app
+          REPOSITORY_REF: github:Ryan9876/parallax
+        run: bash scripts/qa_python_full_experience.sh
