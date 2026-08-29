@@ -1,0 +1,94 @@
+{
+  "architecture_decisions": [
+    "The implementation plan will focus on refining Parallax's protected validation toolchain to utilize deterministic repository evidence for Python, JavaScript/Node, and .NET applications.",
+    "The toolchain will be immutable released policy containing only server-owned values, ensuring consistent execution environments for candidates.",
+    "Profile selection will consume only canonical Project/run/lineage-bound server materialization, preventing generic shell command execution or network broadening."
+  ],
+  "work_items": [
+    "Research and implement deterministic repository intelligence to recognize representative .NET evidence deterministically.",
+    "Establish immutable validation-profile registry/selection contract for Python, Node, and .NET profiles.",
+    "Develop candidate validation profile selection/binding to ensure selected profiles are bound to candidate-validation evidence and accepted-lineage BUILD/TEST/VERIFY.",
+    "Design focused tests for Python/Node/.NET selection, ambiguity, injection resistance, and candidate/canonical agreement."
+  ],
+  "validations": [
+    "Prove that the toolchain remains immutable released policy containing only server-owned values.",
+    "Prove that repository intelligence recognizes representative .NET evidence deterministically.",
+    "Prove that candidate validation profiles are bound to candidate-validation evidence and accepted-lineage BUILD/TEST/VERIFY.",
+    "AC-01: validate protected requirement — Repository intelligence recognizes representative `.sln`, `.csproj`, and C# source evidence deterministically, records bounded evidence identities, and does not execute or trust repository command text.",
+    "AC-02: validate protected requirement — Python, Node, and .NET profiles contain only server-owned command templates. Repository/model/user text cannot change executable, argument template, environment, network, provider, Git, deployment, or approval authority.",
+    "AC-03: validate protected requirement — An exact source tree produces one stable profile/root identity or a typed unsupported/ambiguous result. Mixed/conflicting roots never trigger guessed execution.",
+    "AC-04: validate protected requirement — A representative OT Time-like C# repository selects the .NET profile and candidate BUILD/TEST/VERIFY use fixed `dotnet` invocations against the admitted solution/project identity instead of Parallax pytest paths.",
+    "AC-05: validate protected requirement — Representative existing Python/Parallax fixtures retain protected BUILD/TEST/VERIFY behavior and all inherited execution-policy tests remain green.",
+    "AC-06: validate protected requirement — A representative Node repository is either validated through a fixed admitted Node profile or explicitly rejected when safe offline fixed commands cannot be proven. Repository `scripts` values never become command authority.",
+    "AC-07: validate protected requirement — The selected validation profile identity is bound to candidate-validation evidence and accepted-lineage BUILD/TEST/VERIFY; canonical execution cannot silently switch profile/toolchain after candidate admission.",
+    "AC-08: validate protected requirement — Missing executable, pinned-snapshot toolchain, or offline dependency returns bounded non-success evidence and performs no source-lineage acceptance, network/package installation, provider mutation, or deployment mutation.",
+    "AC-09: validate protected requirement — Project/spec/run identity, single-writer source acceptance, immutable lineage, evaluator precedence, tenant/auth, source-only handoff, Vercel Preview delivery, provider scopes, and REVIEW boundaries do not regress.",
+    "AC-10: validate protected requirement — After exact release deployment, a QA-owned source-only Project bound to `github:Ryan9876/ot-time` progresses from PLAN through IMPLEMENT/BUILD/TEST/VERIFY to REVIEW and the authenticated exact-lineage ZIP handoff verifies, without Vercel deployment target, Vercel repository-provider authorization, out-of-band source edit, owner impersonation, or DB mutation."
+  ],
+  "risks": [
+    "Potential for generic shell command execution or network broadening through repository-defined script text.",
+    "Potential for missing executable or unavailable offline dependency through toolchain/dependency absence."
+  ],
+  "spec_id": "P2-V0.23.5",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Deterministic .NET compatibility evidence",
+      "protected_requirement": "Repository intelligence recognizes representative `.sln`, `.csproj`, and C# source evidence deterministically, records bounded evidence identities, and does not execute or trust repository command text."
+    },
+    {
+      "id": "AC-02",
+      "title": "Fixed server-owned toolchain profiles",
+      "protected_requirement": "Python, Node, and .NET profiles contain only server-owned command templates. Repository/model/user text cannot change executable, argument template, environment, network, provider, Git, deployment, or approval authority."
+    },
+    {
+      "id": "AC-03",
+      "title": "Deterministic fail-closed selection",
+      "protected_requirement": "An exact source tree produces one stable profile/root identity or a typed unsupported/ambiguous result. Mixed/conflicting roots never trigger guessed execution."
+    },
+    {
+      "id": "AC-04",
+      "title": ".NET protected validation",
+      "protected_requirement": "A representative OT Time-like C# repository selects the .NET profile and candidate BUILD/TEST/VERIFY use fixed `dotnet` invocations against the admitted solution/project identity instead of Parallax pytest paths."
+    },
+    {
+      "id": "AC-05",
+      "title": "Python behavior does not regress",
+      "protected_requirement": "Representative existing Python/Parallax fixtures retain protected BUILD/TEST/VERIFY behavior and all inherited execution-policy tests remain green."
+    },
+    {
+      "id": "AC-06",
+      "title": "Node remains bounded",
+      "protected_requirement": "A representative Node repository is either validated through a fixed admitted Node profile or explicitly rejected when safe offline fixed commands cannot be proven. Repository `scripts` values never become command authority."
+    },
+    {
+      "id": "AC-07",
+      "title": "Candidate and canonical validation agree",
+      "protected_requirement": "The selected validation profile identity is bound to candidate-validation evidence and accepted-lineage BUILD/TEST/VERIFY; canonical execution cannot silently switch profile/toolchain after candidate admission."
+    },
+    {
+      "id": "AC-08",
+      "title": "Toolchain/dependency absence fails closed",
+      "protected_requirement": "Missing executable, pinned-snapshot toolchain, or offline dependency returns bounded non-success evidence and performs no source-lineage acceptance, network/package installation, provider mutation, or deployment mutation."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing authority and delivery contracts remain intact",
+      "protected_requirement": "Project/spec/run identity, single-writer source acceptance, immutable lineage, evaluator precedence, tenant/auth, source-only handoff, Vercel Preview delivery, provider scopes, and REVIEW boundaries do not regress."
+    },
+    {
+      "id": "AC-10",
+      "title": "OT Time authenticated production proof",
+      "protected_requirement": "After exact release deployment, a QA-owned source-only Project bound to `github:Ryan9876/ot-time` progresses from PLAN through IMPLEMENT/BUILD/TEST/VERIFY to REVIEW and the authenticated exact-lineage ZIP handoff verifies, without Vercel deployment target, Vercel repository-provider authorization, out-of-band source edit, owner impersonation, or DB mutation."
+    }
+  ],
+  "critique": [
+    "The specification highlights several significant improvements to Parallax 2.0 for repository-aware protected validation. Key points include generalizing protected candidate and accepted-lineage validation, extending repository intelligence to recognize .NET solution/project markers, and defining server-owned validation profiles. The specification also outlines security and authority requirements, acceptance criteria, scope, non-goals, and release gate."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5-coder:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": false
+  }
+}
