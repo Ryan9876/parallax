@@ -34,7 +34,7 @@ class ProjectRepository:
         name: str,
         description: str | None,
         repository_ref: str | None,
-        delivery_mode: str,
+        delivery_mode: str = "source-only",
     ) -> Project:
         project_id = str(uuid4())
         project = Project(
