@@ -34,6 +34,7 @@ from .source_delivery_composition import (
     SourceDeliveryComposition,
     VerifiedDeliveryResult,
 )
+from .source_only_delivery import SourceOnlyDeliveryResult, SourceOnlyLineageDelivery
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage, SourceProvider
 
@@ -361,7 +362,7 @@ class EngineeringRuntimeComposition:
         self.service = service
         self.allocator = allocator
         self.source_delivery = source_delivery
-        self.last_delivery_result: VerifiedDeliveryResult | None = None
+        self.last_delivery_result: VerifiedDeliveryResult | SourceOnlyDeliveryResult | None = None
         self.gateway = AllocatorWorkspaceLineageGateway(allocator)
         self.implementation_runtime = ProtectedImplementationRuntime(
             service,
@@ -385,7 +386,11 @@ class EngineeringRuntimeComposition:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
 
-    def _emit_delivery_success(self, result: VerifiedDeliveryResult, run: object) -> None:
+    def _emit_delivery_success(
+        self,
+        result: VerifiedDeliveryResult | SourceOnlyDeliveryResult,
+        run: object,
+    ) -> None:
         if getattr(self.service, "event_sink", None) is None:
             return
         project_id = getattr(run, "project_id", None)
@@ -393,8 +398,27 @@ class EngineeringRuntimeComposition:
         updated_at = getattr(run, "updated_at", None)
         if not isinstance(project_id, str) or not isinstance(run_id, str) or not isinstance(updated_at, datetime):
             raise RuntimeCompositionError("verified delivery cannot be projected without canonical run identity")
-        self.service.emit_event(
-            RunEventAppend(
+
+        if isinstance(result, SourceOnlyDeliveryResult):
+            event = RunEventAppend(
+                project_id=project_id,
+                run_id=run_id,
+                event_key=f"handoff:{result.lineage_id.removeprefix('src:')}",
+                event_type=RunEventType.SOURCE_DELIVERY,
+                stage="REVIEW",
+                outcome=RunEventOutcome.SUCCEEDED,
+                subsystem=RunEventSubsystem.SOURCE_LINEAGE,
+                source_lineage_ref=result.lineage_id,
+                evidence_ref=result.handoff_id,
+                summary="Verified accepted source lineage is ready for authenticated download or external deployment.",
+                metadata={
+                    "content_digest": result.content_digest,
+                    "delivery_action_count": 0,
+                },
+                occurred_at=self._event_time(updated_at),
+            )
+        else:
+            event = RunEventAppend(
                 project_id=project_id,
                 run_id=run_id,
                 event_key=f"delivery:{result.lineage_id}",
@@ -416,6 +440,12 @@ class EngineeringRuntimeComposition:
                 },
                 occurred_at=self._event_time(updated_at),
             )
+        self.service.emit_event(event)
+
+    def _source_only_delivery(self) -> bool:
+        return bool(
+            self.source_delivery is not None
+            and isinstance(self.source_delivery.delivery, SourceOnlyLineageDelivery)
         )
 
     def _emit_delivery_failure(self, run: object, error: object) -> None:
@@ -435,6 +465,7 @@ class EngineeringRuntimeComposition:
         failure_evidence = _source_delivery_failure_evidence(error)
         metadata: dict[str, object] = {"run_revision": revision, "current_state": "REVIEW"}
         metadata.update(failure_evidence)
+        source_only = self._source_only_delivery()
         self.service.emit_event(
             RunEventAppend(
                 project_id=project_id,
@@ -443,9 +474,13 @@ class EngineeringRuntimeComposition:
                 event_type=RunEventType.SOURCE_DELIVERY,
                 stage="REVIEW",
                 outcome=RunEventOutcome.FAILED,
-                subsystem=RunEventSubsystem.VERCEL,
+                subsystem=(RunEventSubsystem.SOURCE_LINEAGE if source_only else RunEventSubsystem.VERCEL),
                 failure_code="SOURCE_DELIVERY_FAILED",
-                summary="Verified source delivery failed before operator review publication completed.",
+                summary=(
+                    "Verified source handoff failed before accepted lineage was made downloadable."
+                    if source_only
+                    else "Verified source delivery failed before operator review publication completed."
+                ),
                 metadata=metadata,
                 occurred_at=self._event_time(updated_at),
             )
