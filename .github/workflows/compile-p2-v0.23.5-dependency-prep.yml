@@ -65,3 +65,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Recompile P2-V0.23.5 dependency preparation plan"
           git push origin HEAD:p2/repository-aware-validation-toolchains
+
+# Retriggered after the canonical branch settled so the compiled plan binds to the revised PREPARE contract.
