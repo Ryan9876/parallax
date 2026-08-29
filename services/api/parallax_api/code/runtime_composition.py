@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import tempfile
@@ -37,6 +38,9 @@ from .source_delivery_composition import (
 from .source_only_delivery import SourceOnlyDeliveryResult, SourceOnlyLineageDelivery
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage, SourceProvider
+
+
+logger = logging.getLogger(__name__)
 
 
 class DurableLineageAllocator(Protocol):
@@ -517,6 +521,11 @@ class EngineeringRuntimeComposition:
                     )
                 except Exception as exc:
                     self.last_delivery_result = None
+                    logger.error(
+                        "source_delivery_failed error_class=%s reason=%s",
+                        type(exc).__name__,
+                        str(exc)[:240],
+                    )
                     try:
                         self._emit_delivery_failure(result.run, exc)
                     except Exception:
