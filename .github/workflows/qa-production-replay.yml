@@ -195,10 +195,12 @@ jobs:
           failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
           if [ "${after_revision}" -le "${BEFORE_REVISION}" ]; then
             echo "OT Time run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}, failure=${failure:-none}" >&2
+            jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/run-after.json >&2
             exit 1
           fi
           if [ "${state}" != "REVIEW" ]; then
             echo "OT Time run did not reach REVIEW: state=${state}, revision=${after_revision}, failure=${failure:-none}" >&2
+            jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/run-after.json >&2
             exit 1
           fi
           test -z "${failure}"
@@ -222,4 +224,4 @@ jobs:
           echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
-# Replay marker: bounded PREPARE diagnostics deployment 0e46d1a8.
+# Replay marker: print current bounded failure evidence.
