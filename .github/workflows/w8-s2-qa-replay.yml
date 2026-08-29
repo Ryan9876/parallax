@@ -106,7 +106,7 @@ jobs:
           api --data-binary @/tmp/conversation-create.json -X POST "${API_BASE}/v1/conversations" >/tmp/conversation.json
           conversation_id="$(jq -r '.id' /tmp/conversation.json)"
 
-          prompt='For the OT Time QA acceptance, make one small safe source-only improvement: add a concise PARALLAX_QA.md file that states this is the P2-V0.23.4 public-source acceptance fixture. Do not delete or rename existing files. Success means the new text file exists in the verified accepted lineage, existing application source remains intact, and no hosting deployment is required.'
+          prompt='For the OT Time QA acceptance, make one small safe source-only improvement: add a concise PARALLAX_QA.md file that states this is the P2-V0.23.6 public-source acceptance fixture. Do not delete or rename existing files. Success means the new text file exists in the verified accepted lineage, existing application source remains intact, and no hosting deployment is required.'
           jq -n --arg content "${prompt}" '{content:$content,material_scope_change:false}' >/tmp/response-request.json
           response_status="$(curl --silent --show-error --max-time 300 \
             --output /tmp/response.sse --write-out '%{http_code}' \
@@ -165,7 +165,7 @@ jobs:
                 exit 1
                 ;;
             esac
-            operation_key="qa-p2-v0-23-4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${cycle}"
+            operation_key="qa-p2-v0-23-6-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${cycle}"
             jq -n --arg operation_key "${operation_key}" --argjson expected_revision "${revision}" \
               '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/autonomous.json
             status="$(curl --silent --show-error --max-time 900 \
