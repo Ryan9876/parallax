@@ -89,8 +89,18 @@ test "$(jq -r '.state' /tmp/parallax-python-run-before.json)" = "PLAN"
 operation_key="qa-python-full-experience-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 jq -n --arg operation_key "${operation_key}" --argjson expected_revision "${revision}" \
   '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/parallax-python-autonomous.json
-api --data-binary @/tmp/parallax-python-autonomous.json \
-  -X POST "${API_BASE}/v1/engineering-runs/${run_id}/autonomous" >/tmp/parallax-python-replay.json
+autonomous_status="$(curl --silent --show-error \
+  --output /tmp/parallax-python-replay.json \
+  --write-out '%{http_code}' \
+  --cookie "${COOKIE_JAR}" \
+  -H "X-Parallax-Session: 1" \
+  -H "Content-Type: application/json" \
+  --data-binary @/tmp/parallax-python-autonomous.json \
+  -X POST "${API_BASE}/v1/engineering-runs/${run_id}/autonomous")"
+if [ "${autonomous_status}" != "200" ]; then
+  jq -c '.' /tmp/parallax-python-replay.json
+  exit 1
+fi
 jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/parallax-python-replay.json
 
 echo "QA phase: run outcome and source archive"
