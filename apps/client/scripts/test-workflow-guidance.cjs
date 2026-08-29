@@ -86,6 +86,12 @@ const review = assertGuidance({ specification: specification('APPROVED'), run: r
 assert.match(review.description, /does not mean/i);
 assertGuidance({ specification: specification('APPROVED'), run: run('COMPLETE') }, 'complete', 'Protected work is complete', 'view-progress');
 
+// A status-fetch failure without an authoritative run must fail closed and must not expose a no-op resume action.
+assertGuidance({
+  specification: specification('APPROVED'),
+  runError: 'status endpoint unavailable',
+}, 'failed', 'Progress is temporarily unavailable', null);
+
 // Consequential canonical states take precedence over generic active/plan state.
 assertGuidance({
   phase: 'SPEC_AMENDMENT',
