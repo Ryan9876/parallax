@@ -11,6 +11,8 @@ from parallax_api.code.validation_toolchains import (
     select_validation_profile,
 )
 
+# Validation-profile fixtures assert server-owned command authority only.
+
 
 def test_dotnet_solution_selects_fixed_server_owned_profile(tmp_path: Path):
     (tmp_path / "OtTime.sln").write_text("repository text is evidence only", encoding="utf-8")
