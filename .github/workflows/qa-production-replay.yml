@@ -2,6 +2,11 @@ name: QA Production Replay
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/qa-production-replay.yml
 
 permissions:
   contents: read
@@ -37,11 +42,27 @@ jobs:
           API_BASE: https://parallax-api-tan.vercel.app
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error \
-            --cookie-jar /tmp/parallax.cookies \
-            -H "Authorization: Bearer ${OIDC_TOKEN}" \
-            -X POST "${API_BASE}/v1/session/qa-automation" >/tmp/session.json
-          jq -e '.authenticated == true' /tmp/session.json >/dev/null
+          authenticated=0
+          for attempt in $(seq 1 36); do
+            status="$(curl --silent --show-error \
+              --output /tmp/session.json \
+              --write-out '%{http_code}' \
+              --cookie-jar /tmp/parallax.cookies \
+              -H "Authorization: Bearer ${OIDC_TOKEN}" \
+              -X POST "${API_BASE}/v1/session/qa-automation" || true)"
+            if [ "${status}" = "200" ] && jq -e '.authenticated == true' /tmp/session.json >/dev/null 2>&1; then
+              authenticated=1
+              break
+            fi
+            if [ "${status}" != "404" ] && [ "${status}" != "405" ]; then
+              echo "QA session endpoint returned HTTP ${status}" >&2
+            fi
+            sleep 10
+          done
+          if [ "${authenticated}" != "1" ]; then
+            echo "QA automation endpoint did not become ready" >&2
+            exit 1
+          fi
 
       - name: Read exact OT Time run
         id: before
