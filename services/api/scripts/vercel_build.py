@@ -70,7 +70,12 @@ def main() -> None:
     _run("scripts/production_delivery_permission_preflight.py")
     _run("scripts/production_projected_source_preflight.py")
 
-    if (os.getenv("VERCEL_ENV") or "unknown") == "production":
+    vercel_env = os.getenv("VERCEL_ENV") or "unknown"
+    git_ref = os.getenv("VERCEL_GIT_COMMIT_REF") or ""
+    if vercel_env != "production" and git_ref == "p2/profile-specific-execution-environments":
+        _run_isolated_preflight("scripts/provision_dotnet_execution_snapshot.py")
+
+    if vercel_env == "production":
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
