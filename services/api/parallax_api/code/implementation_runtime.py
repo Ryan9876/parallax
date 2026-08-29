@@ -599,6 +599,14 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         "invocation_digest",
         "stdout_digest",
         "stderr_digest",
+        "dependency_stdout_digest",
+        "dependency_stderr_digest",
+        "dependency_preparation_code",
+        "dependency_preparation_required",
+        "dependency_preparation_succeeded",
+        "validation_network_locked",
+        "dependency_probe_exit_code",
+        "dependency_prepare_exit_code",
         "execution_snapshot_id",
         "validation_profile_id",
         "validation_profile_digest",
@@ -640,7 +648,14 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
             raise ValueError("candidate validation diagnostics asserted authority they do not own")
         normalized_failure[key] = False
 
-    for key in ("invocation_digest", "stdout_digest", "stderr_digest", "candidate_content_digest"):
+    for key in (
+        "invocation_digest",
+        "stdout_digest",
+        "stderr_digest",
+        "dependency_stdout_digest",
+        "dependency_stderr_digest",
+        "candidate_content_digest",
+    ):
         if key not in raw:
             continue
         digest = raw[key]
@@ -651,6 +666,38 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         ):
             raise ValueError("candidate validation diagnostics contain an invalid SHA-256 digest")
         normalized_failure[key] = digest
+
+    if "dependency_preparation_code" in raw:
+        code = raw["dependency_preparation_code"]
+        if code not in {
+            "NOT_REQUIRED",
+            "READY",
+            "EXECUTION_PROFILE_UNAVAILABLE",
+            "DEPENDENCY_PREPARATION_FAILED",
+            "VALIDATION_NETWORK_LOCK_FAILED",
+        }:
+            raise ValueError("candidate validation diagnostics contain an invalid dependency preparation code")
+        normalized_failure["dependency_preparation_code"] = code
+
+    for key in (
+        "dependency_preparation_required",
+        "dependency_preparation_succeeded",
+        "validation_network_locked",
+    ):
+        if key not in raw:
+            continue
+        value = raw[key]
+        if not isinstance(value, bool):
+            raise ValueError("candidate validation dependency state must be boolean")
+        normalized_failure[key] = value
+
+    for key in ("dependency_probe_exit_code", "dependency_prepare_exit_code"):
+        if key not in raw:
+            continue
+        value = raw[key]
+        if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+            raise ValueError("candidate validation dependency exit code must be integer or null")
+        normalized_failure[key] = value
 
     for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180), ("validation_profile_id", 80)):
         if key not in raw:

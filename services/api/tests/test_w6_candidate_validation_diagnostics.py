@@ -111,6 +111,57 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
     assert "dependency_raw_output" not in diagnostic
 
 
+def test_dependency_preparation_diagnostics_survive_failure_sanitizer() -> None:
+    result = CandidateValidationResult(
+        content_digest="d" * 64,
+        file_count=10,
+        total_bytes=1000,
+        validation_profile_id="dotnet-v1",
+        validation_profile_digest="e" * 64,
+        stage_evidence=((
+            "BUILD",
+            {
+                "tool_id": "build",
+                "protected_success": False,
+                "exit_code": None,
+                "timed_out": False,
+                "execution_snapshot_id": "snap_validation-test",
+                "dependency_preparation_required": True,
+                "dependency_preparation_succeeded": False,
+                "dependency_preparation_code": "DEPENDENCY_PREPARATION_FAILED",
+                "dependency_probe_exit_code": 0,
+                "dependency_prepare_exit_code": 1,
+                "dependency_stdout_digest": "f" * 64,
+                "dependency_stderr_digest": "1" * 64,
+                "validation_network_locked": True,
+                "dependency_raw_output": "Bearer must-never-persist",
+            },
+        ),),
+    )
+    projected = _candidate_validation_failure_diagnostic("candidate-primary", result)
+    assert projected is not None
+
+    safe = ImplementationRuntimeError(
+        "bounded PREPARE failure",
+        diagnostic_evidence={"candidate_validation_failure": projected},
+    )
+
+    diagnostic = safe.diagnostic_evidence
+    assert diagnostic is not None
+    failure = diagnostic["candidate_validation_failure"]
+    assert failure["dependency_preparation_code"] == "DEPENDENCY_PREPARATION_FAILED"
+    assert failure["dependency_preparation_required"] is True
+    assert failure["dependency_preparation_succeeded"] is False
+    assert failure["dependency_probe_exit_code"] == 0
+    assert failure["dependency_prepare_exit_code"] == 1
+    assert failure["dependency_stdout_digest"] == "f" * 64
+    assert failure["dependency_stderr_digest"] == "1" * 64
+    assert failure["validation_network_locked"] is True
+    encoded = json.dumps(diagnostic, sort_keys=True)
+    assert "dependency_raw_output" not in encoded
+    assert "Bearer" not in encoded
+
+
 def test_implementation_failure_diagnostics_drop_non_admitted_sensitive_fields() -> None:
     safe = ImplementationRuntimeError(
         "bounded failure",
