@@ -2,7 +2,7 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / W9-S1 + W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED WITH W9-S1 CONTROLLED REAL-WORLD TRIAL PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED + QA PASSWORD ENROLLMENT/SIGN-IN VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / W9-S1 + W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED WITH W9-S1 CONTROLLED REAL-WORLD TRIAL PENDING CREDENTIAL-SAFE INTERACTIVE BROWSER SESSION / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
@@ -10,7 +10,7 @@ Parallax production now includes the deployment-verified W9-S1 real-world benchm
 
 W9-S2 does not make internet-discovered content executable. External skill/tool observations remain quarantined metadata until exact approval and existing registry admission succeed; tool/provider authority remains separately Project-scoped. The released S2 slice adds no live arbitrary crawler, package/MCP installation, database migration or user-facing marketplace.
 
-W9-S1 does **not** mean the first real-world Decision Ledger benchmark has passed. The evaluation/admission capability is released; the controlled authenticated reference trial has not started because the authorized QA account still requires its private user-controlled password enrollment/authenticated-browser boundary. No authentication bypass or direct database/admin mutation is being used to manufacture benchmark evidence.
+W9-S1 does **not** mean the first real-world Decision Ledger benchmark has passed. The evaluation/admission capability is released and the dedicated QA account has now completed private password enrollment plus successful production password sign-in. The controlled authenticated reference trial itself has not started because this continuation's available tool surface does not provide a credential-safe interactive Parallax browser session that can inherit the privately authenticated QA cookie/session. No password/token extraction, authentication bypass, direct database/admin session mutation or out-of-band benchmark source mutation is being used to manufacture evidence.
 
 ### Client
 
@@ -41,7 +41,7 @@ Application release merge: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`
 
 Production client deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`
 
-The QA fallback is **MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**:
+The QA fallback is **MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / PRIVATE PASSWORD ENROLLMENT + PASSWORD SIGN-IN VERIFIED**:
 
 - exact-head Workstream Spec Validation `33229323953` — PASS;
 - exact-head Bounded Autonomy `33229323990` — PASS;
@@ -51,9 +51,12 @@ The QA fallback is **MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**:
 - normal `/` remains Google-only;
 - live `/?qa=1` exposes the bounded secondary QA email/password/recovery controls while retaining Google as primary;
 - passwords, recovery tokens and Supabase access tokens are not persisted by the client and are not recorded in project records;
-- post-cutover client runtime-error scan was clean.
+- post-cutover client runtime-error scan was clean;
+- production Supabase auth evidence records password update (`PUT /user`) — HTTP 200 at `2026-08-29T02:57:49Z`;
+- production password sign-in (`POST /token`, `grant_type=password`) — HTTP 200 at `2026-08-29T02:58:29Z`;
+- repeated production password sign-in — HTTP 200 at `2026-08-29T03:00:43Z`, followed by authenticated user retrieval — HTTP 200.
 
-The remaining authentication step is deliberately user-controlled: private password enrollment from the QA account recovery flow and authenticated sign-in. This same boundary blocks both the W8-S2 OT Time production replay and the W9-S1 controlled real-world trial from being executed by current non-interactive automation.
+The prior password-enrollment blocker is therefore resolved. No password, recovery token, access token or refresh token was read into this continuation. The remaining automation constraint is session transport: this tool surface cannot inherit the private authenticated browser cookie/session without exposing credentials or bypassing the existing authentication design. This still prevents this continuation from performing the W8-S2 OT Time production replay or starting the W9-S1 trial, but it is no longer an account-enrollment failure.
 
 ### API
 
@@ -127,7 +130,7 @@ Production API deployment:
 
 `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`
 
-W9-S1 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / CONTROLLED REAL-WORLD TRIAL PENDING**.
+W9-S1 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / QA PASSWORD ENROLLMENT + PASSWORD SIGN-IN VERIFIED / CONTROLLED REAL-WORLD TRIAL PENDING CREDENTIAL-SAFE INTERACTIVE BROWSER SESSION**.
 
 ### Frozen Decision Ledger benchmark
 
@@ -209,11 +212,11 @@ A source-empty independent target candidate has been identified:
 
 `Ryan9876/sickbeard`
 
-GitHub currently reports this repository as empty. It therefore contains no reference solution or manually seeded application source. It has not been mutated, initialized or bound to a Parallax Project by this workstream.
+GitHub's commit-history endpoint still reports the repository as empty. It therefore contains no reference solution or manually seeded application source. It has not been mutated, initialized or bound to a Parallax Project by this workstream.
 
-The remaining prerequisite is the private QA-auth enrollment/authenticated-browser boundary described above. Current automation has no interactive authenticated Parallax browser session and will not use direct Supabase admin/database mutation, authentication bypass or fabricated session evidence.
+The previously recorded private QA password-enrollment prerequisite is now satisfied by production evidence. The remaining limitation is this continuation's tool surface: it does not expose a credential-safe interactive Parallax browser session that can inherit the privately authenticated QA session. The workstream will not obtain that access by extracting the QA password or Supabase tokens, direct database/admin session mutation, authentication bypass, or a benchmark-only auth path.
 
-When that boundary is satisfied, the S1 trial must:
+When a managed interactive browser context can use the privately authenticated QA session, the S1 trial must:
 
 1. use the frozen objective and exact `DL-01` through `DL-12` tokens;
 2. create/select a normal Parallax Project bound to the independent greenfield repository;
@@ -226,7 +229,7 @@ When that boundary is satisfied, the S1 trial must:
 9. capture exact Project/spec/run/source/Preview/protected identities plus interventions/retries/time/cost/UX only where trustworthy;
 10. record failure or `HUMAN_REQUIRED` honestly if that is the observed product boundary.
 
-A failed/HUMAN_REQUIRED trial is useful S1 evidence once the real trial has actually begun. Authentication failure before trial start is not mislabeled as a completed benchmark.
+A failed/HUMAN_REQUIRED trial is useful S1 evidence once the real trial has actually begun. An unavailable credential-safe browser session before trial start is not mislabeled as a completed benchmark.
 
 Any semantic Parallax defect discovered by the trial must be recorded before implementation and receives a separately governed future workstream/specification. No such fix is included in W9-S1.
 
@@ -426,7 +429,7 @@ Rollback requires no W9-S1 schema rollback because S1 adds no database migration
 - Wave 7 Control #347 governs the retained productization/runtime baseline;
 - Wave 8 Control #374 governs human-centered UX/plain-language/guided execution and remains open only for W8-S2 authenticated replay;
 - Wave 9 Control #391 governs real-world app-builder validation;
-- W9-S1 #392 remains open only for the controlled authenticated Decision Ledger reference trial;
+- W9-S1 #392 remains open only for the controlled authenticated Decision Ledger reference trial; QA enrollment/sign-in is verified, while a credential-safe managed interactive browser session remains required to start that trial;
 - every semantic AI/runtime/evaluation change remains spec-first with stable acceptance IDs and authentic DSPy evidence;
 - benchmark fixtures and evaluator output are evidence, not lifecycle/provider/source authority;
 - source readiness and hosting readiness remain separate lifecycle concerns;
@@ -461,7 +464,7 @@ Rollback requires no W9-S1 schema rollback because S1 adds no database migration
 
 For the user's instruction to continue through **W9-S1 only**, no further Wave 9 implementation slice is authorized here.
 
-The only remaining S1 completion action is the controlled real-world Decision Ledger trial after private QA password enrollment/authenticated sign-in. Once the user-controlled auth boundary is available, use the ordinary product workflow against an independent greenfield repository and record either the trustworthy reference result or the honest failed/HUMAN_REQUIRED product boundary. Do not implement a benchmark-discovered semantic product fix inside S1; record it for separate future governance.
+The only remaining S1 completion action is the controlled real-world Decision Ledger trial from a credential-safe managed interactive browser context using the already-enrolled QA account. Use the ordinary product workflow against the independent greenfield repository and record either the trustworthy reference result or the honest failed/HUMAN_REQUIRED product boundary. Do not expose the QA password/tokens, bypass authentication, mutate session state through database/admin authority, or implement a benchmark-discovered semantic product fix inside S1; record any such defect for separate future governance.
 
 Independent open debts remain:
 
@@ -472,7 +475,7 @@ Independent open debts remain:
 
 ## Authoritative records
 
-- `PROJECT-CONSTITUTION.md` v1.5 — unchanged by W9-S1; existing authority, evidence and human-review rules already govern the benchmark boundary.
-- `ARCHITECTURE.md` v3.14 — updated by W9-S1 to record immutable real-world objective templates, deterministic canonical Project/approved Work Specification admission, existing `BenchmarkCase` compatibility, evaluation-only authority and the reference-observation boundary.
-- `DESIGN-SYSTEM.md` v3.2 — unchanged by W9-S1; S1 adds no user-facing design-system rule.
-- `CURRENT-STATE.md` — updated after exact-head S1 qualification, expected-head merge, exact API production deployment, successful production preflights, `/health` + `/ready` verification and clean exact-deployment error/fatal runtime scan. It explicitly records that the controlled authenticated Decision Ledger reference trial has not yet started and remains the sole W9-S1 completion boundary.
+- `PROJECT-CONSTITUTION.md` v1.5 — unchanged by this W9-S1 state reconciliation; existing authority, evidence and human-review rules already govern the benchmark boundary.
+- `ARCHITECTURE.md` v3.14 — unchanged by this state reconciliation; W9-S1's immutable real-world objective templates, deterministic canonical Project/approved Work Specification admission, existing `BenchmarkCase` compatibility, evaluation-only authority and reference-observation boundary remain authoritative.
+- `DESIGN-SYSTEM.md` v3.2 — unchanged; this reconciliation adds no user-facing design-system rule.
+- `CURRENT-STATE.md` — updated to replace the stale QA password-enrollment blocker with verified production password-enrollment/sign-in evidence, retain the unstarted Decision Ledger trial truth, and record the remaining credential-safe managed-browser session requirement. No application code, schema, deployment or durable architecture contract changed.
