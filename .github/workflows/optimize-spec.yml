@@ -46,10 +46,11 @@ jobs:
             echo '{"executed":false,"reason":"provider-backed DSPy run started"}' > specs/compiled/dspy-run-status.json
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "model=ollama_chat/llama3.2:1b" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
+            echo "model=ollama_chat/qwen2.5-coder:1.5b" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5-coder:1.5b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
             echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
           fi
 
@@ -62,7 +63,7 @@ jobs:
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
             sleep 1
           done
-          ollama pull llama3.2:1b
+          ollama pull qwen2.5-coder:1.5b
 
       - name: Compile approved spec with DSPy critic + compiler
         env:
