@@ -13,6 +13,12 @@ QA_AUTOMATION_REF = "refs/heads/main"
 QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main"
 )
+W8_S2_QA_AUTOMATION_WORKFLOW_REF = (
+    "Ryan9876/parallax/.github/workflows/w8-s2-qa-replay.yml@refs/heads/main"
+)
+QA_AUTOMATION_WORKFLOW_REFS = frozenset(
+    {QA_AUTOMATION_WORKFLOW_REF, W8_S2_QA_AUTOMATION_WORKFLOW_REF}
+)
 QA_AUTOMATION_EMAIL = "parallax.qa.ai@gmail.com"
 QA_AUTOMATION_EVENTS = frozenset({"workflow_dispatch", "push"})
 _GITHUB_JWKS_URL = "https://token.actions.githubusercontent.com/.well-known/jwks"
@@ -58,7 +64,6 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
     required = {
         "repository": QA_AUTOMATION_REPOSITORY,
         "ref": QA_AUTOMATION_REF,
-        "workflow_ref": QA_AUTOMATION_WORKFLOW_REF,
         "runner_environment": "github-hosted",
     }
     for key, expected in required.items():
@@ -66,6 +71,10 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
             raise GitHubActionsIdentityError(
                 "GitHub Actions authentication could not be verified"
             )
+
+    workflow_ref = str(claims.get("workflow_ref") or "")
+    if workflow_ref not in QA_AUTOMATION_WORKFLOW_REFS:
+        raise GitHubActionsIdentityError("GitHub Actions authentication could not be verified")
 
     if claims.get("event_name") not in QA_AUTOMATION_EVENTS:
         raise GitHubActionsIdentityError("GitHub Actions authentication could not be verified")
@@ -77,7 +86,7 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
     actor = str(claims.get("actor") or "").strip() or None
     return GitHubActionsIdentity(
         repository=QA_AUTOMATION_REPOSITORY,
-        workflow_ref=QA_AUTOMATION_WORKFLOW_REF,
+        workflow_ref=workflow_ref,
         run_id=run_id,
         actor=actor,
     )
