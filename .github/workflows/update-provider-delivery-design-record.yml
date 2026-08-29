@@ -1,0 +1,43 @@
+name: Update Provider Delivery Design Record
+
+on:
+  push:
+    branches:
+      - p2/provider-independent-delivery
+    paths:
+      - .github/workflows/update-provider-delivery-design-record.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-design-record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: p2/provider-independent-delivery
+          fetch-depth: 0
+      - name: Update authoritative design record in place
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('DESIGN-SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          if 'Version: 3.2' not in text:
+              raise SystemExit('expected Design System v3.2 marker not found')
+          text = text.replace('Version: 3.2', 'Version: 3.3', 1)
+          anchor = '## Observability workspace\n'
+          if anchor not in text:
+              raise SystemExit('Progress/Observability insertion anchor not found')
+          section = '''## Delivery choice and source handoff\n\nDelivery is presented as an outcome choice inside the existing **Progress / Engineering Run** surface, not as a separate provider-administration workspace. The UI remains subordinate to authoritative Project and Engineering Run state.\n\n- During `SPECIFY` and `PLAN`, a Project-bound approved run may show the server-owned delivery choice.\n- `Download source` is the plain-language presentation of `source-only`; supporting copy may name IIS, local, or another deployment environment as examples without implying Parallax deployed there.\n- `Vercel Preview` is the explicit hosted-preview choice; selecting it does not imply a Preview exists until provider evidence says so.\n- Once implementation begins, delivery selection becomes read-only for that active build. The client must not offer a mode change the server would reject.\n- At `REVIEW`, a successful `source-only` handoff may expose `Download verified source` on web/desktop only after the server has recorded the exact accepted-lineage handoff.\n- Mobile may explain that the verified package can be downloaded from web/desktop rather than pretending a native download or deployment occurred.\n- Delivery controls use the existing warm card, teal interaction, olive support, readable text, explicit selected state, and approximately 44 pt actionable-target rules. Color alone never identifies the selected delivery mode.\n- Provider names stay secondary to the user outcome. Technical details preserve canonical `source-only` / `vercel-preview`, lineage, handoff, Preview and audit identities when inspection requires them.\n- Download success means only that the exact verified source package was handed to the user. It must never be styled or worded as IIS/local/other deployment success without separate deployment evidence.\n\n'''
+          text = text.replace(anchor, section + anchor, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name "Parallax Release Bot"
+          git config user.email "parallax-release-bot@users.noreply.github.com"
+          git add DESIGN-SYSTEM.md
+          git diff --cached --check
+          git commit -m "Record provider-independent delivery UI"
+          git push origin HEAD:p2/provider-independent-delivery
