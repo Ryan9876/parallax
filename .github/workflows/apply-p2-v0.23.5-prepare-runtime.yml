@@ -36,26 +36,10 @@ jobs:
               p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
           validation = 'services/api/parallax_api/code/validation_toolchains.py'
-          replace_once(
-              validation,
-              '@dataclass(frozen=True, slots=True)\nclass ValidationProfile:\n',
-              '''@dataclass(frozen=True, slots=True)\nclass PreparationCommand:\n    tool_id: str\n    probe_command: str\n    probe_args: tuple[str, ...]\n    probe_timeout_seconds: int\n    command: str\n    args: tuple[str, ...]\n    working_directory: str\n    timeout_seconds: int\n    package_domains: tuple[str, ...]\n\n\n@dataclass(frozen=True, slots=True)\nclass ValidationProfile:\n''',
-          )
-          replace_once(
-              validation,
-              '    commands: tuple[RegisteredCommand, ...]\n\n    @property\n',
-              '    commands: tuple[RegisteredCommand, ...]\n    preparation: PreparationCommand | None = None\n\n    @property\n',
-          )
-          replace_once(
-              validation,
-              '        }\n        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()\n',
-              '''        }\n        if self.preparation is not None:\n            payload["preparation"] = {\n                "tool_id": self.preparation.tool_id,\n                "probe_command": self.preparation.probe_command,\n                "probe_args": list(self.preparation.probe_args),\n                "probe_timeout_seconds": self.preparation.probe_timeout_seconds,\n                "command": self.preparation.command,\n                "args": list(self.preparation.args),\n                "working_directory": self.preparation.working_directory,\n                "timeout_seconds": self.preparation.timeout_seconds,\n                "package_domains": list(self.preparation.package_domains),\n            }\n        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()\n''',
-          )
-          replace_once(
-              validation,
-              '            target=target,\n            commands=(\n',
-              '''            target=target,\n            preparation=PreparationCommand(\n                tool_id="dotnet-restore",\n                probe_command="dotnet",\n                probe_args=("--info",),\n                probe_timeout_seconds=30,\n                command="dotnet",\n                args=("restore", target, "--nologo"),\n                working_directory=".",\n                timeout_seconds=300,\n                package_domains=("api.nuget.org", "globalcdn.nuget.org"),\n            ),\n            commands=(\n''',
-          )
+          replace_once(validation, '@dataclass(frozen=True, slots=True)\nclass ValidationProfile:\n', '''@dataclass(frozen=True, slots=True)\nclass PreparationCommand:\n    tool_id: str\n    probe_command: str\n    probe_args: tuple[str, ...]\n    probe_timeout_seconds: int\n    command: str\n    args: tuple[str, ...]\n    working_directory: str\n    timeout_seconds: int\n    package_domains: tuple[str, ...]\n\n\n@dataclass(frozen=True, slots=True)\nclass ValidationProfile:\n''')
+          replace_once(validation, '    commands: tuple[RegisteredCommand, ...]\n\n    @property\n', '    commands: tuple[RegisteredCommand, ...]\n    preparation: PreparationCommand | None = None\n\n    @property\n')
+          replace_once(validation, '        }\n        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()\n', '''        }\n        if self.preparation is not None:\n            payload["preparation"] = {\n                "tool_id": self.preparation.tool_id,\n                "probe_command": self.preparation.probe_command,\n                "probe_args": list(self.preparation.probe_args),\n                "probe_timeout_seconds": self.preparation.probe_timeout_seconds,\n                "command": self.preparation.command,\n                "args": list(self.preparation.args),\n                "working_directory": self.preparation.working_directory,\n                "timeout_seconds": self.preparation.timeout_seconds,\n                "package_domains": list(self.preparation.package_domains),\n            }\n        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()\n''')
+          replace_once(validation, '            target=target,\n            commands=(\n', '''            target=target,\n            preparation=PreparationCommand(\n                tool_id="dotnet-restore",\n                probe_command="dotnet",\n                probe_args=("--info",),\n                probe_timeout_seconds=30,\n                command="dotnet",\n                args=("restore", target, "--nologo"),\n                working_directory=".",\n                timeout_seconds=300,\n                package_domains=("api.nuget.org", "globalcdn.nuget.org"),\n            ),\n            commands=(\n''')
           text = Path(validation).read_text(encoding='utf-8')
           text = text.replace('(\"test\", target, \"--no-build\", \"--no-restore\", \"--nologo\")', '(\"test\", target, \"--no-restore\", \"--nologo\")')
           if '"PreparationCommand",' not in text:
@@ -63,189 +47,21 @@ jobs:
           Path(validation).write_text(text, encoding='utf-8')
 
           agentic = 'services/api/parallax_api/code/agentic_runtime.py'
-          replace_once(
-              agentic,
-              'from .domain import WorkflowStage\n',
-              '''from .dependency_preparation import (\n    DependencyPreparationError,\n    preparation_network_policy,\n    run_dependency_preparation,\n)\nfrom .domain import WorkflowStage\n''',
-          )
-          replace_once(
-              agentic,
-              '                network_policy=NetworkPolicy.deny_all(),\n',
-              '                network_policy=preparation_network_policy(NetworkPolicy, profile),\n',
-          )
-          replace_once(
-              agentic,
-              '                self._transfer_source(instance, files)\n                for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):\n',
-              '''                self._transfer_source(instance, files)\n                try:\n                    preparation_evidence = run_dependency_preparation(\n                        instance,\n                        NetworkPolicy,\n                        profile,\n                        sandbox_cwd=self._sandbox_cwd,\n                    )\n                except DependencyPreparationError as exc:\n                    failure_spec = profile.spec_for(\n                        WorkflowStage.BUILD,\n                        operation_key=f"{operation_key[:120]}:candidate:prepare",\n                    )\n                    evidence = _bounded_evidence(\n                        failure_spec,\n                        exit_code=None,\n                        duration_ms=int(exc.evidence.get("dependency_preparation_duration_ms") or 0),\n                        stdout="",\n                        stderr=exc.code,\n                    )\n                    evidence.update(\n                        {\n                            **exc.evidence,\n                            "candidate_content_digest": content_digest,\n                            "candidate_file_count": len(files),\n                            "candidate_total_bytes": total_bytes,\n                            "validation_profile_id": profile.profile_id.value,\n                            "validation_profile_digest": profile.digest,\n                            "execution_snapshot_id": self.snapshot_id,\n                            "execution_snapshot_verified": True,\n                            "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded",\n                            "candidate_is_canonical_lineage": False,\n                            "accepts_source_lineage": False,\n                        }\n                    )\n                    stage_evidence.append((WorkflowStage.BUILD.value, evidence))\n                    return CandidateValidationResult(\n                        content_digest=content_digest,\n                        file_count=len(files),\n                        total_bytes=total_bytes,\n                        validation_profile_id=profile.profile_id.value,\n                        validation_profile_digest=profile.digest,\n                        stage_evidence=tuple(stage_evidence),\n                    )\n                if preparation_evidence.get("validation_network_locked") is not True:\n                    raise AgenticRuntimeError("validation network lock was not proven")\n                for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):\n''',
-          )
-          replace_once(
-              agentic,
-              '                            "accepts_source_lineage": False,\n                        }\n                    )\n',
-              '                            "accepts_source_lineage": False,\n                            **preparation_evidence,\n                        }\n                    )\n',
-          )
+          replace_once(agentic, 'from .domain import WorkflowStage\n', '''from .dependency_preparation import (\n    DependencyPreparationError,\n    preparation_network_policy,\n    run_dependency_preparation,\n)\nfrom .domain import WorkflowStage\n''')
+          replace_once(agentic, '                network_policy=NetworkPolicy.deny_all(),\n', '                network_policy=preparation_network_policy(NetworkPolicy, profile),\n')
+          replace_once(agentic, '                self._transfer_source(instance, files)\n                for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):\n', '''                self._transfer_source(instance, files)\n                try:\n                    preparation_evidence = run_dependency_preparation(instance, NetworkPolicy, profile, sandbox_cwd=self._sandbox_cwd)\n                except DependencyPreparationError as exc:\n                    failure_spec = profile.spec_for(WorkflowStage.BUILD, operation_key=f"{operation_key[:120]}:candidate:prepare")\n                    evidence = _bounded_evidence(failure_spec, exit_code=None, duration_ms=int(exc.evidence.get("dependency_preparation_duration_ms") or 0), stdout="", stderr=exc.code)\n                    evidence.update({**exc.evidence, "candidate_content_digest": content_digest, "candidate_file_count": len(files), "candidate_total_bytes": total_bytes, "validation_profile_id": profile.profile_id.value, "validation_profile_digest": profile.digest, "execution_snapshot_id": self.snapshot_id, "execution_snapshot_verified": True, "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded", "candidate_is_canonical_lineage": False, "accepts_source_lineage": False})\n                    stage_evidence.append((WorkflowStage.BUILD.value, evidence))\n                    return CandidateValidationResult(content_digest=content_digest, file_count=len(files), total_bytes=total_bytes, validation_profile_id=profile.profile_id.value, validation_profile_digest=profile.digest, stage_evidence=tuple(stage_evidence))\n                if preparation_evidence.get("validation_network_locked") is not True:\n                    raise AgenticRuntimeError("validation network lock was not proven")\n                for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):\n''')
+          replace_once(agentic, '                            "accepts_source_lineage": False,\n                        }\n                    )\n', '                            "accepts_source_lineage": False,\n                            **preparation_evidence,\n                        }\n                    )\n')
 
           lineage = 'services/api/parallax_api/code/lineage_sandbox_execution.py'
-          replace_once(
-              lineage,
-              'from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy\n',
-              '''from .dependency_preparation import (\n    DependencyPreparationError,\n    preparation_network_policy,\n    run_dependency_preparation,\n)\nfrom .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy\n''',
-          )
-          replace_once(
-              lineage,
-              '        cleanup_error: Exception | None = None\n',
-              '''        cleanup_error: Exception | None = None\n        preparation_evidence: dict[str, object] = {\n            "dependency_preparation_required": False,\n            "dependency_preparation_succeeded": False,\n            "validation_network_locked": False,\n        }\n''',
-          )
-          replace_once(
-              lineage,
-              '                    network_policy=NetworkPolicy.deny_all(),\n',
-              '                    network_policy=preparation_network_policy(NetworkPolicy, profile),\n',
-          )
-          replace_once(
-              lineage,
-              '                    self._transfer_source(instance, files)\n                    result = instance.run_process(\n',
-              '''                    self._transfer_source(instance, files)\n                    preparation_evidence = run_dependency_preparation(\n                        instance,\n                        NetworkPolicy,\n                        profile,\n                        sandbox_cwd=self._sandbox_cwd,\n                    )\n                    if preparation_evidence.get("validation_network_locked") is not True:\n                        raise SameLineageExecutionError("validation network lock was not proven")\n                    result = instance.run_process(\n''',
-          )
-          replace_once(
-              lineage,
-              '                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),\n                }\n            )\n',
-              '''                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),\n                    **preparation_evidence,\n                }\n            )\n''',
-          )
-          replace_once(
-              lineage,
-              '                    "validation_profile_digest": validation_profile_digest,\n                }\n            )\n',
-              '''                    "validation_profile_digest": validation_profile_digest,\n                    **preparation_evidence,\n                }\n            )\n''',
-          )
+          replace_once(lineage, 'from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy\n', '''from .dependency_preparation import (\n    preparation_network_policy,\n    run_dependency_preparation,\n)\nfrom .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy\n''')
+          replace_once(lineage, '        cleanup_error: Exception | None = None\n', '''        cleanup_error: Exception | None = None\n        preparation_evidence: dict[str, object] = {\n            "dependency_preparation_required": False,\n            "dependency_preparation_succeeded": False,\n            "validation_network_locked": False,\n        }\n''')
+          replace_once(lineage, '                    network_policy=NetworkPolicy.deny_all(),\n', '                    network_policy=preparation_network_policy(NetworkPolicy, profile),\n')
+          replace_once(lineage, '                    self._transfer_source(instance, files)\n                    result = instance.run_process(\n', '''                    self._transfer_source(instance, files)\n                    preparation_evidence = run_dependency_preparation(instance, NetworkPolicy, profile, sandbox_cwd=self._sandbox_cwd)\n                    if preparation_evidence.get("validation_network_locked") is not True:\n                        raise SameLineageExecutionError("validation network lock was not proven")\n                    result = instance.run_process(\n''')
+          replace_once(lineage, '                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),\n                }\n            )\n', '''                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),\n                    **preparation_evidence,\n                }\n            )\n''')
+          replace_once(lineage, '                    "validation_profile_digest": validation_profile_digest,\n                }\n            )\n', '''                    "validation_profile_digest": validation_profile_digest,\n                    **preparation_evidence,\n                }\n            )\n''')
 
           test_path = Path('services/api/tests/test_dependency_preparation.py')
-          test_path.write_text(r'''from __future__ import annotations
-
-from pathlib import Path
-from types import SimpleNamespace
-
-import pytest
-
-from parallax_api.code.dependency_preparation import (
-    DependencyPreparationError,
-    preparation_network_policy,
-    run_dependency_preparation,
-)
-from parallax_api.code.validation_toolchains import select_validation_profile
-
-
-class FakePolicyValue:
-    def __init__(self, mode: str, allow=None):
-        self.mode = mode
-        self.allow = allow or {}
-
-
-class FakeNetworkPolicy:
-    @staticmethod
-    def deny_all():
-        return FakePolicyValue("deny-all")
-
-    @staticmethod
-    def custom(*, allow):
-        return FakePolicyValue("custom", allow)
-
-
-class FakeInstance:
-    def __init__(self, *, probe_exit=0, prepare_exit=0, lock_mode="deny-all", lock_raises=False):
-        self.probe_exit = probe_exit
-        self.prepare_exit = prepare_exit
-        self.lock_mode = lock_mode
-        self.lock_raises = lock_raises
-        self.calls = []
-        self.policies = []
-
-    def run_process(self, command, args, **kwargs):
-        self.calls.append((command, tuple(args), kwargs))
-        exit_code = self.probe_exit if len(self.calls) == 1 else self.prepare_exit
-        return SimpleNamespace(returncode=exit_code, stdout="bounded output", stderr="")
-
-    def update_network_policy(self, policy):
-        self.policies.append(policy)
-        if self.lock_raises:
-            raise RuntimeError("lock failed")
-        return SimpleNamespace(network_policy=FakePolicyValue(self.lock_mode))
-
-
-def dotnet_profile(tmp_path: Path):
-    (tmp_path / "OtTime.sln").write_text("fixture", encoding="utf-8")
-    return select_validation_profile(tmp_path.resolve())
-
-
-def test_dotnet_prepare_policy_is_exact_server_owned_nuget_allowlist(tmp_path: Path):
-    profile = dotnet_profile(tmp_path)
-    policy = preparation_network_policy(FakeNetworkPolicy, profile)
-    assert policy.mode == "custom"
-    assert set(policy.allow) == {"api.nuget.org", "globalcdn.nuget.org"}
-    assert all(value == () for value in policy.allow.values())
-
-
-def test_dotnet_prepare_probes_restores_then_proves_deny_all(tmp_path: Path):
-    profile = dotnet_profile(tmp_path)
-    instance = FakeInstance()
-    evidence = run_dependency_preparation(
-        instance,
-        FakeNetworkPolicy,
-        profile,
-        sandbox_cwd=lambda value: "/vercel/sandbox" if value == "." else value,
-    )
-    assert instance.calls[0][0:2] == ("dotnet", ("--info",))
-    assert instance.calls[1][0:2] == ("dotnet", ("restore", "OtTime.sln", "--nologo"))
-    assert instance.calls[0][2]["env"] == {}
-    assert instance.calls[1][2]["env"] == {}
-    assert len(instance.policies) == 1
-    assert instance.policies[0].mode == "deny-all"
-    assert evidence["dependency_preparation_succeeded"] is True
-    assert evidence["validation_network_locked"] is True
-    assert "bounded output" not in repr(evidence)
-
-
-def test_prepare_failure_still_locks_network_and_fails_closed(tmp_path: Path):
-    profile = dotnet_profile(tmp_path)
-    instance = FakeInstance(prepare_exit=1)
-    with pytest.raises(DependencyPreparationError) as captured:
-        run_dependency_preparation(
-            instance,
-            FakeNetworkPolicy,
-            profile,
-            sandbox_cwd=lambda _value: "/vercel/sandbox",
-        )
-    assert captured.value.code == "DEPENDENCY_PREPARATION_FAILED"
-    assert captured.value.evidence["validation_network_locked"] is True
-    assert len(instance.policies) == 1
-    assert instance.policies[0].mode == "deny-all"
-
-
-def test_lock_failure_overrides_prepare_success_and_blocks_validation(tmp_path: Path):
-    profile = dotnet_profile(tmp_path)
-    instance = FakeInstance(lock_raises=True)
-    with pytest.raises(DependencyPreparationError) as captured:
-        run_dependency_preparation(
-            instance,
-            FakeNetworkPolicy,
-            profile,
-            sandbox_cwd=lambda _value: "/vercel/sandbox",
-        )
-    assert captured.value.code == "VALIDATION_NETWORK_LOCK_FAILED"
-    assert captured.value.evidence["validation_network_locked"] is False
-
-
-def test_missing_dotnet_toolchain_is_typed_and_network_locked(tmp_path: Path):
-    profile = dotnet_profile(tmp_path)
-    instance = FakeInstance(probe_exit=127)
-    with pytest.raises(DependencyPreparationError) as captured:
-        run_dependency_preparation(
-            instance,
-            FakeNetworkPolicy,
-            profile,
-            sandbox_cwd=lambda _value: "/vercel/sandbox",
-        )
-    assert captured.value.code == "EXECUTION_PROFILE_UNAVAILABLE"
-    assert len(instance.calls) == 1
-    assert captured.value.evidence["validation_network_locked"] is True
-''', encoding='utf-8')
+          test_path.write_text('''from __future__ import annotations\n\nfrom pathlib import Path\nfrom types import SimpleNamespace\n\nimport pytest\n\nfrom parallax_api.code.dependency_preparation import DependencyPreparationError, preparation_network_policy, run_dependency_preparation\nfrom parallax_api.code.validation_toolchains import select_validation_profile\n\nclass FakePolicyValue:\n    def __init__(self, mode: str, allow=None): self.mode=mode; self.allow=allow or {}\nclass FakeNetworkPolicy:\n    @staticmethod\n    def deny_all(): return FakePolicyValue("deny-all")\n    @staticmethod\n    def custom(*, allow): return FakePolicyValue("custom", allow)\nclass FakeInstance:\n    def __init__(self, *, probe_exit=0, prepare_exit=0, lock_mode="deny-all", lock_raises=False):\n        self.probe_exit=probe_exit; self.prepare_exit=prepare_exit; self.lock_mode=lock_mode; self.lock_raises=lock_raises; self.calls=[]; self.policies=[]\n    def run_process(self, command, args, **kwargs):\n        self.calls.append((command, tuple(args), kwargs)); exit_code=self.probe_exit if len(self.calls)==1 else self.prepare_exit; return SimpleNamespace(returncode=exit_code, stdout="bounded output", stderr="")\n    def update_network_policy(self, policy):\n        self.policies.append(policy)\n        if self.lock_raises: raise RuntimeError("lock failed")\n        return SimpleNamespace(network_policy=FakePolicyValue(self.lock_mode))\ndef dotnet_profile(tmp_path: Path):\n    (tmp_path / "OtTime.sln").write_text("fixture", encoding="utf-8"); return select_validation_profile(tmp_path.resolve())\ndef test_dotnet_prepare_policy_is_exact_server_owned_nuget_allowlist(tmp_path: Path):\n    policy=preparation_network_policy(FakeNetworkPolicy, dotnet_profile(tmp_path)); assert policy.mode=="custom"; assert set(policy.allow)=={"api.nuget.org","globalcdn.nuget.org"}\ndef test_dotnet_prepare_probes_restores_then_proves_deny_all(tmp_path: Path):\n    p=dotnet_profile(tmp_path); i=FakeInstance(); e=run_dependency_preparation(i,FakeNetworkPolicy,p,sandbox_cwd=lambda _: "/vercel/sandbox"); assert i.calls[0][0:2]==("dotnet",("--info",)); assert i.calls[1][0:2]==("dotnet",("restore","OtTime.sln","--nologo")); assert e["validation_network_locked"] is True\ndef test_prepare_failure_still_locks_network_and_fails_closed(tmp_path: Path):\n    with pytest.raises(DependencyPreparationError) as c: run_dependency_preparation(FakeInstance(prepare_exit=1),FakeNetworkPolicy,dotnet_profile(tmp_path),sandbox_cwd=lambda _: "/vercel/sandbox")\n    assert c.value.code=="DEPENDENCY_PREPARATION_FAILED"; assert c.value.evidence["validation_network_locked"] is True\ndef test_lock_failure_blocks_validation(tmp_path: Path):\n    with pytest.raises(DependencyPreparationError) as c: run_dependency_preparation(FakeInstance(lock_raises=True),FakeNetworkPolicy,dotnet_profile(tmp_path),sandbox_cwd=lambda _: "/vercel/sandbox")\n    assert c.value.code=="VALIDATION_NETWORK_LOCK_FAILED"\n''', encoding='utf-8')
           PY
           python -m compileall -q services/api/parallax_api
           git diff --check
@@ -256,3 +72,5 @@ def test_missing_dotnet_toolchain_is_typed_and_network_locked(tmp_path: Path):
           git diff --cached --check
           git commit -m "Add bounded dependency preparation for protected validation"
           git push origin HEAD:p2/repository-aware-validation-toolchains
+
+# retrigger after exact-head DSPy compilation
