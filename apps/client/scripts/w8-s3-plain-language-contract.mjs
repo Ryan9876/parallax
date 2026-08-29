@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (path) => readFileSync(join(here, path), 'utf8');
 const app = read('../src/App.tsx');
+const fallback = read('../src/FallbackApp.tsx');
 const header = read('../src/components/EditorialWorkspaceHeader.tsx');
 const progress = read('../src/components/EngineeringRunStatus.tsx');
 const projectGate = read('../src/components/ProjectCompatibilityGate.tsx');
@@ -55,6 +56,28 @@ assert(/emptyCopy:\s*\{[^}]*fontSize:\s*16/.test(app), 'ordinary empty-state bod
 assert(/meta:\s*\{[^}]*fontSize:\s*12/.test(app), 'ordinary secondary status text must remain at least 12px');
 assert(app.includes("mode === 'reason' ? 'ASK' : 'BUILD'"), 'ordinary mode labels must remain Ask/Build');
 assert(app.includes("message.id === activePrintId ? 'RESPONDING' : 'READY'"), 'ordinary response status must remain Responding/Ready');
+
+const forbiddenFallbackCopy = [
+  'specification amendment required',
+  'persistent context online',
+  'API offline',
+  'continue without Skia',
+  'Parallax can continue without Skia',
+  'durable server-side context',
+  "{item.mode}",
+  "{item}</Text>",
+];
+for (const phrase of forbiddenFallbackCopy) {
+  assert(!fallback.includes(phrase), `reduced-graphics shell still exposes legacy phrase: ${phrase}`);
+}
+assert(fallback.includes("return mode === 'code' ? 'Build' : 'Ask';"), 'reduced-graphics mode controls must use Ask/Build');
+assert(fallback.includes('A simpler display is active.'), 'reduced-graphics fallback must explain itself in ordinary language');
+assert(fallback.includes('Your conversation and saved work remain available.'), 'reduced-graphics fallback must explain preservation plainly');
+assert(fallback.includes('Reduced graphics mode · request changed'), 'reduced-graphics amendment state must use plain language');
+assert(fallback.includes('Reduced graphics mode · unavailable'), 'reduced-graphics service failure must avoid API jargon');
+assert(/modeButton:\s*\{[^}]*minHeight:\s*44/.test(fallback), 'reduced-graphics Ask/Build controls must remain at least 44px high');
+assert(/send:\s*\{[^}]*width:\s*46[^}]*height:\s*46/.test(fallback), 'reduced-graphics send control must remain comfortably tappable');
+assert(/emptyCopy:\s*\{[^}]*fontSize:\s*16/.test(fallback), 'reduced-graphics body copy must remain at least 16px');
 
 assert(!header.includes('Project · ${projectId}'), 'desktop header must not expose a Project ID');
 assert(!header.includes('projectId.slice'), 'desktop header must not shorten a Project ID into ordinary copy');
@@ -136,4 +159,4 @@ assert(conversationRoute.includes('"error": exc.error_code'), 'server must retai
 assert(conversationRoute.includes('"trace": exc.trace.as_public_dict()'), 'server must retain technical trace evidence separately from ordinary copy');
 assert(conversationRoute.includes('result.scope.decision is ScopeDecision.SPEC_AMENDMENT'), 'plain-language copy must not remove the canonical amendment decision boundary');
 
-console.log('PASS: W8-S3 ordinary shell, headers, project chooser, server messages, mobile context, and progress surfaces default to plain language while technical detail and machine-readable authority remain available on demand.');
+console.log('PASS: W8-S3 ordinary shell, reduced-graphics shell, headers, project chooser, server messages, mobile context, and progress surfaces default to plain language while technical detail and machine-readable authority remain available on demand.');
