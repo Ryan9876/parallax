@@ -468,7 +468,6 @@ class VercelCandidateValidationExecutor:
                             "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded",
                             "candidate_is_canonical_lineage": False,
                             "accepts_source_lineage": False,
-                            **preparation_evidence,
                         }
                     )
                     stage_evidence.append((WorkflowStage.BUILD.value, evidence))
