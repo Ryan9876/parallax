@@ -1,13 +1,45 @@
 # Parallax 2.0 Architecture
 
-Version: 3.14
+Version: 3.15
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.14 is a bounded architectural update to v3.13, not a platform rewrite. The complete v3.13 architecture at repository commit `cd30205770507fc17a0f388785f5021e3800db89` is incorporated by reference. Every v3.13 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, accepted `P2-V0.19.8` local-first routing, accepted Wave 7 productization contracts, and W8-S2 delivery-readiness separation.
+Architecture v3.15 is a bounded architectural update to v3.14, not a platform rewrite. The complete v3.14 architecture at repository commit `e97dd3deed83be39884fd6e165021d978f736b83` is incorporated by reference. Every v3.14 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, accepted `P2-V0.19.8` local-first routing, accepted Wave 7 productization contracts, and W8-S2 delivery-readiness separation.
 
 This version records W9-S1 (`P2-V0.23.0`): ParallaxBench may admit a frozen real-world objective template before a run and deterministically bind it to the canonical owner-scoped Project plus approved Work Specification produced by the ordinary product workflow. Successful admission produces the existing `BenchmarkCase`; benchmark template identity remains evaluation evidence only and grants no runtime, provider, source, deployment, lifecycle, approval, or REVIEW authority.
+
+## W9-S2 — Governed skill intake and capability catalog
+
+W9-S2 (`P2-V0.23.1`) adds a server-owned supply-chain boundary for reusable skill and tool metadata. It extends the accepted governed-skill architecture without turning external sources into an executable plugin store and without changing the Project-scoped tool/provider authority model.
+
+### Candidate identity, quarantine and replay
+
+External observations are normalized into bounded `SkillCandidate` records with deterministic identity derived from material source, upstream version/ref, content digest and scope facts. Candidate records are quarantined by default and grant no runtime or tool authority. Exact replay is idempotent; the same logical upstream/version with changed material content is recorded as an explicit conflict requiring human review rather than silently replacing trusted material.
+
+Candidate serialization exposes only bounded metadata, reason codes and digests. Raw source bodies, credentials, unrestricted execution handles, provider secrets and hidden reasoning are not part of the safe catalog projection. Project-private observations remain Project-scoped and cannot become reusable global candidate material through this contract.
+
+### Provenance, license and static policy classification
+
+The intake policy classifies server-owned source tiers, authoritative provenance, license state and bounded static risk signals. Official ecosystem and vendor-native provenance can be represented directly; curated discovery is a lead only and must resolve to an inspectable authoritative source before it can satisfy admission provenance. Unknown or ambiguous provenance remains unknown/ambiguous rather than being upgraded by popularity or model preference.
+
+License state is explicit. Unknown, review-required and prohibited license states remain distinct. Static inspection may block or require human review for generic execution, arbitrary network behavior, credential handling, policy bypass, hidden-install behavior, unauthorized production/destructive claims and similar authority-expanding instructions. Inspection is metadata analysis only: candidate scripts, commands, packages, MCP servers, prompts and URLs are never executed by intake.
+
+### Exact approval and existing registry authority
+
+A candidate cannot become a trusted skill merely because it was discovered or classified favorably. Approval binds the exact candidate identity, source/content digest, intake-policy digest and exact `PortableSkill` digest. Any mismatch fails closed.
+
+Successful skill admission still passes through the pre-existing `SkillRegistry.admit` exact-digest and declarable-capability checks. The existing deterministic `SkillSelector` remains the final runtime selection mechanism. Catalog retrieval exposes admitted skills only; quarantined, blocked, rejected, superseded or merely approved candidate metadata cannot participate in runtime selection.
+
+### Tool authority remains separate
+
+Tool candidates are catalog metadata only. Intake cannot create, approve, enable or mutate `ToolCapability`, provider capability, browser authority, shell/filesystem authority, arbitrary network authority, merge/deployment authority or REVIEW authority. A skill declaring that it requires a capability does not manufacture that capability. Existing Project-scoped capability snapshots and provider/tool registries remain authoritative.
+
+### Source-adapter boundary
+
+S2 defines a bounded `CandidateSourceAdapter`/server-owned source-registry interface and initial metadata roots for the official Agent Skills ecosystem and official MCP Registry. These definitions identify reviewed discovery roots; they do not grant live arbitrary network access. Synthetic adapters prove the intake contract without external execution. A future live source adapter that requires new network/provider authority must use an existing sufficiently bounded provider contract or receive a separately reviewed capability specification.
+
+W9-S2 introduces no database migration, public marketplace, user-facing management UI, production-promotion authority or automatic package/MCP installation. The first released slice is an in-process backend contract intended to support later controlled persistence/API/UI work without weakening the established authority boundaries.
 
 ## W9-S1 — Real-world benchmark admission without runtime authority
 
@@ -250,7 +282,7 @@ A path-aware Vercel cancellation for a component with no content delta is not re
 
 ## Authority invariants retained
 
-Wave 7 S1-S6, W8-S2, W9-S1 and release reconciliation grant none of the following authority unless already explicitly provided by an existing protected server contract:
+Wave 7 S1-S6, W8-S2, W9-S1, W9-S2 and release reconciliation grant none of the following authority unless already explicitly provided by an existing protected server contract:
 
 - Project creation/ownership or cross-Project access;
 - Work Specification approval/amendment;
