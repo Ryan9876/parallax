@@ -5,7 +5,8 @@
   "build": {
     "env": {
       "PARALLAX_RUN_EVENTS_ENABLED": "1",
-      "PARALLAX_AGENTIC_RUNTIME_ENABLED": "1"
+      "PARALLAX_AGENTIC_RUNTIME_ENABLED": "1",
+      "PARALLAX_DOTNET_SNAPSHOT_PROVISIONING": "1"
     }
   },
   "env": {
