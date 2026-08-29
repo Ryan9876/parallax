@@ -24,13 +24,11 @@ _SANDBOX_ID = re.compile(r"^sbx_[A-Za-z0-9_-]{8,160}$")
 
 
 def _must_pass(result: object, label: str) -> str:
-    exit_code = getattr(result, "exit_code", None)
-    stdout_fn = getattr(result, "stdout", None)
-    stderr_fn = getattr(result, "stderr", None)
-    stdout = stdout_fn() if callable(stdout_fn) else ""
-    stderr = stderr_fn() if callable(stderr_fn) else ""
-    if exit_code != 0:
-        raise RuntimeError(f"{label} failed with exit code {exit_code}: {str(stderr)[:400]}")
+    return_code = getattr(result, "returncode", None)
+    stdout = getattr(result, "stdout", "") or ""
+    stderr = getattr(result, "stderr", "") or ""
+    if return_code != 0:
+        raise RuntimeError(f"{label} failed with exit code {return_code}: {str(stderr)[:400]}")
     return str(stdout)
 
 
@@ -86,18 +84,21 @@ def main() -> None:
     if not isinstance(project_id, str) or not project_id.startswith("prj_"):
         raise RuntimeError(".NET snapshot provisioning requires the canonical Vercel Project identity")
 
-    from vercel.sandbox import NetworkPolicy
-    from vercel.sandbox.sync import SnapshotSource, sandbox, session
+    from vercel.api import session
+    from vercel.sandbox import NetworkPolicy, SnapshotSource
+    from vercel.sandbox import sync as sandbox
 
     policy = NetworkPolicy.custom(allow={"builds.dotnet.microsoft.com": ()})
     with session():
         with sandbox.create_sandbox(
             project_id=project_id,
-            execution_time_limit=300_000,
+            execution_time_limit=300,
             persistent=False,
             network_policy=policy,
             env={},
             source=SnapshotSource(snapshot_id=BASE_SNAPSHOT_ID),
+            destroy=False,
+            tags={"parallax": "dotnet-snapshot-provisioning"},
         ) as instance:
             if getattr(instance, "current_snapshot_id", None) != BASE_SNAPSHOT_ID:
                 raise RuntimeError("provisioning sandbox did not restore the exact common snapshot")
@@ -115,6 +116,8 @@ def main() -> None:
                         ),
                     ],
                     env={},
+                    kill_after=30,
+                    capture_output=True,
                 ),
                 "source-free base snapshot check",
             ).strip()
@@ -129,19 +132,33 @@ def main() -> None:
                 f"assert h == {DOTNET_ARCHIVE_SHA512!r}, h; print(h)"
             )
             digest = _must_pass(
-                instance.run_process("python", ["-c", download_code], env={}),
+                instance.run_process(
+                    "python",
+                    ["-c", download_code],
+                    env={},
+                    kill_after=120,
+                    capture_output=True,
+                ),
                 ".NET SDK download and checksum verification",
             ).strip()
             if digest != DOTNET_ARCHIVE_SHA512:
                 raise RuntimeError(".NET SDK checksum evidence drifted")
 
-            _must_pass(instance.run_process("sudo", ["rm", "-rf", "/opt/dotnet"], env={}), "clear .NET target")
-            _must_pass(instance.run_process("sudo", ["mkdir", "-p", "/opt/dotnet"], env={}), "create .NET target")
+            _must_pass(
+                instance.run_process("sudo", ["rm", "-rf", "/opt/dotnet"], env={}, kill_after=30, capture_output=True),
+                "clear .NET target",
+            )
+            _must_pass(
+                instance.run_process("sudo", ["mkdir", "-p", "/opt/dotnet"], env={}, kill_after=30, capture_output=True),
+                "create .NET target",
+            )
             _must_pass(
                 instance.run_process(
                     "sudo",
                     ["tar", "-xzf", "/tmp/dotnet-sdk.tar.gz", "-C", "/opt/dotnet"],
                     env={},
+                    kill_after=90,
+                    capture_output=True,
                 ),
                 "extract .NET SDK",
             )
@@ -150,16 +167,27 @@ def main() -> None:
                     "sudo",
                     ["ln", "-sfn", "/opt/dotnet/dotnet", "/usr/local/bin/dotnet"],
                     env={},
+                    kill_after=30,
+                    capture_output=True,
                 ),
                 "publish .NET executable",
             )
-            _must_pass(instance.run_process("rm", ["-f", "/tmp/dotnet-sdk.tar.gz"], env={}), "remove SDK archive")
+            _must_pass(
+                instance.run_process("rm", ["-f", "/tmp/dotnet-sdk.tar.gz"], env={}, kill_after=30, capture_output=True),
+                "remove SDK archive",
+            )
 
-            version = _must_pass(instance.run_process("dotnet", ["--version"], env={}), ".NET version probe").strip()
+            version = _must_pass(
+                instance.run_process("dotnet", ["--version"], env={}, kill_after=30, capture_output=True),
+                ".NET version probe",
+            ).strip()
             if version != DOTNET_SDK_VERSION:
                 raise RuntimeError(f"unexpected .NET SDK version: {version}")
-            info = _must_pass(instance.run_process("dotnet", ["--info"], env={}), ".NET readiness probe")
-            if f"Version:           {DOTNET_SDK_VERSION}" not in info and DOTNET_SDK_VERSION not in info:
+            info = _must_pass(
+                instance.run_process("dotnet", ["--info"], env={}, kill_after=30, capture_output=True),
+                ".NET readiness probe",
+            )
+            if DOTNET_SDK_VERSION not in info:
                 raise RuntimeError(".NET readiness output does not prove the pinned SDK")
 
             instance.update_network_policy(NetworkPolicy.deny_all())
