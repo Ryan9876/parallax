@@ -1,13 +1,15 @@
 # Parallax 2.0 Architecture
 
-Version: 3.19
+Version: 3.20
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.19 is a bounded source-bootstrap correction to v3.18, not a platform rewrite. The complete v3.18 architecture is incorporated by reference. Every v3.18 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, repository-aware protected validation, and bounded dependency PREPARE.
+Architecture v3.20 is a bounded protected-execution substrate qualification to v3.19, not a platform rewrite. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
-This revision removes GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority is established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
+Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
+
+This revision replaces the assumption that every admitted validation ecosystem can use one common execution snapshot. Snapshot selection is now finite, server-owned, and bound to the deterministic validation profile selected from exact source. The established Python path retains the common snapshot; the reserved Node profile identity maps to that same common snapshot without changing generic Node's existing fail-closed source admission; admitted `.NET` requires a dedicated prequalified source-free snapshot and never falls back to the common image.
 
 ## Source authority is independent from deployment authority
 
@@ -87,12 +89,32 @@ The initial admitted behavior is deliberately narrow:
 
 - the established Parallax mixed Python/Node repository retains its exact historical protected Python commands;
 - generic Python repositories remain fail-closed until a separately governed fixed profile is admitted;
-- Node repositories remain fail-closed unless a safe fixed Node route can avoid repository-defined script command authority;
+- Node repositories remain fail-closed with `NODE_FIXED_VALIDATION_UNAVAILABLE` unless a separately governed safe fixed Node route can avoid repository-defined script command authority;
 - a repository with one admissible root `.sln` or `.csproj` may select the fixed `.NET` profile.
 
 For .NET, the target path is normalized relative source evidence. The released commands are fixed `dotnet` invocations. No MSBuild target, property, package source URL, environment value, README text, model output, or user-provided shell fragment becomes a command argument.
 
 Before accepted-lineage materialization, the caller-supplied stage `ExecutionSpec` must still match the server-owned stage authorization envelope. Repository-aware selection occurs only after exact lineage reconstruction and therefore cannot be used to smuggle caller command authority across that boundary.
+
+## Profile-qualified execution snapshots
+
+Snapshot selection is a separate server-owned decision made only after deterministic validation-profile selection from exact candidate or reconstructed accepted-lineage source.
+
+The released finite mapping is:
+
+- `python-v1` → the established common source-free execution snapshot;
+- reserved `node-v1` → the same common snapshot for compatibility only; this mapping does not override the selector's existing `NODE_FIXED_VALIDATION_UNAVAILABLE` result and therefore does not admit generic Node source;
+- `dotnet-v1` → a dedicated source-free `.NET` execution snapshot containing the released .NET SDK/toolchain and required operating-system runtime dependencies.
+
+Snapshot identifiers are released infrastructure configuration. User text, model output, repository contents, Project metadata, benchmark identity, provider output, and arbitrary profile strings cannot form environment-variable names or select snapshot identity. Unknown profile identities and malformed snapshot IDs fail closed. Missing `.NET` snapshot configuration fails before sandbox creation and must not fall back to the common snapshot.
+
+Disposable candidate validation and accepted-lineage BUILD/TEST/VERIFY use the same resolver. For one admitted profile/configuration they therefore restore the same exact snapshot and record that snapshot ID beside the same validation-profile ID/digest in bounded evidence. Snapshot identity is infrastructure evidence only; it cannot establish source admission, source lineage, Project identity, stage completion, deployment authority, or REVIEW completion.
+
+Toolchain provisioning is a release/operations action, never an Engineering Run action. A released profile image must be produced from a fixed server-owned recipe with pinned or checksum-verified dependencies, contain no Project/application source and no reusable credentials, prove its intended toolchain, transition to effective deny-all networking before publication, and produce an immutable non-expiring snapshot identity. User Engineering Runs must not install operating-system runtimes or SDKs to repair an unqualified image.
+
+Production publication is fail-closed on execution-image readiness. Build preflight restores every production-enabled snapshot under deny-all networking, verifies exact snapshot identity, verifies established Python offline dependencies and compatibility-only `node --version` on the common image, verifies `dotnet --info` on the dedicated .NET image, and proves the protected source root is empty. The Node executable probe preserves common-image capability only; it does not create Node source admission or executable command authority.
+
+Vercel Sandbox remains the current isolated execution provider for this contract. That infrastructure fact is independent of the Project delivery provider: a `source-only` application can use Vercel Sandbox for protected engineering execution and still have no Vercel application deployment or Preview target.
 
 ## Bounded dependency PREPARE boundary
 
@@ -100,7 +122,7 @@ A validation profile may declare a subordinate PREPARE contract when clean sourc
 
 For the initial .NET profile, Parallax:
 
-1. restores the same pinned disposable execution snapshot used for protected validation and transfers the exact candidate or accepted-lineage source;
+1. restores the dedicated profile-qualified `.NET` execution snapshot and transfers the exact candidate or accepted-lineage source;
 2. probes the server-owned `dotnet` executable using fixed arguments;
 3. permits outbound traffic only to the profile-owned NuGet allowlist (`api.nuget.org` and `globalcdn.nuget.org`), with an empty application environment and no Git/provider/deployment credentials;
 4. runs fixed `dotnet restore <admitted-target> --nologo`;
@@ -108,7 +130,7 @@ For the initial .NET profile, Parallax:
 6. requires returned runtime state to prove `deny-all` before any BUILD/TEST/VERIFY command can execute;
 7. runs fixed offline BUILD/TEST/VERIFY commands with `--no-restore` and no application environment.
 
-A missing toolchain, failed dependency restore, or inability to prove the deny-all transition is a bounded typed non-success (`EXECUTION_PROFILE_UNAVAILABLE`, `DEPENDENCY_PREPARATION_FAILED`, or `VALIDATION_NETWORK_LOCK_FAILED`). These conditions never trigger fallback to another ecosystem, arbitrary command execution, broader network access, lineage acceptance, provider mutation, or fabricated progress.
+A missing toolchain, failed dependency restore, or inability to prove the deny-all transition is a bounded typed non-success (`EXECUTION_PROFILE_UNAVAILABLE`, `DEPENDENCY_PREPARATION_FAILED`, or `VALIDATION_NETWORK_LOCK_FAILED`). These conditions never trigger fallback to another ecosystem, another profile snapshot, arbitrary command execution, broader network access, lineage acceptance, provider mutation, or fabricated progress.
 
 PREPARE may evaluate repository build metadata as part of the package manager/toolchain's normal restore behavior. That untrusted behavior remains confined to the disposable, no-secret sandbox and therefore does not become Parallax command, credential, lineage, deployment, or approval authority.
 
@@ -118,10 +140,10 @@ Vercel Sandbox remains the current isolated execution provider for this contract
 
 W8-S2's deferred Vercel Project-readiness architecture remains authoritative. The original W8-S2 defect was that PLAN incorrectly depended on static Vercel Preview-target registration. v3.16 then exposed and classified a separate credentialed repository-coverage prerequisite.
 
-Architecture v3.17 removed that credential prerequisite for repositories GitHub could prove public, while preserving it for private/inaccessible repositories. Architecture v3.18 removed the repository-specific protected-validation assumption exposed by authenticated OT Time replay. Architecture v3.19 removes the production dependency on GitHub's shared anonymous REST quota for public source bootstrap and prevents public-source throttling from re-entering the Vercel credential path. The required production acceptance remains an authenticated canonical public-repository source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, network, and lineage authority.
+Architecture v3.17 removed that credential prerequisite for repositories GitHub could prove public, while preserving it for private/inaccessible repositories. Architecture v3.18 removed the repository-specific protected-validation assumption exposed by authenticated OT Time replay. Architecture v3.19 removed the production dependency on GitHub's shared anonymous REST quota for public source bootstrap and prevented public-source throttling from re-entering the Vercel credential path. Architecture v3.20 addresses the next independently exposed boundary: an admitted `.NET` profile may not rely on a Python-qualified common execution image. The required production acceptance remains an authenticated canonical OT Time source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, snapshot, network, and lineage authority.
 
 ## Prior production verification
 
 The v3.16 credentialed-repository boundary remains deployment-verified by production API source `0cfe499ac787a23142067e95e80af80dedab36c5`, deployment `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`, and authenticated QA evidence that a non-covered credentialed repository was classified `REPOSITORY_AUTHORIZATION_REQUIRED` before source mutation.
 
-Architecture v3.19 does not itself assert deployment verification. Exact release/deployment and authenticated public-source REVIEW/ZIP replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.
+The v3.19 public-source transport change and its Python source-only full-experience proof are recorded in `CURRENT-STATE.md`. Architecture v3.20 does not itself assert deployment verification. Exact v3.20 release/deployment and authenticated OT Time REVIEW/ZIP replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.
