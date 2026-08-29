@@ -137,7 +137,12 @@ try {
 
   const desktopCard = desktop.getByTestId('guided-workflow-card');
   const mobileCard = mobile.getByTestId('mobile-context-card');
-  await Promise.all([desktopCard.waitFor({ timeout: 10000 }), mobileCard.waitFor({ timeout: 10000 })]);
+  const utilityRail = desktop.getByTestId('editorial-utility-rail');
+  await Promise.all([
+    desktopCard.waitFor({ timeout: 10000 }),
+    mobileCard.waitFor({ timeout: 10000 }),
+    utilityRail.waitFor({ timeout: 10000 }),
+  ]);
   await Promise.all([
     desktopCard.getByText('Create your build plan', { exact: true }).waitFor(),
     mobileCard.getByText('Create your build plan', { exact: true }).waitFor(),
@@ -172,11 +177,14 @@ try {
   await Promise.all([
     desktopCard.getByText('Review your build plan', { exact: true }).waitFor({ timeout: 5000 }),
     mobileCard.getByText('Review your build plan', { exact: true }).waitFor({ timeout: 5000 }),
+    utilityRail.getByText('Review your build plan', { exact: true }).waitFor({ timeout: 5000 }),
   ]);
   const desktopReviewText = await desktopCard.innerText();
   const mobileReviewText = await mobileCard.innerText();
+  const utilityReviewText = await utilityRail.innerText();
   assert(desktopReviewText.includes('Review your build plan'), 'W8-S4 desktop did not advance presentation after the existing draft callback');
   assert(mobileReviewText.includes('Review your build plan'), 'W8-S4 mobile did not advance presentation after the existing draft callback');
+  assert(utilityReviewText.includes('Review your build plan'), 'W8-S4 utility rail did not reuse shared next-step guidance after draft creation');
 
   const planSurface = desktop.getByLabel('Build plan', { exact: true });
   const planBox = await planSurface.boundingBox();
@@ -190,7 +198,7 @@ try {
   assert(mobileErrors.length === 0, `W8-S4 mobile browser errors: ${mobileErrors.join(' | ')}`);
 
   console.log(JSON.stringify({
-    desktop: { createPlanCtaHeight: desktopButtonBox.height, guidanceBeforePlan: true },
+    desktop: { createPlanCtaHeight: desktopButtonBox.height, guidanceBeforePlan: true, utilityGuidance: true },
     mobile: { createPlanCtaHeight: mobileButtonBox.height },
     parity: { createPlan: true, reviewPlan: true },
     technicalValuesHidden: true,
