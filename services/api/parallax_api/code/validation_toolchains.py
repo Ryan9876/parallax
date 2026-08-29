@@ -85,6 +85,24 @@ def _root_files(root: Path, pattern: str) -> tuple[Path, ...]:
     return tuple(sorted(path for path in root.glob(pattern) if path.is_file() and not path.is_symlink()))
 
 
+def _has_bounded_python_source(root: Path) -> bool:
+    """Recognize source-only Python lineages without trusting project scripts.
+
+    Historical accepted-lineage fixtures (and valid small Python projects) may
+    contain Python source without a packaging manifest. File suffix is bounded
+    ecosystem evidence only; it never becomes executable command authority.
+    """
+
+    for path in root.rglob("*.py"):
+        if path.is_symlink() or not path.is_file():
+            continue
+        resolved = path.resolve(strict=True)
+        if not resolved.is_relative_to(root):
+            raise ValidationProfileError("validation source escaped workspace root")
+        return True
+    return False
+
+
 def select_validation_profile(root: Path) -> ValidationProfile:
     """Select one immutable server-owned validation profile from source shape.
 
@@ -99,13 +117,15 @@ def select_validation_profile(root: Path) -> ValidationProfile:
     root_solutions = _root_files(resolved, "*.sln")
     root_projects = _root_files(resolved, "*.csproj")
     python_markers = tuple(
-        path for name in ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
+        path
+        for name in ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
         if (path := resolved / name).is_file() and not path.is_symlink()
     )
+    has_python = bool(python_markers) or _has_bounded_python_source(resolved)
     node_marker = resolved / "package.json"
     has_node = node_marker.is_file() and not node_marker.is_symlink()
 
-    ecosystems = int(bool(root_solutions or root_projects)) + int(bool(python_markers)) + int(has_node)
+    ecosystems = int(bool(root_solutions or root_projects)) + int(has_python) + int(has_node)
     if ecosystems == 0:
         raise ValidationProfileError("UNSUPPORTED_VALIDATION_ECOSYSTEM")
     if ecosystems > 1:
@@ -145,16 +165,34 @@ def select_validation_profile(root: Path) -> ValidationProfile:
             ),
         )
 
-    if python_markers:
+    if has_python:
         return ValidationProfile(
             profile_id=ValidationProfileCode.PYTHON,
             ecosystem="python",
             root=".",
             target=None,
             commands=(
-                RegisteredCommand(WorkflowStage.BUILD, "build", "python", ("-m", "compileall", "-q", "."), timeout_seconds=180),
-                RegisteredCommand(WorkflowStage.TEST, "test", "python", ("-m", "pytest", "-q"), timeout_seconds=300),
-                RegisteredCommand(WorkflowStage.VERIFY, "verify", "python", ("-m", "pytest", "-q"), timeout_seconds=300),
+                RegisteredCommand(
+                    WorkflowStage.BUILD,
+                    "build",
+                    "python",
+                    ("-m", "compileall", "-q", "."),
+                    timeout_seconds=180,
+                ),
+                RegisteredCommand(
+                    WorkflowStage.TEST,
+                    "test",
+                    "python",
+                    ("-m", "pytest", "-q"),
+                    timeout_seconds=300,
+                ),
+                RegisteredCommand(
+                    WorkflowStage.VERIFY,
+                    "verify",
+                    "python",
+                    ("-m", "pytest", "-q"),
+                    timeout_seconds=300,
+                ),
             ),
         )
 
