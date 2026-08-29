@@ -70,13 +70,7 @@ def main() -> None:
     _run("scripts/production_delivery_permission_preflight.py")
     _run("scripts/production_projected_source_preflight.py")
 
-    environment = os.getenv("VERCEL_ENV") or "unknown"
-    if environment == "preview" and os.getenv("PARALLAX_DOTNET_SNAPSHOT_PROVISIONING") == "1":
-        # Release-only provisioning path. It exists only on the governed work
-        # branch and is removed before the runtime release is merged.
-        _run_isolated_preflight("scripts/provision_dotnet_execution_snapshot.py")
-
-    if environment == "production":
+    if (os.getenv("VERCEL_ENV") or "unknown") == "production":
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
