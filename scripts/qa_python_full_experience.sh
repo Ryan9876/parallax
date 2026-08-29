@@ -111,7 +111,7 @@ failure="$(jq -r '.last_failure_code // ""' /tmp/parallax-python-run-after.json)
 test "${state}" = "REVIEW"
 test -z "${failure}"
 
-api "${API_BASE}/v1/engineering-runs/${run_id}/source-archive" -o /tmp/parallax-python-source.zip
+api "${API_BASE}/v1/projects/${project_id}/engineering-runs/${run_id}/source-download" -o /tmp/parallax-python-source.zip
 python - <<'PY'
 from pathlib import Path
 from zipfile import ZipFile, is_zipfile
