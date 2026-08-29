@@ -2,11 +2,11 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE WITH W8-S2 WAITING ON EXPLICIT GREENFIELD REPOSITORY PROVIDER CONSENT / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH #406 REMEDIATION DEPLOYED AND PROVIDER CONSENT PENDING / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE WITH W8-S2 OPEN / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH #406 REMEDIATION DEPLOYED AND PROVIDER CONSENT PENDING / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.5 API PRODUCTION-DEPLOYMENT-VERIFIED WITH SANDBOX TOOLCHAIN READINESS OPEN / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Parallax production retains the deployment-verified W9-S1 real-world benchmark-admission layer, W9-S2 governed skill-intake/capability-catalog backend, agent-runnable QA authentication, Wave 8 guided experience, and earlier Waves 1–7 runtime/productization baseline.
+Parallax production retains the deployment-verified W9-S1 real-world benchmark-admission layer, W9-S2 governed skill-intake/capability-catalog backend, P2-V0.23.5 repository-aware protected validation policy, agent-runnable QA authentication, Wave 8 guided experience, and earlier Waves 1–7 runtime/productization baseline.
 
 Agent-runnable authenticated production QA is proven through the existing bounded QA identity and normal Parallax session/tenant boundaries. The W8-S2 canonical replay reaches the protected autonomous continuation without owner impersonation or an auth bypass.
 
@@ -134,6 +134,21 @@ Release:
 
 S2 remains non-executing capability intake. External observations are quarantined metadata until exact approval and existing registry admission succeed. The release does not grant discovered content package-install, MCP-startup, generic shell/network, provider/tool-authority, merge, deployment, or REVIEW authority.
 
+## P2-V0.23.5 — Repository-aware protected validation toolchains
+
+Workstream: #421
+
+Release:
+
+- governing specification: `P2-V0.23.5`;
+- production API source: `302a1fcbfabf32ef0955bde31f6c657ecc9d1e46`;
+- production deployment: `dpl_FWHw5rCwM3Bn5faMD4zhYPJ3pCNJ`;
+- state: **MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / OT TIME ACCEPTANCE OPEN**.
+
+The authentic QA replay against the public `github:Ryan9876/ot-time` Project reached the released `dotnet-v1` profile without repository-authority failure, profile ambiguity, source acceptance, or source mutation. It then failed closed during the profile-owned PREPARE prerequisite: `DEPENDENCY_PREPARATION_FAILED`, with no probe or restore process exit result and with the sandbox network lock confirmed as `deny-all` before protected validation could proceed.
+
+This establishes the remaining blocker as the server-pinned Vercel Sandbox execution image's .NET readiness, not Project repository authorization, delivery mode, profile selection, or ungoverned command handling. W8-S2 remains open until a server-owned snapshot with the required admitted toolchain is provisioned, selected through the existing environment contract, and the same QA replay reaches REVIEW with the authenticated source-only ZIP handoff. No accepted lineage, Git/provider mutation, Vercel application deployment, or REVIEW completion occurred in the failed replay.
+
 ## Wave 8 remaining state
 
 W8-S1, W8-S3 and W8-S4 remain deployment-verified. W8-S2 remains open.
@@ -156,8 +171,8 @@ W8-S2 must not close until the repository owner explicitly authorizes `Ryan9876/
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after `P2-V0.23.3` production deployment and authenticated canonical replay. It now distinguishes implementation/deployment success from the still-pending provider-consent action.
+`CURRENT-STATE.md` was updated after the P2-V0.23.5 production deployment and authenticated OT Time replay. It distinguishes deployment verification from the remaining server-owned sandbox-toolchain readiness work.
 
-`ARCHITECTURE.md` was advanced to v3.16 because `P2-V0.23.3` establishes a durable separation between installation-level repository coverage and exact-one-repository runtime credential scope, plus a new explicit repository-authorization readiness state.
+`ARCHITECTURE.md` remains at v3.18. It already records the durable P2-V0.23.5 repository-aware validation and bounded PREPARE contract; the current result does not change that architecture.
 
 `DESIGN-SYSTEM.md` was not changed because no new provider-consent UI has been released. `PROJECT-CONSTITUTION.md` was not changed because the architecture implements existing explicit-consent and least-privilege principles rather than adding a new constitutional rule.
