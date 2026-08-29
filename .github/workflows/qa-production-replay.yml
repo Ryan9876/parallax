@@ -19,7 +19,7 @@ concurrency:
 jobs:
   replay-w8-s2:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Request GitHub Actions OIDC token
         id: oidc
@@ -54,9 +54,6 @@ jobs:
               authenticated=1
               break
             fi
-            if [ "${status}" != "404" ] && [ "${status}" != "405" ]; then
-              echo "QA session endpoint returned HTTP ${status}" >&2
-            fi
             sleep 10
           done
           if [ "${authenticated}" != "1" ]; then
@@ -64,30 +61,122 @@ jobs:
             exit 1
           fi
 
-      - name: Read exact OT Time run
-        id: before
+      - name: Verify owner-scoped historical run remains isolated
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: af617b0b-5297-427c-a40d-90d58f59a20a
+          HISTORICAL_RUN_ID: af617b0b-5297-427c-a40d-90d58f59a20a
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error \
+            --output /tmp/historical.json \
+            --write-out '%{http_code}' \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            "${API_BASE}/v1/engineering-runs/${HISTORICAL_RUN_ID}")"
+          if [ "${status}" != "404" ]; then
+            echo "Expected owner-scoped historical run to remain isolated; received HTTP ${status}" >&2
+            exit 1
+          fi
+          echo "Owner-scoped historical run remains isolated from QA identity"
+
+      - name: Ensure QA-owned OT Time Project
+        id: project
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
         run: |
           set -euo pipefail
           curl --fail --silent --show-error \
             --cookie /tmp/parallax.cookies \
             -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-before.json
+            "${API_BASE}/v1/projects" >/tmp/projects.json
+          project_id="$(jq -r '.[] | select(.repository_ref == "github:Ryan9876/ot-time") | .id' /tmp/projects.json | head -n1)"
+          if [ -z "${project_id}" ]; then
+            jq -n '{name:"W8 S2 QA OT Time",slug:"w8-s2-qa-ot-time",description:"Canonical QA-owned W8-S2 production acceptance fixture.",repository_ref:"github:Ryan9876/ot-time"}' >/tmp/project-create.json
+            curl --fail-with-body --silent --show-error \
+              --cookie /tmp/parallax.cookies \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              --data-binary @/tmp/project-create.json \
+              -X POST "${API_BASE}/v1/projects" >/tmp/project.json
+            project_id="$(jq -r '.id' /tmp/project.json)"
+          fi
+          test -n "${project_id}"
+          echo "project_id=${project_id}" >> "${GITHUB_OUTPUT}"
+          echo "Canonical QA Project: ${project_id}"
+
+      - name: Create canonical conversation and approved Work Specification
+        id: spec
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+        run: |
+          set -euo pipefail
+          jq -n --arg project_id "${PROJECT_ID}" '{mode:"code",project_id:$project_id}' >/tmp/conversation-create.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/conversation-create.json \
+            -X POST "${API_BASE}/v1/conversations" >/tmp/conversation.json
+          conversation_id="$(jq -r '.id' /tmp/conversation.json)"
+
+          objective="Implement an About page in the bound project repository and verify that it is accessible, renders correctly, and integrates with the existing application. Preserve the existing application structure, styling conventions, and behavior outside the About page."
+          jq -n --arg content "${objective}" '{role:"user",content:$content}' >/tmp/message.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/message.json \
+            -X POST "${API_BASE}/v1/conversations/${conversation_id}/messages" >/tmp/message-response.json
+
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -X POST "${API_BASE}/v1/conversations/${conversation_id}/work-specifications/draft" >/tmp/spec-draft.json
+          spec_id="$(jq -r '.id' /tmp/spec-draft.json)"
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -X POST "${API_BASE}/v1/work-specifications/${spec_id}/approve" >/tmp/spec-approved.json
+          jq -e '.status == "APPROVED"' /tmp/spec-approved.json >/dev/null
+
+          echo "conversation_id=${conversation_id}" >> "${GITHUB_OUTPUT}"
+          echo "spec_id=${spec_id}" >> "${GITHUB_OUTPUT}"
+          echo "Canonical Work Specification: ${spec_id}"
+
+      - name: Activate canonical Engineering Run
+        id: run
+        shell: bash
+        env:
+          API_BASE: https://parallax-api-tan.vercel.app
+          CONVERSATION_ID: ${{ steps.spec.outputs.conversation_id }}
+          SPEC_ID: ${{ steps.spec.outputs.spec_id }}
+        run: |
+          set -euo pipefail
+          jq -n --arg conversation_id "${CONVERSATION_ID}" --arg work_specification_id "${SPEC_ID}" '{conversation_id:$conversation_id,work_specification_id:$work_specification_id}' >/tmp/activate.json
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/activate.json \
+            -X POST "${API_BASE}/v1/engineering-runs/activate" >/tmp/run-before.json
+          run_id="$(jq -r '.id' /tmp/run-before.json)"
           revision="$(jq -r '.revision' /tmp/run-before.json)"
           state="$(jq -r '.state' /tmp/run-before.json)"
+          test -n "${run_id}"
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
-          echo "state=${state}" >> "${GITHUB_OUTPUT}"
-          echo "Before replay: state=${state}, revision=${revision}"
+          echo "Canonical run before replay: id=${run_id}, state=${state}, revision=${revision}"
 
       - name: Retry protected autonomous continuation
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: af617b0b-5297-427c-a40d-90d58f59a20a
-          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+          EXPECTED_REVISION: ${{ steps.run.outputs.revision }}
         run: |
           set -euo pipefail
           operation_key="qa-w8-s2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -107,8 +196,8 @@ jobs:
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: af617b0b-5297-427c-a40d-90d58f59a20a
-          BEFORE_REVISION: ${{ steps.before.outputs.revision }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+          BEFORE_REVISION: ${{ steps.run.outputs.revision }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error \
@@ -126,4 +215,4 @@ jobs:
             echo "Run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}" >&2
             exit 1
           fi
-          echo "W8-S2 replay advanced: state=${state}, revision=${after_revision}, failure=${failure:-none}"
+          echo "W8-S2 canonical replay advanced: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=${failure:-none}"
