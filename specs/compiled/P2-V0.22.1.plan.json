@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Allow existing Google-linked and Parallax-authorized QA account to establish a normal authenticated Parallax session when a managed testing browser cannot reach Google OAuth."
+  ],
+  "work_items": [
+    "Implement a fallback for Google OAuth login when Parallax access is denied."
+  ],
+  "validations": [
+    "Ensure the fallback does not compromise the existing Parallax access allowlist and server-issued session cookie.",
+    "AC-01: validate protected requirement \u2014 At `/` without `qa=1` and without a recovery fragment, the existing Parallax gate exposes only `Continue with Google`; no email, password, recovery, or sign-up control is rendered.",
+    "AC-02: validate protected requirement \u2014 At `/?qa=1`, the gate exposes a clearly secondary `QA test account` path while retaining Google as the primary sign-in method. No public sign-up action is present.",
+    "AC-03: validate protected requirement \u2014 Submitting QA email/password sends them only to the configured Supabase `/auth/v1/token?grant_type=password` endpoint over HTTPS with the publishable key. The password is absent from URLs, storage, logs, errors, and Parallax API requests.",
+    "AC-04: validate protected requirement \u2014 The resulting transient Supabase access token is exchanged only through existing `api.establishGoogleSession`. Current server verification must still require a Google-linked Supabase identity and an active matching `authorized_users` row before issuing the normal signed HttpOnly Parallax session cookie.",
+    "AC-05: validate protected requirement \u2014 The QA form can request a Supabase password-recovery email without disclosing account existence. A valid recovery redirect returns to the QA gate and presents a secure new-password form.",
+    "AC-06: validate protected requirement \u2014 The recovery access token is accepted only from a `type=recovery` URL fragment, immediately removed from browser history, retained only in component memory, and discarded after success, cancellation, or page exit. Refresh tokens are never stored.",
+    "AC-07: validate protected requirement \u2014 The new password is sent only to Supabase `/auth/v1/user` with the transient recovery access token. Success returns the user to the QA sign-in form rather than fabricating a Parallax session.",
+    "AC-08: validate protected requirement \u2014 Invalid credentials, expired recovery, Supabase unavailability, Parallax authorization denial, and session failure preserve the login gate and show bounded natural-language guidance without revealing raw tokens, passwords, provider payloads, or whether an arbitrary email exists.",
+    "AC-09: validate protected requirement \u2014 Client typecheck, web export, Google-auth smoke, session-expiry smoke, normal visual acceptance, and focused QA-auth acceptance pass. No server, database, provider configuration, package dependency, or W8-S4-owned path changes.",
+    "AC-10: validate protected requirement \u2014 The exact client release is Preview-validated and production-deployed under the existing serialized release process. Deployment verification proves normal Google-only root behavior, hidden QA form availability, private recovery/password enrollment, authenticated managed-browser session establishment, and clean runtime errors before `CURRENT-STATE.md` records the fallback as deployment-verified or the W8-S2 authenticated replay proceeds."
+  ],
+  "risks": [
+    "Risk of compromising Parallax access and security if the fallback is not properly implemented."
+  ],
+  "spec_id": "P2-V0.22.1",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Ordinary login remains Google-only",
+      "protected_requirement": "At `/` without `qa=1` and without a recovery fragment, the existing Parallax gate exposes only `Continue with Google`; no email, password, recovery, or sign-up control is rendered."
+    },
+    {
+      "id": "AC-02",
+      "title": "QA entry is deliberate and bounded",
+      "protected_requirement": "At `/?qa=1`, the gate exposes a clearly secondary `QA test account` path while retaining Google as the primary sign-in method. No public sign-up action is present."
+    },
+    {
+      "id": "AC-03",
+      "title": "Password sign-in uses Supabase safely",
+      "protected_requirement": "Submitting QA email/password sends them only to the configured Supabase `/auth/v1/token?grant_type=password` endpoint over HTTPS with the publishable key. The password is absent from URLs, storage, logs, errors, and Parallax API requests."
+    },
+    {
+      "id": "AC-04",
+      "title": "Existing Parallax authorization remains authoritative",
+      "protected_requirement": "The resulting transient Supabase access token is exchanged only through existing `api.establishGoogleSession`. Current server verification must still require a Google-linked Supabase identity and an active matching `authorized_users` row before issuing the normal signed HttpOnly Parallax session cookie."
+    },
+    {
+      "id": "AC-05",
+      "title": "Recovery can enroll the existing QA password privately",
+      "protected_requirement": "The QA form can request a Supabase password-recovery email without disclosing account existence. A valid recovery redirect returns to the QA gate and presents a secure new-password form."
+    },
+    {
+      "id": "AC-06",
+      "title": "Recovery material is transient",
+      "protected_requirement": "The recovery access token is accepted only from a `type=recovery` URL fragment, immediately removed from browser history, retained only in component memory, and discarded after success, cancellation, or page exit. Refresh tokens are never stored."
+    },
+    {
+      "id": "AC-07",
+      "title": "Password update is bounded",
+      "protected_requirement": "The new password is sent only to Supabase `/auth/v1/user` with the transient recovery access token. Success returns the user to the QA sign-in form rather than fabricating a Parallax session."
+    },
+    {
+      "id": "AC-08",
+      "title": "Failure behavior is safe and understandable",
+      "protected_requirement": "Invalid credentials, expired recovery, Supabase unavailability, Parallax authorization denial, and session failure preserve the login gate and show bounded natural-language guidance without revealing raw tokens, passwords, provider payloads, or whether an arbitrary email exists."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing authentication regressions remain green",
+      "protected_requirement": "Client typecheck, web export, Google-auth smoke, session-expiry smoke, normal visual acceptance, and focused QA-auth acceptance pass. No server, database, provider configuration, package dependency, or W8-S4-owned path changes."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production verification is evidence-based",
+      "protected_requirement": "The exact client release is Preview-validated and production-deployed under the existing serialized release process. Deployment verification proves normal Google-only root behavior, hidden QA form availability, private recovery/password enrollment, authenticated managed-browser session establishment, and clean runtime errors before `CURRENT-STATE.md` records the fallback as deployment-verified or the W8-S2 authenticated replay proceeds."
+    }
+  ],
+  "critique": [
+    "The implementation of the Parallax Google-linked and Parallax-authorized QA account authentication bypasses the existing Parallax access allowlist and server-issued session cookie, potentially weakening the ordinary Google-only login screen."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
