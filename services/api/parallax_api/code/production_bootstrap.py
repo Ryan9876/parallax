@@ -15,18 +15,18 @@ from ..tools.providers import (
 from ..tools.providers.github_client import GitHubRestProviderClient
 from ..tools.registry import ToolCapabilityRegistry
 from .delivery_readiness import _configuration_raw, _provisioning_profile
-from .production_delivery import (
-    ProductionDeliveryConfigurationError,
-    VercelConnectGitHubCredentialProvider,
-)
+from .production_delivery import ProductionDeliveryConfigurationError
 from .production_source_projection import ProjectedRepositoryLineageBootstrap
+from .repository_authority import RepositoryAuthorizationAwareGitHubCredentialProvider
 from .source_delivery_composition import (
     OwnerScopedProjectBindingResolver,
     ScopedProviderInvocationFactory,
 )
 
 
-class VercelConnectGitHubBootstrapCredentialProvider(VercelConnectGitHubCredentialProvider):
+class VercelConnectGitHubBootstrapCredentialProvider(
+    RepositoryAuthorizationAwareGitHubCredentialProvider
+):
     """Use the existing request-scoped Connect exchange with read-only GitHub scope."""
 
     @staticmethod
