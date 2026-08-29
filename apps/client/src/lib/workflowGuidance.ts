@@ -140,7 +140,7 @@ export function getWorkflowGuidance(input: WorkflowGuidanceInput): WorkflowGuida
   if (input.mode === 'code' && run?.state === 'PAUSED') {
     return guidance(
       'paused',
-      'PAUSED',
+      'WAITING FOR YOU',
       'Work is paused',
       'Nothing is being changed while this work is paused. Continue when you are ready.',
       'neutral',
