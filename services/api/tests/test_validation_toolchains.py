@@ -5,11 +5,24 @@ from pathlib import Path
 import pytest
 
 from parallax_api.code.domain import WorkflowStage
+from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.code.validation_toolchains import (
     ValidationProfileCode,
     ValidationProfileError,
     select_validation_profile,
 )
+
+
+def _write_parallax_markers(root: Path) -> None:
+    (root / "services/api/parallax_api").mkdir(parents=True)
+    (root / "services/api/tests").mkdir(parents=True)
+    (root / "scripts").mkdir(parents=True)
+    (root / "services/api/pyproject.toml").write_text("[project]\nname='parallax-api'\n", encoding="utf-8")
+    (root / "services/api/tests/test_code_execution_kernel.py").write_text("", encoding="utf-8")
+    (root / "services/api/tests/test_code_autonomy.py").write_text("", encoding="utf-8")
+    # Parallax is intentionally mixed Python/Node. Root Node evidence must not
+    # displace its established protected Python profile.
+    (root / "package.json").write_text('{"private":true}', encoding="utf-8")
 
 
 def test_dotnet_solution_selects_fixed_server_owned_profile(tmp_path: Path):
@@ -32,15 +45,26 @@ def test_dotnet_solution_selects_fixed_server_owned_profile(tmp_path: Path):
     assert "repository text" not in repr(profile.commands)
 
 
-def test_python_profile_is_generic_and_server_owned(tmp_path: Path):
-    (tmp_path / "pyproject.toml").write_text("[project]\nname='fixture'\n", encoding="utf-8")
+def test_parallax_python_profile_preserves_exact_legacy_commands(tmp_path: Path):
+    _write_parallax_markers(tmp_path)
     profile = select_validation_profile(tmp_path.resolve())
+    registry = ProtectedCommandRegistry()
+
     assert profile.profile_id is ValidationProfileCode.PYTHON
-    assert profile.invocation_for(WorkflowStage.BUILD) == (
-        "python",
-        ("-m", "compileall", "-q", "."),
-    )
-    assert profile.invocation_for(WorkflowStage.TEST) == ("python", ("-m", "pytest", "-q"))
+    for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
+        assert profile.invocation_for(stage) == registry.invocation_for(stage)
+        expected = registry.spec_for(stage, operation_key="expected")
+        actual = profile.spec_for(stage, operation_key="expected")
+        assert actual.tool_id == expected.tool_id
+        assert actual.args == expected.args
+        assert actual.working_directory == expected.working_directory
+        assert actual.timeout_seconds == expected.timeout_seconds
+
+
+def test_generic_python_repository_fails_closed_until_fixed_profile_is_governed(tmp_path: Path):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='fixture'\n", encoding="utf-8")
+    with pytest.raises(ValidationProfileError, match="PYTHON_FIXED_VALIDATION_UNAVAILABLE"):
+        select_validation_profile(tmp_path.resolve())
 
 
 def test_node_repository_fails_closed_instead_of_running_package_script(tmp_path: Path):
