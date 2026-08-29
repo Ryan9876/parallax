@@ -214,7 +214,7 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
 
     command, args, kwargs = instance.process_calls[0]
     assert command == "python"
-    assert tuple(args) == ("-m", "compileall", "-q", ".")
+    assert tuple(args) == ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)[1]
     assert evidence["validation_profile_id"] == "python-v1"
     assert isinstance(evidence["validation_profile_digest"], str)
     assert len(evidence["validation_profile_digest"]) == 64

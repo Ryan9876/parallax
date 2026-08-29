@@ -22,12 +22,26 @@ class ValidationProfileCode(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class PreparationCommand:
+    tool_id: str
+    probe_command: str
+    probe_args: tuple[str, ...]
+    probe_timeout_seconds: int
+    command: str
+    args: tuple[str, ...]
+    working_directory: str
+    timeout_seconds: int
+    package_domains: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ValidationProfile:
     profile_id: ValidationProfileCode
     ecosystem: str
     root: str
     target: str | None
     commands: tuple[RegisteredCommand, ...]
+    preparation: PreparationCommand | None = None
 
     @property
     def digest(self) -> str:
@@ -48,6 +62,18 @@ class ValidationProfile:
                 for command in self.commands
             ],
         }
+        if self.preparation is not None:
+            payload["preparation"] = {
+                "tool_id": self.preparation.tool_id,
+                "probe_command": self.preparation.probe_command,
+                "probe_args": list(self.preparation.probe_args),
+                "probe_timeout_seconds": self.preparation.probe_timeout_seconds,
+                "command": self.preparation.command,
+                "args": list(self.preparation.args),
+                "working_directory": self.preparation.working_directory,
+                "timeout_seconds": self.preparation.timeout_seconds,
+                "package_domains": list(self.preparation.package_domains),
+            }
         return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
     def command_for(self, stage: WorkflowStage) -> RegisteredCommand:
@@ -181,20 +207,31 @@ def select_validation_profile(root: Path) -> ValidationProfile:
             ecosystem="dotnet",
             root=".",
             target=target,
+            preparation=PreparationCommand(
+                tool_id="dotnet-restore",
+                probe_command="dotnet",
+                probe_args=("--info",),
+                probe_timeout_seconds=30,
+                command="dotnet",
+                args=("restore", target, "--nologo"),
+                working_directory=".",
+                timeout_seconds=300,
+                package_domains=("api.nuget.org", "globalcdn.nuget.org"),
+            ),
             commands=(
                 RegisteredCommand(WorkflowStage.BUILD, "build", "dotnet", ("build", *common), timeout_seconds=300),
                 RegisteredCommand(
                     WorkflowStage.TEST,
                     "test",
                     "dotnet",
-                    ("test", target, "--no-build", "--no-restore", "--nologo"),
+                    ("test", target, "--no-restore", "--nologo"),
                     timeout_seconds=300,
                 ),
                 RegisteredCommand(
                     WorkflowStage.VERIFY,
                     "verify",
                     "dotnet",
-                    ("test", target, "--no-build", "--no-restore", "--nologo"),
+                    ("test", target, "--no-restore", "--nologo"),
                     timeout_seconds=300,
                 ),
             ),
@@ -207,6 +244,7 @@ def select_validation_profile(root: Path) -> ValidationProfile:
 
 
 __all__ = [
+    "PreparationCommand",
     "ValidationProfile",
     "ValidationProfileCode",
     "ValidationProfileError",

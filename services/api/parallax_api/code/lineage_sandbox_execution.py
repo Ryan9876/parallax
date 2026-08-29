@@ -7,6 +7,7 @@ import time
 
 from parallax_api.execution_environment import execution_snapshot_id
 
+from .dependency_preparation import preparation_network_policy, run_dependency_preparation
 from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy
 from .runtime_composition import DurableLineageAllocator
 from .sandbox_execution import (
@@ -180,6 +181,11 @@ class SameLineageVercelSandboxExecutor:
         validation_profile_id: str | None = None
         validation_profile_digest: str | None = None
         cleanup_error: Exception | None = None
+        preparation_evidence: dict[str, object] = {
+            "dependency_preparation_required": False,
+            "dependency_preparation_succeeded": False,
+            "validation_network_locked": False,
+        }
         try:
             self._validate_caller_stage_spec(spec)
             identity = self._identity(project_ref, run_id)
@@ -208,7 +214,7 @@ class SameLineageVercelSandboxExecutor:
                     source=snapshot_source,
                     execution_time_limit=execution_spec.timeout_seconds + 30,
                     persistent=False,
-                    network_policy=NetworkPolicy.deny_all(),
+                    network_policy=preparation_network_policy(NetworkPolicy, profile),
                     env={},
                     destroy=True,
                     tags={"parallax": "same-lineage", "stage": spec.stage.value.lower()},
@@ -217,6 +223,14 @@ class SameLineageVercelSandboxExecutor:
                     if restored_snapshot_id != self.snapshot_id:
                         raise SameLineageExecutionError("sandbox did not restore the server-pinned execution snapshot")
                     self._transfer_source(instance, files)
+                    preparation_evidence = run_dependency_preparation(
+                        instance,
+                        NetworkPolicy,
+                        profile,
+                        sandbox_cwd=self._sandbox_cwd,
+                    )
+                    if preparation_evidence.get("validation_network_locked") is not True:
+                        raise SameLineageExecutionError("validation network lock was not proven")
                     result = instance.run_process(
                         command,
                         list(args),
@@ -246,6 +260,7 @@ class SameLineageVercelSandboxExecutor:
                     "validation_profile_id": validation_profile_id,
                     "validation_profile_digest": validation_profile_digest,
                     "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),
+                    **preparation_evidence,
                 }
             )
         except Exception as exc:
@@ -266,6 +281,7 @@ class SameLineageVercelSandboxExecutor:
                     "execution_snapshot_verified": False,
                     "validation_profile_id": validation_profile_id,
                     "validation_profile_digest": validation_profile_digest,
+                    **preparation_evidence,
                 }
             )
         finally:

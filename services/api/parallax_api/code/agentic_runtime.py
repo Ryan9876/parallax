@@ -65,6 +65,7 @@ from .agent_team_orchestration import (
     observe_admitted_result,
     schedule_team_plan,
 )
+from .dependency_preparation import DependencyPreparationError, preparation_network_policy, run_dependency_preparation
 from .domain import WorkflowStage
 from .execution import ExecutionPolicyError, ProtectedCommandPolicy
 from .implementation import ImplementationError, ImplementationRequest, SafeImplementationEngine
@@ -422,7 +423,7 @@ class VercelCandidateValidationExecutor:
                 source=snapshot_source,
                 execution_time_limit=max_execution_seconds,
                 persistent=False,
-                network_policy=NetworkPolicy.deny_all(),
+                network_policy=preparation_network_policy(NetworkPolicy, profile),
                 env={},
                 destroy=True,
                 tags={"parallax": "agentic-candidate-validation"},
@@ -430,6 +431,52 @@ class VercelCandidateValidationExecutor:
                 if getattr(instance, "current_snapshot_id", None) != self.snapshot_id:
                     raise AgenticRuntimeError("candidate sandbox did not restore the pinned execution snapshot")
                 self._transfer_source(instance, files)
+                try:
+                    preparation_evidence = run_dependency_preparation(
+                        instance,
+                        NetworkPolicy,
+                        profile,
+                        sandbox_cwd=self._sandbox_cwd,
+                    )
+                except DependencyPreparationError as exc:
+                    failure_spec = profile.spec_for(
+                        WorkflowStage.BUILD,
+                        operation_key=f"{operation_key[:120]}:candidate:prepare",
+                    )
+                    evidence = _bounded_evidence(
+                        failure_spec,
+                        exit_code=None,
+                        duration_ms=int(exc.evidence.get("dependency_preparation_duration_ms") or 0),
+                        stdout="",
+                        stderr=exc.code,
+                    )
+                    evidence.update(
+                        {
+                            **exc.evidence,
+                            "candidate_content_digest": content_digest,
+                            "candidate_file_count": len(files),
+                            "candidate_total_bytes": total_bytes,
+                            "validation_profile_id": profile.profile_id.value,
+                            "validation_profile_digest": profile.digest,
+                            "execution_snapshot_id": self.snapshot_id,
+                            "execution_snapshot_verified": True,
+                            "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded",
+                            "candidate_is_canonical_lineage": False,
+                            "accepts_source_lineage": False,
+                            **preparation_evidence,
+                        }
+                    )
+                    stage_evidence.append((WorkflowStage.BUILD.value, evidence))
+                    return CandidateValidationResult(
+                        content_digest=content_digest,
+                        file_count=len(files),
+                        total_bytes=total_bytes,
+                        validation_profile_id=profile.profile_id.value,
+                        validation_profile_digest=profile.digest,
+                        stage_evidence=tuple(stage_evidence),
+                    )
+                if preparation_evidence.get("validation_network_locked") is not True:
+                    raise AgenticRuntimeError("validation network lock was not proven")
                 for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
                     spec = profile.spec_for(
                         stage,

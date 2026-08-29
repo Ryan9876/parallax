@@ -38,7 +38,7 @@ def test_dotnet_solution_selects_fixed_server_owned_profile(tmp_path: Path):
     )
     assert profile.invocation_for(WorkflowStage.TEST) == (
         "dotnet",
-        ("test", "OtTime.sln", "--no-build", "--no-restore", "--nologo"),
+        ("test", "OtTime.sln", "--no-restore", "--nologo"),
     )
     assert "repository text" not in repr(profile.commands)
 
