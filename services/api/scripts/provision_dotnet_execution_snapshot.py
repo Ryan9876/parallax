@@ -18,6 +18,7 @@ DOTNET_ARCHIVE_SHA512 = (
     "6503fd9f464d5e3a4f43a881d2b74afc6a2c46ceda74d027f1565b7239f4b3ec"
     "884857c03c0dcd49eb52f384d5ae1fa5aaf135f0a6aabc5518103aceed643c74"
 )
+LIBICU_NEVRA = "libicu-67.1-7.amzn2023.0.4.x86_64"
 _PROTECTED_SOURCE_ROOT = "/vercel/sandbox"
 _SNAPSHOT_ID = re.compile(r"^snap_[A-Za-z0-9_-]{8,160}$")
 _SANDBOX_ID = re.compile(r"^sbx_[A-Za-z0-9_-]{8,160}$")
@@ -88,7 +89,12 @@ def main() -> None:
     from vercel.sandbox import NetworkPolicy, SnapshotSource
     from vercel.sandbox import sync as sandbox
 
-    policy = NetworkPolicy.custom(allow={"builds.dotnet.microsoft.com": ()})
+    policy = NetworkPolicy.custom(
+        allow={
+            "builds.dotnet.microsoft.com": (),
+            "cdn.amazonlinux.com": (),
+        }
+    )
     with session():
         with sandbox.create_sandbox(
             project_id=project_id,
@@ -123,6 +129,35 @@ def main() -> None:
             ).strip()
             if entries != "0":
                 raise RuntimeError("common snapshot unexpectedly contains Project source")
+
+            _must_pass(
+                instance.run_process(
+                    "sudo",
+                    [
+                        "dnf",
+                        "install",
+                        "-y",
+                        "--setopt=install_weak_deps=False",
+                        LIBICU_NEVRA,
+                    ],
+                    env={},
+                    kill_after=120,
+                    capture_output=True,
+                ),
+                "pinned ICU installation",
+            )
+            installed_icu = _must_pass(
+                instance.run_process(
+                    "rpm",
+                    ["-q", "--qf", "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}", "libicu"],
+                    env={},
+                    kill_after=30,
+                    capture_output=True,
+                ),
+                "ICU package identity probe",
+            ).strip()
+            if installed_icu != LIBICU_NEVRA:
+                raise RuntimeError(f"unexpected ICU package identity: {installed_icu}")
 
             download_code = (
                 "import hashlib, pathlib, urllib.request; "
@@ -198,7 +233,7 @@ def main() -> None:
             snapshot_id = _snapshot(instance)
             print(
                 "PARALLAX_DOTNET_SNAPSHOT_PROVISIONED "
-                f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} "
+                f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} icu={LIBICU_NEVRA} "
                 f"base_snapshot={BASE_SNAPSHOT_ID} source_free=true network=deny-all"
             )
 
