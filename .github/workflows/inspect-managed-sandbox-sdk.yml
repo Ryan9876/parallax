@@ -1,0 +1,41 @@
+name: Inspect Managed Sandbox SDK
+
+on:
+  push:
+    branches:
+      - p2/profile-specific-execution-environments
+    paths:
+      - .github/workflows/inspect-managed-sandbox-sdk.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: p2/profile-specific-execution-environments
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install 'vercel>=0.9,<0.10'
+      - name: Inspect managed sync sandbox signatures
+        run: |
+          python - <<'PY'
+          import inspect
+          from vercel.sandbox._internal.sync_runtime import _ManagedSyncSandbox
+          for name in ('snapshot','update_network_policy','run_process','stop'):
+              attr = getattr(_ManagedSyncSandbox, name, None)
+              print(name, inspect.signature(attr) if attr else None)
+          PY
+      - name: Remove inspection workflow
+        run: |
+          git config user.name "Parallax Release Bot"
+          git config user.email "parallax-release-bot@users.noreply.github.com"
+          git rm .github/workflows/inspect-managed-sandbox-sdk.yml
+          git commit -m "Remove temporary managed Sandbox inspection"
+          git push origin HEAD:p2/profile-specific-execution-environments
