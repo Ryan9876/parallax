@@ -15,6 +15,7 @@ from .sandbox_execution import (
     _bounded_evidence,
     _sanitized_provider_error,
 )
+from .validation_toolchains import select_validation_profile
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage
 
@@ -167,13 +168,12 @@ class SameLineageVercelSandboxExecutor:
         started = time.monotonic()
         workspace: MaterializedWorkspace | None = None
         evidence: dict[str, object] | None = None
+        execution_spec = spec
+        validation_profile_id: str | None = None
+        validation_profile_digest: str | None = None
         cleanup_error: Exception | None = None
         try:
             self.policy.validate(spec)
-            registered = self.registry.spec_for(spec.stage, operation_key=spec.operation_key)
-            if spec != registered:
-                raise ExecutionPolicyError("execution spec does not match the protected command registry")
-            command, args = self.registry.invocation_for(spec.stage)
             identity = self._identity(project_ref, run_id)
             if not isinstance(source_lineage_ref, str) or not source_lineage_ref:
                 raise SameLineageExecutionError("accepted source lineage identity is required")
@@ -184,6 +184,12 @@ class SameLineageVercelSandboxExecutor:
                 identity=identity,
                 lineage_id=source_lineage_ref,
             )
+            profile = select_validation_profile(workspace.path)
+            validation_profile_id = profile.profile_id.value
+            validation_profile_digest = profile.digest
+            execution_spec = profile.spec_for(spec.stage, operation_key=spec.operation_key)
+            self.policy.validate(execution_spec)
+            command, args = profile.invocation_for(spec.stage)
 
             self._require_provider_identity()
             session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
@@ -192,7 +198,7 @@ class SameLineageVercelSandboxExecutor:
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
                     source=snapshot_source,
-                    execution_time_limit=spec.timeout_seconds + 30,
+                    execution_time_limit=execution_spec.timeout_seconds + 30,
                     persistent=False,
                     network_policy=NetworkPolicy.deny_all(),
                     env={},
@@ -206,14 +212,14 @@ class SameLineageVercelSandboxExecutor:
                     result = instance.run_process(
                         command,
                         list(args),
-                        cwd=self._sandbox_cwd(spec.working_directory),
+                        cwd=self._sandbox_cwd(execution_spec.working_directory),
                         env={},
-                        kill_after=spec.timeout_seconds,
+                        kill_after=execution_spec.timeout_seconds,
                         capture_output=True,
                     )
 
             evidence = _bounded_evidence(
-                spec,
+                execution_spec,
                 exit_code=result.returncode,
                 duration_ms=int((time.monotonic() - started) * 1_000),
                 stdout=result.stdout or "",
@@ -229,12 +235,14 @@ class SameLineageVercelSandboxExecutor:
                     "git_source": False,
                     "execution_snapshot_id": self.snapshot_id,
                     "execution_snapshot_verified": True,
-                    "execution_working_directory": self._sandbox_cwd(spec.working_directory),
+                    "validation_profile_id": validation_profile_id,
+                    "validation_profile_digest": validation_profile_digest,
+                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),
                 }
             )
         except Exception as exc:
             evidence = _bounded_evidence(
-                spec,
+                execution_spec,
                 exit_code=None,
                 duration_ms=int((time.monotonic() - started) * 1_000),
                 stdout="",
@@ -248,6 +256,8 @@ class SameLineageVercelSandboxExecutor:
                     "git_source": False,
                     "execution_snapshot_id": self.snapshot_id,
                     "execution_snapshot_verified": False,
+                    "validation_profile_id": validation_profile_id,
+                    "validation_profile_digest": validation_profile_digest,
                 }
             )
         finally:

@@ -104,6 +104,7 @@ from .sandbox_execution import (
     _sanitized_provider_error,
 )
 from .service import EngineeringRunService
+from .validation_toolchains import select_validation_profile
 from .workspace_lineage import ProjectRunIdentity
 
 
@@ -145,6 +146,8 @@ class CandidateValidationResult:
     content_digest: str
     file_count: int
     total_bytes: int
+    validation_profile_id: str
+    validation_profile_digest: str
     stage_evidence: tuple[tuple[str, dict[str, object]], ...]
 
     @property
@@ -213,7 +216,7 @@ def _candidate_validation_failure_diagnostic(
     content_digest = _sha256_value(validation.content_digest)
     if content_digest is not None:
         diagnostic["candidate_content_digest"] = content_digest
-    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180)):
+    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180), ("validation_profile_id", 80), ("validation_profile_digest", 80)):
         value = evidence.get(key)
         if (
             isinstance(value, str)
@@ -399,6 +402,7 @@ class VercelCandidateValidationExecutor:
         *,
         operation_key: str,
     ) -> CandidateValidationResult:
+        profile = select_validation_profile(workspace_root)
         files = self._source_files(workspace_root)
         content_digest = self._content_digest(files)
         total_bytes = sum(len(content) for _, content in files)
@@ -409,7 +413,7 @@ class VercelCandidateValidationExecutor:
         snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
         stage_evidence: list[tuple[str, dict[str, object]]] = []
         max_execution_seconds = sum(
-            self.registry.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds
+            profile.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds
             for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)
         ) + 60
         with session():
@@ -427,15 +431,15 @@ class VercelCandidateValidationExecutor:
                     raise AgenticRuntimeError("candidate sandbox did not restore the pinned execution snapshot")
                 self._transfer_source(instance, files)
                 for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
-                    spec = self.registry.spec_for(
+                    spec = profile.spec_for(
                         stage,
                         operation_key=f"{operation_key[:120]}:candidate:{stage.value.lower()}",
                     )
                     self.policy.validate(spec)
-                    registered = self.registry.spec_for(stage, operation_key=spec.operation_key)
+                    registered = profile.spec_for(stage, operation_key=spec.operation_key)
                     if spec != registered:
-                        raise ExecutionPolicyError("candidate execution spec drifted from protected registry")
-                    command, args = self.registry.invocation_for(stage)
+                        raise ExecutionPolicyError("candidate execution spec drifted from protected validation profile")
+                    command, args = profile.invocation_for(stage)
                     started = time.monotonic()
                     try:
                         result = instance.run_process(
@@ -467,6 +471,8 @@ class VercelCandidateValidationExecutor:
                             "candidate_content_digest": content_digest,
                             "candidate_file_count": len(files),
                             "candidate_total_bytes": total_bytes,
+                            "validation_profile_id": profile.profile_id.value,
+                            "validation_profile_digest": profile.digest,
                             "execution_snapshot_id": self.snapshot_id,
                             "execution_snapshot_verified": True,
                             "network_policy": "deny-all",
@@ -482,6 +488,8 @@ class VercelCandidateValidationExecutor:
             content_digest=content_digest,
             file_count=len(files),
             total_bytes=total_bytes,
+            validation_profile_id=profile.profile_id.value,
+            validation_profile_digest=profile.digest,
             stage_evidence=tuple(stage_evidence),
         )
 
