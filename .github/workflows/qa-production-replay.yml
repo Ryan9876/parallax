@@ -222,3 +222,4 @@ jobs:
           echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
+# Replay marker: bounded PREPARE diagnostics deployment 0e46d1a8.
