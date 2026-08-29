@@ -17,7 +17,8 @@ DOTNET_ARCHIVE_SHA512 = (
     "6503fd9f464d5e3a4f43a881d2b74afc6a2c46ceda74d027f1565b7239f4b3ec"
     "884857c03c0dcd49eb52f384d5ae1fa5aaf135f0a6aabc5518103aceed643c74"
 )
-LIBICU_NEVRA = "libicu-67.1-7.amzn2023.0.4.x86_64"
+LIBICU_PACKAGE = "libicu78"
+LIBICU_VERSION = "78.2-2ubuntu1"
 _PROTECTED_SOURCE_ROOT = "/vercel/sandbox"
 _SNAPSHOT_ID = re.compile(r"^snap_[A-Za-z0-9_-]{8,160}$")
 _SANDBOX_ID = re.compile(r"^sbx_[A-Za-z0-9_-]{8,160}$")
@@ -91,7 +92,9 @@ def main() -> None:
     policy = NetworkPolicy.custom(
         allow={
             "builds.dotnet.microsoft.com": (),
-            "cdn.amazonlinux.com": (),
+            "archive.ubuntu.com": (),
+            "security.ubuntu.com": (),
+            "azure.archive.ubuntu.com": (),
         }
     )
     with session():
@@ -138,20 +141,30 @@ def main() -> None:
                 ),
                 "sandbox operating-system probe",
             ).strip()
-            if os_release != "amzn:2023":
+            if os_release != "ubuntu:26.04":
                 raise RuntimeError(f"unexpected provisioning operating system: {os_release}")
 
             _must_pass(
                 instance.run_process(
                     "sudo",
+                    ["apt-get", "update"],
+                    env={"DEBIAN_FRONTEND": "noninteractive"},
+                    kill_after=120,
+                    capture_output=True,
+                ),
+                "Ubuntu package index refresh",
+            )
+            _must_pass(
+                instance.run_process(
+                    "sudo",
                     [
-                        "dnf",
+                        "apt-get",
                         "install",
                         "-y",
-                        "--setopt=install_weak_deps=False",
-                        LIBICU_NEVRA,
+                        "--no-install-recommends",
+                        f"{LIBICU_PACKAGE}={LIBICU_VERSION}",
                     ],
-                    env={},
+                    env={"DEBIAN_FRONTEND": "noninteractive"},
                     kill_after=120,
                     capture_output=True,
                 ),
@@ -159,15 +172,15 @@ def main() -> None:
             )
             installed_icu = _must_pass(
                 instance.run_process(
-                    "rpm",
-                    ["-q", "--qf", "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}", "libicu"],
+                    "dpkg-query",
+                    ["-W", "-f=${Package}=${Version}", LIBICU_PACKAGE],
                     env={},
                     kill_after=30,
                     capture_output=True,
                 ),
                 "ICU package identity probe",
             ).strip()
-            if installed_icu != LIBICU_NEVRA:
+            if installed_icu != f"{LIBICU_PACKAGE}={LIBICU_VERSION}":
                 raise RuntimeError(f"unexpected ICU package identity: {installed_icu}")
 
             download_code = (
@@ -244,8 +257,9 @@ def main() -> None:
             snapshot_id = _snapshot(instance)
             print(
                 "PARALLAX_DOTNET_SNAPSHOT_PROVISIONED "
-                f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} icu={LIBICU_NEVRA} "
-                "base=fresh-amazon-linux-2023 source_free=true network=deny-all"
+                f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} "
+                f"icu={LIBICU_PACKAGE}={LIBICU_VERSION} "
+                "base=fresh-ubuntu-26.04 source_free=true network=deny-all"
             )
 
 
