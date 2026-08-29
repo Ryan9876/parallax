@@ -259,9 +259,9 @@ def main() -> None:
             if DOTNET_SDK_VERSION not in info:
                 raise RuntimeError(".NET readiness output does not prove the pinned SDK")
 
-            instance.update_network_policy(NetworkPolicy.deny_all())
-            active_policy = getattr(instance, "network_policy", None)
-            if active_policy != NetworkPolicy.deny_all():
+            locked_session = instance.update_network_policy(NetworkPolicy.deny_all())
+            effective_policy = getattr(locked_session, "network_policy", None)
+            if getattr(effective_policy, "mode", None) != "deny-all":
                 raise RuntimeError("provisioning sandbox did not lock networking before snapshot publication")
 
             snapshot_id = _snapshot(instance)
