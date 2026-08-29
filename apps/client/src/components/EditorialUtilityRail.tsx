@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import type { EngineeringRunDto, ProjectBindingStatus, WorkSpecificationDto } from '../lib/api';
+import { getWorkflowGuidance } from '../lib/workflowGuidance';
 import { palette } from '../theme';
 
 type Props = {
@@ -83,6 +84,16 @@ export function EditorialUtilityRail({ width = 296, apiOnline, phase, mode, run,
   const planValue = specification
     ? specification.status === 'APPROVED' ? 'Approved' : 'Ready for review'
     : mode === 'reason' ? 'Not needed yet' : 'Not created';
+  const showGuidance = mode === 'code' && Boolean(run || specification || phase === 'SPEC_AMENDMENT');
+  const guidance = showGuidance
+    ? getWorkflowGuidance({
+        mode,
+        phase,
+        specification,
+        run,
+        hasApprovedSpecification: specification?.status === 'APPROVED',
+      })
+    : null;
 
   return (
     <View style={[styles.rail, { width }]} testID="editorial-utility-rail">
@@ -91,6 +102,12 @@ export function EditorialUtilityRail({ width = 296, apiOnline, phase, mode, run,
         <Text style={styles.railTitle}>What’s happening</Text>
         <Text style={styles.railIntro}>A simple view of the current conversation and build progress.</Text>
       </View>
+
+      {guidance ? (
+        <Card eyebrow="Next" title={guidance.title}>
+          <Text style={styles.guidanceCopy}>{guidance.description}</Text>
+        </Card>
+      ) : null}
 
       <Card eyebrow="Parallax" title="Current status">
         <StatusRow label="Service" value={apiOnline ? 'Available' : 'Unavailable'} tone={apiOnline ? 'olive' : 'rust'} />
@@ -148,6 +165,7 @@ const styles = StyleSheet.create({
   },
   cardEyebrow: { color: palette.charcoal450, fontSize: 11, lineHeight: 15, textTransform: 'uppercase', letterSpacing: 0.7, fontWeight: '800', marginBottom: 3 },
   cardTitle: { color: palette.charcoal950, fontSize: 16, lineHeight: 21, fontWeight: '700', marginBottom: 12, fontFamily: serif },
+  guidanceCopy: { color: palette.charcoal600, fontSize: 13, lineHeight: 20 },
   row: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
   label: { flex: 1, color: palette.charcoal600, fontSize: 13, lineHeight: 18 },
   pill: { minHeight: 30, maxWidth: 150, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, borderRadius: 999 },

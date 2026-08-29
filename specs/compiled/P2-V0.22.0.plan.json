@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "Shared deterministic mapper: A focused unit/state test proves canonical fixtures map deterministically to one ordinary guidance object and that desktop/mobile consume the shared guidance layer."
+  ],
+  "work_items": [
+    "Desktop primary orientation: At supported desktop/tablet width, a Build conversation presents one primary guidance card before detailed Build plan and Progress surfaces."
+  ],
+  "validations": [
+    "Fixtures prove a fresh Build asks for an outcome, a captured request permits `Create build plan`, and a draft Build plan is `Ready for your review`\u2026",
+    "AC-01: validate protected requirement \u2014 A focused unit/state test proves canonical fixtures map deterministically to one ordinary guidance object and that desktop/mobile consume the shared mapper rather than independent lifecycle decision trees.",
+    "AC-02: validate protected requirement \u2014 At supported desktop/tablet width, a Build conversation presents one primary guidance card before detailed Build plan and Progress surfaces. The user can identify current position and next meaningful action without using the utility rail.",
+    "AC-03: validate protected requirement \u2014 Fixtures prove a fresh Build asks for an outcome, a captured request permits `Create build plan`, and a draft Build plan is `Ready for your review` without implying approval.",
+    "AC-04: validate protected requirement \u2014 PLAN/IMPLEMENT/BUILD/TEST/VERIFY server states map to truthful current-work guidance without fabricated percentages, completed steps or client-authored lifecycle transitions.",
+    "AC-05: validate protected requirement \u2014 Recoverable hook error, canonical FAILED and PAUSED fixtures outrank generic active-stage guidance. Saved work remains explicit and only the existing retry/continue control may be referenced.",
+    "AC-06: validate protected requirement \u2014 `SPEC_AMENDMENT` guidance outranks plan/run generic states, explains the approved-scope boundary and points only to the existing `Continue approved work` / `Start a new goal` flows.",
+    "AC-07: validate protected requirement \u2014 REVIEW is visibly `Ready for your review` and never represented as deployed/finished production work. COMPLETE is distinguishable from REVIEW and grants no deploy/merge shortcut.",
+    "AC-08: validate protected requirement \u2014 The same canonical fixtures at desktop and 390px mobile widths produce semantically equivalent guidance category/title/next-action meaning, while retaining platform-appropriate layout.",
+    "AC-09: validate protected requirement \u2014 When present, the desktop utility rail may summarize `Next` from the shared mapper but absence of the rail at narrower desktop/tablet widths does not remove primary guidance.",
+    "AC-10: validate protected requirement \u2014 Focused browser acceptance proves >=44px guidance CTAs, keyboard/accessibility labels, no horizontal overflow and continued understandable behavior when reduced-graphics fallback is active.",
+    "AC-11: validate protected requirement \u2014 Existing auth/session, Project binding, Work Specification approval, Engineering Run continuation/amendment, browser/Skia, Live Build, protected promotion/regression rejection and API contract suites pass unchanged in authority semantics.",
+    "AC-12: validate protected requirement \u2014 Changed-file review confirms no API/database/provider/source-lineage/model/deployment/merge/REVIEW authority is added. Ordinary guidance contains no raw IDs, internal stages, provider names or failure codes."
+  ],
+  "risks": [
+    "Existing Build plan and Progress components remain authoritative detailed surfaces. The new guidance card summarizes rather than replacing their server-bound controls."
+  ],
+  "spec_id": "P2-V0.22.0",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Shared deterministic mapper",
+      "protected_requirement": "A focused unit/state test proves canonical fixtures map deterministically to one ordinary guidance object and that desktop/mobile consume the shared mapper rather than independent lifecycle decision trees."
+    },
+    {
+      "id": "AC-02",
+      "title": "Desktop primary orientation",
+      "protected_requirement": "At supported desktop/tablet width, a Build conversation presents one primary guidance card before detailed Build plan and Progress surfaces. The user can identify current position and next meaningful action without using the utility rail."
+    },
+    {
+      "id": "AC-03",
+      "title": "Fresh Build and plan guidance",
+      "protected_requirement": "Fixtures prove a fresh Build asks for an outcome, a captured request permits `Create build plan`, and a draft Build plan is `Ready for your review` without implying approval."
+    },
+    {
+      "id": "AC-04",
+      "title": "Active run truthfulness",
+      "protected_requirement": "PLAN/IMPLEMENT/BUILD/TEST/VERIFY server states map to truthful current-work guidance without fabricated percentages, completed steps or client-authored lifecycle transitions."
+    },
+    {
+      "id": "AC-05",
+      "title": "Failure and pause precedence",
+      "protected_requirement": "Recoverable hook error, canonical FAILED and PAUSED fixtures outrank generic active-stage guidance. Saved work remains explicit and only the existing retry/continue control may be referenced."
+    },
+    {
+      "id": "AC-06",
+      "title": "Amendment authority preserved",
+      "protected_requirement": "`SPEC_AMENDMENT` guidance outranks plan/run generic states, explains the approved-scope boundary and points only to the existing `Continue approved work` / `Start a new goal` flows."
+    },
+    {
+      "id": "AC-07",
+      "title": "REVIEW and COMPLETE boundaries",
+      "protected_requirement": "REVIEW is visibly `Ready for your review` and never represented as deployed/finished production work. COMPLETE is distinguishable from REVIEW and grants no deploy/merge shortcut."
+    },
+    {
+      "id": "AC-08",
+      "title": "Mobile/desktop parity",
+      "protected_requirement": "The same canonical fixtures at desktop and 390px mobile widths produce semantically equivalent guidance category/title/next-action meaning, while retaining platform-appropriate layout."
+    },
+    {
+      "id": "AC-09",
+      "title": "Utility rail is secondary",
+      "protected_requirement": "When present, the desktop utility rail may summarize `Next` from the shared mapper but absence of the rail at narrower desktop/tablet widths does not remove primary guidance."
+    },
+    {
+      "id": "AC-10",
+      "title": "Accessibility and reduced-graphics integrity",
+      "protected_requirement": "Focused browser acceptance proves >=44px guidance CTAs, keyboard/accessibility labels, no horizontal overflow and continued understandable behavior when reduced-graphics fallback is active."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing authority/regression gates remain green",
+      "protected_requirement": "Existing auth/session, Project binding, Work Specification approval, Engineering Run continuation/amendment, browser/Skia, Live Build, protected promotion/regression rejection and API contract suites pass unchanged in authority semantics."
+    },
+    {
+      "id": "AC-12",
+      "title": "No authority expansion",
+      "protected_requirement": "Changed-file review confirms no API/database/provider/source-lineage/model/deployment/merge/REVIEW authority is added. Ordinary guidance contains no raw IDs, internal stages, provider names or failure codes."
+    }
+  ],
+  "critique": [
+    "The guidance layer is presentation only. It does not own or persist lifecycle state. The mapping is pure and deterministic. Equal canonical inputs produce equal ordinary guidance on desktop and mobile. The shared deterministic presentation mapping over existing canonical state renders it as primary workflow guidance."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
