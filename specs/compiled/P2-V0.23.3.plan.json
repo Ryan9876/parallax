@@ -1,12 +1,12 @@
 {
   "architecture_decisions": [
-    "Project repository coverage and runtime token scope are separate authority layers."
+    "Repository coverage and runtime token scope are separate authority layers."
   ],
   "work_items": [
-    "Project repository coverage and runtime token scope are separate authority layers."
+    "Parallax Project bound to `github:<owner>/<repo>`"
   ],
   "validations": [
-    "Project repository coverage and runtime token scope are separate authority layers.",
+    "Parallax can determine before source mutation whether the approved GitHub App / Connect installation covers the exact canonical GitHub repository.",
     "AC-01: validate protected requirement \u2014 For a Project bound to `github:<owner>/<repo>`, Parallax can determine before source mutation whether the approved GitHub App / Connect installation covers that exact repository.",
     "AC-02: validate protected requirement \u2014 If the repository is not covered, Parallax returns `REPOSITORY_AUTHORIZATION_REQUIRED` and no source mutation occurs. Parallax does not silently broaden installation coverage.",
     "AC-03: validate protected requirement \u2014 When repository coverage exists, Vercel Connect issues a short-lived GitHub credential requested for exactly the Project repository, and Parallax independently verifies the resulting credential is scoped to exactly that repository.",
@@ -19,7 +19,7 @@
     "AC-10: validate protected requirement \u2014 Provider readiness decisions record non-secret evidence sufficient to identify Project, canonical repository, readiness result, and provider-side installation/connector identity where safe, while excluding raw credentials and tokens."
   ],
   "risks": [
-    "Project repository coverage and runtime token scope are separate authority layers."
+    "Project onboarding/readiness may expose a provider-consent action that authorizes the exact repository or a user-chosen broader installation scope."
   ],
   "spec_id": "P2-V0.23.3",
   "protected_acceptance_map": [
