@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    ":\n- **Project's exact accepted source lineage determines which pre-registered validation profile is eligible.**"
+  ],
+  "work_items": [
+    ":\n- **Initial profiles are `parallax-python-v1` and `dotnet-solution-v1`.**"
+  ],
+  "validations": [
+    ":\n- **The existing Parallax/Python command behavior remains unchanged for repositories that match that profile.**",
+    "AC-01: validate protected requirement \u2014 Exact candidate/accepted source selects a pre-registered profile solely from bounded source markers. External callers and model output cannot provide or override command text, arguments, working directory, profile ID, snapshot/image identity, or toolchain.",
+    "AC-02: validate protected requirement \u2014 The Parallax repository selects `parallax-python-v1` and retains its existing protected BUILD/TEST/VERIFY commands, policy checks, evidence, and test coverage.",
+    "AC-03: validate protected requirement \u2014 OT Time source selects `dotnet-solution-v1`; the exact root solution path is derived from the verified workspace and the profile emits only the fixed .NET 8 BUILD/TEST/VERIFY command shapes defined by this release.",
+    "AC-04: validate protected requirement \u2014 A repository with no admitted profile, multiple ambiguous root solutions, or conflicting admitted profile markers returns an explicit profile-selection failure before protected process execution and before source mutation/lineage acceptance.",
+    "AC-05: validate protected requirement \u2014 Disposable candidate validation and post-IMPLEMENT same-lineage BUILD/TEST/VERIFY independently derive the same profile from the exact source bytes they execute. Neither trusts an earlier model/provider profile claim.",
+    "AC-06: validate protected requirement \u2014 Each profile has a server-owned execution-environment identity. Missing/mismatched .NET toolchain or offline dependency environment is classified separately from source/test failure and never causes network widening or arbitrary package installation during protected validation.",
+    "AC-07: validate protected requirement \u2014 Validation remains disposable or exact-lineage bound, deny-all network, no application environment, no arbitrary commands, no credential propagation, no Git/provider mutation, no production deployment, and no REVIEW-completion authority.",
+    "AC-08: validate protected requirement \u2014 After exact release deployment and an admitted .NET execution environment are available, the authenticated QA-owned `github:Ryan9876/ot-time` `source-only` replay passes candidate validation, advances through BUILD/TEST/VERIFY to REVIEW, and produces the authenticated exact-lineage ZIP handoff without Vercel deployment-target or repository-provider authorization.",
+    "AC-09: validate protected requirement \u2014 Failure/success evidence includes profile ID, execution-environment identity, stage, existing invocation/output digests, exit/timing status, and source/candidate identity sufficient to distinguish profile-selection, environment, build, test, and verify failures without exposing secrets or unbounded logs.",
+    "AC-10: validate protected requirement \u2014 No PAT, owner impersonation, cross-tenant access, arbitrary package command, arbitrary OCI image, broad network fallback, source-acceptance bypass, deployment authority, or REVIEW completion is introduced."
+  ],
+  "risks": [
+    ":\n- **Candidate validation and same-lineage BUILD/TEST/VERIFY must select the same profile from the source they actually execute.**"
+  ],
+  "spec_id": "P2-V0.23.5",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Deterministic server-owned profile selection",
+      "protected_requirement": "Exact candidate/accepted source selects a pre-registered profile solely from bounded source markers. External callers and model output cannot provide or override command text, arguments, working directory, profile ID, snapshot/image identity, or toolchain."
+    },
+    {
+      "id": "AC-02",
+      "title": "Existing Parallax protected execution does not regress",
+      "protected_requirement": "The Parallax repository selects `parallax-python-v1` and retains its existing protected BUILD/TEST/VERIFY commands, policy checks, evidence, and test coverage."
+    },
+    {
+      "id": "AC-03",
+      "title": ".NET solution profile is bounded",
+      "protected_requirement": "OT Time source selects `dotnet-solution-v1`; the exact root solution path is derived from the verified workspace and the profile emits only the fixed .NET 8 BUILD/TEST/VERIFY command shapes defined by this release."
+    },
+    {
+      "id": "AC-04",
+      "title": "Unsupported or ambiguous stacks fail closed",
+      "protected_requirement": "A repository with no admitted profile, multiple ambiguous root solutions, or conflicting admitted profile markers returns an explicit profile-selection failure before protected process execution and before source mutation/lineage acceptance."
+    },
+    {
+      "id": "AC-05",
+      "title": "Candidate and accepted-lineage validation agree",
+      "protected_requirement": "Disposable candidate validation and post-IMPLEMENT same-lineage BUILD/TEST/VERIFY independently derive the same profile from the exact source bytes they execute. Neither trusts an earlier model/provider profile claim."
+    },
+    {
+      "id": "AC-06",
+      "title": "Execution environment is explicit and pinned",
+      "protected_requirement": "Each profile has a server-owned execution-environment identity. Missing/mismatched .NET toolchain or offline dependency environment is classified separately from source/test failure and never causes network widening or arbitrary package installation during protected validation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Security boundaries remain unchanged",
+      "protected_requirement": "Validation remains disposable or exact-lineage bound, deny-all network, no application environment, no arbitrary commands, no credential propagation, no Git/provider mutation, no production deployment, and no REVIEW-completion authority."
+    },
+    {
+      "id": "AC-08",
+      "title": "OT Time production continuation",
+      "protected_requirement": "After exact release deployment and an admitted .NET execution environment are available, the authenticated QA-owned `github:Ryan9876/ot-time` `source-only` replay passes candidate validation, advances through BUILD/TEST/VERIFY to REVIEW, and produces the authenticated exact-lineage ZIP handoff without Vercel deployment-target or repository-provider authorization."
+    },
+    {
+      "id": "AC-09",
+      "title": "Evidence is bounded and diagnosable",
+      "protected_requirement": "Failure/success evidence includes profile ID, execution-environment identity, stage, existing invocation/output digests, exit/timing status, and source/candidate identity sufficient to distinguish profile-selection, environment, build, test, and verify failures without exposing secrets or unbounded logs."
+    },
+    {
+      "id": "AC-10",
+      "title": "No authority widening",
+      "protected_requirement": "No PAT, owner impersonation, cross-tenant access, arbitrary package command, arbitrary OCI image, broad network fallback, source-acceptance bypass, deployment authority, or REVIEW completion is introduced."
+    }
+  ],
+  "critique": [
+    "The Parallax repository selects `parallax-python-v1` and retains its existing protected BUILD/TEST/VERIFY commands, policy checks, evidence, and test cases. The .NET solution profile is bounded, and the exact root solution path is derived from the verified workspace and the profile emits only the fixed command set. The candidate and accepted-lineage validation agree, and the execution environment is explicit and pinned. The security boundaries remain unchanged, and the OT Time production continuation is after exact release deployment and an admitted .NET execution environment are available. The evidence is bounded and diagnosable, and the validation remains disposable or exact-lineage bound. The OT Time production continuation is after exact release deployment and an admitted .NET execution environment are available."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
