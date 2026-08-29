@@ -108,30 +108,26 @@ def test_private_repository_visibility_falls_back_to_exact_credential_path() -> 
     assert constructed == 1
 
 
-def test_public_rate_limit_falls_back_to_exact_credential_path() -> None:
+def test_public_rate_limit_does_not_fall_back_to_exact_credential_path() -> None:
     def rate_limited(request: httpx.Request) -> httpx.Response:
         assert request.headers.get("authorization") is None
         return httpx.Response(403, headers={"x-ratelimit-remaining": "0"})
 
-    class ExactCredentialPath:
-        def resolve_repository(self, repository_ref: str):
-            assert repository_ref == REPOSITORY
-            return "authenticated-resolution"
-
-    constructed = 0
+    constructed = False
 
     def authenticated_factory():
         nonlocal constructed
-        constructed += 1
-        return ExactCredentialPath()
+        constructed = True
+        raise AssertionError("public-source throttling must not construct private credentials")
 
     client = PublicFirstGitHubReadClient(
         PublicGitHubReadClient(transport=httpx.MockTransport(rate_limited)),
         LazyAuthenticatedGitHubReadClient(authenticated_factory),
     )
 
-    assert client.resolve_repository(REPOSITORY) == "authenticated-resolution"
-    assert constructed == 1
+    with pytest.raises(ProviderClientError, match="PROVIDER_RATE_LIMITED"):
+        client.resolve_repository(REPOSITORY)
+    assert constructed is False
 
 
 def test_ambiguous_anonymous_repository_metadata_does_not_gain_public_authority() -> None:

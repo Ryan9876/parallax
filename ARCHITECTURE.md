@@ -1,26 +1,26 @@
 # Parallax 2.0 Architecture
 
-Version: 3.18
+Version: 3.19
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.18 is a bounded protected-execution update to v3.17, not a platform rewrite. The complete v3.17 architecture is incorporated by reference. Every v3.17 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, and exact-one-repository runtime credential scope.
+Architecture v3.19 is a bounded source-bootstrap correction to v3.18, not a platform rewrite. The complete v3.18 architecture is incorporated by reference. Every v3.18 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, repository-aware protected validation, and bounded dependency PREPARE.
 
-This revision records `P2-V0.23.5`: protected validation commands are selected from immutable server-owned execution profiles using deterministic evidence from the exact candidate or accepted-lineage source tree. Repositories cannot supply executable command text. A profile may perform a subordinate bounded dependency PREPARE operation before BUILD/TEST/VERIFY; protected lifecycle validation itself remains deny-all network and empty-environment.
+This revision removes GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority is established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
 ## Source authority is independent from deployment authority
 
 A canonical Project repository binding identifies the source context. It does not select or imply a deployment provider.
 
-For GitHub source bootstrap, Parallax now has two bounded read paths:
+For GitHub source bootstrap, Parallax has two bounded read paths:
 
-1. **Verified public read** — anonymous GitHub REST access may resolve the exact canonical repository and read its immutable tree/files only when GitHub metadata explicitly proves `private == false`. This path has no credential and exposes only repository-resolve, tree-read, and file-read actions.
-2. **Exact-repository credentialed read** — a repository not visible anonymously retains the existing short-lived exact-repository credential path and the `REPOSITORY_AUTHORIZATION_REQUIRED` consent boundary established by v3.16.
+1. **Verified public source read** — the unauthenticated Git smart-HTTP `git-upload-pack` advertisement must expose the canonical repository HEAD and default-branch symref. Parallax pins the advertised immutable commit and reads source only from the exact commit-addressed GitHub codeload archive. The archive is bounded by member count, compressed/uncompressed source limits, path normalization, secret-sensitive path projection, regular-file-only semantics, UTF-8 source validation, and exact revision identity. This path has no bearer credential, does not call `api.github.com`, and exposes only repository-resolve, tree-read, and file-read actions.
+2. **Exact-repository credentialed read** — a repository not visible to the public source transport retains the existing short-lived exact-repository credential path and the `REPOSITORY_AUTHORIZATION_REQUIRED` consent boundary established by v3.16.
 
-Anonymous source authority cannot create a branch, commit, pull request, repository, deployment, provider project, secret, environment variable, alias, domain, merge, or production promotion. An ambiguous anonymous repository response is rejected rather than treated as public authority.
+Public-source authority cannot create a branch, commit, pull request, repository, deployment, provider project, secret, environment variable, alias, domain, merge, or production promotion. A public-source timeout, malformed response, throttling response, or provider outage remains a typed public-source failure; it does not reclassify the repository as private and does not trigger a Vercel-backed credential fallback. Only `REPOSITORY_NOT_FOUND` may enter the existing credentialed repository path.
 
-This separation means a public Project can bootstrap PLAN without Vercel Connect, a Vercel Project, or a Vercel Preview target. Private source remains fail-closed when exact repository authority is unavailable.
+This separation means a public Project can bootstrap PLAN without GitHub anonymous REST capacity, Vercel Connect, a Vercel Project, or a Vercel Preview target. Private source remains fail-closed when exact repository authority is unavailable.
 
 ## Project delivery policy
 
@@ -63,7 +63,7 @@ A derived GitHub credential is accepted only after provider read-back proves it 
 
 When Vercel Connect returns HTTP 422 for an otherwise valid exact-repository `github_app_installation` authorization request, Parallax classifies the condition as `REPOSITORY_AUTHORIZATION_REQUIRED` rather than collapsing it into a generic credential-unavailable failure.
 
-That classification applies to the credentialed path. It does not prevent a repository GitHub itself explicitly proves public from using the separate anonymous read-only bootstrap path.
+That classification applies to the credentialed path. It does not prevent a repository that is anonymously cloneable through GitHub's public Git transport from using the separate credential-free read-only bootstrap path.
 
 Timeouts, network failures, provider 5xx responses, missing runtime OIDC, malformed token responses, expiry failures, and unrelated credential failures retain their existing fail-closed classifications. They must not be mislabeled as repository-consent requirements.
 
@@ -71,7 +71,7 @@ Timeouts, network failures, provider 5xx responses, missing runtime OIDC, malfor
 
 Neither public readability nor repository installation coverage grants source mutation or deployment authority.
 
-- anonymous public reads never authorize GitHub writes;
+- public source reads never authorize GitHub writes;
 - missing credentialed repository authority never triggers silent installation widening;
 - source-only delivery never creates a Vercel Project or Preview;
 - Vercel delivery still requires its existing explicit readiness and exact-target checks;
@@ -118,10 +118,10 @@ Vercel Sandbox remains the current isolated execution provider for this contract
 
 W8-S2's deferred Vercel Project-readiness architecture remains authoritative. The original W8-S2 defect was that PLAN incorrectly depended on static Vercel Preview-target registration. v3.16 then exposed and classified a separate credentialed repository-coverage prerequisite.
 
-Architecture v3.17 removed that credential prerequisite for repositories GitHub explicitly proves public, while preserving it for private/inaccessible repositories. Architecture v3.18 removes the next repository-specific blocker exposed by authenticated OT Time replay: protected validation no longer assumes every application uses Parallax's Python test commands. The required production acceptance remains an authenticated canonical public-repository source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, network, and lineage authority.
+Architecture v3.17 removed that credential prerequisite for repositories GitHub could prove public, while preserving it for private/inaccessible repositories. Architecture v3.18 removed the repository-specific protected-validation assumption exposed by authenticated OT Time replay. Architecture v3.19 removes the production dependency on GitHub's shared anonymous REST quota for public source bootstrap and prevents public-source throttling from re-entering the Vercel credential path. The required production acceptance remains an authenticated canonical public-repository source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, network, and lineage authority.
 
 ## Prior production verification
 
 The v3.16 credentialed-repository boundary remains deployment-verified by production API source `0cfe499ac787a23142067e95e80af80dedab36c5`, deployment `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`, and authenticated QA evidence that a non-covered credentialed repository was classified `REPOSITORY_AUTHORIZATION_REQUIRED` before source mutation.
 
-Architecture v3.18 does not itself assert deployment verification. Exact release/deployment and authenticated OT Time REVIEW/ZIP replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.
+Architecture v3.19 does not itself assert deployment verification. Exact release/deployment and authenticated public-source REVIEW/ZIP replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.

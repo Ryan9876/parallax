@@ -16,12 +16,12 @@ from ..tools.providers.github_client import GitHubRestProviderClient
 from ..tools.providers.public_github_client import (
     LazyAuthenticatedGitHubReadClient,
     PublicFirstGitHubReadClient,
-    PublicGitHubReadClient,
 )
 from ..tools.registry import ToolCapabilityRegistry
 from .delivery_readiness import _configuration_raw, _provisioning_profile
 from .production_delivery import ProductionDeliveryConfigurationError
 from .production_source_projection import ProjectedRepositoryLineageBootstrap
+from .public_github_archive import PublicGitHubArchiveReadClient
 from .repository_authority import RepositoryAuthorizationAwareGitHubCredentialProvider
 from .source_delivery_composition import (
     OwnerScopedProjectBindingResolver,
@@ -79,9 +79,10 @@ def production_source_bootstrap(
     """Compose canonical repository lineage independently from deployment selection.
 
     PLAN needs exact repository source context, not hosting metadata. Public GitHub
-    repositories are read through a bounded anonymous GET-only client. Only a
-    repository that is hidden from anonymous GitHub resolution constructs the
-    existing exact-repository Vercel Connect credential path for private access.
+    repositories resolve through Git smart HTTP and an exact commit-addressed
+    archive, avoiding the shared anonymous REST quota. Only a repository hidden
+    from that public source transport constructs the existing exact-repository
+    credential path for private access.
     """
 
     if not isinstance(owner_subject, str) or not owner_subject.strip():
@@ -121,7 +122,7 @@ def production_source_bootstrap(
         return GitHubRestProviderClient(credentials)
 
     source_client = PublicFirstGitHubReadClient(
-        PublicGitHubReadClient(transport=public_github_transport),
+        PublicGitHubArchiveReadClient(transport=public_github_transport),
         LazyAuthenticatedGitHubReadClient(authenticated_client),
     )
     github = GitHubProviderActions(registry, source_client)
