@@ -30,10 +30,13 @@ for attempt in $(seq 1 36); do
   sleep 10
 done
 test "${authenticated}" = "1"
+echo "QA phase: session established"
 
+echo "QA phase: project selection"
 api "${API_BASE}/v1/projects" >/tmp/parallax-python-projects.json
 project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select(.repository_ref == $repo)][0].id // empty' /tmp/parallax-python-projects.json)"
 if [ -z "${project_id}" ]; then
+  echo "QA phase: project creation"
   jq -n \
     --arg name "QA Python Full Experience" \
     --arg slug "qa-python-full-experience" \
@@ -49,19 +52,23 @@ test -n "${project_id}"
 
 jq -n --arg project_id "${project_id}" '{mode:"code",project_id:$project_id}' \
   >/tmp/parallax-python-conversation-create.json
+echo "QA phase: conversation creation"
 api --data-binary @/tmp/parallax-python-conversation-create.json \
   -X POST "${API_BASE}/v1/conversations" >/tmp/parallax-python-conversation.json
 conversation_id="$(jq -r '.id' /tmp/parallax-python-conversation.json)"
 
 objective='This is an approved QA-only source-only end-to-end test. Make one minimal, reversible, non-functional documentation addition named PARALLAX_QA_PYTHON.md that states it is a disposable full-experience acceptance fixture. Do not modify application behavior, delete or rename files, publish source, or deploy an application.'
 jq -n --arg content "${objective}" '{role:"user",content:$content}' >/tmp/parallax-python-message.json
+echo "QA phase: request submission"
 api --data-binary @/tmp/parallax-python-message.json \
   -X POST "${API_BASE}/v1/conversations/${conversation_id}/messages" >/tmp/parallax-python-message-response.json
 
+echo "QA phase: work-specification draft"
 api -X POST "${API_BASE}/v1/conversations/${conversation_id}/work-specifications/draft" \
   >/tmp/parallax-python-spec.json
 work_specification_id="$(jq -r '.id' /tmp/parallax-python-spec.json)"
 test -n "${work_specification_id}"
+echo "QA phase: work-specification approval"
 api -X POST "${API_BASE}/v1/work-specifications/${work_specification_id}/approve" \
   >/tmp/parallax-python-spec-approved.json
 jq -e '.status == "APPROVED"' /tmp/parallax-python-spec-approved.json >/dev/null
@@ -84,6 +91,7 @@ api --data-binary @/tmp/parallax-python-autonomous.json \
   -X POST "${API_BASE}/v1/engineering-runs/${run_id}/autonomous" >/tmp/parallax-python-replay.json
 jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/parallax-python-replay.json
 
+echo "QA phase: run outcome and source archive"
 api "${API_BASE}/v1/engineering-runs/${run_id}" >/tmp/parallax-python-run-after.json
 state="$(jq -r '.state' /tmp/parallax-python-run-after.json)"
 failure="$(jq -r '.last_failure_code // ""' /tmp/parallax-python-run-after.json)"
