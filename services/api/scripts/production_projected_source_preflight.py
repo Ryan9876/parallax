@@ -31,6 +31,7 @@ _LINEAGE_SECRET_FILENAMES = frozenset(
     {"credentials", "credentials.json", "secrets", "secrets.json", "id_rsa", "id_ed25519"}
 )
 _LINEAGE_SECRET_SUFFIXES = frozenset({".key", ".pem", ".p12", ".pfx"})
+_MAX_RATE_LIMIT_RETRY_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,9 +96,31 @@ def _bounded_http_error(exc: HTTPError) -> str:
     return f"HTTP {exc.code}" + (f": {' | '.join(details[:2])}" if details else "")
 
 
+def _github_rate_limit_retry_delay(exc: HTTPError, *, attempt: int) -> float | None:
+    if exc.code != 403:
+        return None
+    remaining = str(exc.headers.get("X-RateLimit-Remaining") or "").strip()
+    retry_after = str(exc.headers.get("Retry-After") or "").strip()
+    if remaining != "0" and not retry_after:
+        return None
+    if retry_after:
+        try:
+            delay = float(retry_after)
+        except ValueError:
+            delay = float(attempt)
+    else:
+        reset = str(exc.headers.get("X-RateLimit-Reset") or "").strip()
+        try:
+            delay = max(0.0, float(reset) - time.time()) if reset else float(attempt)
+        except ValueError:
+            delay = float(attempt)
+    return min(max(delay, 0.0), _MAX_RATE_LIMIT_RETRY_SECONDS)
+
+
 def _json_request(request: Request, *, label: str) -> object:
     last_error = "provider request failed"
     for attempt in range(1, 4):
+        retry_delay: float | None = None
         try:
             with urlopen(request, timeout=20) as response:
                 raw = response.read()
@@ -106,15 +129,16 @@ def _json_request(request: Request, *, label: str) -> object:
             except json.JSONDecodeError as exc:
                 raise RuntimeError(f"{label} returned invalid JSON") from exc
         except HTTPError as exc:
+            retry_delay = _github_rate_limit_retry_delay(exc, attempt=attempt)
             last_error = _bounded_http_error(exc)
-            if exc.code != 429 and not 500 <= exc.code <= 599:
+            if retry_delay is None and exc.code != 429 and not 500 <= exc.code <= 599:
                 raise RuntimeError(f"{label} failed: {last_error}") from exc
         except (TimeoutError, URLError) as exc:
             last_error = "network unavailable"
             if attempt == 3:
                 raise RuntimeError(f"{label} failed: {last_error}") from exc
         if attempt < 3:
-            time.sleep(float(attempt))
+            time.sleep(retry_delay if retry_delay is not None else float(attempt))
     raise RuntimeError(f"{label} failed after bounded retries: {last_error}")
 
 
