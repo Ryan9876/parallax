@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import json
 import os
 import re
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 
 DOTNET_SDK_VERSION = "8.0.424"
@@ -26,7 +22,6 @@ LIBICU_ARCHIVE_URL = (
 LIBICU_ARCHIVE_SHA256 = "c8b97930f9e365d6d00978144b468ac8397ef07d2fb2c453869f05fc3a98c4ca"
 _PROTECTED_SOURCE_ROOT = "/vercel/sandbox"
 _SNAPSHOT_ID = re.compile(r"^snap_[A-Za-z0-9_-]{8,160}$")
-_SANDBOX_ID = re.compile(r"^sbx_[A-Za-z0-9_-]{8,160}$")
 
 
 def _must_pass(result: object, label: str) -> str:
@@ -39,45 +34,16 @@ def _must_pass(result: object, label: str) -> str:
 
 
 def _snapshot(instance: object) -> str:
-    sandbox_id = getattr(instance, "sandbox_id", None) or getattr(instance, "id", None)
-    if not isinstance(sandbox_id, str) or not _SANDBOX_ID.fullmatch(sandbox_id):
-        raise RuntimeError("provisioning sandbox returned an invalid session identity")
-    oidc = os.getenv("VERCEL_OIDC_TOKEN")
-    if not isinstance(oidc, str) or not oidc.strip():
-        raise RuntimeError("preview provisioning requires Vercel OIDC")
-
-    query: dict[str, str] = {}
-    team_id = os.getenv("VERCEL_ORG_ID")
-    if isinstance(team_id, str) and team_id.startswith("team_"):
-        query["teamId"] = team_id
-    suffix = "?" + urlencode(query) if query else ""
-    request = Request(
-        f"https://api.vercel.com/v2/sandboxes/sessions/{sandbox_id}/snapshot{suffix}",
-        method="POST",
-        data=json.dumps({"expiration": "0"}).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {oidc.strip()}",
-            "Content-Type": "application/json",
-            "User-Agent": "Parallax-Dotnet-Snapshot-Provisioner/1",
-        },
-    )
-    try:
-        with urlopen(request, timeout=60) as response:
-            raw = response.read()
-    except HTTPError as exc:
-        detail = exc.read(1000).decode("utf-8", errors="replace")
-        raise RuntimeError(f"snapshot publication failed: HTTP {exc.code}: {detail[:500]}") from exc
-    except (TimeoutError, URLError) as exc:
-        raise RuntimeError("snapshot publication failed: Vercel API unavailable") from exc
-
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("snapshot publication returned invalid JSON") from exc
-    snapshot = payload.get("snapshot") if isinstance(payload, dict) else None
-    snapshot_id = snapshot.get("id") if isinstance(snapshot, dict) else None
+    snapshot_method = getattr(instance, "snapshot", None)
+    if not callable(snapshot_method):
+        raise RuntimeError("Vercel Sandbox SDK does not expose snapshot publication")
+    snapshot = snapshot_method(expiration=0)
+    snapshot_id = getattr(snapshot, "snapshot_id", None) or getattr(snapshot, "id", None)
     if not isinstance(snapshot_id, str) or not _SNAPSHOT_ID.fullmatch(snapshot_id):
         raise RuntimeError("snapshot publication returned invalid snapshot identity")
+    expires_at = getattr(snapshot, "expires_at", None)
+    if expires_at is not None:
+        raise RuntimeError("released .NET execution snapshot must be non-expiring")
     return snapshot_id
 
 
@@ -269,7 +235,7 @@ def main() -> None:
                 "PARALLAX_DOTNET_SNAPSHOT_PROVISIONED "
                 f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} "
                 f"icu={LIBICU_PACKAGE}={LIBICU_VERSION} "
-                "base=fresh-ubuntu-26.04 source_free=true network=deny-all"
+                "base=fresh-ubuntu-26.04 source_free=true network=deny-all non_expiring=true"
             )
 
 
