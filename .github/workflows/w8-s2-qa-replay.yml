@@ -157,7 +157,14 @@ jobs:
             if [ "${state}" = "REVIEW" ]; then
               break
             fi
-            case "${state}" in PLAN|IMPLEMENT|BUILD|TEST|VERIFY) ;; *) echo "Unexpected protected state: ${state}" >&2; exit 1 ;; esac
+            case "${state}" in
+              PLAN|IMPLEMENT|BUILD|TEST|VERIFY) ;;
+              *)
+                echo "Unexpected protected state: ${state}" >&2
+                jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/run-current.json >&2
+                exit 1
+                ;;
+            esac
             operation_key="qa-p2-v0-23-4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${cycle}"
             jq -n --arg operation_key "${operation_key}" --argjson expected_revision "${revision}" \
               '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/autonomous.json
