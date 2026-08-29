@@ -3,38 +3,38 @@
     "The architecture decision is to bind admitted validation profiles to server-owned, prequalified, source-free execution snapshots rather than assuming one existing snapshot is suitable for every ecosystem."
   ],
   "work_items": [
-    "The work item is to implement the architecture decision by binding admitted validation profiles to server-owned, prequalified, source-free execution snapshots."
+    "The work item is to implement the binding of admitted validation profiles to server-owned, prequalified, source-free execution snapshots."
   ],
   "validations": [
-    "The validation is to ensure that the architecture decision is implemented correctly by binding admitted validation profiles to server-owned, prequalified, source-free execution snapshots.",
-    "AC-01: validate protected requirement \u2014 `python-v1`, `node-v1`, and `dotnet-v1` resolve only through a finite server-owned mapping. Python and Node retain the existing common snapshot; .NET requires its dedicated snapshot. Unknown profiles, malformed IDs, and missing required .NET configuration fail closed. User/model/repository values cannot select snapshot identity.",
-    "AC-02: validate protected requirement \u2014 Candidate and accepted-lineage Python and Node validation continue to restore the existing compatible common snapshot, preserve their established fixed commands/evidence, and pass inherited protected execution tests. Production preflight also proves the common snapshot retains the already-admitted Node executable.",
-    "AC-03: validate protected requirement \u2014 `dotnet-v1` candidate and accepted-lineage execution use only the configured dedicated .NET snapshot. They never silently reuse the Python/Node common snapshot when the .NET snapshot is absent or invalid.",
+    "The validation is to ensure that the binding of admitted validation profiles to server-owned, prequalified, source-free execution snapshots is executable and verifiable.",
+    "AC-01: validate protected requirement \u2014 `python-v1`, reserved `node-v1`, and `dotnet-v1` resolve only through a finite server-owned mapping. Python and the reserved Node identity use the existing common snapshot; .NET requires its dedicated snapshot. Unknown profiles, malformed IDs, and missing required .NET configuration fail closed. User/model/repository values cannot select snapshot identity, and snapshot mapping alone cannot admit Node source.",
+    "AC-02: validate protected requirement \u2014 Candidate and accepted-lineage Python validation continue to restore the existing compatible common snapshot, preserve the established fixed commands/evidence, and pass inherited protected execution tests. Generic Node source continues to fail closed with `NODE_FIXED_VALIDATION_UNAVAILABLE`; the production common-snapshot `node --version` readiness probe preserves executable compatibility for the reserved identity without creating Node source admission or command authority.",
+    "AC-03: validate protected requirement \u2014 `dotnet-v1` candidate and accepted-lineage execution use only the configured dedicated .NET snapshot. They never silently reuse the common snapshot when the .NET snapshot is absent or invalid.",
     "AC-04: validate protected requirement \u2014 For identical admitted profile/configuration, disposable candidate validation and accepted-lineage BUILD/TEST/VERIFY record the same exact snapshot ID alongside the same validation profile ID/digest.",
-    "AC-05: validate protected requirement \u2014 Production build preflight restores every production-enabled snapshot with deny-all network, verifies exact snapshot identity, verifies the fixed readiness probes required by the profiles mapped to that snapshot (`python` dependency probe plus `node --version` for the common snapshot and `dotnet --info` for the .NET snapshot), and rejects any snapshot containing repository source.",
-    "AC-06: validate protected requirement \u2014 The change does not add per-run SDK installation, generic shell commands, broader package domains, application credentials, source mutation authority, provider/deployment authority, or REVIEW bypass. .NET restore remains the existing fixed bounded PREPARE followed by verified deny-all BUILD/TEST/VERIFY.",
+    "AC-05: validate protected requirement \u2014 Production build preflight restores every production-enabled snapshot with deny-all network, verifies exact snapshot identity, verifies the fixed readiness probes required by released mapping (`python` dependency probe plus compatibility-only `node --version` for the common snapshot and `dotnet --info` for the .NET snapshot), and rejects any snapshot containing repository source.",
+    "AC-06: validate protected requirement \u2014 The change does not add per-run SDK installation, generic shell commands, broader package domains, application credentials, source mutation authority, provider/deployment authority, source-admission bypass, or REVIEW bypass. .NET restore remains the existing fixed bounded PREPARE followed by verified deny-all BUILD/TEST/VERIFY.",
     "AC-07: validate protected requirement \u2014 After a .NET-qualified snapshot is provisioned, configured, exact release source is deployed READY, and production preflight passes, the QA-owned source-only Project bound to `github:Ryan9876/ot-time` progresses through PLAN, IMPLEMENT, BUILD, TEST, VERIFY to REVIEW and its authenticated exact-lineage ZIP handoff verifies with no Vercel application deployment, repository-provider authorization dependency, out-of-band source edit, owner impersonation, or DB mutation.",
-    "AC-08: validate protected requirement \u2014 The governed provisioning mechanism produces an immutable .NET-qualified execution artifact from a fixed server-owned recipe, verifies the intended toolchain before publication, persists no Project/application source or reusable credentials, and cannot be invoked as part of a user Engineering Run or used to widen runtime command/network authority."
+    "AC-08: validate protected requirement \u2014 The governed provisioning mechanism produces an immutable non-expiring .NET-qualified execution artifact from a fixed server-owned recipe with pinned and checksum-verified dependencies, verifies the intended toolchain before publication, persists no Project/application source or reusable credentials, and cannot be invoked as part of a user Engineering Run or used to widen runtime command/network authority."
   ],
   "risks": [
-    "The risk is to ensure that the architecture decision is implemented correctly by binding admitted validation profiles to server-owned, prequalified, source-free execution snapshots."
+    "The risk is to ensure that the binding of admitted validation profiles to server-owned, prequalified, source-free execution snapshots is secure and reliable."
   ],
   "spec_id": "P2-V0.23.6",
   "protected_acceptance_map": [
     {
       "id": "AC-01",
       "title": "Deterministic profile-to-snapshot mapping",
-      "protected_requirement": "`python-v1`, `node-v1`, and `dotnet-v1` resolve only through a finite server-owned mapping. Python and Node retain the existing common snapshot; .NET requires its dedicated snapshot. Unknown profiles, malformed IDs, and missing required .NET configuration fail closed. User/model/repository values cannot select snapshot identity."
+      "protected_requirement": "`python-v1`, reserved `node-v1`, and `dotnet-v1` resolve only through a finite server-owned mapping. Python and the reserved Node identity use the existing common snapshot; .NET requires its dedicated snapshot. Unknown profiles, malformed IDs, and missing required .NET configuration fail closed. User/model/repository values cannot select snapshot identity, and snapshot mapping alone cannot admit Node source."
     },
     {
       "id": "AC-02",
-      "title": "Existing Python and Node execution do not regress",
-      "protected_requirement": "Candidate and accepted-lineage Python and Node validation continue to restore the existing compatible common snapshot, preserve their established fixed commands/evidence, and pass inherited protected execution tests. Production preflight also proves the common snapshot retains the already-admitted Node executable."
+      "title": "Existing Python execution and Node fail-closed behavior do not regress",
+      "protected_requirement": "Candidate and accepted-lineage Python validation continue to restore the existing compatible common snapshot, preserve the established fixed commands/evidence, and pass inherited protected execution tests. Generic Node source continues to fail closed with `NODE_FIXED_VALIDATION_UNAVAILABLE`; the production common-snapshot `node --version` readiness probe preserves executable compatibility for the reserved identity without creating Node source admission or command authority."
     },
     {
       "id": "AC-03",
       "title": ".NET requires a qualified snapshot",
-      "protected_requirement": "`dotnet-v1` candidate and accepted-lineage execution use only the configured dedicated .NET snapshot. They never silently reuse the Python/Node common snapshot when the .NET snapshot is absent or invalid."
+      "protected_requirement": "`dotnet-v1` candidate and accepted-lineage execution use only the configured dedicated .NET snapshot. They never silently reuse the common snapshot when the .NET snapshot is absent or invalid."
     },
     {
       "id": "AC-04",
@@ -44,12 +44,12 @@
     {
       "id": "AC-05",
       "title": "Production preflight proves toolchain readiness",
-      "protected_requirement": "Production build preflight restores every production-enabled snapshot with deny-all network, verifies exact snapshot identity, verifies the fixed readiness probes required by the profiles mapped to that snapshot (`python` dependency probe plus `node --version` for the common snapshot and `dotnet --info` for the .NET snapshot), and rejects any snapshot containing repository source."
+      "protected_requirement": "Production build preflight restores every production-enabled snapshot with deny-all network, verifies exact snapshot identity, verifies the fixed readiness probes required by released mapping (`python` dependency probe plus compatibility-only `node --version` for the common snapshot and `dotnet --info` for the .NET snapshot), and rejects any snapshot containing repository source."
     },
     {
       "id": "AC-06",
       "title": "Existing PREPARE and authority boundaries remain intact",
-      "protected_requirement": "The change does not add per-run SDK installation, generic shell commands, broader package domains, application credentials, source mutation authority, provider/deployment authority, or REVIEW bypass. .NET restore remains the existing fixed bounded PREPARE followed by verified deny-all BUILD/TEST/VERIFY."
+      "protected_requirement": "The change does not add per-run SDK installation, generic shell commands, broader package domains, application credentials, source mutation authority, provider/deployment authority, source-admission bypass, or REVIEW bypass. .NET restore remains the existing fixed bounded PREPARE followed by verified deny-all BUILD/TEST/VERIFY."
     },
     {
       "id": "AC-07",
@@ -59,11 +59,11 @@
     {
       "id": "AC-08",
       "title": "Snapshot provisioning remains a source-free release operation",
-      "protected_requirement": "The governed provisioning mechanism produces an immutable .NET-qualified execution artifact from a fixed server-owned recipe, verifies the intended toolchain before publication, persists no Project/application source or reusable credentials, and cannot be invoked as part of a user Engineering Run or used to widen runtime command/network authority."
+      "protected_requirement": "The governed provisioning mechanism produces an immutable non-expiring .NET-qualified execution artifact from a fixed server-owned recipe with pinned and checksum-verified dependencies, verifies the intended toolchain before publication, persists no Project/application source or reusable credentials, and cannot be invoked as part of a user Engineering Run or used to widen runtime command/network authority."
     }
   ],
   "critique": [
-    "The specification does not explicitly address the requirement for a qualified .NET snapshot identity for `dotnet-v1` execution, which is necessary for production preflight and authenticated exact-lineage ZIP handoff. This omission could lead to potential issues in the production environment, such as incorrect toolchain selection or inconsistent snapshot usage."
+    "The specification does not explicitly address the requirement for a qualified .NET snapshot identity for the `dotnet-v1` profile, which is necessary for production preflight to validate the toolchain readiness. This omission could lead to the failure of the production Python source-only acceptance due to the current pinned execution snapshot not providing the admitted .NET toolchain."
   ],
   "dspy_run": {
     "executed": true,
