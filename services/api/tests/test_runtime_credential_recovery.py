@@ -68,12 +68,10 @@ def _exact_scope_response() -> httpx.Response:
     )
 
 
-def test_production_runtime_oidc_requires_request_header_not_build_environment(monkeypatch):
-    monkeypatch.setenv("VERCEL_OIDC_TOKEN", "build-only-oidc-value")
+def test_production_runtime_oidc_uses_server_environment_when_request_header_absent(monkeypatch):
+    monkeypatch.setenv("VERCEL_OIDC_TOKEN", "server-runtime-oidc-value")
 
-    with pytest.raises(ProductionDeliveryConfigurationError, match="runtime Vercel OIDC"):
-        runtime_vercel_oidc_token({}, environment="production")
-
+    assert runtime_vercel_oidc_token({}, environment="production") == "server-runtime-oidc-value"
     assert runtime_vercel_oidc_token(
         {"x-vercel-oidc-token": RUNTIME_OIDC},
         environment="production",
@@ -275,9 +273,14 @@ def _request(*, oidc: str | None = None) -> Request:
     return Request({"type": "http", "method": "GET", "path": "/ready", "headers": headers})
 
 
-def test_production_ready_rejects_build_only_oidc(monkeypatch):
+def test_production_ready_rejects_unverified_environment_oidc(monkeypatch):
     monkeypatch.setenv("VERCEL_ENV", "production")
-    monkeypatch.setenv("VERCEL_OIDC_TOKEN", "build-only-oidc-value")
+    monkeypatch.setenv("VERCEL_OIDC_TOKEN", "server-runtime-oidc-value")
+    monkeypatch.setattr(
+        health_routes,
+        "verify_registered_runtime_github_credentials",
+        lambda oidc_token: (_ for _ in ()).throw(ProviderClientError("CREDENTIAL_UNAVAILABLE")),
+    )
 
     with pytest.raises(HTTPException) as failure:
         health_routes.ready(_request(), _ReadySession())
