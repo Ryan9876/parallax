@@ -25,6 +25,7 @@ jobs:
       contents: read
     env:
       SPEC_PATH: ${{ github.event.inputs.spec || 'specs/P2-V0.22.1.md' }}
+      DSPY_LOCAL_DEVELOPMENT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
