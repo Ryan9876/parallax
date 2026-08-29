@@ -35,6 +35,7 @@ class ProjectService:
             name=request.name,
             description=request.description,
             repository_ref=request.repository_ref,
+            delivery_mode=request.delivery_mode,
         )
 
     def list(self, *, owner_subject: str) -> list[Project]:
