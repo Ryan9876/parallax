@@ -114,7 +114,6 @@ jobs:
             --data-binary @/tmp/conversation-create.json \
             -X POST "${API_BASE}/v1/conversations" >/tmp/conversation.json
           conversation_id="$(jq -r '.id' /tmp/conversation.json)"
-          spec_id="$(jq -r '.spec_id' /tmp/conversation.json)"
 
           objective='This is an approved disposable production test of Parallax using Ryan9876/ot-time. Make one minimal, reversible, non-functional repository change that proves the autonomous engineering lifecycle can progress beyond PLAN without changing existing application behavior. Prefer adding or updating test documentation only. Preserve existing application code and behavior.'
           jq -n --arg content "${objective}" '{role:"user",content:$content}' >/tmp/message.json
@@ -179,7 +178,7 @@ jobs:
             -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" >/tmp/replay.json
           jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/replay.json
 
-      - name: Verify OT Time run advanced beyond PLAN
+      - name: Verify OT Time reaches REVIEW and source-only ZIP handoff
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
@@ -198,6 +197,28 @@ jobs:
             echo "OT Time run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}, failure=${failure:-none}" >&2
             exit 1
           fi
-          echo "OT Time W8-S2 replay advanced: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=${failure:-none}"
+          if [ "${state}" != "REVIEW" ]; then
+            echo "OT Time run did not reach REVIEW: state=${state}, revision=${after_revision}, failure=${failure:-none}" >&2
+            exit 1
+          fi
+          test -z "${failure}"
+          curl --fail-with-body --silent --show-error \
+            --cookie /tmp/parallax.cookies \
+            -H "X-Parallax-Session: 1" \
+            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \
+            -o /tmp/ot-time-source.zip
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, is_zipfile
+          archive = Path('/tmp/ot-time-source.zip')
+          assert archive.is_file() and archive.stat().st_size > 0
+          assert is_zipfile(archive)
+          with ZipFile(archive) as zf:
+              names = zf.namelist()
+              assert names
+              assert all(not name.startswith('/') and '..' not in name.split('/') for name in names)
+          print(f'OT Time source-only archive verified: entries={len(names)}, bytes={archive.stat().st_size}')
+          PY
+          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
