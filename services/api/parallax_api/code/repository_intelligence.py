@@ -73,6 +73,7 @@ class RepositoryShape(StrEnum):
     SINGLE_PACKAGE = "single-package"
     STATIC_WEB = "static-web"
     PYTHON_SERVICE = "python-service"
+    DOTNET_APPLICATION = "dotnet-application"
     WORKSPACE_MONOREPO = "workspace-monorepo"
     MIXED = "mixed"
     UNSUPPORTED = "unsupported"
@@ -269,6 +270,8 @@ class RepositoryIntelligenceAnalyzer:
         candidates: set[tuple[str, str, str, str, str]] = set()
         package_roots: set[str] = set()
         python_roots: set[str] = set()
+        dotnet_solution_roots: set[str] = set()
+        dotnet_project_roots: set[str] = set()
         static_roots: set[str] = set()
         workspace_roots: set[str] = set()
         unsupported_markers: list[str] = []
@@ -333,12 +336,20 @@ class RepositoryIntelligenceAnalyzer:
                 unsupported_markers.append(path)
 
             suffix = PurePosixPath(path).suffix.casefold()
+            if suffix == ".sln":
+                dotnet_solution_roots.add(root)
+                signals.add(("ecosystem", "dotnet", path))
+            elif suffix == ".csproj":
+                dotnet_project_roots.add(root)
+                signals.add(("ecosystem", "dotnet", path))
             if suffix in {".ts", ".tsx"} or basename == "tsconfig.json":
                 signals.add(("language", "typescript", path))
             elif suffix in {".js", ".jsx", ".mjs", ".cjs"}:
                 signals.add(("language", "javascript", path))
             elif suffix == ".py":
                 signals.add(("language", "python", path))
+            elif suffix == ".cs":
+                signals.add(("language", "csharp", path))
             elif suffix == ".html":
                 signals.add(("language", "html", path))
             elif suffix == ".css":
@@ -349,9 +360,11 @@ class RepositoryIntelligenceAnalyzer:
                 CompatibilityBlocker(BlockerCode.MALFORMED_MANIFEST, tuple(sorted(set(malformed_paths))))
             )
 
+        dotnet_roots = dotnet_solution_roots or dotnet_project_roots
         shape, state, shape_blockers, application_roots = _classify_repository(
             package_roots=package_roots,
             python_roots=python_roots,
+            dotnet_roots=dotnet_roots,
             static_roots=static_roots,
             workspace_roots=workspace_roots,
             unsupported_markers=unsupported_markers,
@@ -376,7 +389,7 @@ class RepositoryIntelligenceAnalyzer:
             for category, name, source_kind, path, digest in sorted(candidates)
         )
         blocker_items = tuple(sorted(blockers, key=lambda item: (item.code.value, item.evidence_paths)))
-        all_package_roots = tuple(sorted(package_roots.union(python_roots)))
+        all_package_roots = tuple(sorted(package_roots.union(python_roots).union(dotnet_roots)))
         application_root_items = tuple(sorted(application_roots))
 
         identity = snapshot.identity
@@ -529,7 +542,13 @@ def _root_for(path: str) -> str:
 
 
 def _is_evidence_file(basename: str) -> bool:
-    return basename in _EVIDENCE_BASENAMES or bool(_REQUIREMENTS_RE.fullmatch(basename))
+    lowered = basename.casefold()
+    return (
+        basename in _EVIDENCE_BASENAMES
+        or bool(_REQUIREMENTS_RE.fullmatch(basename))
+        or lowered.endswith(".sln")
+        or lowered.endswith(".csproj")
+    )
 
 
 def _evidence_kind(basename: str) -> str:
@@ -543,6 +562,8 @@ def _evidence_kind(basename: str) -> str:
         return "workspace-config"
     if basename == "index.html":
         return "static-entry"
+    if basename.casefold().endswith((".sln", ".csproj")):
+        return "dotnet-manifest"
     if basename in _UNSUPPORTED_ROOT_MARKERS:
         return "unsupported-ecosystem-marker"
     return "repository-config"
@@ -614,13 +635,14 @@ def _classify_repository(
     *,
     package_roots: set[str],
     python_roots: set[str],
+    dotnet_roots: set[str],
     static_roots: set[str],
     workspace_roots: set[str],
     unsupported_markers: list[str],
     malformed: bool,
 ) -> tuple[RepositoryShape, CompatibilityState, list[CompatibilityBlocker], set[str]]:
     blockers: list[CompatibilityBlocker] = []
-    supported_roots = package_roots.union(python_roots).union(static_roots)
+    supported_roots = package_roots.union(python_roots).union(dotnet_roots).union(static_roots)
 
     if malformed:
         return RepositoryShape.AMBIGUOUS, CompatibilityState.AMBIGUOUS, blockers, supported_roots
@@ -631,6 +653,15 @@ def _classify_repository(
             CompatibilityBlocker(
                 BlockerCode.CONFLICTING_WORKSPACE_DECLARATION,
                 tuple(sorted(workspace_roots)),
+            )
+        )
+        return RepositoryShape.AMBIGUOUS, CompatibilityState.AMBIGUOUS, blockers, supported_roots
+
+    if len(dotnet_roots) > 1:
+        blockers.append(
+            CompatibilityBlocker(
+                BlockerCode.AMBIGUOUS_APPLICATION_ROOT,
+                tuple(sorted(dotnet_roots)),
             )
         )
         return RepositoryShape.AMBIGUOUS, CompatibilityState.AMBIGUOUS, blockers, supported_roots
@@ -657,6 +688,11 @@ def _classify_repository(
         blockers.append(CompatibilityBlocker(BlockerCode.UNSUPPORTED_ECOSYSTEM, ()))
         return RepositoryShape.UNSUPPORTED, CompatibilityState.UNSUPPORTED, blockers, set()
 
+    ecosystem_count = int(bool(package_roots)) + int(bool(python_roots)) + int(bool(dotnet_roots))
+    if ecosystem_count > 1:
+        state = CompatibilityState.PARTIAL if unsupported_markers else CompatibilityState.SUPPORTED
+        return RepositoryShape.MIXED, state, blockers, supported_roots
+
     if package_roots and python_roots:
         state = CompatibilityState.PARTIAL if unsupported_markers else CompatibilityState.SUPPORTED
         return RepositoryShape.MIXED, state, blockers, supported_roots
@@ -672,6 +708,10 @@ def _classify_repository(
     if python_roots:
         state = CompatibilityState.PARTIAL if unsupported_markers else CompatibilityState.SUPPORTED
         return RepositoryShape.PYTHON_SERVICE, state, blockers, python_roots
+
+    if dotnet_roots:
+        state = CompatibilityState.PARTIAL if unsupported_markers else CompatibilityState.SUPPORTED
+        return RepositoryShape.DOTNET_APPLICATION, state, blockers, dotnet_roots
 
     state = CompatibilityState.PARTIAL if unsupported_markers else CompatibilityState.SUPPORTED
     return RepositoryShape.STATIC_WEB, state, blockers, static_roots

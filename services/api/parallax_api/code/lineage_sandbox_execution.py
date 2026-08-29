@@ -7,6 +7,7 @@ import time
 
 from parallax_api.execution_environment import execution_snapshot_id
 
+from .dependency_preparation import preparation_network_policy, run_dependency_preparation
 from .execution import ExecutionPolicyError, ExecutionSpec, ProtectedCommandPolicy
 from .runtime_composition import DurableLineageAllocator
 from .sandbox_execution import (
@@ -15,6 +16,7 @@ from .sandbox_execution import (
     _bounded_evidence,
     _sanitized_provider_error,
 )
+from .validation_toolchains import select_validation_profile
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage
 
@@ -146,15 +148,23 @@ class SameLineageVercelSandboxExecutor:
         filesystem = getattr(instance, "fs", None)
         if filesystem is None:
             raise SameLineageExecutionError("sandbox filesystem API is unavailable")
-        # The dependency snapshot intentionally contains no repository source and
-        # may therefore omit the transfer root entirely. Establish exactly that
-        # bounded root, then stage the already-validated accepted lineage through
-        # the SDK's public batch API so the complete file set crosses one remote
-        # filesystem request instead of one request per source file.
         filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
         with filesystem.batch(cwd=_SANDBOX_SOURCE_ROOT) as batch:
             for path, content in files:
                 batch.write_bytes(path, content)
+
+    def _validate_caller_stage_spec(self, spec: ExecutionSpec) -> None:
+        """Reject caller-shaped command drift before any lineage materialization.
+
+        The caller may identify only the protected stage/operation. Repository
+        profile selection happens later from exact reconstructed source; it does
+        not make arbitrary incoming command arguments authoritative.
+        """
+
+        self.policy.validate(spec)
+        expected = self.registry.spec_for(spec.stage, operation_key=spec.operation_key)
+        if spec != expected:
+            raise ExecutionPolicyError("protected execution spec is not the registered stage authority")
 
     def execute_on_lineage(
         self,
@@ -167,13 +177,17 @@ class SameLineageVercelSandboxExecutor:
         started = time.monotonic()
         workspace: MaterializedWorkspace | None = None
         evidence: dict[str, object] | None = None
+        execution_spec = spec
+        validation_profile_id: str | None = None
+        validation_profile_digest: str | None = None
         cleanup_error: Exception | None = None
+        preparation_evidence: dict[str, object] = {
+            "dependency_preparation_required": False,
+            "dependency_preparation_succeeded": False,
+            "validation_network_locked": False,
+        }
         try:
-            self.policy.validate(spec)
-            registered = self.registry.spec_for(spec.stage, operation_key=spec.operation_key)
-            if spec != registered:
-                raise ExecutionPolicyError("execution spec does not match the protected command registry")
-            command, args = self.registry.invocation_for(spec.stage)
+            self._validate_caller_stage_spec(spec)
             identity = self._identity(project_ref, run_id)
             if not isinstance(source_lineage_ref, str) or not source_lineage_ref:
                 raise SameLineageExecutionError("accepted source lineage identity is required")
@@ -184,6 +198,12 @@ class SameLineageVercelSandboxExecutor:
                 identity=identity,
                 lineage_id=source_lineage_ref,
             )
+            profile = select_validation_profile(workspace.path)
+            validation_profile_id = profile.profile_id.value
+            validation_profile_digest = profile.digest
+            execution_spec = profile.spec_for(spec.stage, operation_key=spec.operation_key)
+            self.policy.validate(execution_spec)
+            command, args = profile.invocation_for(spec.stage)
 
             self._require_provider_identity()
             session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
@@ -192,9 +212,17 @@ class SameLineageVercelSandboxExecutor:
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
                     source=snapshot_source,
-                    execution_time_limit=spec.timeout_seconds + 30,
+                    execution_time_limit=(
+                        execution_spec.timeout_seconds
+                        + (
+                            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds
+                            if profile.preparation is not None
+                            else 0
+                        )
+                        + 30
+                    ),
                     persistent=False,
-                    network_policy=NetworkPolicy.deny_all(),
+                    network_policy=preparation_network_policy(NetworkPolicy, profile),
                     env={},
                     destroy=True,
                     tags={"parallax": "same-lineage", "stage": spec.stage.value.lower()},
@@ -203,17 +231,25 @@ class SameLineageVercelSandboxExecutor:
                     if restored_snapshot_id != self.snapshot_id:
                         raise SameLineageExecutionError("sandbox did not restore the server-pinned execution snapshot")
                     self._transfer_source(instance, files)
+                    preparation_evidence = run_dependency_preparation(
+                        instance,
+                        NetworkPolicy,
+                        profile,
+                        sandbox_cwd=self._sandbox_cwd,
+                    )
+                    if preparation_evidence.get("validation_network_locked") is not True:
+                        raise SameLineageExecutionError("validation network lock was not proven")
                     result = instance.run_process(
                         command,
                         list(args),
-                        cwd=self._sandbox_cwd(spec.working_directory),
+                        cwd=self._sandbox_cwd(execution_spec.working_directory),
                         env={},
-                        kill_after=spec.timeout_seconds,
+                        kill_after=execution_spec.timeout_seconds,
                         capture_output=True,
                     )
 
             evidence = _bounded_evidence(
-                spec,
+                execution_spec,
                 exit_code=result.returncode,
                 duration_ms=int((time.monotonic() - started) * 1_000),
                 stdout=result.stdout or "",
@@ -229,12 +265,15 @@ class SameLineageVercelSandboxExecutor:
                     "git_source": False,
                     "execution_snapshot_id": self.snapshot_id,
                     "execution_snapshot_verified": True,
-                    "execution_working_directory": self._sandbox_cwd(spec.working_directory),
+                    "validation_profile_id": validation_profile_id,
+                    "validation_profile_digest": validation_profile_digest,
+                    "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),
+                    **preparation_evidence,
                 }
             )
         except Exception as exc:
             evidence = _bounded_evidence(
-                spec,
+                execution_spec,
                 exit_code=None,
                 duration_ms=int((time.monotonic() - started) * 1_000),
                 stdout="",
@@ -248,6 +287,9 @@ class SameLineageVercelSandboxExecutor:
                     "git_source": False,
                     "execution_snapshot_id": self.snapshot_id,
                     "execution_snapshot_verified": False,
+                    "validation_profile_id": validation_profile_id,
+                    "validation_profile_digest": validation_profile_digest,
+                    **preparation_evidence,
                 }
             )
         finally:

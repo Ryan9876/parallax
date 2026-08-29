@@ -122,10 +122,15 @@ class FakeSandboxModule:
 def workspace_fixture(tmp_path, *, files=None):
     root = tmp_path / "lease"
     root.mkdir(parents=True)
-    files = files or {
+    files = dict(files or {
         "README.md": b"hello\n",
         "src/app.py": b"value = 2\n",
-    }
+    })
+    files.setdefault("services/api/pyproject.toml", b"[project]\nname='parallax-api'\n")
+    files.setdefault("services/api/parallax_api/__init__.py", b"")
+    files.setdefault("services/api/tests/test_code_execution_kernel.py", b"")
+    files.setdefault("services/api/tests/test_code_autonomy.py", b"")
+    files.setdefault("scripts/.profile-fixture", b"")
     entries = []
     for path, content in sorted(files.items()):
         target = root / path
@@ -208,9 +213,11 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert filesystem.direct_writes == []
 
     command, args, kwargs = instance.process_calls[0]
-    registered_command, registered_args = ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)
-    assert command == registered_command
-    assert tuple(args) == registered_args
+    assert command == "python"
+    assert tuple(args) == ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)[1]
+    assert evidence["validation_profile_id"] == "python-v1"
+    assert isinstance(evidence["validation_profile_digest"], str)
+    assert len(evidence["validation_profile_digest"]) == 64
     assert kwargs["env"] == {}
     assert kwargs["cwd"] == "/vercel/sandbox"
 
@@ -231,11 +238,11 @@ def test_large_lineage_uses_one_bounded_batch_upload(tmp_path):
     )
 
     assert evidence["protected_success"] is True
-    assert evidence["source_file_count"] == 96
+    assert evidence["source_file_count"] == len(expected)
     assert filesystem.mkdirs == [("sandbox", "/vercel", True)]
     assert filesystem.batch_cwds == ["/vercel/sandbox"]
     assert len(filesystem.batch_flushes) == 1
-    assert len(filesystem.batch_flushes[0]) == 96
+    assert len(filesystem.batch_flushes[0]) == len(expected)
     assert {path: data for path, data, _ in filesystem.batch_flushes[0]} == expected
     assert filesystem.direct_writes == []
     assert len(instance.process_calls) == 1

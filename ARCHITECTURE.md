@@ -1,13 +1,13 @@
 # Parallax 2.0 Architecture
 
-Version: 3.17
+Version: 3.18
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.17 is a bounded source/delivery-layer update to v3.16, not a platform rewrite. The complete v3.16 architecture is incorporated by reference. Every v3.16 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, and exact-one-repository runtime credential scope.
+Architecture v3.18 is a bounded protected-execution update to v3.17, not a platform rewrite. The complete v3.17 architecture is incorporated by reference. Every v3.17 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, and exact-one-repository runtime credential scope.
 
-This revision records `P2-V0.23.4`: source-repository access, protected engineering execution, and deployment delivery are separate architecture layers. Vercel remains a supported delivery provider, but it is no longer a prerequisite for a public repository to enter the protected engineering lifecycle or for verified source to be handed off for IIS, local, or another deployment environment.
+This revision records `P2-V0.23.5`: protected validation commands are selected from immutable server-owned execution profiles using deterministic evidence from the exact candidate or accepted-lineage source tree. Repositories cannot supply executable command text. A profile may perform a subordinate bounded dependency PREPARE operation before BUILD/TEST/VERIFY; protected lifecycle validation itself remains deny-all network and empty-environment.
 
 ## Source authority is independent from deployment authority
 
@@ -77,14 +77,51 @@ Neither public readability nor repository installation coverage grants source mu
 - Vercel delivery still requires its existing explicit readiness and exact-target checks;
 - no path grants production promotion, domain/environment administration, Engineering Run transition authority, or REVIEW completion authority.
 
+## Repository-aware protected validation
+
+Protected BUILD/TEST/VERIFY execution is selected from a finite released profile registry. Repository manifests and source files provide bounded compatibility evidence only; they never become executable command authority.
+
+Profile selection runs against the exact disposable candidate tree before canonical mutation and against exact reconstructed accepted lineage for canonical BUILD/TEST/VERIFY. Selection must produce one deterministic profile identity and digest or fail closed as unsupported/ambiguous. Candidate and accepted-lineage evidence carry the selected profile identity so a run cannot silently switch toolchains after admission.
+
+The initial admitted behavior is deliberately narrow:
+
+- the established Parallax mixed Python/Node repository retains its exact historical protected Python commands;
+- generic Python repositories remain fail-closed until a separately governed fixed profile is admitted;
+- Node repositories remain fail-closed unless a safe fixed Node route can avoid repository-defined script command authority;
+- a repository with one admissible root `.sln` or `.csproj` may select the fixed `.NET` profile.
+
+For .NET, the target path is normalized relative source evidence. The released commands are fixed `dotnet` invocations. No MSBuild target, property, package source URL, environment value, README text, model output, or user-provided shell fragment becomes a command argument.
+
+Before accepted-lineage materialization, the caller-supplied stage `ExecutionSpec` must still match the server-owned stage authorization envelope. Repository-aware selection occurs only after exact lineage reconstruction and therefore cannot be used to smuggle caller command authority across that boundary.
+
+## Bounded dependency PREPARE boundary
+
+A validation profile may declare a subordinate PREPARE contract when clean source requires dependency resolution before offline validation. PREPARE is not an Engineering Run lifecycle stage and cannot complete BUILD/TEST/VERIFY, accept source lineage, mutate Git/provider state, deploy, approve, or promote.
+
+For the initial .NET profile, Parallax:
+
+1. restores the same pinned disposable execution snapshot used for protected validation and transfers the exact candidate or accepted-lineage source;
+2. probes the server-owned `dotnet` executable using fixed arguments;
+3. permits outbound traffic only to the profile-owned NuGet allowlist (`api.nuget.org` and `globalcdn.nuget.org`), with an empty application environment and no Git/provider/deployment credentials;
+4. runs fixed `dotnet restore <admitted-target> --nologo`;
+5. attempts to replace the sandbox network policy with `deny-all` whether restore succeeds or fails;
+6. requires returned runtime state to prove `deny-all` before any BUILD/TEST/VERIFY command can execute;
+7. runs fixed offline BUILD/TEST/VERIFY commands with `--no-restore` and no application environment.
+
+A missing toolchain, failed dependency restore, or inability to prove the deny-all transition is a bounded typed non-success (`EXECUTION_PROFILE_UNAVAILABLE`, `DEPENDENCY_PREPARATION_FAILED`, or `VALIDATION_NETWORK_LOCK_FAILED`). These conditions never trigger fallback to another ecosystem, arbitrary command execution, broader network access, lineage acceptance, provider mutation, or fabricated progress.
+
+PREPARE may evaluate repository build metadata as part of the package manager/toolchain's normal restore behavior. That untrusted behavior remains confined to the disposable, no-secret sandbox and therefore does not become Parallax command, credential, lineage, deployment, or approval authority.
+
+Vercel Sandbox remains the current isolated execution provider for this contract. That infrastructure fact is independent of the Project delivery provider: a `source-only` application can use Vercel Sandbox for protected engineering execution and still have no Vercel application deployment or Preview target.
+
 ## Relationship to W8-S2
 
 W8-S2's deferred Vercel Project-readiness architecture remains authoritative. The original W8-S2 defect was that PLAN incorrectly depended on static Vercel Preview-target registration. v3.16 then exposed and classified a separate credentialed repository-coverage prerequisite.
 
-Architecture v3.17 removes that credential prerequisite for repositories GitHub explicitly proves public, while preserving it for private/inaccessible repositories. The required production acceptance is an authenticated canonical public-repository replay that advances beyond PLAN without static Vercel-target registration or `REPOSITORY_AUTHORIZATION_REQUIRED`, while retaining ordinary tenant, spec, run and lineage authority.
+Architecture v3.17 removed that credential prerequisite for repositories GitHub explicitly proves public, while preserving it for private/inaccessible repositories. Architecture v3.18 removes the next repository-specific blocker exposed by authenticated OT Time replay: protected validation no longer assumes every application uses Parallax's Python test commands. The required production acceptance remains an authenticated canonical public-repository source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, network, and lineage authority.
 
 ## Prior production verification
 
 The v3.16 credentialed-repository boundary remains deployment-verified by production API source `0cfe499ac787a23142067e95e80af80dedab36c5`, deployment `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`, and authenticated QA evidence that a non-covered credentialed repository was classified `REPOSITORY_AUTHORIZATION_REQUIRED` before source mutation.
 
-Architecture v3.17 does not itself assert deployment verification. Exact release/deployment and authenticated public-repository replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.
+Architecture v3.18 does not itself assert deployment verification. Exact release/deployment and authenticated OT Time REVIEW/ZIP replay evidence belongs in `CURRENT-STATE.md` only after those steps succeed.

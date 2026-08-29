@@ -65,6 +65,7 @@ from .agent_team_orchestration import (
     observe_admitted_result,
     schedule_team_plan,
 )
+from .dependency_preparation import DependencyPreparationError, preparation_network_policy, run_dependency_preparation
 from .domain import WorkflowStage
 from .execution import ExecutionPolicyError, ProtectedCommandPolicy
 from .implementation import ImplementationError, ImplementationRequest, SafeImplementationEngine
@@ -104,6 +105,7 @@ from .sandbox_execution import (
     _sanitized_provider_error,
 )
 from .service import EngineeringRunService
+from .validation_toolchains import select_validation_profile
 from .workspace_lineage import ProjectRunIdentity
 
 
@@ -145,6 +147,8 @@ class CandidateValidationResult:
     content_digest: str
     file_count: int
     total_bytes: int
+    validation_profile_id: str
+    validation_profile_digest: str
     stage_evidence: tuple[tuple[str, dict[str, object]], ...]
 
     @property
@@ -213,7 +217,7 @@ def _candidate_validation_failure_diagnostic(
     content_digest = _sha256_value(validation.content_digest)
     if content_digest is not None:
         diagnostic["candidate_content_digest"] = content_digest
-    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180)):
+    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180), ("validation_profile_id", 80), ("validation_profile_digest", 80)):
         value = evidence.get(key)
         if (
             isinstance(value, str)
@@ -399,6 +403,7 @@ class VercelCandidateValidationExecutor:
         *,
         operation_key: str,
     ) -> CandidateValidationResult:
+        profile = select_validation_profile(workspace_root)
         files = self._source_files(workspace_root)
         content_digest = self._content_digest(files)
         total_bytes = sum(len(content) for _, content in files)
@@ -408,8 +413,13 @@ class VercelCandidateValidationExecutor:
         session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
         snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
         stage_evidence: list[tuple[str, dict[str, object]]] = []
-        max_execution_seconds = sum(
-            self.registry.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds
+        preparation_seconds = (
+            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds
+            if profile.preparation is not None
+            else 0
+        )
+        max_execution_seconds = preparation_seconds + sum(
+            profile.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds
             for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)
         ) + 60
         with session():
@@ -418,7 +428,7 @@ class VercelCandidateValidationExecutor:
                 source=snapshot_source,
                 execution_time_limit=max_execution_seconds,
                 persistent=False,
-                network_policy=NetworkPolicy.deny_all(),
+                network_policy=preparation_network_policy(NetworkPolicy, profile),
                 env={},
                 destroy=True,
                 tags={"parallax": "agentic-candidate-validation"},
@@ -426,16 +436,62 @@ class VercelCandidateValidationExecutor:
                 if getattr(instance, "current_snapshot_id", None) != self.snapshot_id:
                     raise AgenticRuntimeError("candidate sandbox did not restore the pinned execution snapshot")
                 self._transfer_source(instance, files)
+                try:
+                    preparation_evidence = run_dependency_preparation(
+                        instance,
+                        NetworkPolicy,
+                        profile,
+                        sandbox_cwd=self._sandbox_cwd,
+                    )
+                except DependencyPreparationError as exc:
+                    failure_spec = profile.spec_for(
+                        WorkflowStage.BUILD,
+                        operation_key=f"{operation_key[:120]}:candidate:prepare",
+                    )
+                    evidence = _bounded_evidence(
+                        failure_spec,
+                        exit_code=None,
+                        duration_ms=int(exc.evidence.get("dependency_preparation_duration_ms") or 0),
+                        stdout="",
+                        stderr=exc.code,
+                    )
+                    evidence.update(
+                        {
+                            **exc.evidence,
+                            "candidate_content_digest": content_digest,
+                            "candidate_file_count": len(files),
+                            "candidate_total_bytes": total_bytes,
+                            "validation_profile_id": profile.profile_id.value,
+                            "validation_profile_digest": profile.digest,
+                            "execution_snapshot_id": self.snapshot_id,
+                            "execution_snapshot_verified": True,
+                            "network_policy": "deny-all" if exc.evidence.get("validation_network_locked") is True else "prepare-bounded",
+                            "candidate_is_canonical_lineage": False,
+                            "accepts_source_lineage": False,
+                            **preparation_evidence,
+                        }
+                    )
+                    stage_evidence.append((WorkflowStage.BUILD.value, evidence))
+                    return CandidateValidationResult(
+                        content_digest=content_digest,
+                        file_count=len(files),
+                        total_bytes=total_bytes,
+                        validation_profile_id=profile.profile_id.value,
+                        validation_profile_digest=profile.digest,
+                        stage_evidence=tuple(stage_evidence),
+                    )
+                if preparation_evidence.get("validation_network_locked") is not True:
+                    raise AgenticRuntimeError("validation network lock was not proven")
                 for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY):
-                    spec = self.registry.spec_for(
+                    spec = profile.spec_for(
                         stage,
                         operation_key=f"{operation_key[:120]}:candidate:{stage.value.lower()}",
                     )
                     self.policy.validate(spec)
-                    registered = self.registry.spec_for(stage, operation_key=spec.operation_key)
+                    registered = profile.spec_for(stage, operation_key=spec.operation_key)
                     if spec != registered:
-                        raise ExecutionPolicyError("candidate execution spec drifted from protected registry")
-                    command, args = self.registry.invocation_for(stage)
+                        raise ExecutionPolicyError("candidate execution spec drifted from protected validation profile")
+                    command, args = profile.invocation_for(stage)
                     started = time.monotonic()
                     try:
                         result = instance.run_process(
@@ -467,6 +523,8 @@ class VercelCandidateValidationExecutor:
                             "candidate_content_digest": content_digest,
                             "candidate_file_count": len(files),
                             "candidate_total_bytes": total_bytes,
+                            "validation_profile_id": profile.profile_id.value,
+                            "validation_profile_digest": profile.digest,
                             "execution_snapshot_id": self.snapshot_id,
                             "execution_snapshot_verified": True,
                             "network_policy": "deny-all",
@@ -482,6 +540,8 @@ class VercelCandidateValidationExecutor:
             content_digest=content_digest,
             file_count=len(files),
             total_bytes=total_bytes,
+            validation_profile_id=profile.profile_id.value,
+            validation_profile_digest=profile.digest,
             stage_evidence=tuple(stage_evidence),
         )
 
@@ -1691,6 +1751,8 @@ class AgenticControlPlane:
                     {
                         "candidate_id": item.candidate_id,
                         "candidate_content_digest": item.validation.content_digest,
+                        "validation_profile_id": item.validation.validation_profile_id,
+                        "validation_profile_digest": item.validation.validation_profile_digest,
                         "proposal_digest": item.proposal_digest,
                         "producer_identity_digests": list(item.plan.selected_agent_digests),
                         "protected_validation_digest": item.protected_validation.digest,
@@ -1712,6 +1774,8 @@ class AgenticControlPlane:
                 "competition_reason_code": competition_record.reason_code,
                 "selected_candidate_id": selected.candidate_id,
                 "selected_candidate_content_digest": selected.validation.content_digest,
+                "selected_validation_profile_id": selected.validation.validation_profile_id,
+                "selected_validation_profile_digest": selected.validation.validation_profile_digest,
                 "selected_proposal_digest": selected.proposal_digest,
                 "source_lineage_accepted": False,
                 "engineering_run_transitioned": False,

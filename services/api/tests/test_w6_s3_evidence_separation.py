@@ -48,6 +48,8 @@ def test_passing_protected_refs_are_evaluated_once() -> None:
         content_digest="c" * 64,
         file_count=1,
         total_bytes=1,
+        validation_profile_id="python-v1",
+        validation_profile_digest="e" * 64,
         stage_evidence=(
             _stage("BUILD", True),
             _stage("TEST", True),
@@ -75,6 +77,8 @@ def test_failed_protected_validation_blocks_without_duplicate_ref_error() -> Non
         content_digest="c" * 64,
         file_count=1,
         total_bytes=1,
+        validation_profile_id="python-v1",
+        validation_profile_digest="e" * 64,
         stage_evidence=(_stage("BUILD", False),),
     )
     protected, record = _control()._evaluation(

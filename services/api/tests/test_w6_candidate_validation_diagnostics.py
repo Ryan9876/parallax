@@ -50,6 +50,8 @@ def test_candidate_validation_failure_projection_omits_raw_output_and_authority(
         content_digest="d" * 64,
         file_count=10,
         total_bytes=1000,
+        validation_profile_id="python-v1",
+        validation_profile_digest="e" * 64,
         stage_evidence=(
             (
                 "BUILD",
