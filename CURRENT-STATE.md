@@ -2,11 +2,13 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / W9-S1 IMPLEMENTED + API PRODUCTION-DEPLOYMENT-VERIFIED WITH CONTROLLED REAL-WORLD TRIAL PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / W9-S1 + W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED WITH W9-S1 CONTROLLED REAL-WORLD TRIAL PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Parallax production now includes the deployment-verified W9-S1 real-world benchmark-admission layer in the API while retaining the existing deployment-verified client, QA authentication fallback, Wave 8 guided experience and earlier Waves 1–7 runtime/productization baseline.
+Parallax production now includes the deployment-verified W9-S1 real-world benchmark-admission layer and the W9-S2 governed skill-intake/capability-catalog backend in the API while retaining the existing deployment-verified client, QA authentication fallback, Wave 8 guided experience and earlier Waves 1–7 runtime/productization baseline.
+
+W9-S2 does not make internet-discovered content executable. External skill/tool observations remain quarantined metadata until exact approval and existing registry admission succeed; tool/provider authority remains separately Project-scoped. The released S2 slice adds no live arbitrary crawler, package/MCP installation, database migration or user-facing marketplace.
 
 W9-S1 does **not** mean the first real-world Decision Ledger benchmark has passed. The evaluation/admission capability is released; the controlled authenticated reference trial has not started because the authorized QA account still requires its private user-controlled password enrollment/authenticated-browser boundary. No authentication bypass or direct database/admin mutation is being used to manufacture benchmark evidence.
 
@@ -57,14 +59,30 @@ The remaining authentication step is deliberately user-controlled: private passw
 
 Current production API:
 
-- application source: `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
-- production deployment: `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`;
+- application source: `fcb6abf4f794e038bcf48daac8d3400f006a18d8`;
+- production deployment: `dpl_57xiHUKBm3qK4HAA47kYzc9mJM13`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - target: `production`;
 - state / ready state: `READY`;
 - exact Git source verification: verified;
 - aliases: `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, `parallax-api-git-main-lew7.vercel.app`;
 - alias error: none.
+
+W9-S2 post-cutover verification:
+
+- production build cloned exact merge `fcb6abf4f794e038bcf48daac8d3400f006a18d8`;
+- production provider preflight — PASS;
+- scoped delivery-permission preflight — PASS;
+- projected-source preflight — PASS;
+- private Blob/immutable-lineage composition preflight — PASS;
+- agentic-runtime round-trip preflight — PASS;
+- projected-bootstrap process-recreation/replay/no-stage-mutation checks — PASS;
+- deny-all execution-snapshot/offline dependency check — PASS;
+- production run-event schema guard — PASS;
+- build completed successfully and outputs deployed;
+- `https://parallax-api-tan.vercel.app/health` — HTTP 200, service `ok`;
+- `https://parallax-api-tan.vercel.app/ready` — HTTP 200, database/providers `ok`, one provider target;
+- exact-deployment error/fatal runtime scan — no matching logs.
 
 W9-S1 post-cutover verification:
 
@@ -82,10 +100,10 @@ W9-S1 post-cutover verification:
 - `https://parallax-api-tan.vercel.app/ready` — HTTP 200, database/providers `ok`, one provider target;
 - exact-deployment error/fatal runtime scan — no matching logs.
 
-Immediate API rollback reference remains the deployment-verified W8-S3 API:
+Immediate API rollback reference is the deployment-verified W9-S1 API:
 
-- source `91be7cd9a7fa088f7cebd061d9f9147ac148282c`;
-- deployment `dpl_D2PAQhX7d2zzZbUZ8J4gAipzVu3M`.
+- source `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
+- deployment `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`.
 
 ## Wave 9 S1 — Real-world greenfield benchmark admission
 
@@ -211,6 +229,72 @@ When that boundary is satisfied, the S1 trial must:
 A failed/HUMAN_REQUIRED trial is useful S1 evidence once the real trial has actually begun. Authentication failure before trial start is not mislabeled as a completed benchmark.
 
 Any semantic Parallax defect discovered by the trial must be recorded before implementation and receives a separately governed future workstream/specification. No such fix is included in W9-S1.
+
+## Wave 9 S2 — Governed skill intake and capability catalog
+
+Control Tower: #391
+
+Workstream: #395
+
+Release PR: #397
+
+Governing specification: `P2-V0.23.1`
+
+Final qualified worker head:
+
+`0965969da3224ebe62e8a33348440b5753e76d6e`
+
+Application release merge:
+
+`fcb6abf4f794e038bcf48daac8d3400f006a18d8`
+
+Production API deployment:
+
+`dpl_57xiHUKBm3qK4HAA47kYzc9mJM13`
+
+W9-S2 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
+
+### Released capability boundary
+
+The deployed backend contract adds:
+
+- deterministic bounded `SkillCandidate` identity for skill/tool observations;
+- quarantine by default with explicit provenance, source-tier, license and static-policy reason codes;
+- exact replay idempotency and changed-content conflict handling instead of silent replacement;
+- Project-private catalog isolation;
+- safe catalog metadata that excludes raw source bodies, credentials, provider secrets, unrestricted execution handles and hidden reasoning;
+- exact `SkillCandidateApproval` binding to candidate identity, source/content digest, intake-policy digest and exact `PortableSkill` digest;
+- final admission through the pre-existing `SkillRegistry.admit` contract;
+- runtime retrieval limited to catalog-admitted skills followed by the existing deterministic `SkillSelector`;
+- server-owned source definitions for the official Agent Skills ecosystem and official MCP Registry metadata roots;
+- a bounded source-adapter interface proven with synthetic fixtures and no candidate-content execution.
+
+The release does **not** add live arbitrary internet crawling, generic shell/network execution, package installation, MCP server startup, tool-capability mutation, provider administration, merge/deployment authority, REVIEW authority, database persistence/migration or a user-facing skill marketplace. Tool candidates remain metadata only; a skill's requested capability cannot grant itself that capability.
+
+### Authentic DSPy and exact-head qualification
+
+Authentic pre-implementation DSPy evidence:
+
+- evidence workflow run `33229695444` executed SpecCritic + SpecCompiler for exact `P2-V0.23.1`;
+- repository-approved local fallback model `ollama_chat/qwen2.5:0.5b` was used because no provider key was available in the evidence workflow;
+- exact generated plan committed as `specs/compiled/P2-V0.23.1.plan.json`;
+- plan blob `41afe19e7104c756dff94d0c1c11fc04d56fd7f3`;
+- the temporary S2 evidence workflow was removed before semantic implementation qualification.
+
+Final exact-head qualification at `0965969da3224ebe62e8a33348440b5753e76d6e`:
+
+- Workstream Spec Validation `33230538004` — PASS;
+- Bounded Autonomy `33230537997` — PASS;
+- P2 CI `33230537996` — PASS;
+- full API regression — `966 passed, 1 skipped, 4 existing collection warnings`;
+- full client type/state/export/browser/Skia regression — PASS;
+- protected promotion/regression rejection — PASS;
+- normal DSPy release compilation — PASS;
+- exact API Preview `dpl_DzZAGtehR5cU9pMPbEanXH7DgeLH` — READY.
+
+Expected-head merge #397 produced GitHub-verified main commit `fcb6abf4f794e038bcf48daac8d3400f006a18d8`. Production deployment `dpl_57xiHUKBm3qK4HAA47kYzc9mJM13` cloned that exact commit and completed the existing provider, scoped-delivery, projected-source, private-Blob/lineage, agentic-runtime, process-recreation/replay, deny-all execution-snapshot and schema preflights before deployment. Post-cutover `/health` and `/ready` are HTTP 200 and the exact-deployment error/fatal scan is clean.
+
+W9-S2 changes no client application bytes, so current deployment-verified client identity remains unchanged.
 
 ## Wave 8 retained state
 
