@@ -1,0 +1,51 @@
+name: Fix P2-V0.23.5 PREPARE timeout budgets
+
+on:
+  push:
+    branches: [p2/repository-aware-validation-toolchains]
+    paths: [.github/workflows/fix-p2-v0.23.5-prepare-timeout.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: p2/repository-aware-validation-toolchains
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - name: Include bounded PREPARE in sandbox time budgets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/api/parallax_api/code/agentic_runtime.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        max_execution_seconds = sum(\n            profile.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds\n            for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)\n        ) + 60\n'''
+          new = '''        preparation_seconds = (\n            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds\n            if profile.preparation is not None\n            else 0\n        )\n        max_execution_seconds = preparation_seconds + sum(\n            profile.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds\n            for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)\n        ) + 60\n'''
+          if old not in text:
+              raise SystemExit('candidate timeout anchor not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          path = Path('services/api/parallax_api/code/lineage_sandbox_execution.py')
+          text = path.read_text(encoding='utf-8')
+          old = '                    execution_time_limit=execution_spec.timeout_seconds + 30,\n'
+          new = '''                    execution_time_limit=(\n                        execution_spec.timeout_seconds\n                        + (\n                            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds\n                            if profile.preparation is not None\n                            else 0\n                        )\n                        + 30\n                    ),\n'''
+          if old not in text:
+              raise SystemExit('lineage timeout anchor not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python -m compileall -q services/api/parallax_api
+          pytest -q services/api/tests/test_dependency_preparation.py services/api/tests/test_lineage_sandbox_execution.py services/api/tests/test_validation_toolchains.py
+          git diff --check
+          git config user.name "Parallax Release Bot"
+          git config user.email "parallax-release-bot@users.noreply.github.com"
+          git add services/api/parallax_api/code/agentic_runtime.py services/api/parallax_api/code/lineage_sandbox_execution.py
+          git commit -m "Budget protected sandboxes for dependency preparation"
+          git push origin HEAD:p2/repository-aware-validation-toolchains
