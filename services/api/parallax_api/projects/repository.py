@@ -34,6 +34,7 @@ class ProjectRepository:
         name: str,
         description: str | None,
         repository_ref: str | None,
+        delivery_mode: str,
     ) -> Project:
         project_id = str(uuid4())
         project = Project(
@@ -44,6 +45,7 @@ class ProjectRepository:
             description=description,
             repository_ref=repository_ref,
             workspace_ref=f"project:{project_id}",
+            delivery_mode=delivery_mode,
             status="active",
         )
         self.session.add(project)
