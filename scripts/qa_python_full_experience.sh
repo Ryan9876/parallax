@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This marker change triggers the source-only handoff diagnostic replay.
+# Replay marker: validate quota-independent public source bootstrap in production.
 
 : "${OIDC_TOKEN:?OIDC_TOKEN is required}"
 : "${API_BASE:?API_BASE is required}"
