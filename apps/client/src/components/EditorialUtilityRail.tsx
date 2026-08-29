@@ -84,7 +84,7 @@ export function EditorialUtilityRail({ width = 296, apiOnline, phase, mode, run,
   const planValue = specification
     ? specification.status === 'APPROVED' ? 'Approved' : 'Ready for review'
     : mode === 'reason' ? 'Not needed yet' : 'Not created';
-  const showGuidance = mode === 'code' && Boolean(run || specification || phase === 'SPEC_AMENDMENT' || phase === 'ERROR');
+  const showGuidance = mode === 'code' && Boolean(run || specification || phase === 'SPEC_AMENDMENT');
   const guidance = showGuidance
     ? getWorkflowGuidance({
         mode,
@@ -92,7 +92,6 @@ export function EditorialUtilityRail({ width = 296, apiOnline, phase, mode, run,
         specification,
         run,
         hasApprovedSpecification: specification?.status === 'APPROVED',
-        runError: phase === 'ERROR' ? 'response-error' : null,
       })
     : null;
 
