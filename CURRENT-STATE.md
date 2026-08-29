@@ -2,233 +2,103 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE / W8-S1 + W8-S3 + W8-S4 DEPLOYMENT-VERIFIED / QA PASSWORD FALLBACK CLIENT PRODUCTION-DEPLOYMENT-VERIFIED / W8-S2 PRODUCTION INFRASTRUCTURE VERIFIED WITH AUTHENTICATED OT TIME REPLAY PENDING / W9-S1 + W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED WITH W9-S1 CONTROLLED REAL-WORLD TRIAL PENDING / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE WITH W8-S2 REPLAY STILL OPEN / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH PRODUCT GAP #406 / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Parallax production now includes the deployment-verified W9-S1 real-world benchmark-admission layer and the W9-S2 governed skill-intake/capability-catalog backend in the API while retaining the existing deployment-verified client, QA authentication fallback, Wave 8 guided experience and earlier Waves 1–7 runtime/productization baseline.
+Parallax production retains the deployment-verified W9-S1 real-world benchmark-admission layer, W9-S2 governed skill-intake/capability-catalog backend, QA authentication fallback, Wave 8 guided experience, and earlier Waves 1–7 runtime/productization baseline.
 
-W9-S2 does not make internet-discovered content executable. External skill/tool observations remain quarantined metadata until exact approval and existing registry admission succeed; tool/provider authority remains separately Project-scoped. The released S2 slice adds no live arbitrary crawler, package/MCP installation, database migration or user-facing marketplace.
+The first W9-S1 Decision Ledger reference trial has now been executed through a normal authenticated Project, ordinary product conversation, generated Build plan, explicit approval, Engineering Run activation, and the existing ParallaxBench real-world admission contract. The trial did **not** reach implementation or Preview: production source bootstrap failed at PLAN because the Engineering Runtime could not obtain the Project-scoped GitHub repository credential. That failure is the reference observation; it is not relabeled as a passing application benchmark.
 
-W9-S1 does **not** mean the first real-world Decision Ledger benchmark has passed. The evaluation/admission capability is released; the controlled authenticated reference trial has not started because the authorized QA account still requires its private user-controlled password enrollment/authenticated-browser boundary. No authentication bypass or direct database/admin mutation is being used to manufacture benchmark evidence.
+No target source was edited or seeded out of band, no authentication or provider authority was bypassed, and no production-promotion authority was introduced.
+
+## Production components
 
 ### Client
 
-Current production client:
+Current deployment-verified client remains the QA-fallback release:
 
 - application source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
 - production deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
-- target: `production`;
-- state / ready state: `READY`;
-- exact Git source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
-- aliases: `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, `parallax-git-main-lew7.vercel.app`;
-- alias error: none.
+- state: `READY`.
 
-W9-S1 changes no client application bytes. Current client truth therefore remains the independently deployment-verified QA-fallback release rather than being relabeled as an S1 client deployment.
-
-### QA authenticated-browser fallback
-
-Workstream: #389
-
-Release PR: #390
-
-Governing specification: `P2-V0.22.1`
-
-Qualified worker head: `d470208b98a148512fbeb300255e97a9bd9e6514`
-
-Application release merge: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`
-
-Production client deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`
-
-The QA fallback is **MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**:
-
-- exact-head Workstream Spec Validation `33229323953` — PASS;
-- exact-head Bounded Autonomy `33229323990` — PASS;
-- exact-head P2 CI `33229323928` — PASS;
-- exact-head Preview `dpl_7yKbmEUPT3NnDQ6BBej6UJHoC8fe` — READY;
-- exact-merge production deployment `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM` — READY;
-- normal `/` remains Google-only;
-- live `/?qa=1` exposes the bounded secondary QA email/password/recovery controls while retaining Google as primary;
-- passwords, recovery tokens and Supabase access tokens are not persisted by the client and are not recorded in project records;
-- post-cutover client runtime-error scan was clean.
-
-The remaining authentication step is deliberately user-controlled: private password enrollment from the QA account recovery flow and authenticated sign-in. This same boundary blocks both the W8-S2 OT Time production replay and the W9-S1 controlled real-world trial from being executed by current non-interactive automation.
+Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA password/recovery path. The dedicated QA account is now enrolled and has authenticated successfully; passwords and recovery/access tokens are not recorded here.
 
 ### API
 
-Current production API:
+The current deployment-verified API runtime includes the QA Actions OIDC session path introduced by PR #401 and the earlier W9-S1/W9-S2 application capabilities. The exact production deployment that first made bounded push-triggered QA automation usable was:
 
-- application source: `fcb6abf4f794e038bcf48daac8d3400f006a18d8`;
-- production deployment: `dpl_57xiHUKBm3qK4HAA47kYzc9mJM13`;
+- source: `01bfe37bd3c264220b2af64da11cbaad0b5168ed`;
+- deployment: `dpl_5Lx1qiPw4S6QJA1FqVtaqnpRf3u3`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
-- target: `production`;
-- state / ready state: `READY`;
-- exact Git source verification: verified;
-- aliases: `parallax-api-tan.vercel.app`, `parallax-api-lew7.vercel.app`, `parallax-api-git-main-lew7.vercel.app`;
-- alias error: none.
+- state: `READY`.
 
-W9-S2 post-cutover verification:
+Later W9-S1 trial-harness commits changed repository workflow/script evidence rather than Parallax API application semantics; their automatic API deployments were canceled and are not recorded as deployed application releases.
 
-- production build cloned exact merge `fcb6abf4f794e038bcf48daac8d3400f006a18d8`;
-- production provider preflight — PASS;
-- scoped delivery-permission preflight — PASS;
-- projected-source preflight — PASS;
-- private Blob/immutable-lineage composition preflight — PASS;
-- agentic-runtime round-trip preflight — PASS;
-- projected-bootstrap process-recreation/replay/no-stage-mutation checks — PASS;
-- deny-all execution-snapshot/offline dependency check — PASS;
-- production run-event schema guard — PASS;
-- build completed successfully and outputs deployed;
-- `https://parallax-api-tan.vercel.app/health` — HTTP 200, service `ok`;
-- `https://parallax-api-tan.vercel.app/ready` — HTTP 200, database/providers `ok`, one provider target;
-- exact-deployment error/fatal runtime scan — no matching logs.
-
-W9-S1 post-cutover verification:
-
-- production build cloned exact merge `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
-- production provider preflight — PASS;
-- scoped delivery-permission preflight — PASS;
-- projected-source preflight — PASS;
-- private Blob/immutable-lineage composition preflight — PASS;
-- agentic-runtime round-trip preflight — PASS;
-- projected-bootstrap process-recreation/replay/no-stage-mutation checks — PASS;
-- deny-all execution-snapshot/offline dependency check — PASS;
-- production run-event schema guard — PASS;
-- build completed successfully and outputs deployed;
-- `https://parallax-api-tan.vercel.app/health` — HTTP 200, service `ok`;
-- `https://parallax-api-tan.vercel.app/ready` — HTTP 200, database/providers `ok`, one provider target;
-- exact-deployment error/fatal runtime scan — no matching logs.
-
-Immediate API rollback reference is the deployment-verified W9-S1 API:
-
-- source `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
-- deployment `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`.
-
-## Wave 9 S1 — Real-world greenfield benchmark admission
+## Wave 9 S1 — Real-world greenfield benchmark
 
 Control Tower: #391
 
 Workstream: #392
 
-Release PR: #394; draft #393 was superseded without changing implementation intent because the available ready-for-review connector remains incompatible with GitHub's current GraphQL schema.
-
 Governing specification: `P2-V0.23.0`
 
-Final qualified worker head:
+Benchmark-admission release:
 
-`1d053823d08d8e5050e77c624dafcd09199fe942`
+- qualified worker head: `1d053823d08d8e5050e77c624dafcd09199fe942`;
+- application release merge: `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
+- production API deployment: `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`;
+- release state: **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
 
-Application release merge:
+### Frozen benchmark
 
-`ee6af25d09c495f2550f39a7d7f90f527dc7e447`
+- template: `decision-ledger@1.0.0`;
+- fixture digest: `15b098df3956ffe71833778e18a301a8e77fae9f37705223256703619f684900`;
+- requirement tokens: exactly `DL-01` through `DL-12`;
+- expected autonomous ceiling: `REVIEW`.
 
-Production API deployment:
+The frozen objective requires a responsive browser-persistent Decision Ledger with CRUD, required decision fields, Proposed/Accepted/Superseded semantics, search/filter/order, safe JSON import/export, recovery-oriented UX, 390px/1440px usability, accessibility, automated tests, repository safety, and governed Preview/REVIEW delivery.
 
-`dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`
+### Controlled reference observation — COMPLETE
 
-W9-S1 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / CONTROLLED REAL-WORLD TRIAL PENDING**.
+QA Actions run: `33231502080` — trial harness PASS.
 
-### Frozen Decision Ledger benchmark
+Independent target: `Ryan9876/sickbeard`.
 
-Template: `decision-ledger@1.0.0`
+The workflow verified the repository had no refs before the trial began. It was not manually initialized or seeded.
 
-Fixture digest:
+Exact canonical evidence:
 
-`15b098df3956ffe71833778e18a301a8e77fae9f37705223256703619f684900`
+- Project: `7a1dd088-3b0d-4eec-90e8-3cf435eac3a4`;
+- Conversation: `8dc3dbc2-6aab-4867-a399-4dfe5f903102`;
+- approved Work Specification: `12d29840-6523-4470-a89b-9eb0ea6878eb`;
+- Work Specification revision: `1`;
+- Work Specification digest: `2772236584bbc1a841b4b5348d9f5d28626421e9d5d8c2aaaa04295675523c19`;
+- canonical acceptance IDs: `AC-01` through `AC-06`;
+- BenchmarkCase digest: `4cdd1e021e69a9191b74f1d8f4551e128802b7c61d70dd388499667e5c0e8fb6`;
+- Engineering Run: `a3a32343-507a-4384-a9bd-2fddaa0ce7fc`;
+- final observed state: `PLAN`, revision `1`;
+- observed disposition: `AUTONOMOUS_REQUEST_FAILED_HTTP_503`;
+- pre-approval clarifications: `0`;
+- post-approval corrections: `0`;
+- out-of-band source edits: `0`;
+- trial start: `2026-08-29T03:29:18Z`;
+- observed product boundary: `2026-08-29T03:29:41Z`.
 
-The frozen benchmark contains exactly `DL-01` through `DL-12` and requires:
+The generated Build plan preserved every frozen `DL-01` through `DL-12` token exactly once. The approved canonical spec successfully bound through `bind_real_world_template(...)`; benchmark admission therefore passed before the runtime failure.
 
-- create/view/edit/delete decision records;
-- title, status, decision date, owner, context, final decision, options considered and tags;
-- Proposed / Accepted / Superseded status meaning that is not color-only;
-- browser-persistent state without an external account or third-party backend;
-- search, status/tag filtering and deterministic understandable ordering;
-- JSON export/import with safe failure that preserves existing valid data;
-- recoverable empty, validation, destructive-confirmation and import-failure UX;
-- usable 390px mobile and 1440px desktop layouts;
-- keyboard reachability, accessible labels and non-color-only meaning;
-- automated CRUD/persistence/search/filter/import coverage plus production build;
-- no embedded secrets, real user data, tracking credential or benchmark-specific runtime branch;
-- ordinary accepted-source → Preview → REVIEW behavior with protected validation evidence.
+The Engineering Run completed its SPECIFY evidence and entered PLAN. The first autonomous continuation returned HTTP 503. Production runtime evidence recorded:
 
-### ParallaxBench real-world admission contract
+`source_bootstrap_failed stage=provider-repository error_class=ProviderActionFailed result_code=CREDENTIAL_UNAVAILABLE`
 
-W9-S1 extends existing ParallaxBench rather than introducing another benchmark engine or aggregate score.
+This is a real W9 product finding: the authenticated user can create and approve a normal Project bound to a greenfield GitHub repository, but the production Engineering Runtime cannot currently obtain the Project-scoped repository credential required to bootstrap source for that new Project.
 
-The deployed evaluation-only contract provides:
+Finding: #406 — `[W9 FINDING] Greenfield source bootstrap lacks runtime GitHub credential`.
 
-- bounded immutable real-world objective templates with stable ID/version and deterministic material digest;
-- bounded immutable requirement records with stable requirement tokens and per-requirement digests;
-- duplicate template identity with different content failing closed;
-- canonical binding only to exact Project identity plus an **APPROVED** Work Specification with exact ID/revision/digest and unique acceptance IDs;
-- repository-shape matching;
-- deterministic requirement-token admission: every frozen `DL-01` through `DL-12` token must appear exactly once across approved canonical acceptance text;
-- missing or duplicate requirement tokens failing closed;
-- no unconstrained model/evaluator semantic substitution or silent Work Specification repair;
-- successful binding producing the existing `BenchmarkCase` contract, including the complete canonical acceptance-ID set and frozen fixture digest;
-- existing protected correctness, evidence-state, comparison and safe-serialization precedence retained unchanged.
+Per the Wave 9 protocol, this defect is recorded before implementation. It must not be fixed by broadening QA identity, embedding reusable credentials, bypassing Project-scoped provider authority, directly seeding target source, or weakening source-lineage / Preview / REVIEW boundaries. Any semantic fix requires a separately approved specification.
 
-Benchmark template identity remains evaluation evidence only. It grants no Project creation, Work Specification approval, Engineering Run transition, source acceptance, provider/tool capability, repository mutation, browser/network capability, merge, production promotion, approval or REVIEW-completion authority.
-
-### Authentic DSPy and qualification evidence
-
-Authentic pre-implementation DSPy evidence:
-
-- P2 CI run `33229188492` executed SpecCritic + SpecCompiler for exact `P2-V0.23.0`;
-- repository-approved local fallback model `ollama_chat/qwen2.5:0.5b` was used because no provider key was available in CI;
-- exact generated plan committed as `specs/compiled/P2-V0.23.0.plan.json`;
-- plan blob `90c2b678d62efc09d872dd716296f6d7581f1341`;
-- temporary evidence-only workflow retarget was removed;
-- `.github/workflows/ci.yml` restored byte-for-byte to blob `79caf538e381b7c6f14471f80c3c3df4acad5f26`;
-- clean changed-spec protected plan gate `33229680275` — PASS.
-
-Final exact-head qualification at `1d053823d08d8e5050e77c624dafcd09199fe942`:
-
-- Workstream Spec Validation `33230085106` — PASS;
-- Bounded Autonomy `33230085121` — PASS;
-- P2 CI `33230085107` — PASS;
-- full API regression — PASS;
-- full client type/state/export/browser/Skia regression against the current-base synthetic merge candidate — PASS;
-- protected promotion/regression rejection — PASS;
-- normal DSPy release compilation — PASS;
-- API semantic Preview `dpl_FduDSzUA7NFwGMdQxTM57NADA2EH` — READY / clean build;
-- final architecture-only candidate Preview attempt was path-aware canceled because API application bytes were unchanged from the verified semantic Preview.
-
-The expected-head merge preserved current main QA-auth work and S1 ancestry:
-
-- parent `24d487eee87894597f434298dbd00a0eef5fb6c4` — pre-S1 current main / QA-auth state record;
-- parent `1d053823d08d8e5050e77c624dafcd09199fe942` — final qualified W9-S1 head;
-- merge `ee6af25d09c495f2550f39a7d7f90f527dc7e447` — GitHub-verified.
-
-### Controlled real-world reference trial
-
-The real Decision Ledger trial has **not started**.
-
-A source-empty independent target candidate has been identified:
-
-`Ryan9876/sickbeard`
-
-GitHub currently reports this repository as empty. It therefore contains no reference solution or manually seeded application source. It has not been mutated, initialized or bound to a Parallax Project by this workstream.
-
-The remaining prerequisite is the private QA-auth enrollment/authenticated-browser boundary described above. Current automation has no interactive authenticated Parallax browser session and will not use direct Supabase admin/database mutation, authentication bypass or fabricated session evidence.
-
-When that boundary is satisfied, the S1 trial must:
-
-1. use the frozen objective and exact `DL-01` through `DL-12` tokens;
-2. create/select a normal Parallax Project bound to the independent greenfield repository;
-3. generate the ordinary Work Specification / Build plan;
-4. record pre-approval clarification separately if needed;
-5. obtain only the ordinary required plan approval;
-6. run the normal Engineering Run through protected PLAN / IMPLEMENT / BUILD / TEST / VERIFY and Preview / REVIEW behavior;
-7. make any corrective request only through Parallax, never through out-of-band source editing;
-8. bind the actual approved canonical Project/Work Specification through the released S1 admission contract;
-9. capture exact Project/spec/run/source/Preview/protected identities plus interventions/retries/time/cost/UX only where trustworthy;
-10. record failure or `HUMAN_REQUIRED` honestly if that is the observed product boundary.
-
-A failed/HUMAN_REQUIRED trial is useful S1 evidence once the real trial has actually begun. Authentication failure before trial start is not mislabeled as a completed benchmark.
-
-Any semantic Parallax defect discovered by the trial must be recorded before implementation and receives a separately governed future workstream/specification. No such fix is included in W9-S1.
+**W9-S1 disposition:** the sprint's implementation, production verification, benchmark admission, and first controlled real-world reference observation are complete. The Decision Ledger application itself did not pass; the observed PLAN bootstrap failure is now the reference evidence and follow-on product gap #406.
 
 ## Wave 9 S2 — Governed skill intake and capability catalog
 
@@ -236,243 +106,31 @@ Control Tower: #391
 
 Workstream: #395
 
-Release PR: #397
-
 Governing specification: `P2-V0.23.1`
 
-Final qualified worker head:
+Release:
 
-`0965969da3224ebe62e8a33348440b5753e76d6e`
+- qualified worker head: `0965969da3224ebe62e8a33348440b5753e76d6e`;
+- application release merge: `fcb6abf4f794e038bcf48daac8d3400f006a18d8`;
+- production API deployment: `dpl_57xiHUKBm3qK4HAA47kYzc9mJM13`;
+- state: **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
 
-Application release merge:
+S2 remains non-executing capability intake. External observations are quarantined metadata until exact approval and existing registry admission succeed. The release does not grant discovered content package-install, MCP-startup, generic shell/network, provider/tool-authority, merge, deployment, or REVIEW authority.
 
-`fcb6abf4f794e038bcf48daac8d3400f006a18d8`
+## Wave 8 remaining state
 
-Production API deployment:
+W8-S1, W8-S3 and W8-S4 remain deployment-verified. W8-S2 production infrastructure is present, but its historical OT Time replay remains open independently of W9.
 
-`dpl_57xiHUKBm3qK4HAA47kYzc9mJM13`
+The bounded QA Actions session now authenticates successfully. Replay run `33231400984` reached the QA session successfully but the historical OT Time Engineering Run lookup returned HTTP 404 under the QA identity, so the replay did not advance. W8-S2 remains open until that ownership/identity mismatch is diagnosed and the exact replay is completed or the governing workstream records a different valid resolution.
 
-W9-S2 is **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
+## Other open governed work
 
-### Released capability boundary
+- #406 — W9 greenfield Project source-bootstrap credential gap;
+- W8-S2 — historical OT Time authenticated replay;
+- #290 — safe deletion final authenticated destructive smoke.
 
-The deployed backend contract adds:
+## Authoritative-record update
 
-- deterministic bounded `SkillCandidate` identity for skill/tool observations;
-- quarantine by default with explicit provenance, source-tier, license and static-policy reason codes;
-- exact replay idempotency and changed-content conflict handling instead of silent replacement;
-- Project-private catalog isolation;
-- safe catalog metadata that excludes raw source bodies, credentials, provider secrets, unrestricted execution handles and hidden reasoning;
-- exact `SkillCandidateApproval` binding to candidate identity, source/content digest, intake-policy digest and exact `PortableSkill` digest;
-- final admission through the pre-existing `SkillRegistry.admit` contract;
-- runtime retrieval limited to catalog-admitted skills followed by the existing deterministic `SkillSelector`;
-- server-owned source definitions for the official Agent Skills ecosystem and official MCP Registry metadata roots;
-- a bounded source-adapter interface proven with synthetic fixtures and no candidate-content execution.
+`CURRENT-STATE.md` was reconciled after the first controlled W9-S1 reference trial because the prior record still said the trial had not started and that QA enrollment was blocking automation. Those statements are now obsolete.
 
-The release does **not** add live arbitrary internet crawling, generic shell/network execution, package installation, MCP server startup, tool-capability mutation, provider administration, merge/deployment authority, REVIEW authority, database persistence/migration or a user-facing skill marketplace. Tool candidates remain metadata only; a skill's requested capability cannot grant itself that capability.
-
-### Authentic DSPy and exact-head qualification
-
-Authentic pre-implementation DSPy evidence:
-
-- evidence workflow run `33229695444` executed SpecCritic + SpecCompiler for exact `P2-V0.23.1`;
-- repository-approved local fallback model `ollama_chat/qwen2.5:0.5b` was used because no provider key was available in the evidence workflow;
-- exact generated plan committed as `specs/compiled/P2-V0.23.1.plan.json`;
-- plan blob `41afe19e7104c756dff94d0c1c11fc04d56fd7f3`;
-- the temporary S2 evidence workflow was removed before semantic implementation qualification.
-
-Final exact-head qualification at `0965969da3224ebe62e8a33348440b5753e76d6e`:
-
-- Workstream Spec Validation `33230538004` — PASS;
-- Bounded Autonomy `33230537997` — PASS;
-- P2 CI `33230537996` — PASS;
-- full API regression — `966 passed, 1 skipped, 4 existing collection warnings`;
-- full client type/state/export/browser/Skia regression — PASS;
-- protected promotion/regression rejection — PASS;
-- normal DSPy release compilation — PASS;
-- exact API Preview `dpl_DzZAGtehR5cU9pMPbEanXH7DgeLH` — READY.
-
-Expected-head merge #397 produced GitHub-verified main commit `fcb6abf4f794e038bcf48daac8d3400f006a18d8`. Production deployment `dpl_57xiHUKBm3qK4HAA47kYzc9mJM13` cloned that exact commit and completed the existing provider, scoped-delivery, projected-source, private-Blob/lineage, agentic-runtime, process-recreation/replay, deny-all execution-snapshot and schema preflights before deployment. Post-cutover `/health` and `/ready` are HTTP 200 and the exact-deployment error/fatal scan is clean.
-
-W9-S2 changes no client application bytes, so current deployment-verified client identity remains unchanged.
-
-## Wave 8 retained state
-
-Wave 8 Control Tower: #374
-
-Wave 8 planned implementation is complete through S4. No W8-S5 is planned. The control remains open only for the W8-S2 authenticated OT Time replay.
-
-### W8-S1
-
-- release merge `a784af75fc3076a56f9d8e52ff529ca8302e9ce6`;
-- production client `dpl_BmCZheuArbBqDF7K1CSDQjiKkgPJ`;
-- status: **ACCEPTED / MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**.
-
-W8-S1 established mobile `Chat · Progress · Project`, plain journey language, readable typography, at least 44px primary touch targets, progressive disclosure and unchanged server-owned lifecycle authority.
-
-### W8-S2
-
-- workstream #377;
-- spec `P2-V0.21.1`;
-- release merge `ee1b502269f7b4367576a02cdaab45c763eb6717`;
-- status: **ACCEPTED FOR RELEASE / MAIN-MERGED / PRODUCTION-DEPLOYED / INFRASTRUCTURE-VERIFIED / AUTHENTICATED DEFECT REPLAY PENDING**.
-
-W8-S2 separates exact repository bootstrap from deferred Preview-hosting readiness. PLAN/IMPLEMENT/BUILD/TEST/VERIFY no longer require manual static Vercel target registration. Exact bounded Vercel Project discovery/creation occurs only when verified delivery needs it, remains Project/repository/team scoped and adds no merge, production-promotion, domain, environment-variable, credential, source-acceptance, lifecycle-transition or REVIEW-completion authority.
-
-Original OT Time run still requiring authenticated replay:
-
-`af617b0b-5297-427c-a40d-90d58f59a20a`
-
-Read-only evidence retained the run at canonical PLAN revision 1 before the replay. No direct database mutation or auth bypass will be used to manufacture success.
-
-### W8-S3
-
-- release merge `91be7cd9a7fa088f7cebd061d9f9147ac148282c`;
-- client `dpl_CZuVyJKDHQuznvFgpdaBEuKzWtJe`;
-- API `dpl_D2PAQhX7d2zzZbUZ8J4gAipzVu3M`;
-- status: **ACCEPTED / MAIN-MERGED / CLIENT AND API PRODUCTION-DEPLOYMENT-VERIFIED**.
-
-W8-S3 completed ordinary plain-language treatment across shell, Project history, Progress and server-originated public messages while retaining machine-readable technical evidence and authority boundaries.
-
-### W8-S4
-
-- workstream #385;
-- spec `P2-V0.22.0`;
-- final qualified head `2b5a01212a4d3c3ddc1c0302c113512412259079`;
-- release merge `17b62ec2649224e2beeacd6c9b2ce23d01af8028`;
-- production client `dpl_BAbUpv63PUFxmCHM6JDDkf2SsFNJ`;
-- status: **ACCEPTED / MAIN-MERGED / CLIENT PRODUCTION-DEPLOYMENT-VERIFIED**.
-
-S4 provides one deterministic plain-language next-action mapper shared by desktop/mobile/secondary utility surfaces, derived only from canonical conversation/Build plan/Engineering Run truth. It adds no client-owned lifecycle, endpoint, schema, provider/source authority, deployment/merge authority or REVIEW-completion authority.
-
-## Wave 7 retained baseline
-
-Wave 7 Control Tower: #347
-
-Final application release merge:
-
-`703934871e4df0f63828c7fd6e33d3e6a86b60b1`
-
-Waves 1–7 remain **DEPLOYMENT-VERIFIED**. Wave 7 continues to provide the retained ParallaxBench evaluation, Agent Run projection/control, Development Studio, bounded safe-browser evidence, agentic observability/economics/retention projection, integrated product proof and protected source/provider/REVIEW boundaries.
-
-W8 and W9-S1 extend but do not replace or weaken those contracts.
-
-## Production database and safe deletion
-
-Supabase production migration `20260827173141` (`safe_conversation_project_deletion`) remains active and additive/backward-compatible.
-
-Logical conversation/Project deletion remains production-deployed and infrastructure-verified. User-visible deletion is workspace deletion, not protected-evidence purge. Work Specifications, Engineering Runs, attempts/events, accepted source lineage and immutable engineering/provider evidence remain retained; deleting a Project does not delete linked GitHub repositories, pull requests or Vercel deployments.
-
-Remaining safe-deletion debt: final authenticated destructive-behavior smoke against a deliberately disposable production conversation/Project. Authentication will not be weakened and real user content will not be deleted merely to manufacture evidence.
-
-Workstream #290 remains open.
-
-W9-S1 adds no database migration.
-
-## Local-first model routing
-
-`P2-V0.19.8` local-first routing remains production-deployed and unchanged.
-
-Vercel production remains intentionally hosted-only. Hosted model escalation remains:
-
-1. `openai/gpt-5.6-luna`;
-2. `openai/gpt-5.6-terra`;
-3. `openai/gpt-5.6-sol`.
-
-Hosted-to-private inference remains a separate architecture/security/network/deployment workstream.
-
-## Rollback
-
-### Client
-
-Current QA-fallback production client:
-
-- source `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
-- deployment `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`.
-
-Immediate deployment-verified pre-QA fallback reference:
-
-- source `17b62ec2649224e2beeacd6c9b2ce23d01af8028`;
-- deployment `dpl_BAbUpv63PUFxmCHM6JDDkf2SsFNJ`.
-
-Earlier W8-S3 reference:
-
-- source `91be7cd9a7fa088f7cebd061d9f9147ac148282c`;
-- deployment `dpl_CZuVyJKDHQuznvFgpdaBEuKzWtJe`.
-
-### API
-
-Current W9-S1 production API:
-
-- source `ee6af25d09c495f2550f39a7d7f90f527dc7e447`;
-- deployment `dpl_9fWd2fZLsfXyexSC8hohvS9X5iDa`.
-
-Immediate deployment-verified rollback reference:
-
-- source `91be7cd9a7fa088f7cebd061d9f9147ac148282c`;
-- deployment `dpl_D2PAQhX7d2zzZbUZ8J4gAipzVu3M`.
-
-Earlier W8-S2 reference:
-
-- source `ee1b502269f7b4367576a02cdaab45c763eb6717`;
-- deployment `dpl_EkapMujhx4DUAAvLowKsYZ2zxR4p`.
-
-Rollback requires no W9-S1 schema rollback because S1 adds no database migration. Any rollback must preserve canonical Project, Work Specification, Engineering Run, accepted source lineage and protected evidence already written by production.
-
-## Program controls
-
-- GitHub plus the four authoritative project records outrank chat recollection;
-- parent integration/control #31 serializes cross-wave release truth;
-- Wave 7 Control #347 governs the retained productization/runtime baseline;
-- Wave 8 Control #374 governs human-centered UX/plain-language/guided execution and remains open only for W8-S2 authenticated replay;
-- Wave 9 Control #391 governs real-world app-builder validation;
-- W9-S1 #392 remains open only for the controlled authenticated Decision Ledger reference trial;
-- every semantic AI/runtime/evaluation change remains spec-first with stable acceptance IDs and authentic DSPy evidence;
-- benchmark fixtures and evaluator output are evidence, not lifecycle/provider/source authority;
-- source readiness and hosting readiness remain separate lifecycle concerns;
-- presentation may translate technical state into plain language but may not invent canonical state;
-- deployment, integration, repository-record and production identities remain separate facts;
-- no deployment-verification claim is valid without exact release identity and post-cutover evidence appropriate to the changed component.
-
-## Durable invariants
-
-- canonical Project, Work Specification, Engineering Run, repository/source identity and accepted lineage remain server-owned;
-- deterministic/protected validation outranks benchmark, model, agent, evaluator, routing, browser, observability or integrated-proof judgment;
-- immutable accepted lineage and single-writer canonical source mutation remain authoritative;
-- cross-Project privacy boundaries remain strict;
-- replay/idempotency and durable worker lease/checkpoint/recovery remain authoritative;
-- client reconnect/continuation may request existing bounded server authority but cannot redefine canonical run truth;
-- hosted production model transport remains server-owned and local-first remains rejected in Vercel production;
-- browser tools cannot create unrestricted JavaScript/network, credential or destructive-action authority;
-- absent economic evidence remains unknown, not zero;
-- incomplete event evidence cannot be presented as complete observation;
-- Preview remains the ordinary autonomous publication ceiling;
-- `REVIEW` / `HUMAN_REQUIRED` remains the autonomous authority ceiling;
-- logical workspace deletion cannot erase protected engineering/source/provider evidence;
-- plain language may simplify presentation but may not hide failures, consequences, uncertainty, security boundaries or required human approval;
-- source bootstrap may not require hosting/Preview readiness before the lifecycle actually needs publication;
-- dynamic hosting readiness must derive from canonical server-owned Project/provider identity and fail closed on ambiguity;
-- workflow guidance is presentation derived from canonical truth, not a client-owned lifecycle or new action authority;
-- real-world benchmark admission may bind canonical evidence but cannot create, repair or mutate that canonical evidence;
-- benchmark identity or expected outcome may not become a runtime/provider/source-delivery/client branch selector;
-- no deployment is recorded as deployment-verified without exact release identity and appropriate post-cutover evidence.
-
-## Next governed boundary
-
-For the user's instruction to continue through **W9-S1 only**, no further Wave 9 implementation slice is authorized here.
-
-The only remaining S1 completion action is the controlled real-world Decision Ledger trial after private QA password enrollment/authenticated sign-in. Once the user-controlled auth boundary is available, use the ordinary product workflow against an independent greenfield repository and record either the trustworthy reference result or the honest failed/HUMAN_REQUIRED product boundary. Do not implement a benchmark-discovered semantic product fix inside S1; record it for separate future governance.
-
-Independent open debts remain:
-
-1. W8-S2 authenticated OT Time replay;
-2. safe deletion #290 authenticated destructive smoke;
-3. hosted-to-private inference only if separately governed later;
-4. unrelated dependency/toolchain maintenance only as a bounded maintenance workstream.
-
-## Authoritative records
-
-- `PROJECT-CONSTITUTION.md` v1.5 — unchanged by W9-S1; existing authority, evidence and human-review rules already govern the benchmark boundary.
-- `ARCHITECTURE.md` v3.14 — updated by W9-S1 to record immutable real-world objective templates, deterministic canonical Project/approved Work Specification admission, existing `BenchmarkCase` compatibility, evaluation-only authority and the reference-observation boundary.
-- `DESIGN-SYSTEM.md` v3.2 — unchanged by W9-S1; S1 adds no user-facing design-system rule.
-- `CURRENT-STATE.md` — updated after exact-head S1 qualification, expected-head merge, exact API production deployment, successful production preflights, `/health` + `/ready` verification and clean exact-deployment error/fatal runtime scan. It explicitly records that the controlled authenticated Decision Ledger reference trial has not yet started and remains the sole W9-S1 completion boundary.
+`ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, and `PROJECT-CONSTITUTION.md` were not changed by this observation: the trial exposed an implementation/runtime capability gap but did not approve or deploy a durable architecture, design-system, or constitutional change.
