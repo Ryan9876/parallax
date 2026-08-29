@@ -34,7 +34,7 @@ echo "QA phase: session established"
 
 echo "QA phase: project selection"
 api "${API_BASE}/v1/projects" >/tmp/parallax-python-projects.json
-project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select(.repository_ref == $repo)][0].id // empty' /tmp/parallax-python-projects.json)"
+project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select((.repository_ref // "" | ascii_downcase) == ($repo | ascii_downcase))][0].id // empty' /tmp/parallax-python-projects.json)"
 if [ -z "${project_id}" ]; then
   echo "QA phase: project creation"
   jq -n \
