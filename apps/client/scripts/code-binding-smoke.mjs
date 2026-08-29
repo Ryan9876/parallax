@@ -314,7 +314,7 @@ try {
   await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
   await page.getByLabel('Approve build plan').click();
   await page.getByText('Plan approved').waitFor({ timeout: 5000 });
-  await page.getByText('Making the changes').waitFor({ timeout: 10000 });
+  await page.getByLabel('Progress: Making the changes').getByText('Making the changes', { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText('Following your approved plan').waitFor({ timeout: 5000 });
   await page.getByLabel('Continue work').waitFor({ timeout: 5000 });
 
@@ -330,7 +330,7 @@ try {
   const reduced = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await reduced.goto('http://127.0.0.1:8771', { waitUntil: 'networkidle' });
   await reduced.getByText(/Reduced graphics mode/).first().waitFor({ timeout: 10000 });
-  await reduced.getByText('Making the changes').waitFor({ timeout: 5000 });
+  await reduced.getByLabel('Progress: Making the changes').getByText('Making the changes', { exact: true }).waitFor({ timeout: 5000 });
   await reduced.getByText('Following your approved plan').waitFor({ timeout: 5000 });
   await reduced.getByLabel('Continue work').waitFor({ timeout: 5000 });
   assert(await reduced.locator('canvas').count() === 0, 'Reduced graphics Code binding should not require Skia canvases');
