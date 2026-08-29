@@ -30,7 +30,7 @@ def test_exact_repository_422_requires_explicit_provider_authorization() -> None
     def connect(request: httpx.Request) -> httpx.Response:
         requests.append(request)
         assert request.method == "POST"
-        assert request.url.path == "/v1/connect/token/github%2Fparallax-runtime"
+        assert request.url.path == "/v1/connect/token/github/parallax-runtime"
         assert request.headers["authorization"] == f"Bearer {OIDC}"
         payload = json.loads(request.content)
         assert payload == {
