@@ -26,6 +26,16 @@ function StaticMark({ size = 34 }: { size?: number }) {
   );
 }
 
+function modeLabel(mode: ConversationDto['mode']): string {
+  return mode === 'code' ? 'Build' : 'Ask';
+}
+
+function conversationStatus(status: ConversationDto['status']): string {
+  return status === 'SPEC_AMENDMENT'
+    ? 'Reduced graphics mode · request changed'
+    : 'Reduced graphics mode · ready';
+}
+
 export default function FallbackApp() {
   const { width } = useWindowDimensions();
   const compact = width < 760;
@@ -53,11 +63,9 @@ export default function FallbackApp() {
         setConversation(current);
         setMode(current.mode);
         setMessages(current.messages);
-        setStatus(current.status === 'SPEC_AMENDMENT'
-          ? 'Reduced graphics mode · specification amendment required'
-          : 'Reduced graphics mode · persistent context online');
+        setStatus(conversationStatus(current.status));
       } catch {
-        if (!cancelled) setStatus('Reduced graphics mode · API offline');
+        if (!cancelled) setStatus('Reduced graphics mode · unavailable');
       }
     })();
     return () => { cancelled = true; };
@@ -74,9 +82,9 @@ export default function FallbackApp() {
       setRecent((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setMessages([]);
       setMode(nextMode);
-      setStatus('Reduced graphics mode · persistent context online');
+      setStatus('Reduced graphics mode · ready');
     } catch {
-      setStatus('Reduced graphics mode · API offline');
+      setStatus('Reduced graphics mode · unavailable');
     }
   }
 
@@ -86,11 +94,9 @@ export default function FallbackApp() {
       setConversation(fresh);
       setMessages(fresh.messages);
       setMode(fresh.mode);
-      setStatus(fresh.status === 'SPEC_AMENDMENT'
-        ? 'Reduced graphics mode · specification amendment required'
-        : 'Reduced graphics mode · persistent context online');
+      setStatus(conversationStatus(fresh.status));
     } catch {
-      setStatus('Reduced graphics mode · API offline');
+      setStatus('Reduced graphics mode · unavailable');
     }
   }
 
@@ -112,7 +118,7 @@ export default function FallbackApp() {
       };
       setMessages((value) => [...value, user]);
       setDraft('');
-      setStatus('Thinking…');
+      setStatus('Working through your request…');
       const result = await api.streamResponse(current.id, content);
       const assistant: MessageDto = {
         id: result.messageId ?? `fallback-assistant-${Date.now()}`,
@@ -128,10 +134,10 @@ export default function FallbackApp() {
         setRecent((value) => [fresh, ...value.filter((item) => item.id !== fresh.id)]);
       }
       setStatus(result.phase === 'SPEC_AMENDMENT'
-        ? 'Reduced graphics mode · specification amendment required'
-        : 'Reduced graphics mode · complete');
-    } catch (error) {
-      setStatus(`Reduced graphics mode · ${error instanceof Error ? error.message : 'response failed'}`);
+        ? 'Reduced graphics mode · request changed'
+        : 'Reduced graphics mode · ready');
+    } catch {
+      setStatus('Reduced graphics mode · something went wrong');
     }
   }
 
@@ -142,17 +148,17 @@ export default function FallbackApp() {
           <View style={styles.rail}>
             <View style={styles.brandRow}>
               <StaticMark size={38} />
-              <View><Text style={styles.brand}>Parallax</Text><Text style={styles.brandSub}>2.0</Text></View>
+              <View><Text style={styles.brand}>Parallax</Text><Text style={styles.brandSub}>Reduced graphics</Text></View>
             </View>
             <View style={styles.railHeading}>
               <Text style={styles.railLabel}>Recent</Text>
-              <TouchableOpacity onPress={() => void newConversation()}><Text style={styles.newChat}>＋ New</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="New conversation" onPress={() => void newConversation()} style={styles.newChatButton}><Text style={styles.newChat}>＋ New</Text></TouchableOpacity>
             </View>
             <ScrollView>
               {recent.slice(0, 12).map((item) => (
-                <TouchableOpacity key={item.id} onPress={() => void openConversation(item)} style={item.id === conversation?.id ? styles.railItemActive : styles.railItem}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Open ${item.title}`} key={item.id} onPress={() => void openConversation(item)} style={item.id === conversation?.id ? styles.railItemActive : styles.railItem}>
                   <Text numberOfLines={2} style={styles.railItemText}>{item.title}</Text>
-                  <Text style={styles.railMuted}>{item.mode}</Text>
+                  <Text style={styles.railMuted}>{modeLabel(item.mode)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -165,12 +171,15 @@ export default function FallbackApp() {
               {compact && <StaticMark size={32} />}
               <View><Text style={styles.title}>Parallax</Text><Text style={styles.status}>{status}</Text></View>
             </View>
-            <View style={styles.modeSwitch}>
-              {(['reason', 'code'] as const).map((item) => (
-                <TouchableOpacity key={item} onPress={() => void newConversation(item)} style={[styles.modeButton, mode === item && styles.modeActive]}>
-                  <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item}</Text>
-                </TouchableOpacity>
-              ))}
+            <View accessibilityLabel="Choose what you want to do" style={styles.modeSwitch}>
+              {(['reason', 'code'] as const).map((item) => {
+                const label = modeLabel(item);
+                return (
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: mode === item }} key={item} onPress={() => void newConversation(item)} style={[styles.modeButton, mode === item && styles.modeActive]}>
+                    <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -197,15 +206,15 @@ export default function FallbackApp() {
             {messages.length === 0 && (
               <View style={styles.empty}>
                 <StaticMark size={44} />
-                <Text style={styles.emptyTitle}>Graphics reduced. Conversation preserved.</Text>
-                <Text style={styles.emptyCopy}>Parallax can continue without Skia. Messages remain normal selectable text and durable server-side context remains available.</Text>
+                <Text style={styles.emptyTitle}>A simpler display is active.</Text>
+                <Text style={styles.emptyCopy}>Parallax can keep working with fewer visual effects. Your conversation and saved work remain available.</Text>
               </View>
             )}
             {messages.map((message) => message.role === 'user' ? (
               <View key={message.id} style={styles.userBubble}><Text selectable style={styles.userText}>{message.content}</Text></View>
             ) : message.role === 'assistant' ? (
               <View key={message.id} style={styles.assistantBlock}>
-                <View style={styles.assistantHead}><StaticMark size={28} /><Text style={styles.assistantName}>Parallax 2.0</Text></View>
+                <View style={styles.assistantHead}><StaticMark size={28} /><Text style={styles.assistantName}>Parallax</Text></View>
                 <Text selectable accessibilityLiveRegion="polite" style={styles.assistantText}>{message.content}</Text>
               </View>
             ) : null)}
@@ -223,7 +232,7 @@ export default function FallbackApp() {
                 multiline
                 onSubmitEditing={() => void submit()}
               />
-              <TouchableOpacity accessibilityLabel="Send message" onPress={() => void submit()} style={styles.send}><Text style={styles.sendText}>↑</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void submit()} style={styles.send}><Text style={styles.sendText}>↑</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -239,41 +248,42 @@ const styles = StyleSheet.create({
   markPlaneA: { position: 'absolute', borderWidth: 1.4, borderColor: palette.teal600, transform: [{ rotate: '-28deg' }] },
   markPlaneB: { position: 'absolute', borderWidth: 1.2, borderColor: palette.olive500, transform: [{ rotate: '28deg' }] },
   markCenter: { backgroundColor: palette.rust600 },
-  rail: { width: 220, padding: 18, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: palette.border, backgroundColor: palette.forest950 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 30 },
-  brand: { fontSize: 15, fontWeight: '700', color: palette.ivory50 },
-  brandSub: { fontSize: 11, color: palette.olive200 },
-  railHeading: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  railLabel: { fontSize: 10, color: palette.muted, letterSpacing: 1.2, textTransform: 'uppercase' },
-  newChat: { fontSize: 10, color: palette.teal500, fontWeight: '700' },
-  railItem: { padding: 10, marginBottom: 3 },
-  railItemActive: { padding: 10, marginBottom: 3, borderRadius: 12, backgroundColor: 'rgba(196,74,27,0.22)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
-  railItemText: { color: palette.cream100, fontSize: 12 },
-  railMuted: { color: palette.muted, fontSize: 10, textTransform: 'capitalize', marginTop: 3 },
+  rail: { width: 230, padding: 18, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: palette.border, backgroundColor: palette.forest950 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 26 },
+  brand: { fontSize: 18, lineHeight: 22, fontWeight: '700', color: palette.ivory50 },
+  brandSub: { fontSize: 12, lineHeight: 16, color: palette.olive200, marginTop: 2 },
+  railHeading: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  railLabel: { fontSize: 12, lineHeight: 16, color: palette.muted, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: '800' },
+  newChatButton: { minHeight: 44, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  newChat: { fontSize: 13, lineHeight: 18, color: palette.teal500, fontWeight: '700' },
+  railItem: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 3 },
+  railItemActive: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 3, borderRadius: 12, backgroundColor: 'rgba(196,74,27,0.22)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  railItemText: { color: palette.cream100, fontSize: 14, lineHeight: 19 },
+  railMuted: { color: palette.muted, fontSize: 12, lineHeight: 16, marginTop: 3 },
   main: { flex: 1, minWidth: 0, minHeight: 0, backgroundColor: palette.ivory50 },
-  topbar: { minHeight: 64, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, backgroundColor: 'rgba(251,247,238,0.92)' },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  title: { color: palette.text, fontSize: 16, fontWeight: '600' },
-  status: { color: palette.textSecondary, fontSize: 10, marginTop: 2 },
-  modeSwitch: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: palette.glassSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  modeButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 },
+  topbar: { minHeight: 72, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, backgroundColor: 'rgba(251,247,238,0.92)' },
+  identity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  title: { color: palette.text, fontSize: 18, lineHeight: 22, fontWeight: '600' },
+  status: { color: palette.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  modeSwitch: { minHeight: 48, flexDirection: 'row', padding: 2, borderRadius: 14, backgroundColor: palette.glassSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  modeButton: { minHeight: 44, minWidth: 60, paddingHorizontal: 11, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modeActive: { backgroundColor: palette.rust600 },
-  modeText: { fontSize: 10, color: palette.textSecondary, textTransform: 'uppercase' },
+  modeText: { fontSize: 14, lineHeight: 18, color: palette.textSecondary, fontWeight: '800' },
   modeTextActive: { color: palette.ivory50 },
   threadScroll: { flex: 1, minHeight: 0 },
   thread: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 42, paddingBottom: 28 },
   empty: { maxWidth: 560, alignSelf: 'center', alignItems: 'center', paddingTop: 90 },
-  emptyTitle: { color: palette.text, fontSize: 20, fontWeight: '600', marginTop: 14, textAlign: 'center' },
-  emptyCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 21, marginTop: 8, textAlign: 'center' },
+  emptyTitle: { color: palette.text, fontSize: 22, lineHeight: 28, fontWeight: '600', marginTop: 14, textAlign: 'center' },
+  emptyCopy: { color: palette.textSecondary, fontSize: 16, lineHeight: 24, marginTop: 8, textAlign: 'center' },
   userBubble: { alignSelf: 'flex-end', maxWidth: 560, padding: 16, marginBottom: 30, borderRadius: 20, borderBottomRightRadius: 6, backgroundColor: palette.teal100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  userText: { color: palette.text, fontSize: 15, lineHeight: 23 },
+  userText: { color: palette.text, fontSize: 16, lineHeight: 24 },
   assistantBlock: { maxWidth: 700, padding: 20, marginBottom: 30, borderRadius: 22, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  assistantName: { color: palette.olive700, fontSize: 12, fontWeight: '700' },
+  assistantName: { color: palette.olive700, fontSize: 14, lineHeight: 18, fontWeight: '700' },
   assistantText: { color: palette.text, fontSize: 17, lineHeight: 27 },
   composerWrap: { flexShrink: 0, padding: 16 },
   composer: { maxWidth: 740, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.glassStrong },
   input: { flex: 1, minHeight: 44, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: palette.charcoal950, fontSize: 16 },
-  send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal600 },
+  send: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.teal600 },
   sendText: { color: palette.ivory50, fontSize: 19 },
 });

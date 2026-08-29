@@ -138,7 +138,8 @@ def test_response_api_emits_amendment_handoff_without_substantive_chunks(monkeyp
     assert "event: chunk" not in response.text
     assert service.conversation.status == "SPEC_AMENDMENT"
     assert service.conversation.messages[-1].role == "assistant"
-    assert "approved specification amendment is required" in service.conversation.messages[-1].content
+    assert "different from the plan you approved" in service.conversation.messages[-1].content
+    assert "specification" not in service.conversation.messages[-1].content.lower()
 
 
 def test_response_api_streams_continue_answer_and_reason_metadata(monkeypatch):
@@ -176,7 +177,8 @@ def test_fresh_code_objective_is_captured_without_scope_or_reason_inference(monk
     assert response.status_code == 200
     assert "event: error" not in response.text
     assert "event: chunk" in response.text
-    assert "Objective captured. Capture the Work Specification" in response.text
+    assert "Next, create a build plan" in response.text
+    assert "Work Specification" not in response.text
     assert '"scope_decision": null' in response.text
     assert [message.role for message in service.conversation.messages] == ["user", "assistant"]
     assert service.conversation.messages[0].content == "Add an about page"

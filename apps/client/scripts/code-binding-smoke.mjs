@@ -16,7 +16,7 @@ const mime = {
 const PROJECT_ID = '77777777-7777-4777-8777-777777777777';
 const OTHER_PROJECT_ID = '88888888-8888-4888-8888-888888888888';
 const AMENDMENT_OBJECTIVE = 'Replace the approved objective entirely.';
-const AMENDMENT_MESSAGE = 'This request materially changes the approved objective. An approved specification amendment is required before I continue against the new objective.';
+const AMENDMENT_MESSAGE = 'Your request is different from the plan you approved. Parallax stopped before changing that approved work. Continue the approved work, or start a new goal for the new request.';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -270,7 +270,7 @@ function apiServer() {
         return;
       }
 
-      const assistant = { id: `assistant-${conversation.messages.length}`, role: 'assistant', content: 'Your Code objective is captured and ready for a build plan.', status: 'complete', created_at: now };
+      const assistant = { id: `assistant-${conversation.messages.length}`, role: 'assistant', content: 'Your build goal is captured and ready for a build plan.', status: 'complete', created_at: now };
       conversation = { ...conversation, title: user.content.slice(0, 72), messages: [...conversation.messages, user, assistant], updated_at: now };
       cors(response, origin);
       response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
@@ -304,12 +304,12 @@ try {
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
-  await page.getByText('code', { exact: true }).click();
-  await page.getByText('Choose a Project for Code').waitFor({ timeout: 5000 });
-  await page.getByLabel('Select Project Code Binding Project').click();
-  await page.getByLabel('Message Parallax').fill('Implement the approved Code objective.');
+  await page.getByLabel('Build').click();
+  await page.getByText('Choose a project for Build').waitFor({ timeout: 5000 });
+  await page.getByLabel('Select project Code Binding Project').click();
+  await page.getByLabel('Message Parallax').fill('Implement the approved build goal.');
   await page.getByLabel('Send message').click();
-  await page.getByText(/Your Code objective is captured/).first().waitFor({ timeout: 10000 });
+  await page.getByText(/Your build goal is captured/).first().waitFor({ timeout: 10000 });
   await page.getByLabel('Create build plan').click();
   await page.getByText('Ready for your review').waitFor({ timeout: 5000 });
   await page.getByLabel('Approve build plan').click();
@@ -339,9 +339,9 @@ try {
   const priorConversationId = apiInstance.snapshot().conversation?.id;
   await page.getByLabel('Message Parallax').fill(AMENDMENT_OBJECTIVE);
   await page.getByLabel('Send message').click();
-  await page.getByText('Specification amendment required').waitFor({ timeout: 10000 });
-  await page.getByLabel('Start new objective').waitFor({ timeout: 5000 });
-  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this objective…', 'desktop amendment composer guidance changed unexpectedly');
+  await page.getByText('Your request changed').waitFor({ timeout: 10000 });
+  await page.getByLabel('Start a new goal').waitFor({ timeout: 5000 });
+  assert(await page.getByLabel('Message Parallax').getAttribute('placeholder') === 'Continue this goal…', 'desktop amendment composer guidance changed unexpectedly');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('mobile-guided-shell').waitFor({ state: 'visible', timeout: 5000 });

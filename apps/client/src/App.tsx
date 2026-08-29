@@ -47,7 +47,7 @@ const FALLBACK_MESSAGES: MessageDto[] = [
   {
     id: 'fallback-assistant',
     role: 'assistant',
-    content: 'Parallax keeps the conversation, approved specification, engineering evidence, and protected execution path aligned while you build.',
+    content: 'Parallax keeps your request, approved plan, saved work, and review steps aligned while you build.',
     status: 'complete',
     created_at: new Date(0).toISOString(),
   },
@@ -220,7 +220,7 @@ export default function App() {
   const unlock = React.useCallback(async () => {
     const candidate = accessDraft.trim();
     if (!candidate) {
-      setAccessError('Enter the private production access credential.');
+      setAccessError('Enter your private access key.');
       return;
     }
     setAccessBusy(true);
@@ -232,10 +232,10 @@ export default function App() {
       setAccessEnforced(true);
       await loadWorkspace();
     } catch (error) {
-      if (error instanceof AuthenticationRequiredError) lockAccess('That access credential was not accepted.');
+      if (error instanceof AuthenticationRequiredError) lockAccess('That access key was not accepted.');
       else {
         setApiOnline(false);
-        setAccessError('Parallax could not establish a private session. Try again.');
+        setAccessError('Parallax couldn’t start your private session. Try again.');
       }
     } finally {
       setAccessBusy(false);
@@ -380,7 +380,7 @@ export default function App() {
         lockAccess('Your private session expired. Unlock Parallax to continue.');
         return;
       }
-      dispatch({ type: 'FAIL', error: error instanceof Error ? error.message : 'Response failed' });
+      dispatch({ type: 'FAIL', error: 'Parallax couldn’t finish that response. Your conversation is saved. Try again.' });
     }
   }, [applyConversation, conversationId, draft, lockAccess, mode, scrollToLiveEdge, state.phase, updateConversationSummary]);
 
@@ -422,7 +422,7 @@ export default function App() {
       if (error instanceof AuthenticationRequiredError) {
         lockAccess('Your private session expired. Unlock Parallax to continue.');
       } else {
-        setMobileActionError(error instanceof Error ? error.message : 'The approved build could not be resumed.');
+        setMobileActionError('Parallax couldn’t continue the approved work. Try again.');
       }
     } finally {
       setMobileActionBusy(false);
@@ -435,7 +435,7 @@ export default function App() {
         <View style={styles.accessPanel}>
           <ParallaxLogo size={56} />
           <Text style={styles.accessTitle}>Parallax</Text>
-          <Text style={styles.accessCopy}>Restoring private session…</Text>
+          <Text style={styles.accessCopy}>Restoring your private session…</Text>
         </View>
       </View>
     );
@@ -447,20 +447,20 @@ export default function App() {
         <View style={styles.accessPanel}>
           <ParallaxLogo size={58} />
           <Text style={styles.accessTitle}>Parallax</Text>
-          <Text style={styles.accessCopy}>Private production access</Text>
+          <Text style={styles.accessCopy}>Private access</Text>
           <TextInput
-            accessibilityLabel="Private access credential"
+            accessibilityLabel="Private access key"
             secureTextEntry
             value={accessDraft}
             onChangeText={setAccessDraft}
             onSubmitEditing={() => void unlock()}
-            placeholder="Access credential"
+            placeholder="Access key"
             placeholderTextColor={palette.muted}
             style={styles.accessInput}
           />
           {accessError ? <Text style={styles.errorText}>{accessError}</Text> : null}
           <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: accessBusy }} disabled={accessBusy} onPress={() => void unlock()} style={styles.accessButton}>
-            <Text style={styles.accessButtonText}>{accessBusy ? 'Verifying…' : 'Continue'}</Text>
+            <Text style={styles.accessButtonText}>{accessBusy ? 'Checking…' : 'Continue'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -556,7 +556,7 @@ export default function App() {
                       <View style={[styles.emptyState, styles.emptyStateCompact]}>
                         <View style={styles.emptyLogoWell}><ParallaxLogo size={58} /></View>
                         <Text style={[styles.emptyTitle, styles.emptyTitleCompact]}>Start with the outcome.</Text>
-                        <Text style={styles.emptyCopy}>Describe what you want to accomplish. Parallax will keep the conversation and protected build flow aligned.</Text>
+                        <Text style={styles.emptyCopy}>Describe what you want to accomplish. Parallax keeps your request, plan, saved work, and review steps aligned as you build.</Text>
                       </View>
                     ) : messages.map((message) => message.role === 'user' ? (
                       <View key={message.id} style={styles.userBlock}>
@@ -569,7 +569,7 @@ export default function App() {
                           <ParallaxLogo size={34} />
                           <View>
                             <Text style={styles.assistantName}>Parallax</Text>
-                            <Text style={styles.meta}>{mode === 'reason' ? 'ASK' : 'BUILD'} · {message.id === activePrintId ? 'LIVE' : 'COMPLETE'}</Text>
+                            <Text style={styles.meta}>{mode === 'reason' ? 'ASK' : 'BUILD'} · {message.id === activePrintId ? 'RESPONDING' : 'READY'}</Text>
                           </View>
                         </View>
                         <View accessibilityLabel="Parallax response" testID="assistant-response" style={[styles.responseCard, styles.responseCardCompact]}>
@@ -579,15 +579,15 @@ export default function App() {
                             <Text selectable accessibilityLiveRegion="polite" style={[styles.assistantText, styles.assistantTextCompact]}>{message.content}</Text>
                           )}
                           {message.id === activePrintId ? (
-                            <View style={styles.statusRow}><View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} /><Text style={styles.statusText}>{streamFinished ? 'Settling response' : 'Live response'}</Text></View>
+                            <View style={styles.statusRow}><View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} /><Text style={styles.statusText}>{streamFinished ? 'Finishing response' : 'Responding'}</Text></View>
                           ) : null}
                         </View>
                       </View>
                     ) : null)}
 
-                    {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Resolving the active objective…</Text></View> : null}
-                    {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Verifying response…</Text> : null}
-                    {state.phase === 'ERROR' ? <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text> : null}
+                    {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Working through your request…</Text></View> : null}
+                    {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Checking the response…</Text> : null}
+                    {state.phase === 'ERROR' ? <Text style={styles.errorText}>Parallax couldn’t finish that response. Your conversation is saved. Try again.</Text> : null}
                   </ScrollView>
 
                   <View style={[styles.composerWrap, styles.composerWrapCompact]}>
@@ -596,7 +596,7 @@ export default function App() {
                         accessibilityLabel="Message Parallax"
                         value={draft}
                         onChangeText={setDraft}
-                        placeholder={mobileCanDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
+                        placeholder={mobileCanDraftWorkSpecification ? 'Continue this goal…' : 'Describe the outcome you want…'}
                         placeholderTextColor={palette.muted}
                         style={styles.input}
                         onSubmitEditing={() => void respond()}
@@ -650,11 +650,11 @@ export default function App() {
   const headerEyebrow = workspaceView === 'projects'
     ? 'Project workspace'
     : mode === 'code'
-      ? 'Engineering workspace'
-      : 'Reasoning workspace';
+      ? 'Build workspace'
+      : 'Ask workspace';
   const headerTitle = workspaceView === 'projects' ? 'Projects' : 'What shall we build today?';
   const headerSubtitle = workspaceView === 'projects'
-    ? 'Keep canonical Project identity visible without turning shell navigation into a provider console.'
+    ? 'Keep the project you’re working on clear as you move between conversations and builds.'
     : activeConversation?.title ?? 'Start with the outcome you want to create.';
 
   return (
@@ -728,7 +728,7 @@ export default function App() {
                     <View style={styles.emptyState}>
                       <View style={styles.emptyLogoWell}><ParallaxLogo size={62} /></View>
                       <Text style={styles.emptyTitle}>Start with the outcome.</Text>
-                      <Text style={styles.emptyCopy}>Describe what you want to accomplish. Parallax keeps the conversation, specification, evidence, and protected execution path aligned while the work evolves.</Text>
+                      <Text style={styles.emptyCopy}>Describe what you want to accomplish. Parallax keeps your request, plan, saved work, and review steps aligned as you build.</Text>
                       <View style={styles.orientationRow}>
                         {['Plan', 'Design', 'Build', 'Ship'].map((label) => <View key={label} style={styles.orientationChip}><Text style={styles.orientationText}>{label}</Text></View>)}
                       </View>
@@ -742,7 +742,7 @@ export default function App() {
                     <View key={message.id} style={styles.assistantBlock}>
                       <View style={styles.assistantHead}>
                         <ParallaxLogo size={36} />
-                        <View><Text style={styles.assistantName}>Parallax</Text><Text style={styles.meta}>{mode === 'reason' ? 'REASON' : 'CODE'} · {message.id === activePrintId ? 'LIVE' : 'COMPLETE'}</Text></View>
+                        <View><Text style={styles.assistantName}>Parallax</Text><Text style={styles.meta}>{mode === 'reason' ? 'ASK' : 'BUILD'} · {message.id === activePrintId ? 'RESPONDING' : 'READY'}</Text></View>
                       </View>
                       <View accessibilityLabel="Parallax response" testID="assistant-response" style={styles.responseCard}>
                         {message.id === activePrintId ? (
@@ -751,29 +751,46 @@ export default function App() {
                           <Text selectable accessibilityLiveRegion="polite" style={styles.assistantText}>{message.content}</Text>
                         )}
                         {message.id === activePrintId ? (
-                          <View style={styles.statusRow}><View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} /><Text style={styles.statusText}>{streamFinished ? 'Settling response' : 'Live response'}</Text></View>
+                          <View style={styles.statusRow}><View style={[styles.statusDot, motion.laserActive && styles.statusDotActive]} /><Text style={styles.statusText}>{streamFinished ? 'Finishing response' : 'Responding'}</Text></View>
                         ) : null}
                       </View>
                     </View>
                   ) : null)}
 
-                  {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Resolving the active objective…</Text></View> : null}
-                  {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Verifying response…</Text> : null}
+                  {state.phase === 'THINKING' ? <View style={styles.thinkingRow}><ParallaxLogo size={28} /><Text style={styles.thinkingText}>Working through your request…</Text></View> : null}
+                  {state.phase === 'VERIFYING' ? <Text style={styles.phaseHint}>Checking the response…</Text> : null}
                   {state.phase === 'SPEC_AMENDMENT' ? (
                     <View style={styles.amendmentNotice} accessibilityLiveRegion="polite">
-                      <Text style={styles.amendmentTitle}>Specification amendment required</Text>
-                      <Text style={styles.amendmentText}>The conversation is preserved. Parallax has stopped substantive work against the prior approved objective. Continue only within that approved objective, or start a new objective for materially different work.</Text>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel="Start new objective"
-                        onPress={() => void startConversation(mode)}
-                        style={styles.amendmentAction}
-                      >
-                        <Text style={styles.amendmentActionText}>Start new objective</Text>
-                      </TouchableOpacity>
+                      <Text style={styles.amendmentTitle}>Your request changed</Text>
+                      <Text style={styles.amendmentText}>Your conversation is saved. This request goes beyond the plan you approved. Continue the approved work, or start a new goal for the new work.</Text>
+                      <View style={styles.amendmentActions}>
+                        {workSpecification.approvedSpecification ? (
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel="Continue approved work"
+                            accessibilityState={{ disabled: mobileActionBusy }}
+                            disabled={mobileActionBusy}
+                            onPress={() => void resumeApprovedScope()}
+                            style={styles.amendmentAction}
+                          >
+                            <Text style={styles.amendmentActionText}>{mobileActionBusy ? 'Continuing…' : 'Continue approved work'}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Start a new goal"
+                          accessibilityState={{ disabled: mobileActionBusy }}
+                          disabled={mobileActionBusy}
+                          onPress={() => void startConversation(mode)}
+                          style={[styles.amendmentAction, workSpecification.approvedSpecification ? styles.amendmentSecondaryAction : null]}
+                        >
+                          <Text style={[styles.amendmentActionText, workSpecification.approvedSpecification ? styles.amendmentSecondaryActionText : null]}>Start a new goal</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {mobileActionError ? <Text style={styles.mobileActionError}>{mobileActionError}</Text> : null}
                     </View>
                   ) : null}
-                  {state.phase === 'ERROR' ? <Text style={styles.errorText}>{state.error ?? 'Response failed. Your conversation is preserved.'}</Text> : null}
+                  {state.phase === 'ERROR' ? <Text style={styles.errorText}>Parallax couldn’t finish that response. Your conversation is saved. Try again.</Text> : null}
                 </ScrollView>
 
                 <View style={styles.composerWrap}>
@@ -782,7 +799,7 @@ export default function App() {
                       accessibilityLabel="Message Parallax"
                       value={draft}
                       onChangeText={setDraft}
-                      placeholder={canDraftWorkSpecification ? 'Continue this objective…' : 'Describe the outcome you want…'}
+                      placeholder={canDraftWorkSpecification ? 'Continue this goal…' : 'Describe the outcome you want…'}
                       placeholderTextColor={palette.muted}
                       style={styles.input}
                       onSubmitEditing={() => void respond()}
@@ -829,10 +846,10 @@ const styles = StyleSheet.create({
   accessRoot: { flex: 1, backgroundColor: palette.ivory50, alignItems: 'center', justifyContent: 'center', padding: 24 },
   accessPanel: { width: '100%', maxWidth: 390, alignItems: 'center', borderRadius: 24, padding: 30, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#564B38', shadowOpacity: 0.08, shadowRadius: 26, shadowOffset: { width: 0, height: 12 } },
   accessTitle: { color: palette.charcoal950, fontSize: 30, fontWeight: '600', marginTop: 14, letterSpacing: -0.9, fontFamily: serif },
-  accessCopy: { color: palette.charcoal600, fontSize: 12, marginTop: 5, marginBottom: 22 },
+  accessCopy: { color: palette.charcoal600, fontSize: 14, lineHeight: 20, marginTop: 5, marginBottom: 22 },
   accessInput: { width: '100%', minHeight: 48, borderRadius: 14, paddingHorizontal: 14, color: palette.charcoal950, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, fontSize: 16 },
-  accessButton: { width: '100%', minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600, marginTop: 8 },
-  accessButtonText: { color: palette.ivory50, fontSize: 12, fontWeight: '700' },
+  accessButton: { width: '100%', minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust600, marginTop: 8 },
+  accessButtonText: { color: palette.ivory50, fontSize: 14, fontWeight: '700' },
   root: { flex: 1, backgroundColor: palette.ivory50 },
   safe: { flex: 1 },
   shell: { flex: 1, flexDirection: 'row' },
@@ -848,17 +865,17 @@ const styles = StyleSheet.create({
   emptyLogoWell: { width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#5B4C36', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 7 } },
   emptyTitle: { color: palette.charcoal950, fontSize: 31, lineHeight: 36, fontWeight: '500', marginTop: 18, letterSpacing: -0.9, fontFamily: serif },
   emptyTitleCompact: { fontSize: 26, lineHeight: 31 },
-  emptyCopy: { color: palette.charcoal600, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 10 },
+  emptyCopy: { color: palette.charcoal600, fontSize: 16, lineHeight: 24, textAlign: 'center', marginTop: 10 },
   orientationRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 20 },
-  orientationChip: { minHeight: 34, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 14, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  orientationText: { color: palette.olive700, fontSize: 10, fontWeight: '700' },
+  orientationChip: { minHeight: 36, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 14, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  orientationText: { color: palette.olive700, fontSize: 12, fontWeight: '700' },
   userBlock: { alignItems: 'flex-end', marginBottom: 30 },
-  meta: { fontSize: 8, lineHeight: 11, color: palette.charcoal450, marginBottom: 7, letterSpacing: 0.75, fontWeight: '700' },
+  meta: { fontSize: 12, lineHeight: 16, color: palette.charcoal450, marginBottom: 7, letterSpacing: 0.55, fontWeight: '700' },
   userBubble: { maxWidth: 590, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 14, backgroundColor: palette.teal100, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,132,135,0.16)' },
-  userText: { fontSize: 15, lineHeight: 23, color: palette.charcoal950 },
+  userText: { fontSize: 16, lineHeight: 24, color: palette.charcoal950 },
   assistantBlock: { width: '100%', maxWidth: 800, alignSelf: 'flex-start', marginBottom: 36 },
   assistantHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 11, paddingLeft: 2 },
-  assistantName: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: palette.charcoal950, fontFamily: serif },
+  assistantName: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: palette.charcoal950, fontFamily: serif },
   responseCard: { borderRadius: 22, paddingTop: 20, paddingBottom: 21, paddingHorizontal: 22, backgroundColor: 'rgba(245,238,223,0.90)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#5A4D38', shadowOpacity: 0.06, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
   responseCardCompact: { borderRadius: 19, paddingTop: 16, paddingBottom: 17, paddingHorizontal: 16 },
   assistantText: { color: palette.charcoal950, fontSize: 17, lineHeight: 28, letterSpacing: -0.12 },
@@ -866,17 +883,20 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.cream200 },
   statusDotActive: { backgroundColor: palette.teal600 },
-  statusText: { fontSize: 9, color: palette.teal700, letterSpacing: 0.45, fontWeight: '700' },
+  statusText: { fontSize: 12, lineHeight: 16, color: palette.teal700, letterSpacing: 0.25, fontWeight: '700' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: -4, marginBottom: 28 },
-  thinkingText: { color: palette.charcoal600, fontSize: 11 },
-  phaseHint: { color: palette.charcoal600, fontSize: 10, marginBottom: 24 },
-  amendmentNotice: { borderRadius: 18, backgroundColor: palette.rust100, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,59,23,0.16)' },
-  amendmentTitle: { color: palette.charcoal950, fontSize: 11, fontWeight: '800', marginBottom: 5 },
-  amendmentText: { color: palette.charcoal600, fontSize: 11, lineHeight: 17 },
-  amendmentAction: { alignSelf: 'flex-start', minHeight: 40, marginTop: 12, paddingHorizontal: 14, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust700 },
-  amendmentActionText: { color: palette.ivory50, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
-  errorText: { color: palette.danger, fontSize: 11, lineHeight: 17, marginBottom: 24 },
-  mobileActionError: { color: palette.danger, fontSize: 10, lineHeight: 15, marginBottom: 18, paddingHorizontal: 2 },
+  thinkingText: { color: palette.charcoal600, fontSize: 15, lineHeight: 21 },
+  phaseHint: { color: palette.charcoal600, fontSize: 14, lineHeight: 20, marginBottom: 24 },
+  amendmentNotice: { borderRadius: 18, backgroundColor: palette.rust100, paddingHorizontal: 16, paddingVertical: 15, marginBottom: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,59,23,0.16)' },
+  amendmentTitle: { color: palette.charcoal950, fontSize: 17, lineHeight: 22, fontWeight: '800', marginBottom: 6 },
+  amendmentText: { color: palette.charcoal600, fontSize: 15, lineHeight: 22 },
+  amendmentActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  amendmentAction: { minHeight: 44, paddingHorizontal: 15, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.rust700 },
+  amendmentActionText: { color: palette.ivory50, fontSize: 14, fontWeight: '800' },
+  amendmentSecondaryAction: { backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  amendmentSecondaryActionText: { color: palette.charcoal950 },
+  errorText: { color: palette.danger, fontSize: 14, lineHeight: 21, marginBottom: 24 },
+  mobileActionError: { color: palette.danger, fontSize: 14, lineHeight: 21, marginTop: 10, paddingHorizontal: 2 },
   composerWrap: { flexShrink: 0, paddingHorizontal: 22, paddingBottom: 18, paddingTop: 8, backgroundColor: 'rgba(251,247,238,0.88)' },
   composerWrapCompact: { paddingHorizontal: 10, paddingBottom: 8, paddingTop: 6, backgroundColor: 'rgba(251,247,238,0.98)' },
   composer: { maxWidth: 880, width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 8, borderRadius: 22, backgroundColor: '#FFFDF8', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, shadowColor: '#564B38', shadowOpacity: 0.09, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } },

@@ -87,9 +87,10 @@ def test_capacity_exhaustion_emits_truthful_recoverable_sse_and_keeps_saved_turn
     assert response.status_code == 200
     assert '"error": "MODEL_CAPACITY_RATE_LIMITED"' in response.text
     assert '"recoverable": true' in response.text
-    assert "Model capacity is temporarily unavailable." in response.text
+    assert "Parallax is busy right now." in response.text
     assert "Your message is saved" in response.text
-    assert "instead of sending it again" in response.text
+    assert "do not need to send it again" in response.text
+    assert "model capacity" not in response.text.lower()
     assert "protected scope" not in response.text.lower()
     assert "retry or refine" not in response.text.lower()
     assert "event: chunk" not in response.text
@@ -109,8 +110,9 @@ def test_generic_provider_exhaustion_does_not_claim_rate_limiting(monkeypatch):
 
     assert response.status_code == 200
     assert '"error": "MODEL_PROVIDER_UNAVAILABLE"' in response.text
-    assert "model provider is temporarily unavailable" in response.text.lower()
+    assert "parallax is temporarily unavailable" in response.text.lower()
     assert "your message is saved" in response.text.lower()
+    assert "model provider" not in response.text.lower()
     assert "rate limit" not in response.text.lower()
     assert "quota" not in response.text.lower()
     assert service.conversation.status == "ACTIVE"

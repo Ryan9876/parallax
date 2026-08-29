@@ -85,7 +85,7 @@ function plainRunError(error?: string | null): string | null {
 
 function boundaryMessage(run: EngineeringRunDto, stopReason?: string | null): string | null {
   const reported: Record<string, string> = {
-    EXECUTOR_UNAVAILABLE: 'Parallax can’t continue right now because the protected build environment is unavailable. Nothing was changed.',
+    EXECUTOR_UNAVAILABLE: 'Parallax can’t continue right now because the build environment is unavailable. Nothing was changed.',
     IMPLEMENTATION_REQUIRED: 'The plan is ready and the next step is to make the changes.',
     IMPLEMENTATION_FAILED: 'Parallax could not finish making the changes. Review what happened before continuing.',
     REVIEW_REQUIRED: 'The result is ready for your review.',
@@ -168,7 +168,7 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
       </View>
       <Text style={styles.title}>{friendlyState(run)}</Text>
       <Text style={[styles.planStatus, !bound && styles.planStatusWarning]}>
-        {bound ? 'Following your approved plan' : 'Older run · view only'}
+        {bound ? 'Following your approved plan' : 'Older work · view only'}
       </Text>
 
       <View style={styles.progressTrack} accessibilityLabel={`Current step: ${currentStep.label}`}>
@@ -194,10 +194,10 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
         })}
       </View>
 
-      <Text style={styles.currentDescription}>{complete ? 'Parallax finished the build flow and the result is ready.' : currentStep.description}</Text>
+      <Text style={styles.currentDescription}>{complete ? 'Parallax finished the work and the result is ready.' : currentStep.description}</Text>
       {boundary ? <Text style={styles.boundary} accessibilityLiveRegion="polite">{boundary}</Text> : null}
       {requestError ? <Text style={styles.requestError} accessibilityLiveRegion="polite">{requestError}</Text> : null}
-      {!bound ? <Text style={styles.warning}>This older run is preserved for reference, but it cannot continue as approved work.</Text> : null}
+      {!bound ? <Text style={styles.warning}>This older work is saved for reference, but it cannot continue as approved work.</Text> : null}
 
       <View style={styles.actions}>
         {canRunAutonomously && <TouchableOpacity accessibilityRole="button" accessibilityLabel={effectiveError ? 'Try again' : 'Continue work'} accessibilityState={{ disabled: busy }} disabled={busy} onPress={onResume} style={[styles.actionButton, styles.primaryButton]}><Text style={styles.primaryAction}>{busy ? 'Continuing…' : effectiveError ? 'Try again' : 'Continue work'}</Text></TouchableOpacity>}

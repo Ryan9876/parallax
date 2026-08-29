@@ -22,7 +22,7 @@ type MobileHeaderProps = {
 
 function shortProject(projectId: string | null): string {
   if (!projectId) return 'No project selected';
-  return `Project ${projectId.slice(0, 8)}`;
+  return 'Project selected';
 }
 
 function useEngineeringRunFailure(conversationId: string | null | undefined) {
@@ -469,7 +469,7 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
             return <View key={step.key} style={[styles.progressSegment, status === 'complete' && styles.progressSegmentComplete, active && styles.progressSegmentActive]} />;
           })}
         </View>
-        <Text style={styles.orientationDescription}>{complete ? 'Parallax finished the build flow and the result is ready.' : currentStep.description}</Text>
+        <Text style={styles.orientationDescription}>{complete ? 'Parallax finished the work and the result is ready.' : currentStep.description}</Text>
       </View>
 
       <View style={styles.activityCard}>
@@ -643,8 +643,8 @@ const styles = StyleSheet.create({
   projectLabel: { color: palette.olive700, fontSize: 14, lineHeight: 18, fontWeight: '700', marginTop: 1 },
   conversationLabel: { color: palette.charcoal600, fontSize: 13, lineHeight: 17, marginTop: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  modeSwitch: { minHeight: 46, padding: 3, flexDirection: 'row', alignItems: 'center', borderRadius: 15, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  modeButton: { minWidth: 48, minHeight: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  modeSwitch: { minHeight: 48, padding: 3, flexDirection: 'row', alignItems: 'center', borderRadius: 15, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  modeButton: { minWidth: 48, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   modeButtonActive: { backgroundColor: palette.rust600 },
   modeText: { color: palette.charcoal600, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   modeTextActive: { color: palette.ivory50 },

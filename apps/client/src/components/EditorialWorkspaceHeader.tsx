@@ -18,7 +18,7 @@ type Props = {
 
 function projectLabel(projectId: string | null, binding: ProjectBindingStatus | null): string | null {
   if (binding !== 'PROJECT_BOUND' || !projectId) return null;
-  return projectId.length <= 20 ? `Project · ${projectId}` : `Project · ${projectId.slice(0, 8)}…${projectId.slice(-6)}`;
+  return 'Project selected';
 }
 
 export function EditorialWorkspaceHeader({
@@ -57,18 +57,22 @@ export function EditorialWorkspaceHeader({
             <Text style={styles.newButtonGlyph}>＋</Text>
           </TouchableOpacity>
         ) : null}
-        <View style={styles.modeSwitch} accessibilityLabel="Conversation mode">
-          {(['reason', 'code'] as const).map((item) => (
-            <TouchableOpacity
-              key={item}
-              accessibilityRole="button"
-              accessibilityState={{ selected: mode === item }}
-              onPress={() => onModeChange(item)}
-              style={[styles.modeButton, mode === item && styles.modeButtonActive]}
-            >
-              <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.modeSwitch} accessibilityLabel="Choose what you want to do">
+          {(['reason', 'code'] as const).map((item) => {
+            const label = item === 'reason' ? 'Ask' : 'Build';
+            return (
+              <TouchableOpacity
+                key={item}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: mode === item }}
+                onPress={() => onModeChange(item)}
+                style={[styles.modeButton, mode === item && styles.modeButtonActive]}
+              >
+                <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -94,21 +98,21 @@ const styles = StyleSheet.create({
   headerCompact: { minHeight: 150, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 12, flexDirection: 'column' },
   identityRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   copy: { flex: 1, minWidth: 0 },
-  eyebrow: { color: palette.olive700, fontSize: 9, lineHeight: 12, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 5 },
+  eyebrow: { color: palette.olive700, fontSize: 12, lineHeight: 16, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 },
   title: { color: palette.charcoal950, fontSize: 40, lineHeight: 43, fontWeight: '500', letterSpacing: -1.35, fontFamily: serif },
   titleCompact: { fontSize: 27, lineHeight: 31, letterSpacing: -0.8 },
-  subtitle: { color: palette.charcoal600, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 690 },
-  projectPill: { alignSelf: 'flex-start', maxWidth: 330, minHeight: 27, marginTop: 10, paddingHorizontal: 9, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  subtitle: { color: palette.charcoal600, fontSize: 15, lineHeight: 22, marginTop: 6, maxWidth: 690 },
+  projectPill: { alignSelf: 'flex-start', maxWidth: 330, minHeight: 32, marginTop: 10, paddingHorizontal: 11, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: palette.cream100, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   projectDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.olive500 },
-  projectText: { flexShrink: 1, color: palette.charcoal600, fontSize: 8, lineHeight: 11, fontWeight: '700', fontFamily: Platform.OS === 'web' ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined },
+  projectText: { flexShrink: 1, color: palette.charcoal600, fontSize: 12, lineHeight: 16, fontWeight: '700' },
   controls: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   controlsCompact: { alignSelf: 'stretch', justifyContent: 'flex-end' },
   newButton: { minHeight: 44, paddingHorizontal: 16, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: palette.rust600, shadowColor: '#704026', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  newButtonText: { color: palette.ivory50, fontSize: 10, lineHeight: 14, fontWeight: '800' },
-  newButtonGlyph: { color: palette.ivory50, fontSize: 15, lineHeight: 18 },
-  modeSwitch: { minHeight: 44, flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 3, backgroundColor: palette.cream200, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  modeButton: { minHeight: 36, minWidth: 60, paddingHorizontal: 11, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  newButtonText: { color: palette.ivory50, fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  newButtonGlyph: { color: palette.ivory50, fontSize: 17, lineHeight: 20 },
+  modeSwitch: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 3, backgroundColor: palette.cream200, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
+  modeButton: { minHeight: 44, minWidth: 68, paddingHorizontal: 13, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   modeButtonActive: { backgroundColor: palette.teal700, shadowColor: '#1D5B5B', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  modeText: { color: palette.charcoal600, fontSize: 8, lineHeight: 11, textTransform: 'uppercase', fontWeight: '800', letterSpacing: 0.65 },
+  modeText: { color: palette.charcoal600, fontSize: 14, lineHeight: 19, fontWeight: '800' },
   modeTextActive: { color: palette.ivory50 },
 });

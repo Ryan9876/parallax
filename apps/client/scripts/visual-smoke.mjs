@@ -17,7 +17,7 @@ const mime = {
   '.svg': 'image/svg+xml',
 };
 
-const amendmentMessage = 'This request materially changes the approved objective. An approved specification amendment is required before I continue against the new objective.';
+const amendmentMessage = 'Your request is different from the plan you approved. Parallax stopped before changing that approved work. Continue the approved work, or start a new goal for the new request.';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -349,7 +349,7 @@ async function inspectViewport(browser, name, width, height, report) {
     const respondingCanvasCount = await page.locator('canvas').count();
     assert(respondingCanvasCount >= idleCanvasCount, `desktop: responding state lost a required canvas (${respondingCanvasCount} < ${idleCanvasCount})`);
 
-    await page.getByText(/reason · complete/i).waitFor({ timeout: 10000 });
+    await page.getByText(/ask · ready/i).waitFor({ timeout: 10000 });
     await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor();
     assert(mockStreamState.completed && !mockStreamState.open, 'desktop: mock SSE stream did not complete cleanly');
 
@@ -408,18 +408,18 @@ async function inspectFallback(browser, report) {
   const canvasCount = await page.locator('canvas').count();
   assert(canvasCount === 0, `fallback: expected zero Skia canvases, found ${canvasCount}`);
 
-  await page.getByLabel('Message Parallax').fill('Continue without Skia.');
+  await page.getByLabel('Message Parallax').fill('Continue in the simpler display.');
   await page.getByLabel('Send message').click();
   await page.getByText(/The response streams into the warm editorial workspace/).first().waitFor({ timeout: 10000 });
   await page.screenshot({ path: `${evidenceDir}/fallback-functional.png` });
 
-  await page.getByText(/Reduced graphics mode · complete/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Reduced graphics mode · ready/i).waitFor({ timeout: 10000 });
   assert(mockStreamState.completed && !mockStreamState.open, 'fallback: conversation stream did not complete cleanly without Skia');
 
   await page.getByLabel('Message Parallax').fill('Replace the approved objective entirely.');
   await page.getByLabel('Send message').click();
   await page.getByText(amendmentMessage).first().waitFor({ timeout: 10000 });
-  await page.getByText(/Reduced graphics mode · specification amendment required/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Reduced graphics mode · request changed/i).waitFor({ timeout: 10000 });
   const amendmentCanvasCount = await page.locator('canvas').count();
   assert(amendmentCanvasCount === 0, `fallback amendment: expected zero Skia canvases, found ${amendmentCanvasCount}`);
   assert(mockStreamState.amendment && mockStreamState.completed && !mockStreamState.open, 'fallback amendment: amendment stream did not complete cleanly');
@@ -442,6 +442,7 @@ async function inspectFallback(browser, report) {
     functionalConversation: true,
     buildPlanParity: true,
     amendmentStatePreservedWithoutSkia: true,
+    plainLanguageStatus: true,
     expectedSkiaInitializationErrorObserved: true,
     observedExpectedErrorCount: errors.filter(expectedSkiaFailure).length,
   };
