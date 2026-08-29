@@ -10,6 +10,11 @@ from ..auth import bearer_scheme, require_access, require_bearer
 from ..config import settings
 from ..db import get_session
 from ..repositories.authorized_users import AuthorizedUserRepository
+from ..services.github_actions_identity import (
+    QA_AUTOMATION_EMAIL,
+    GitHubActionsIdentityError,
+    verify_github_actions_identity,
+)
 from ..services.google_identity import IdentityVerificationError, verify_google_identity
 from ..session import SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, issue_session_token
 
@@ -105,6 +110,46 @@ def establish_google_session(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access not granted",
         ) from exc
+
+    return _set_session_cookie(
+        response,
+        subject=user.id,
+        role=user.role,
+        auth_method="google",
+    )
+
+
+@router.post("/qa-automation")
+def establish_qa_automation_session(
+    response: Response,
+    session: Session = Depends(get_session),
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+):
+    if not credentials or credentials.scheme.casefold() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="QA automation authentication required",
+        )
+
+    try:
+        verify_github_actions_identity(credentials.credentials)
+    except GitHubActionsIdentityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="QA automation authentication could not be verified",
+        ) from exc
+
+    repository = AuthorizedUserRepository(session)
+    user = repository.get_by_email(QA_AUTOMATION_EMAIL)
+    if (
+        user is None
+        or user.status != "active"
+        or not user.auth_user_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access not granted",
+        )
 
     return _set_session_cookie(
         response,
