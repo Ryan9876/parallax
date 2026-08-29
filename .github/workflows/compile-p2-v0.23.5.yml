@@ -23,7 +23,7 @@ jobs:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
       - name: Validate spec before compilation
-        run: python scripts/validate_specs.py --spec-only specs/P2-V0.23.5.md
+        run: python scripts/validate_spec.py specs/P2-V0.23.5.md --spec-only
       - name: Start local DSPy development model
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
@@ -40,7 +40,7 @@ jobs:
           DSPY_API_KEY: ''
         run: python scripts/compile_spec.py specs/P2-V0.23.5.md
       - name: Validate protected compiled plan
-        run: python scripts/validate_specs.py --require-dspy specs/P2-V0.23.5.md
+        run: python scripts/validate_spec.py specs/P2-V0.23.5.md --require-dspy
       - uses: actions/upload-artifact@v4
         with:
           name: p2-v0.23.5-dspy-plan
