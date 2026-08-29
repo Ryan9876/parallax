@@ -600,6 +600,8 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         "stdout_digest",
         "stderr_digest",
         "execution_snapshot_id",
+        "validation_profile_id",
+        "validation_profile_digest",
         "candidate_content_digest",
         "candidate_is_canonical_lineage",
         "accepts_source_lineage",
@@ -650,7 +652,7 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
             raise ValueError("candidate validation diagnostics contain an invalid SHA-256 digest")
         normalized_failure[key] = digest
 
-    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180)):
+    for key, limit in (("tool_id", 80), ("execution_snapshot_id", 180), ("validation_profile_id", 80)):
         if key not in raw:
             continue
         field = raw[key]
@@ -663,6 +665,16 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         ):
             raise ValueError("candidate validation diagnostics contain an invalid bounded identity")
         normalized_failure[key] = field
+
+    if "validation_profile_digest" in raw:
+        digest = raw["validation_profile_digest"]
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in digest)
+        ):
+            raise ValueError("candidate validation diagnostics contain an invalid validation profile digest")
+        normalized_failure["validation_profile_digest"] = digest
 
     normalized = {"candidate_validation_failure": normalized_failure}
     encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True)

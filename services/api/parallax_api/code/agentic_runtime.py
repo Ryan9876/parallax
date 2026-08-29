@@ -1699,6 +1699,8 @@ class AgenticControlPlane:
                     {
                         "candidate_id": item.candidate_id,
                         "candidate_content_digest": item.validation.content_digest,
+                        "validation_profile_id": item.validation.validation_profile_id,
+                        "validation_profile_digest": item.validation.validation_profile_digest,
                         "proposal_digest": item.proposal_digest,
                         "producer_identity_digests": list(item.plan.selected_agent_digests),
                         "protected_validation_digest": item.protected_validation.digest,
@@ -1720,6 +1722,8 @@ class AgenticControlPlane:
                 "competition_reason_code": competition_record.reason_code,
                 "selected_candidate_id": selected.candidate_id,
                 "selected_candidate_content_digest": selected.validation.content_digest,
+                "selected_validation_profile_id": selected.validation.validation_profile_id,
+                "selected_validation_profile_digest": selected.validation.validation_profile_digest,
                 "selected_proposal_digest": selected.proposal_digest,
                 "source_lineage_accepted": False,
                 "engineering_run_transitioned": False,
