@@ -8,7 +8,6 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
-BASE_SNAPSHOT_ID = "snap_vagbatADKKndxwFGSDNbt08Ueigm"
 DOTNET_SDK_VERSION = "8.0.424"
 DOTNET_ARCHIVE_URL = (
     "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.424/"
@@ -86,7 +85,7 @@ def main() -> None:
         raise RuntimeError(".NET snapshot provisioning requires the canonical Vercel Project identity")
 
     from vercel.api import session
-    from vercel.sandbox import NetworkPolicy, SnapshotSource
+    from vercel.sandbox import NetworkPolicy
     from vercel.sandbox import sync as sandbox
 
     policy = NetworkPolicy.custom(
@@ -98,16 +97,16 @@ def main() -> None:
     with session():
         with sandbox.create_sandbox(
             project_id=project_id,
+            runtime="python3.13",
             execution_time_limit=300,
             persistent=False,
             network_policy=policy,
             env={},
-            source=SnapshotSource(snapshot_id=BASE_SNAPSHOT_ID),
             destroy=False,
             tags={"parallax": "dotnet-snapshot-provisioning"},
         ) as instance:
-            if getattr(instance, "current_snapshot_id", None) != BASE_SNAPSHOT_ID:
-                raise RuntimeError("provisioning sandbox did not restore the exact common snapshot")
+            if getattr(instance, "current_snapshot_id", None) is not None:
+                raise RuntimeError("fresh .NET provisioning sandbox unexpectedly restored a snapshot")
 
             entries = _must_pass(
                 instance.run_process(
@@ -125,10 +124,23 @@ def main() -> None:
                     kill_after=30,
                     capture_output=True,
                 ),
-                "source-free base snapshot check",
+                "source-free fresh sandbox check",
             ).strip()
             if entries != "0":
-                raise RuntimeError("common snapshot unexpectedly contains Project source")
+                raise RuntimeError("fresh provisioning sandbox unexpectedly contains Project source")
+
+            os_release = _must_pass(
+                instance.run_process(
+                    "sh",
+                    ["-lc", ". /etc/os-release && printf '%s:%s' \"$ID\" \"$VERSION_ID\""],
+                    env={},
+                    kill_after=30,
+                    capture_output=True,
+                ),
+                "sandbox operating-system probe",
+            ).strip()
+            if os_release != "amzn:2023":
+                raise RuntimeError(f"unexpected provisioning operating system: {os_release}")
 
             _must_pass(
                 instance.run_process(
@@ -234,7 +246,7 @@ def main() -> None:
             print(
                 "PARALLAX_DOTNET_SNAPSHOT_PROVISIONED "
                 f"snapshot_id={snapshot_id} sdk={DOTNET_SDK_VERSION} icu={LIBICU_NEVRA} "
-                f"base_snapshot={BASE_SNAPSHOT_ID} source_free=true network=deny-all"
+                "base=fresh-amazon-linux-2023 source_free=true network=deny-all"
             )
 
 
