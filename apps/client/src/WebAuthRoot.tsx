@@ -25,9 +25,31 @@ import {
   isHostedHttpsWeb,
   isOAuthCallback,
 } from './lib/googleAuth';
+import {
+  captureQaRecoveryToken,
+  isQaPasswordAccessRequested,
+  requestQaPasswordRecovery,
+  signInWithQaPassword,
+  updateQaPassword,
+} from './lib/qaPasswordAuth';
 import { palette } from './theme';
 
-type GateState = 'checking' | 'login' | 'callback' | 'denied' | 'error' | 'ready';
+type GateState = 'checking' | 'login' | 'callback' | 'recovery' | 'denied' | 'error' | 'ready';
+
+type QaGateProps = {
+  email: string;
+  password: string;
+  newPassword: string;
+  message: string;
+  recovering: boolean;
+  busy: boolean;
+  onEmail(value: string): void;
+  onPassword(value: string): void;
+  onNewPassword(value: string): void;
+  onSignIn(): void;
+  onRecovery(): void;
+  onSavePassword(): void;
+};
 
 function StaticOpticalMark({ size = 54 }: { size?: number }) {
   return (
@@ -40,20 +62,105 @@ function StaticOpticalMark({ size = 54 }: { size?: number }) {
   );
 }
 
+function QaAccessGate({
+  email,
+  password,
+  newPassword,
+  message,
+  recovering,
+  busy,
+  onEmail,
+  onPassword,
+  onNewPassword,
+  onSignIn,
+  onRecovery,
+  onSavePassword,
+}: QaGateProps) {
+  if (recovering) {
+    return (
+      <View accessibilityLabel="QA password recovery" style={styles.qaPanel}>
+        <Text style={styles.qaTitle}>Set the QA password</Text>
+        <Text style={styles.qaCopy}>Choose at least 12 characters. The password goes directly to Supabase and is never stored by Parallax.</Text>
+        <TextInput
+          accessibilityLabel="New QA password"
+          autoCapitalize="none"
+          autoComplete="new-password"
+          autoCorrect={false}
+          onChangeText={onNewPassword}
+          onSubmitEditing={onSavePassword}
+          placeholder="New password"
+          placeholderTextColor={palette.muted}
+          secureTextEntry
+          style={styles.qaInput}
+          value={newPassword}
+        />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Save QA password" disabled={busy} onPress={onSavePassword} style={styles.qaPrimaryButton}>
+          <Text style={styles.qaPrimaryButtonText}>{busy ? 'SAVING…' : 'SAVE PASSWORD'}</Text>
+        </TouchableOpacity>
+        {message ? <Text accessibilityLiveRegion="polite" style={styles.qaMessage}>{message}</Text> : null}
+      </View>
+    );
+  }
+
+  return (
+    <View accessibilityLabel="QA test account access" style={styles.qaPanel}>
+      <Text style={styles.qaTitle}>QA test account</Text>
+      <Text style={styles.qaCopy}>Use only the dedicated authorized test account. Google remains the normal sign-in method.</Text>
+      <TextInput
+        accessibilityLabel="QA email"
+        autoCapitalize="none"
+        autoComplete="email"
+        autoCorrect={false}
+        keyboardType="email-address"
+        onChangeText={onEmail}
+        placeholder="QA email"
+        placeholderTextColor={palette.muted}
+        style={styles.qaInput}
+        value={email}
+      />
+      <TextInput
+        accessibilityLabel="QA password"
+        autoCapitalize="none"
+        autoComplete="current-password"
+        autoCorrect={false}
+        onChangeText={onPassword}
+        onSubmitEditing={onSignIn}
+        placeholder="QA password"
+        placeholderTextColor={palette.muted}
+        secureTextEntry
+        style={styles.qaInput}
+        value={password}
+      />
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Sign in to QA account" disabled={busy} onPress={onSignIn} style={styles.qaPrimaryButton}>
+        <Text style={styles.qaPrimaryButtonText}>{busy ? 'SIGNING IN…' : 'SIGN IN TO QA ACCOUNT'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Set or reset QA password" disabled={busy} onPress={onRecovery} style={styles.qaRecoveryButton}>
+        <Text style={styles.qaRecoveryButtonText}>SET OR RESET PASSWORD</Text>
+      </TouchableOpacity>
+      {message ? <Text accessibilityLiveRegion="polite" style={styles.qaMessage}>{message}</Text> : null}
+    </View>
+  );
+}
+
 function AccessGate({
   state,
   message,
   busy,
   onGoogle,
+  qaEnabled,
+  qa,
 }: {
   state: GateState;
   message: string;
   busy: boolean;
   onGoogle(): void;
+  qaEnabled: boolean;
+  qa: QaGateProps;
 }) {
   const denied = state === 'denied';
   const error = state === 'error';
   const checking = state === 'checking' || state === 'callback';
+  const recovering = state === 'recovery';
 
   return (
     <SafeAreaView style={styles.gateRoot}>
@@ -68,6 +175,8 @@ function AccessGate({
             ? 'Your Google account is valid, but it is not currently authorized for this workspace.'
             : error
               ? message || 'Parallax could not complete Google sign-in.'
+              : recovering
+                ? 'Finish setting up the dedicated QA test account.'
               : checking
                 ? state === 'callback' ? 'Completing secure Google sign-in…' : 'Checking your private session…'
                 : 'Use an authorized Google account to enter the workspace.'}
@@ -75,7 +184,7 @@ function AccessGate({
 
         {checking ? (
           <ActivityIndicator color={palette.cyan} size="small" style={styles.spinner} />
-        ) : (
+        ) : recovering ? null : (
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={denied ? 'Try another Google account' : 'Continue with Google'}
@@ -89,7 +198,8 @@ function AccessGate({
         )}
 
         {denied ? <Text style={styles.gateHint}>An owner can authorize your Google email from Parallax Access.</Text> : null}
-        {error ? <Text style={styles.gateHint}>No Google password or production credential is stored by Parallax.</Text> : null}
+        {error ? <Text style={styles.gateHint}>No Google or QA password is stored by Parallax.</Text> : null}
+        {qaEnabled && !checking ? <QaAccessGate {...qa} recovering={recovering} /> : null}
       </View>
     </SafeAreaView>
   );
@@ -244,9 +354,15 @@ function AccessControl({ profile, onSignedOut }: { profile: AccessUserDto; onSig
 
 export default function WebAuthRoot({ AppComponent }: { AppComponent: React.ComponentType }) {
   const hosted = isHostedHttpsWeb();
+  const [qaEnabled] = React.useState(() => isQaPasswordAccessRequested());
   const [state, setState] = React.useState<GateState>(hosted ? 'checking' : 'ready');
   const [profile, setProfile] = React.useState<AccessUserDto | null>(null);
   const [message, setMessage] = React.useState('');
+  const [qaEmail, setQaEmail] = React.useState('');
+  const [qaPassword, setQaPassword] = React.useState('');
+  const [qaNewPassword, setQaNewPassword] = React.useState('');
+  const [qaMessage, setQaMessage] = React.useState('');
+  const [recoveryToken, setRecoveryToken] = React.useState('');
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
@@ -264,6 +380,15 @@ export default function WebAuthRoot({ AppComponent }: { AppComponent: React.Comp
     let cancelled = false;
 
     async function resolve() {
+      const capturedRecoveryToken = captureQaRecoveryToken();
+      if (capturedRecoveryToken) {
+        if (!cancelled) {
+          setRecoveryToken(capturedRecoveryToken);
+          setState('recovery');
+        }
+        return;
+      }
+
       const callback = isOAuthCallback();
       try {
         await api.getSession();
@@ -329,6 +454,60 @@ export default function WebAuthRoot({ AppComponent }: { AppComponent: React.Comp
     }
   }
 
+  async function signInQa() {
+    setBusy(true);
+    setQaMessage('');
+    let accessToken = '';
+    try {
+      accessToken = await signInWithQaPassword(qaEmail, qaPassword);
+      await api.establishGoogleSession(accessToken);
+      accessToken = '';
+      const current = await api.currentAccessUser();
+      setQaPassword('');
+      setProfile(current);
+      setState('ready');
+    } catch (cause) {
+      accessToken = '';
+      if (cause instanceof AuthorizationDeniedError) {
+        setQaMessage('That test account is not authorized for this workspace.');
+      } else {
+        setQaMessage(cause instanceof Error ? cause.message : 'QA sign-in could not be completed.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestQaRecovery() {
+    setBusy(true);
+    setQaMessage('');
+    try {
+      await requestQaPasswordRecovery(qaEmail);
+      setQaPassword('');
+      setQaMessage('If this is the authorized QA account, a recovery email is on its way. Open that link to set the password.');
+    } catch (cause) {
+      setQaMessage(cause instanceof Error ? cause.message : 'The recovery email could not be requested.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveQaPassword() {
+    setBusy(true);
+    setQaMessage('');
+    try {
+      await updateQaPassword(recoveryToken, qaNewPassword);
+      setRecoveryToken('');
+      setQaNewPassword('');
+      setQaMessage('Password saved. Sign in with the QA account below.');
+      setState('login');
+    } catch (cause) {
+      setQaMessage(cause instanceof Error ? cause.message : 'The password could not be saved.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function signedOut() {
     setProfile(null);
     setState('login');
@@ -336,7 +515,29 @@ export default function WebAuthRoot({ AppComponent }: { AppComponent: React.Comp
   }
 
   if (state !== 'ready') {
-    return <AccessGate state={state} message={message} busy={busy} onGoogle={() => void signIn()} />;
+    return (
+      <AccessGate
+        state={state}
+        message={message}
+        busy={busy}
+        onGoogle={() => void signIn()}
+        qaEnabled={qaEnabled}
+        qa={{
+          email: qaEmail,
+          password: qaPassword,
+          newPassword: qaNewPassword,
+          message: qaMessage,
+          recovering: state === 'recovery',
+          busy,
+          onEmail: setQaEmail,
+          onPassword: setQaPassword,
+          onNewPassword: setQaNewPassword,
+          onSignIn: () => void signInQa(),
+          onRecovery: () => void requestQaRecovery(),
+          onSavePassword: () => void saveQaPassword(),
+        }}
+      />
+    );
   }
 
   return (
@@ -366,6 +567,15 @@ const styles = StyleSheet.create({
   googleGlyphText: { color: '#4285F4', fontSize: 15, fontWeight: '800' },
   googleButtonText: { color: '#171521', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
   gateHint: { color: palette.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 16 },
+  qaPanel: { width: '100%', marginTop: 24, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.borderStrong },
+  qaTitle: { color: palette.text, fontSize: 17, lineHeight: 23, fontWeight: '700', textAlign: 'center' },
+  qaCopy: { color: palette.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 7, marginBottom: 12 },
+  qaInput: { width: '100%', minHeight: 48, marginTop: 10, borderRadius: 14, paddingHorizontal: 14, color: palette.text, fontSize: 16, backgroundColor: palette.glassStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  qaPrimaryButton: { width: '100%', minHeight: 48, marginTop: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: palette.violetDeep },
+  qaPrimaryButtonText: { color: palette.text, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  qaRecoveryButton: { width: '100%', minHeight: 44, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
+  qaRecoveryButtonText: { color: palette.textSecondary, fontSize: 9, fontWeight: '800', letterSpacing: 0.7 },
+  qaMessage: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 12 },
   accountLayer: { position: 'absolute', top: 70, right: 18, zIndex: 50, alignItems: 'flex-end' },
   accountLayerCompact: { top: 9, right: 7 },
   accountPill: { maxWidth: 300, height: 34, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, borderRadius: 17, backgroundColor: 'rgba(245,238,223,0.98)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong },
