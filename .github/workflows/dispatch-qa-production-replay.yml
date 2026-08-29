@@ -1,0 +1,33 @@
+name: Dispatch QA Production Replay
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/dispatch-qa-production-replay.yml
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Dispatch canonical QA replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run qa-production-replay.yml --ref main
+      - name: Remove dispatcher
+        run: |
+          git config user.name "Parallax Release Bot"
+          git config user.email "parallax-release-bot@users.noreply.github.com"
+          git rm .github/workflows/dispatch-qa-production-replay.yml
+          git commit -m "Remove temporary QA replay dispatcher"
+          git push origin HEAD:main
