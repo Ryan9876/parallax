@@ -246,9 +246,9 @@ try {
     assert(await fontSize(tab.getByText(label, { exact: true })) >= 14, `wave8 mobile: ${label} navigation text is smaller than 14px`);
   }
 
-  const contextTitle = page.getByText('Your build plan is ready to review', { exact: true });
+  const contextTitle = page.getByText('Review your build plan', { exact: true });
   assert(await fontSize(contextTitle) >= 20, 'wave8 mobile: primary context title is too small');
-  assert(await fontSize(page.getByText('4 success checks are included.', { exact: true })) >= 15, 'wave8 mobile: primary context copy is too small');
+  assert(await fontSize(page.getByText('Check the plan below, then approve it only when it matches what you want Parallax to build.', { exact: true })) >= 15, 'wave8 mobile: primary context copy is too small');
 
   const navBox = await page.getByTestId('mobile-bottom-navigation').boundingBox();
   const inputBox = await page.getByLabel('Message Parallax').boundingBox();
