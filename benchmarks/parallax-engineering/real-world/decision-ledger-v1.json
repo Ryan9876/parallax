@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "template_id": "decision-ledger",
+  "template_version": "1.0.0",
+  "title": "Decision Ledger v1",
+  "objective": "Build a responsive Decision Ledger web application that lets people record, revisit, organize, exchange and safely maintain important decisions using browser-persistent state without an external account or third-party backend.",
+  "objective_class": "new-application",
+  "repository_shape": "client-web",
+  "requirements": [
+    {
+      "requirement_id": "DL-01",
+      "title": "Decision lifecycle",
+      "outcome": "Users can create, view, edit and delete decision records.",
+      "requirement_digest": "1289a3925eae91ed1ba2f9dec088d70b4df989a209cb8a434463fef84dd040bc"
+    },
+    {
+      "requirement_id": "DL-02",
+      "title": "Decision fields",
+      "outcome": "Each decision supports title, status, decision date, owner, context, final decision, options considered and tags.",
+      "requirement_digest": "811d3558c07f8127c740c7956468d5c345b377cf5ccf405a4cafa1aa9b01b3b4"
+    },
+    {
+      "requirement_id": "DL-03",
+      "title": "Status semantics",
+      "outcome": "Supported statuses are `Proposed`, `Accepted` and `Superseded`, presented in clear ordinary language with meaning that is not color-only.",
+      "requirement_digest": "397fbb2bbc99df05d40f5e89cabf1214832d3c8aebab6da47a51dcbf71ee56f8"
+    },
+    {
+      "requirement_id": "DL-04",
+      "title": "Persistent state",
+      "outcome": "Records persist across browser reload/reopen without requiring an external account, production credential or third-party backend.",
+      "requirement_digest": "4ed680fd7bed130b2880ab7b351b06bc0a7d31d1011a7f2806428d1cde44f6d8"
+    },
+    {
+      "requirement_id": "DL-05",
+      "title": "Find and organize",
+      "outcome": "Users can search decisions, filter by status and tag, and use deterministic understandable ordering.",
+      "requirement_digest": "150a8a9a00bbf25241d8fa072b3281b8c547d8fb0b18e262200132fd048beb3c"
+    },
+    {
+      "requirement_id": "DL-06",
+      "title": "Export/import",
+      "outcome": "Users can export all records to JSON and import a prior export. Invalid import fails safely without corrupting existing valid data.",
+      "requirement_digest": "07ffca2cc7c4bc7617331afe7d180476d6ed9dbb35cc0346eba38b585938b26a"
+    },
+    {
+      "requirement_id": "DL-07",
+      "title": "Recovery-oriented UX",
+      "outcome": "Empty states, validation errors, destructive deletion confirmation and import failures are clear and recoverable.",
+      "requirement_digest": "3ff700a702cc6d55fd5d231cd787758fb2ed11556830dd375e53243de80551d5"
+    },
+    {
+      "requirement_id": "DL-08",
+      "title": "Responsive layout",
+      "outcome": "The application is usable at 390px mobile and 1440px desktop without horizontal clipping or inaccessible primary actions.",
+      "requirement_digest": "10db6c7430f10b2bc429d34a63fbadb0b609aa674da59dfc2a747a4597cee1d5"
+    },
+    {
+      "requirement_id": "DL-09",
+      "title": "Accessibility",
+      "outcome": "Primary interactive controls are keyboard reachable, form controls have accessible labels, focus remains usable and meaning is not conveyed by color alone.",
+      "requirement_digest": "b02db2a7653171b05a6abb35b972cccef58c4f77a02a819054d9a9b092bae78e"
+    },
+    {
+      "requirement_id": "DL-10",
+      "title": "Automated quality",
+      "outcome": "Automated tests cover core CRUD, persistence, search/filter and import behavior, and the production build passes.",
+      "requirement_digest": "7269388fce1c26caca0875720fd88b8a63f221bce8c8834696db55aa7832dbc7"
+    },
+    {
+      "requirement_id": "DL-11",
+      "title": "Repository safety",
+      "outcome": "The delivered repository contains no embedded secrets, real user data, analytics/tracking credential or runtime branch keyed to benchmark identity.",
+      "requirement_digest": "632b965c3e98c14c6b88d56cad87b0bab5d1983e7a69e64ca3e536eaca66d5ae"
+    },
+    {
+      "requirement_id": "DL-12",
+      "title": "Governed delivery",
+      "outcome": "The application reaches the existing Parallax Preview/REVIEW boundary with exact accepted source and protected validation evidence; REVIEW is not presented as autonomous production completion.",
+      "requirement_digest": "1a8d5258c4b59caacd474e237fdedf4578d24139fa398aeef8ebbe74e28413a7"
+    }
+  ],
+  "comparable_dimensions": [
+    "completion_reliability",
+    "cost_usage",
+    "elapsed_time",
+    "human_interventions",
+    "objective_completion",
+    "protected_correctness",
+    "retry_recovery",
+    "visual_ux_quality"
+  ],
+  "expected_ceiling": "REVIEW",
+  "fixture_digest": "15b098df3956ffe71833778e18a301a8e77fae9f37705223256703619f684900"
+}
