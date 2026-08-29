@@ -7,6 +7,7 @@ const read = (path) => readFileSync(join(here, path), 'utf8');
 const app = read('../src/App.tsx');
 const header = read('../src/components/EditorialWorkspaceHeader.tsx');
 const progress = read('../src/components/EngineeringRunStatus.tsx');
+const projectGate = read('../src/components/ProjectCompatibilityGate.tsx');
 const mobile = read('../src/components/mobile/MobileExperience.tsx');
 
 function assert(condition, message) {
@@ -61,6 +62,32 @@ assert(header.includes("const label = item === 'reason' ? 'Ask' : 'Build';"), 'd
 assert(/modeButton:\s*\{[^}]*minHeight:\s*44/.test(header), 'desktop Ask/Build controls must remain at least 44px high');
 assert(/subtitle:\s*\{[^}]*fontSize:\s*15/.test(header), 'desktop header subtitle must remain readable');
 
+const forbiddenProjectChooserCopy = [
+  'Historical Code conversation without Project binding',
+  'Choose Project for future Code work',
+  'HISTORICAL CODE · UNBOUND',
+  'CODE · PROJECT',
+  'Choose a Project for Code',
+  'Choose canonical Project context',
+  'protected engineering evidence',
+  'Protected engineering evidence',
+  'protected evidence remain intact',
+  'Project ${conversation.project_id.slice',
+  'Repository identity',
+];
+for (const phrase of forbiddenProjectChooserCopy) {
+  assert(!projectGate.includes(phrase), `ordinary project chooser still exposes legacy phrase: ${phrase}`);
+}
+assert(projectGate.includes('Choose a project for Build'), 'project chooser must use Build language');
+assert(projectGate.includes('OLDER BUILD · NO PROJECT'), 'historical project state must use plain language');
+assert(projectGate.includes('Deleting here does not delete anything in GitHub or Vercel, and technical records are kept.'), 'project chooser must explain deletion consequences plainly');
+assert(projectGate.includes('Repository (optional)'), 'repository field must use a plain optional label');
+assert(projectGate.includes("conversation.project_id ? ' · Project' : ''"), 'conversation history must not expose shortened Project IDs');
+assert(/bindingPill:\s*\{[^}]*minHeight:\s*44/.test(projectGate), 'interactive project binding control must remain at least 44px high');
+assert(/projectSelectButton:\s*\{[^}]*minHeight:\s*44/.test(projectGate), 'project selection controls must remain at least 44px high');
+assert(/smallDeleteButton:\s*\{[^}]*minHeight:\s*44/.test(projectGate), 'project/history delete controls must remain at least 44px high');
+assert(/selectorCopyCompact:\s*\{[^}]*fontSize:\s*16/.test(projectGate), 'mobile project chooser body copy must remain at least 16px');
+
 const forbiddenProgressCopy = [
   'protected build environment',
   'Older run · view only',
@@ -82,4 +109,4 @@ assert(mobile.includes('Parallax finished the work and the result is ready.'), '
 assert(mobile.includes('Project ID:'), 'raw Project identity must remain available in mobile technical details');
 assert(mobile.includes('Binding status:'), 'raw binding status must remain available in mobile technical details');
 
-console.log('PASS: W8-S3 ordinary shell, headers, mobile context, and progress surfaces default to plain language while technical detail remains available on demand.');
+console.log('PASS: W8-S3 ordinary shell, headers, project chooser, mobile context, and progress surfaces default to plain language while technical detail remains available on demand.');
