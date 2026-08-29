@@ -1,0 +1,48 @@
+{
+  "architecture_decisions": [
+    "Preserve the existing QA-user authorization boundary while admitting only explicitly enumerated GitHub Actions workflow identities for machine QA.",
+    "Use a QA-owned canonical Engineering Run for W8-S2 verification rather than granting cross-owner access to the historical OT Time run."
+  ],
+  "work_items": [
+    "Admit the isolated W8-S2 QA workflow ref under the existing GitHub Actions OIDC verifier.",
+    "Replay the QA-owned canonical PLAN run through normal protected production APIs and verify durable advancement without the former static-target failure."
+  ],
+  "validations": [
+    "AC-01: validate protected requirement — A GitHub-signed OIDC token is accepted only when issuer, audience, repository, main ref, an explicitly enumerated QA workflow ref, an explicitly allowed bounded event, and GitHub-hosted runner claims all match.",
+    "AC-02: validate protected requirement — The API issues a session only when `parallax.qa.ai@gmail.com` exists in `authorized_users`, is active, and already has a bound Google auth user ID.",
+    "AC-03: validate protected requirement — Neither repository code nor workflow configuration stores the QA password, refresh token, Supabase service-role key, Parallax access token, or another long-lived QA credential.",
+    "AC-04: validate protected requirement — Google login, hidden human QA password fallback, session expiry, logout, owner/member access, Project ownership isolation and protected-route behavior remain unchanged; the machine-authenticated QA member cannot read or mutate the historical owner-scoped OT Time run.",
+    "AC-05: validate protected requirement — Before replay, Engineering Run `a3a32343-507a-4384-a9bd-2fddaa0ce7fc` is QA-owned, at PLAN revision 1, bound through an approved Work Specification to a valid GitHub repository, and the Vercel team has no Project linked to `Ryan9876/sickbeard`.",
+    "AC-06: validate protected requirement — The isolated W8-S2 workflow establishes a production Parallax session and invokes the existing protected autonomous endpoint for the admitted QA-owned canonical run without owner browser interaction, auth bypass, direct database mutation, or owner impersonation.",
+    "AC-07: validate protected requirement — The replay passes only if durable run evidence advances beyond the former missing-static-target PLAN failure without `source_bootstrap_failed` / `ProductionDeliveryConfigurationError`; provider/runtime evidence stays within the existing Preview/REVIEW authority ceiling.",
+    "AC-08: validate protected requirement — Forged, malformed, expired, not-yet-valid, wrong-audience, wrong-repository, wrong-ref, non-enumerated-workflow, unapproved-event, self-hosted-runner and JWKS-verification failures produce no Parallax session; a missing, inactive, revoked or no-longer-Google-bound QA row also produces no session.",
+    "AC-09: validate protected requirement — The GitHub workflow run provides durable provider-side run identity and bounded execution evidence while raw OIDC tokens, cookies, passwords, refresh tokens and provider credentials remain absent from committed artifacts and application logs.",
+    "AC-10: validate protected requirement — The exact qualified source is merged and deployed READY before replay; ordinary Google and hidden human QA behavior remain unchanged; post-replay GitHub workflow evidence, Vercel runtime evidence, durable Engineering Run state and provider readiness state are inspected before any W8-S2 completion claim or authoritative-record update."
+  ],
+  "risks": [
+    "Workflow trust expansion must remain an explicit finite allowlist and must not broaden QA authority beyond its own Projects and Runs.",
+    "The canonical fixture is valid only while its pre-replay state retains the material W8-S2 defect preconditions."
+  ],
+  "spec_id": "P2-V0.22.2",
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Exact machine identity only","protected_requirement":"A GitHub-signed OIDC token is accepted only when issuer, audience, repository, main ref, an explicitly enumerated QA workflow ref, an explicitly allowed bounded event, and GitHub-hosted runner claims all match."},
+    {"id":"AC-02","title":"Existing QA authorization remains authoritative","protected_requirement":"The API issues a session only when `parallax.qa.ai@gmail.com` exists in `authorized_users`, is active, and already has a bound Google auth user ID."},
+    {"id":"AC-03","title":"No reusable QA secret","protected_requirement":"Neither repository code nor workflow configuration stores the QA password, refresh token, Supabase service-role key, Parallax access token, or another long-lived QA credential."},
+    {"id":"AC-04","title":"Normal auth and tenant isolation are unchanged","protected_requirement":"Google login, hidden human QA password fallback, session expiry, logout, owner/member access, Project ownership isolation and protected-route behavior remain unchanged; the machine-authenticated QA member cannot read or mutate the historical owner-scoped OT Time run."},
+    {"id":"AC-05","title":"Canonical W8-S2 fixture reproduces the material precondition","protected_requirement":"Before replay, Engineering Run `a3a32343-507a-4384-a9bd-2fddaa0ce7fc` is QA-owned, at PLAN revision 1, bound through an approved Work Specification to a valid GitHub repository, and the Vercel team has no Project linked to `Ryan9876/sickbeard`."},
+    {"id":"AC-06","title":"Production replay is autonomous","protected_requirement":"The isolated W8-S2 workflow establishes a production Parallax session and invokes the existing protected autonomous endpoint for the admitted QA-owned canonical run without owner browser interaction, auth bypass, direct database mutation, or owner impersonation."},
+    {"id":"AC-07","title":"W8-S2 proof remains evidence-based","protected_requirement":"The replay passes only if durable run evidence advances beyond the former missing-static-target PLAN failure without `source_bootstrap_failed` / `ProductionDeliveryConfigurationError`; provider/runtime evidence stays within the existing Preview/REVIEW authority ceiling."},
+    {"id":"AC-08","title":"Trust failures and QA revocation remain fail-closed","protected_requirement":"Forged, malformed, expired, not-yet-valid, wrong-audience, wrong-repository, wrong-ref, non-enumerated-workflow, unapproved-event, self-hosted-runner and JWKS-verification failures produce no Parallax session; a missing, inactive, revoked or no-longer-Google-bound QA row also produces no session."},
+    {"id":"AC-09","title":"Automation is auditable without credential leakage","protected_requirement":"The GitHub workflow run provides durable provider-side run identity and bounded execution evidence while raw OIDC tokens, cookies, passwords, refresh tokens and provider credentials remain absent from committed artifacts and application logs."},
+    {"id":"AC-10","title":"Production verification is exact and regression-safe","protected_requirement":"The exact qualified source is merged and deployed READY before replay; ordinary Google and hidden human QA behavior remain unchanged; post-replay GitHub workflow evidence, Vercel runtime evidence, durable Engineering Run state and provider readiness state are inspected before any W8-S2 completion claim or authoritative-record update."}
+  ],
+  "critique": [
+    "The owner-scoped historical run must remain inaccessible to QA; the canonical fixture must demonstrate the W8-S2 defect boundary without introducing impersonation or extra lifecycle authority."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
