@@ -2,17 +2,17 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / W8 IMPLEMENTATION COMPLETE WITH W8-S2 OPEN / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH #406 REMEDIATION DEPLOYED AND PROVIDER CONSENT PENDING / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.5 API PRODUCTION-DEPLOYMENT-VERIFIED WITH SANDBOX TOOLCHAIN READINESS OPEN / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–7 DEPLOYMENT-VERIFIED / PRODUCTION PYTHON SOURCE-ONLY FULL EXPERIENCE ACCEPTED / W8 IMPLEMENTATION COMPLETE WITH W8-S2 .NET TOOLCHAIN ACCEPTANCE OPEN / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH GREENFIELD PROVIDER CONSENT STILL OPEN / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
-Parallax production retains the deployment-verified W9-S1 real-world benchmark-admission layer, W9-S2 governed skill-intake/capability-catalog backend, P2-V0.23.5 repository-aware protected validation policy, agent-runnable QA authentication, Wave 8 guided experience, and earlier Waves 1–7 runtime/productization baseline.
+Parallax production now has a verified end-to-end source-only engineering path for an ordinary source-backed Python Project. The production acceptance run established the normal QA session, selected the canonical Project, created a conversation, submitted the user objective, generated and approved the Work Specification, activated the Engineering Run, bootstrapped public GitHub source without anonymous GitHub REST quota dependency, completed PLAN, IMPLEMENT, BUILD, TEST and VERIFY, reached REVIEW with no failure, and returned a verified authenticated ZIP of the accepted source lineage.
 
-Agent-runnable authenticated production QA is proven through the existing bounded QA identity and normal Parallax session/tenant boundaries. The W8-S2 canonical replay reaches the protected autonomous continuation without owner impersonation or an auth bypass.
+This proof used the existing least-privilege QA identity and the deployed production API. It did not widen the GitHub Actions OIDC allowlist, publish source, create a provider deployment, bypass REVIEW, impersonate the owner, or introduce production-promotion authority.
 
-The greenfield repository-authority remediation governed by `P2-V0.23.3` is now merged and production-deployment-verified. Missing GitHub App / Vercel Connect coverage for the canonical Project repository is classified as the explicit provider-consent state `REPOSITORY_AUTHORIZATION_REQUIRED` before source mutation. The remaining W8-S2 dependency is real provider authorization for `Ryan9876/sickbeard`; Parallax may not silently broaden that provider installation.
+The public-source bootstrap correction governed by Architecture v3.19 is production-deployment-verified. Normal public source reads use Git smart HTTP plus an exact commit-addressed GitHub codeload archive instead of unauthenticated `api.github.com` REST reads. The prior shared anonymous REST rate-limit failure is therefore no longer the public-source bootstrap blocker.
 
-The first W9-S1 Decision Ledger reference trial remains a valid failed reference observation rather than a passing application benchmark. No target source was edited or seeded out of band, no authentication or provider authority was bypassed, and no production-promotion authority was introduced.
+The successful Python acceptance does not close the separate W8-S2 .NET validation gap. The OT Time replay reaches the released repository-aware `dotnet-v1` validation path and fails closed at the server-pinned sandbox dependency PREPARE boundary because the admitted .NET toolchain is not present in that execution image. It also does not satisfy the separate W9-S1 greenfield-empty-repository provider-consent requirement, because initializing source where no public commit exists still requires explicit repository authority.
 
 ## Production components
 
@@ -31,24 +31,90 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `0cfe499ac787a23142067e95e80af80dedab36c5`;
-- deployment: `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`;
+- source: `66fbc1e058bcbc6d7ac5422e23b20f1dabff1166`;
+- deployment: `dpl_DxSnt542y3NpvfC3ce43wgazVKiW`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`.
 
-Production build evidence passed:
+Vercel deployment metadata binds `dpl_DxSnt542y3NpvfC3ce43wgazVKiW` to exact GitHub commit `66fbc1e058bcbc6d7ac5422e23b20f1dabff1166` with commit message `Remove anonymous GitHub REST quota from public source bootstrap`.
 
-- provider scope and private Blob read/write preflight;
-- exact repository delivery-token permission preflight;
-- projected-source preflight;
-- lineage composition;
-- agentic runtime round trip;
-- projected bootstrap and process-recreation/replay checks;
-- execution-snapshot restore;
-- run-event schema guard.
+Production retains the deployment-verified W9-S1 benchmark-admission layer, W9-S2 governed skill-intake/capability-catalog backend, P2-V0.23.5 repository-aware protected validation policy, agent-runnable QA authentication, Wave 8 guided experience, source-only delivery policy, immutable source lineage, and earlier Waves 1–7 runtime/productization baseline.
 
-`P2-V0.23.3` separates provider installation coverage from runtime token scope. An explicitly authorized installation may cover multiple repositories, but every runtime exchange remains exact-one-repository scoped and independently verified. An out-of-coverage exact repository request now returns `REPOSITORY_AUTHORIZATION_REQUIRED`; timeouts, provider outages, malformed credentials and scope mismatches retain their separate fail-closed classifications.
+Later `main` commits through `5490daf0ef11401348256eca4c5314e615a3b8ae` are QA-harness-only corrections for the production replay. They do not represent a newer API deployment and must not be recorded as deployed runtime source.
+
+## Production Python source-only full experience — ACCEPTED
+
+Acceptance target: `github:Ryan9876/Movies`.
+
+Authorized QA workflow: `.github/workflows/qa-production-replay.yml`.
+
+Final workflow run: `33277189927`.
+
+Final workflow job: `99165862378` / `python-full-experience` — **SUCCESS**.
+
+Exact production evidence:
+
+- Project: `d00e23cb-6d84-4805-bf15-4f738d920136`;
+- Engineering Run: `e9a1772f-88b3-450c-b619-8008de8c9576`;
+- final state: `REVIEW`;
+- final revision: `6`;
+- `last_failure_code`: `null`;
+- stop reason: `REVIEW_REQUIRED`;
+- executor: `python` — PASSED;
+- PLAN — PASSED;
+- IMPLEMENT — PASSED using `safe-source-implementation-v1`;
+- BUILD — PASSED;
+- TEST — PASSED;
+- VERIFY — PASSED;
+- source ZIP: verified;
+- ZIP entries: `7`;
+- ZIP bytes: `1406`;
+- required generated acceptance file: `PARALLAX_QA_PYTHON.md` present;
+- source publication: `false`;
+- application deployment: `false`.
+
+The workflow output concluded:
+
+`Python full-experience acceptance completed: project=d00e23cb-6d84-4805-bf15-4f738d920136; run=e9a1772f-88b3-450c-b619-8008de8c9576; state=REVIEW; source_publication=false; app_deployment=false`
+
+This is the first clean production proof in this acceptance sequence that a small source-backed application request can traverse the complete protected engineering lifecycle and produce the authenticated source-only handoff without relying on Vercel as an application-delivery dependency.
+
+### Acceptance-harness corrections validated during the run
+
+The production acceptance sequence also removed several false-red test conditions without weakening product controls:
+
+- public GitHub source bootstrap no longer consumes shared anonymous GitHub REST quota;
+- the clean Python acceptance uses the purpose-built `Ryan9876/Movies` fixture instead of a legacy Project with incompatible delivery policy;
+- the existing QA OIDC workflow allowlist remains unchanged; an unapproved duplicate workflow correctly received HTTP 401 and was removed rather than allowlisted;
+- Project creation uses a collision-safe run-scoped slug when the target repository does not already have a QA Project;
+- automatic acceptance runs only the clean Python job; W9 greenfield and OT Time diagnostics remain manual so unrelated known preconditions do not obscure the Python acceptance result;
+- the harness uses the canonical source-only handoff route `/v1/projects/{project_id}/engineering-runs/{run_id}/source-download`.
+
+The preceding run `33276894175` had already proved PLAN through VERIFY and REVIEW successfully; its only failure was the harness calling an obsolete download path. The final run `33277189927` closed that last verification gap.
+
+## Public source bootstrap — DEPLOYMENT-VERIFIED
+
+Architecture v3.19 separates public source authority from deployment-provider authority.
+
+For a public GitHub repository with a commit-bearing default branch, production now:
+
+1. resolves canonical HEAD/default-branch identity through unauthenticated Git smart HTTP;
+2. pins the immutable commit;
+3. reads source from the exact commit-addressed GitHub codeload archive;
+4. applies bounded archive, path, file-type, size and UTF-8 validation;
+5. exposes read-only repository/source capability only;
+6. does not silently construct a Vercel-backed credential path if the public transport is throttled or unavailable.
+
+The normal public path does not require `api.github.com`, Vercel Connect, a Vercel Project, or a Vercel Preview target. Private or otherwise non-public source remains fail-closed behind exact repository authority.
+
+Release evidence:
+
+- architecture: `ARCHITECTURE.md` v3.19;
+- application release merge: `66fbc1e058bcbc6d7ac5422e23b20f1dabff1166`;
+- production API deployment: `dpl_DxSnt542y3NpvfC3ce43wgazVKiW`;
+- deployment state: `READY`;
+- clean production Python acceptance: workflow `33277189927` — PASS.
 
 ## Wave 9 S1 — Real-world greenfield benchmark
 
@@ -56,7 +122,7 @@ Control Tower: #391
 
 Workstream: #392
 
-Governing benchmark specification: `P2-V0.23.0`
+Governing benchmark specification: `P2-V0.23.0`.
 
 Benchmark-admission release:
 
@@ -72,7 +138,7 @@ Greenfield repository-authority remediation:
 - qualified implementation head: `1cad61de06ce4d1da4aaec12f4f4da97d16b63a3`;
 - application release merge: `0cfe499ac787a23142067e95e80af80dedab36c5`;
 - production deployment: `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`;
-- remediation state: **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / PROVIDER CONSENT PENDING FOR CANONICAL GREENFIELD REPOSITORY**.
+- remediation state: **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
 
 ### Frozen benchmark
 
@@ -89,8 +155,6 @@ QA Actions run: `33231502080` — trial harness PASS.
 
 Independent target: `Ryan9876/sickbeard`.
 
-The workflow verified the repository had no refs before the trial began. It was not manually initialized or seeded.
-
 Exact canonical evidence:
 
 - Project: `7a1dd088-3b0d-4eec-90e8-3cf435eac3a4`;
@@ -105,17 +169,13 @@ Exact canonical evidence:
 - observed disposition: `AUTONOMOUS_REQUEST_FAILED_HTTP_503`;
 - pre-approval clarifications: `0`;
 - post-approval corrections: `0`;
-- out-of-band source edits: `0`;
-- trial start: `2026-08-29T03:29:18Z`;
-- observed product boundary: `2026-08-29T03:29:41Z`.
+- out-of-band source edits: `0`.
 
-The generated Build plan preserved every frozen `DL-01` through `DL-12` token exactly once. The approved canonical spec successfully bound through `bind_real_world_template(...)`; benchmark admission therefore passed before the runtime failure.
+The generated Build plan preserved every frozen `DL-01` through `DL-12` token exactly once and benchmark admission passed before the runtime failure.
 
-The first production observation failed with generic `CREDENTIAL_UNAVAILABLE`. Subsequent diagnosis and `P2-V0.23.3` proved the missing authority is repository coverage, not missing runtime identity or repository existence. `Ryan9876/sickbeard` exists and is owner-accessible; the approved Parallax Connect installation simply does not yet cover it.
+The original empty-repository observation remains a valid failed reference observation rather than a passing application benchmark. No target source was edited or seeded out of band. Architecture v3.19 removes provider consent from ordinary public commit-bearing source reads, but it does not manufacture an initial commit in an empty greenfield repository. Explicit provider repository authority remains required for that greenfield initialization boundary.
 
-Per the Wave 9 protocol, the gap is not fixed by broadening QA identity, embedding reusable credentials, bypassing Project-scoped provider authority, directly seeding target source, or weakening source-lineage / Preview / REVIEW boundaries.
-
-**W9-S1 disposition:** the sprint's implementation, production verification, benchmark admission, first controlled real-world reference observation, and code-side least-privilege remediation are complete. The Decision Ledger application itself has not passed. Exact provider consent for the canonical greenfield repository is still required before the implementation trial can continue.
+**W9-S1 disposition:** implementation, production verification, benchmark admission, first controlled real-world reference observation and code-side least-privilege remediation are complete. The Decision Ledger application itself has not passed. Exact provider consent or another governed greenfield-initialization mechanism is still required before the canonical empty-repository implementation trial can continue.
 
 ## Wave 9 S2 — Governed skill intake and capability catalog
 
@@ -123,7 +183,7 @@ Control Tower: #391
 
 Workstream: #395
 
-Governing specification: `P2-V0.23.1`
+Governing specification: `P2-V0.23.1`.
 
 Release:
 
@@ -136,43 +196,42 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## P2-V0.23.5 — Repository-aware protected validation toolchains
 
-Workstream: #421
+Workstream: #421.
 
 Release:
 
 - governing specification: `P2-V0.23.5`;
-- production API source: `302a1fcbfabf32ef0955bde31f6c657ecc9d1e46`;
-- production deployment: `dpl_FWHw5rCwM3Bn5faMD4zhYPJ3pCNJ`;
-- state: **MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED / OT TIME ACCEPTANCE OPEN**.
+- production API source for the original release: `302a1fcbfabf32ef0955bde31f6c657ecc9d1e46`;
+- production deployment for that release: `dpl_FWHw5rCwM3Bn5faMD4zhYPJ3pCNJ`;
+- current production API also contains this capability through source `66fbc1e058bcbc6d7ac5422e23b20f1dabff1166` / deployment `dpl_DxSnt542y3NpvfC3ce43wgazVKiW`;
+- state: **DEPLOYMENT-VERIFIED / PYTHON PATH ACCEPTED / OT TIME .NET ACCEPTANCE OPEN**.
 
-The authentic QA replay against the public `github:Ryan9876/ot-time` Project reached the released `dotnet-v1` profile without repository-authority failure, profile ambiguity, source acceptance, or source mutation. It then failed closed during the profile-owned PREPARE prerequisite: `DEPENDENCY_PREPARATION_FAILED`, with no probe or restore process exit result and with the sandbox network lock confirmed as `deny-all` before protected validation could proceed.
+The authentic QA replay against public `github:Ryan9876/ot-time` now gets past public source bootstrap and reaches the released `dotnet-v1` profile. It fails closed during the profile-owned PREPARE prerequisite with `DEPENDENCY_PREPARATION_FAILED`; the server-pinned sandbox does not currently provide the admitted .NET readiness needed for protected validation.
 
-This establishes the remaining blocker as the server-pinned Vercel Sandbox execution image's .NET readiness, not Project repository authorization, delivery mode, profile selection, or ungoverned command handling. W8-S2 remains open until a server-owned snapshot with the required admitted toolchain is provisioned, selected through the existing environment contract, and the same QA replay reaches REVIEW with the authenticated source-only ZIP handoff. No accepted lineage, Git/provider mutation, Vercel application deployment, or REVIEW completion occurred in the failed replay.
+This establishes the remaining OT Time blocker as sandbox toolchain readiness, not GitHub anonymous REST quota, Project repository authorization, delivery mode, profile selection, or ungoverned command handling.
+
+W8-S2 must not be closed on the basis of the Python acceptance alone if its governed acceptance requires the .NET OT Time target. The required next product-side correction is a server-owned execution snapshot/toolchain path that satisfies the existing admitted .NET PREPARE contract without widening package/network/runtime authority.
 
 ## Wave 8 remaining state
 
-W8-S1, W8-S3 and W8-S4 remain deployment-verified. W8-S2 remains open.
+W8-S1, W8-S3 and W8-S4 remain deployment-verified. W8-S2 remains open specifically for the .NET protected-validation acceptance path.
 
-PR #409 merged as `4a295adccb9d8224813bbacdeaec56de24a6a3f8`; shared QA Actions run `33232396195` proves the bounded production QA session can read QA-owned Engineering Run `a3a32343-507a-4384-a9bd-2fddaa0ce7fc` at PLAN revision 1 through ordinary protected APIs.
+The broader source-backed user experience is no longer unproven: production workflow `33277189927` demonstrates that the normal protected flow can create and approve work, perform source-aware autonomous engineering, reach REVIEW and return the accepted source ZIP for a small Python application fixture.
 
-After `P2-V0.23.3` reached production as `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`, the same workflow was rerun. Authentication and canonical read passed again. The protected autonomous continuation reached Vercel Connect and returned HTTP 422 with the precise production classification:
-
-`source_bootstrap_failed stage=provider-repository error_class=ProviderActionFailed result_code=REPOSITORY_AUTHORIZATION_REQUIRED`
-
-This is the intended fail-closed behavior. The canonical Project repository is outside the currently approved provider installation; no source mutation occurred and the run remains PLAN revision 1.
-
-W8-S2 must not close until the repository owner explicitly authorizes `Ryan9876/sickbeard` for the Parallax GitHub App / Vercel Connect installation and the same QA-authenticated replay durably advances beyond PLAN without a source-bootstrap failure caused by static Vercel target registration or missing GitHub repository authority.
+The OT Time replay is now a narrower toolchain-coverage issue rather than evidence that the overall autonomous experience is broken.
 
 ## Other open governed work
 
-- #406 — code-side repository-authority remediation is deployment-verified; exact provider consent and successful canonical replay remain before closure;
-- #377 — W8-S2 authenticated production acceptance remains open pending that same consent/replay;
+- #406 — code-side greenfield repository-authority remediation is deployment-verified; canonical empty-repository initialization still requires explicit authority before W9-S1 can pass;
+- #377 — W8-S2 .NET authenticated production acceptance remains open on sandbox toolchain readiness;
 - #290 — safe deletion final authenticated destructive smoke.
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after the P2-V0.23.5 production deployment and authenticated OT Time replay. It distinguishes deployment verification from the remaining server-owned sandbox-toolchain readiness work.
+`CURRENT-STATE.md` was updated after the successful production Python source-only full-experience acceptance. It now records exact workflow, Project, Engineering Run, lifecycle-stage and ZIP-handoff evidence and distinguishes the accepted Python path from the still-open .NET and greenfield-specific boundaries.
 
-`ARCHITECTURE.md` remains at v3.18. It already records the durable P2-V0.23.5 repository-aware validation and bounded PREPARE contract; the current result does not change that architecture.
+`ARCHITECTURE.md` remains authoritative at v3.19. It already records the durable public-source bootstrap, source/deployment separation, source-only Project policy and authenticated source-handoff contracts proven by this acceptance; no additional architecture revision is required.
 
-`DESIGN-SYSTEM.md` was not changed because no new provider-consent UI has been released. `PROJECT-CONSTITUTION.md` was not changed because the architecture implements existing explicit-consent and least-privilege principles rather than adding a new constitutional rule.
+`DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
+
+`PROJECT-CONSTITUTION.md` was not changed because this validation exercised existing least-privilege, explicit-authority, immutable-lineage and REVIEW-ceiling principles rather than introducing a new constitutional rule.
