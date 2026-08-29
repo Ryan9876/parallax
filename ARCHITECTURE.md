@@ -1,13 +1,59 @@
 # Parallax 2.0 Architecture
 
-Version: 3.13
+Version: 3.14
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.13 is a bounded architectural update to v3.12, not a platform rewrite. The complete v3.12 architecture at repository commit `09e9d096eb16adf083f5029fa6fc07ea1cb90923` is incorporated by reference. Every v3.12 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, accepted `P2-V0.19.8` local-first routing, and accepted Wave 7 productization contracts.
+Architecture v3.14 is a bounded architectural update to v3.13, not a platform rewrite. The complete v3.13 architecture at repository commit `cd30205770507fc17a0f388785f5021e3800db89` is incorporated by reference. Every v3.13 durable contract not explicitly changed below remains authoritative, including canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, deny-all Sandbox validation, Wave 6 agentic orchestration/evaluation/routing/competition boundaries, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, accepted `P2-V0.19.8` local-first routing, accepted Wave 7 productization contracts, and W8-S2 delivery-readiness separation.
 
-This version records W8-S2 (`P2-V0.21.1`): repository/source readiness and Preview-hosting readiness are separate lifecycle concerns. A Project-bound run may establish exact repository lineage and advance through protected planning/implementation/validation without a pre-registered Vercel Project. Vercel target discovery or bounded creation is deferred until verified Preview publication is actually required at the existing REVIEW boundary.
+This version records W9-S1 (`P2-V0.23.0`): ParallaxBench may admit a frozen real-world objective template before a run and deterministically bind it to the canonical owner-scoped Project plus approved Work Specification produced by the ordinary product workflow. Successful admission produces the existing `BenchmarkCase`; benchmark template identity remains evaluation evidence only and grants no runtime, provider, source, deployment, lifecycle, approval, or REVIEW authority.
+
+## W9-S1 — Real-world benchmark admission without runtime authority
+
+W9-S1 extends the accepted ParallaxBench evaluation boundary so an independent application objective can be frozen before execution and later admitted against the exact canonical product state created by a normal Parallax run.
+
+### Immutable objective templates
+
+A real-world benchmark template is a bounded immutable evaluation record containing stable template ID/version, objective class, repository-shape class, human-readable title/objective, ordered frozen requirement IDs and outcomes, declared existing ParallaxBench dimensions, expected protected ceiling, and deterministic fixture digest.
+
+Template material is repository-safe and may not contain a reference implementation, source tree, provider credential, production secret, real user data, hidden reasoning, raw provider payload, or expected-answer implementation path. Duplicate `(template_id, template_version)` identity with different material content fails closed; material drift produces a different digest.
+
+The first admitted template is Decision Ledger v1 (`decision-ledger@1.0.0`) with frozen `DL-01` through `DL-12` outcome tokens. The template is an evaluation fixture, not a runtime configuration object.
+
+### Deterministic canonical admission
+
+A real-world template can be bound only to canonical evaluation evidence from an ordinary Parallax Project and an **approved** Work Specification. Admission verifies exact Project ID, Work Specification ID/revision/digest, unique canonical acceptance IDs, repository shape, and the complete acceptance text supplied from canonical state.
+
+For the Decision Ledger template, every frozen `DL-01` through `DL-12` token must appear exactly once across the approved canonical acceptance text. Missing or duplicate requirement tokens fail closed. Additional canonical acceptance criteria are allowed and remain in the exact resulting acceptance-ID set.
+
+The binder does not ask a model or evaluator to infer semantic equivalence, rewrite the Work Specification, or repair missing requirement coverage. Successful admission returns the pre-existing `BenchmarkCase` contract with exact canonical Project/spec identity, the complete canonical acceptance-ID set, repository shape, existing comparable dimensions/ceiling, and the immutable template digest as fixture identity. Existing ParallaxBench protected-floor and comparison precedence remains unchanged.
+
+### Evaluation-only authority boundary
+
+Real-world template identity, version, digest, requirement tokens, and expected outcome are evaluation evidence only. Ordinary client, Engineering Run, agentic runtime, provider, repository, source-delivery, browser, and deployment modules may not branch on benchmark identity or benchmark mode.
+
+The W9-S1 admission layer cannot:
+
+- create or select a canonical Project;
+- approve or amend a Work Specification;
+- transition an Engineering Run;
+- accept or advance source lineage;
+- grant tool or provider capability;
+- mutate a target repository;
+- create a merge or production deployment;
+- bypass protected validation;
+- approve or complete REVIEW.
+
+Preview remains the autonomous publication ceiling and REVIEW remains human-required. A failed or HUMAN_REQUIRED real-world trial remains valid diagnostic evidence when its exact observable boundary is recorded honestly; protected gates are never weakened to manufacture a passing benchmark.
+
+### Reference-observation boundary
+
+S1 permits the first admitted real-world candidate to be recorded as a bounded reference observation using existing ParallaxBench evidence-state and provenance semantics. Required plan approval and final REVIEW are expected human boundaries; pre-approval clarification, post-approval corrective intervention, observable retry/recovery, and prohibited out-of-band source edits are classified separately.
+
+Missing cost, elapsed-time, intervention, retry, or UX evidence remains `UNKNOWN` / `UNAVAILABLE` under existing evidence rules and is never converted to a favorable zero. Visual/UX evidence is admitted only after deterministic validation passes.
+
+S1 does **not** define cross-Project benchmark comparison semantics. A future repeat/challenger comparison across separately bound canonical Projects requires a separately governed specification.
 
 ## W8-S2 — Delivery readiness at the correct lifecycle boundary
 
@@ -204,7 +250,7 @@ A path-aware Vercel cancellation for a component with no content delta is not re
 
 ## Authority invariants retained
 
-Wave 7 S1-S6, W8-S2 and release reconciliation grant none of the following authority unless already explicitly provided by an existing protected server contract:
+Wave 7 S1-S6, W8-S2, W9-S1 and release reconciliation grant none of the following authority unless already explicitly provided by an existing protected server contract:
 
 - Project creation/ownership or cross-Project access;
 - Work Specification approval/amendment;
@@ -218,7 +264,7 @@ Wave 7 S1-S6, W8-S2 and release reconciliation grant none of the following autho
 - Vercel production promotion authority;
 - approval, REVIEW completion or human-boundary bypass.
 
-Canonical identity, deterministic validation, source acceptance, execution and release authority remain controlled by the existing protected Project/spec/run/lineage/provider contracts. Benchmark, model, agent, browser, projection, observability, readiness and integrated-proof output remains evidence or bounded infrastructure preparation, not canonical lifecycle authority.
+Canonical identity, deterministic validation, source acceptance, execution and release authority remain controlled by the existing protected Project/spec/run/lineage/provider contracts. Benchmark, real-world template, model, agent, browser, projection, observability, readiness and integrated-proof output remains evidence or bounded infrastructure preparation, not canonical lifecycle authority.
 
 ## Production topology retained
 
@@ -229,7 +275,7 @@ The two long-lived application projects remain:
 
 `main` remains the production source branch. Vercel production remains hosted-only for model routing under `P2-V0.19.8`; enabling local-first configuration in Vercel production fails closed. Hosted-to-private inference remains a separate architecture/security/network/deployment workstream.
 
-No Wave 7 S1-S6 or W8-S2 database migration is introduced by this architectural revision.
+No Wave 7 S1-S6, W8-S2 or W9-S1 database migration is introduced by this architectural revision.
 
 ## Evidence for the previous accepted revision
 
@@ -253,4 +299,4 @@ Reconciled release candidate:
 
 These facts validate the Wave 7 release candidate. They do not record a Wave 7 merge to `main` or production deployment.
 
-W8-S2 validation/release evidence belongs in `CURRENT-STATE.md` only after the exact branch/release identity is fully validated and, for production claims, deployment-verified.
+W8-S2 and W9-S1 validation/release evidence belongs in `CURRENT-STATE.md` only after the exact branch/release identity is fully validated and, for production claims, deployment-verified.
