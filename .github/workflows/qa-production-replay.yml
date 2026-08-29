@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/qa-production-replay.yml
       - scripts/w9_s1_reference_trial.sh
+      - scripts/qa_python_full_experience.sh
 
 permissions:
   contents: read
@@ -18,6 +19,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  python-full-experience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v4
+
+      - name: Request GitHub Actions OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
+          token="$(curl --fail --silent --show-error -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${request_url}" | jq -r '.value')"
+          test -n "${token}"
+          test "${token}" != "null"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run source-only Python full experience
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          API_BASE: https://parallax-api-tan.vercel.app
+          REPOSITORY_REF: github:Ryan9876/parallax
+        run: bash scripts/qa_python_full_experience.sh
+
   w9-s1-decision-ledger-reference-trial:
     runs-on: ubuntu-latest
     timeout-minutes: 30
