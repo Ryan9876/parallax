@@ -220,3 +220,10 @@ jq -n \
   '{w9_s1_reference_observation:{schema_version:1,template_id:$template_id,template_version:$template_version,fixture_digest:$fixture_digest,benchmark_case_digest:$benchmark_case_digest,acceptance_ids:$acceptance_ids,project_id:$project_id,conversation_id:$conversation_id,work_specification_id:$work_specification_id,work_specification_revision:$work_specification_revision,work_specification_digest:$work_specification_digest,engineering_run_id:$run_id,final_state:$final_state,final_revision:$final_revision,last_failure_code:(if $last_failure_code=="" then null else $last_failure_code end),started_at:$started_at,completed_at:$completed_at,pre_approval_clarifications:0,post_approval_corrections:0,out_of_band_source_edits:0,disposition:$disposition}}'
 
 # QA replay marker: exercise production PREPARE failure projection after deployment 9f9414f5.
+
+# W8-S2 bounded attempt diagnostic
+# Diagnostic-only: authenticated QA identity reads one known failed QA-owned run and projects bounded attempt evidence.
+w8_diag_run_id="4af0668c-c9c9-48aa-8051-8d6e21597db8"
+if api "${API_BASE}/v1/engineering-runs/${w8_diag_run_id}" >/tmp/w8-diag-run.json 2>/dev/null; then
+  jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/w8-diag-run.json
+fi
