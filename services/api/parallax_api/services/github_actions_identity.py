@@ -14,6 +14,7 @@ QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main"
 )
 QA_AUTOMATION_EMAIL = "parallax.qa.ai@gmail.com"
+QA_AUTOMATION_EVENTS = frozenset({"workflow_dispatch", "push"})
 _GITHUB_JWKS_URL = "https://token.actions.githubusercontent.com/.well-known/jwks"
 
 
@@ -58,7 +59,6 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
         "repository": QA_AUTOMATION_REPOSITORY,
         "ref": QA_AUTOMATION_REF,
         "workflow_ref": QA_AUTOMATION_WORKFLOW_REF,
-        "event_name": "workflow_dispatch",
         "runner_environment": "github-hosted",
     }
     for key, expected in required.items():
@@ -66,6 +66,9 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
             raise GitHubActionsIdentityError(
                 "GitHub Actions authentication could not be verified"
             )
+
+    if claims.get("event_name") not in QA_AUTOMATION_EVENTS:
+        raise GitHubActionsIdentityError("GitHub Actions authentication could not be verified")
 
     run_id = str(claims.get("run_id") or "").strip()
     if not run_id or len(run_id) > 64:
