@@ -212,7 +212,15 @@ class SameLineageVercelSandboxExecutor:
                 with sandbox.create_sandbox(
                     project_id=self.project_id,
                     source=snapshot_source,
-                    execution_time_limit=execution_spec.timeout_seconds + 30,
+                    execution_time_limit=(
+                        execution_spec.timeout_seconds
+                        + (
+                            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds
+                            if profile.preparation is not None
+                            else 0
+                        )
+                        + 30
+                    ),
                     persistent=False,
                     network_policy=preparation_network_policy(NetworkPolicy, profile),
                     env={},

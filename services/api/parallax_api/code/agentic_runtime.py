@@ -413,7 +413,12 @@ class VercelCandidateValidationExecutor:
         session, NetworkPolicy, SnapshotSource, sandbox = self._sdk()
         snapshot_source = SnapshotSource(snapshot_id=self.snapshot_id)
         stage_evidence: list[tuple[str, dict[str, object]]] = []
-        max_execution_seconds = sum(
+        preparation_seconds = (
+            profile.preparation.probe_timeout_seconds + profile.preparation.timeout_seconds
+            if profile.preparation is not None
+            else 0
+        )
+        max_execution_seconds = preparation_seconds + sum(
             profile.spec_for(stage, operation_key=f"{operation_key}:{stage.value.lower()}").timeout_seconds
             for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)
         ) + 60
