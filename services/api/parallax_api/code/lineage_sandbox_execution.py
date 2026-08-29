@@ -147,15 +147,23 @@ class SameLineageVercelSandboxExecutor:
         filesystem = getattr(instance, "fs", None)
         if filesystem is None:
             raise SameLineageExecutionError("sandbox filesystem API is unavailable")
-        # The dependency snapshot intentionally contains no repository source and
-        # may therefore omit the transfer root entirely. Establish exactly that
-        # bounded root, then stage the already-validated accepted lineage through
-        # the SDK's public batch API so the complete file set crosses one remote
-        # filesystem request instead of one request per source file.
         filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
         with filesystem.batch(cwd=_SANDBOX_SOURCE_ROOT) as batch:
             for path, content in files:
                 batch.write_bytes(path, content)
+
+    def _validate_caller_stage_spec(self, spec: ExecutionSpec) -> None:
+        """Reject caller-shaped command drift before any lineage materialization.
+
+        The caller may identify only the protected stage/operation. Repository
+        profile selection happens later from exact reconstructed source; it does
+        not make arbitrary incoming command arguments authoritative.
+        """
+
+        self.policy.validate(spec)
+        expected = self.registry.spec_for(spec.stage, operation_key=spec.operation_key)
+        if spec != expected:
+            raise ExecutionPolicyError("protected execution spec is not the registered stage authority")
 
     def execute_on_lineage(
         self,
@@ -173,7 +181,7 @@ class SameLineageVercelSandboxExecutor:
         validation_profile_digest: str | None = None
         cleanup_error: Exception | None = None
         try:
-            self.policy.validate(spec)
+            self._validate_caller_stage_spec(spec)
             identity = self._identity(project_ref, run_id)
             if not isinstance(source_lineage_ref, str) or not source_lineage_ref:
                 raise SameLineageExecutionError("accepted source lineage identity is required")
