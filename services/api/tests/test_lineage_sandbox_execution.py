@@ -208,9 +208,11 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert filesystem.direct_writes == []
 
     command, args, kwargs = instance.process_calls[0]
-    registered_command, registered_args = ProtectedCommandRegistry().invocation_for(WorkflowStage.BUILD)
-    assert command == registered_command
-    assert tuple(args) == registered_args
+    assert command == "python"
+    assert tuple(args) == ("-m", "compileall", "-q", ".")
+    assert evidence["validation_profile_id"] == "python-v1"
+    assert isinstance(evidence["validation_profile_digest"], str)
+    assert len(evidence["validation_profile_digest"]) == 64
     assert kwargs["env"] == {}
     assert kwargs["cwd"] == "/vercel/sandbox"
 
