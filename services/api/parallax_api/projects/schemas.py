@@ -79,6 +79,11 @@ class ProjectCreate(BaseModel):
         return normalize_repository_ref(value) if value is not None else None
 
 
+class ProjectDeliveryModeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    delivery_mode: ProjectDeliveryMode
+
+
 class ProjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
