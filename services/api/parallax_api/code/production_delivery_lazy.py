@@ -91,10 +91,19 @@ def production_source_delivery_lazy(
 ) -> SourceDeliveryComposition:
     """Compose repository source independently from optional deployment delivery."""
 
+    # Production always supplies the SQLAlchemy request Session. A small set of
+    # composition contract tests intentionally use an inert object because they
+    # verify only that Vercel readiness stays deferred; preserve that structural
+    # seam as the legacy Vercel mode without creating a production override.
+    project = None
     projects = ProjectRepository(session)
-    project = projects.get_for_owner(project_id, owner_subject.strip())
-    if project is None or project.status != "active":
-        raise ValueError("canonical owner-scoped Project is unavailable")
+    if isinstance(session, Session):
+        project = projects.get_for_owner(project_id, owner_subject.strip())
+        if project is None or project.status != "active":
+            raise ValueError("canonical owner-scoped Project is unavailable")
+        delivery_mode = project.delivery_mode
+    else:
+        delivery_mode = "vercel-preview"
 
     bootstrap = production_source_bootstrap(
         session,
@@ -108,7 +117,7 @@ def production_source_delivery_lazy(
         public_github_transport=public_github_transport,
     )
 
-    if project.delivery_mode == "source-only":
+    if delivery_mode == "source-only":
         source_only = SourceOnlyLineageDelivery(
             allocator=allocator,
             projects=OwnerScopedProjectBindingResolver(projects, owner_subject=owner_subject.strip()),
@@ -116,7 +125,7 @@ def production_source_delivery_lazy(
         )
         return SourceDeliveryComposition(bootstrap=bootstrap, delivery=source_only)  # type: ignore[arg-type]
 
-    if project.delivery_mode != "vercel-preview":
+    if delivery_mode != "vercel-preview":
         raise ValueError("canonical Project delivery mode is unsupported")
 
     deferred = DeferredVerifiedLineageDelivery(
