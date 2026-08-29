@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Repository coverage and runtime token scope are separate authority layers."
+  ],
+  "work_items": [
+    "Parallax Project bound to `github:<owner>/<repo>`"
+  ],
+  "validations": [
+    "Parallax can determine before source mutation whether the approved GitHub App / Connect installation covers the exact canonical GitHub repository.",
+    "AC-01: validate protected requirement \u2014 For a Project bound to `github:<owner>/<repo>`, Parallax can determine before source mutation whether the approved GitHub App / Connect installation covers that exact repository.",
+    "AC-02: validate protected requirement \u2014 If the repository is not covered, Parallax returns `REPOSITORY_AUTHORIZATION_REQUIRED` and no source mutation occurs. Parallax does not silently broaden installation coverage.",
+    "AC-03: validate protected requirement \u2014 When repository coverage exists, Vercel Connect issues a short-lived GitHub credential requested for exactly the Project repository, and Parallax independently verifies the resulting credential is scoped to exactly that repository.",
+    "AC-04: validate protected requirement \u2014 An explicitly owner-approved installation may cover more than one repository, but a runtime credential requested for Project A cannot read or mutate Project B's repository and fails scope verification if it can see more than the requested repository.",
+    "AC-05: validate protected requirement \u2014 The current `Ryan9876/parallax` delivery path remains green and production preflight continues to verify exact derived-token repository scope.",
+    "AC-06: validate protected requirement \u2014 No PAT, reusable GitHub installation token, Supabase secret, QA password, service-role credential, or broad runtime bearer is introduced or persisted.",
+    "AC-07: validate protected requirement \u2014 After exact production deployment and required provider consent for `Ryan9876/sickbeard`, Engineering Run `a3a32343-507a-4384-a9bd-2fddaa0ce7fc` retries from PLAN without `CREDENTIAL_UNAVAILABLE` or `REPOSITORY_AUTHORIZATION_REQUIRED` and durably advances beyond revision 1. Any later independent failure is recorded separately.",
+    "AC-08: validate protected requirement \u2014 The same authenticated QA-owned canonical run must advance beyond the former missing-static-target PLAN failure with no `source_bootstrap_failed` caused by static Vercel target registration or missing GitHub repository authority before #377 may close.",
+    "AC-09: validate protected requirement \u2014 Removing repository coverage or revoking the GitHub App / Connect installation causes subsequent readiness/token exchange to fail closed without reusing cached or persisted credentials.",
+    "AC-10: validate protected requirement \u2014 Provider readiness decisions record non-secret evidence sufficient to identify Project, canonical repository, readiness result, and provider-side installation/connector identity where safe, while excluding raw credentials and tokens."
+  ],
+  "risks": [
+    "Project onboarding/readiness may expose a provider-consent action that authorizes the exact repository or a user-chosen broader installation scope."
+  ],
+  "spec_id": "P2-V0.23.3",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact repository readiness",
+      "protected_requirement": "For a Project bound to `github:<owner>/<repo>`, Parallax can determine before source mutation whether the approved GitHub App / Connect installation covers that exact repository."
+    },
+    {
+      "id": "AC-02",
+      "title": "Explicit consent boundary",
+      "protected_requirement": "If the repository is not covered, Parallax returns `REPOSITORY_AUTHORIZATION_REQUIRED` and no source mutation occurs. Parallax does not silently broaden installation coverage."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact runtime token scope",
+      "protected_requirement": "When repository coverage exists, Vercel Connect issues a short-lived GitHub credential requested for exactly the Project repository, and Parallax independently verifies the resulting credential is scoped to exactly that repository."
+    },
+    {
+      "id": "AC-04",
+      "title": "Multi-repository installation remains safe",
+      "protected_requirement": "An explicitly owner-approved installation may cover more than one repository, but a runtime credential requested for Project A cannot read or mutate Project B's repository and fails scope verification if it can see more than the requested repository."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing registered Parallax target remains compatible",
+      "protected_requirement": "The current `Ryan9876/parallax` delivery path remains green and production preflight continues to verify exact derived-token repository scope."
+    },
+    {
+      "id": "AC-06",
+      "title": "No reusable credential expansion",
+      "protected_requirement": "No PAT, reusable GitHub installation token, Supabase secret, QA password, service-role credential, or broad runtime bearer is introduced or persisted."
+    },
+    {
+      "id": "AC-07",
+      "title": "Greenfield canonical bootstrap advances",
+      "protected_requirement": "After exact production deployment and required provider consent for `Ryan9876/sickbeard`, Engineering Run `a3a32343-507a-4384-a9bd-2fddaa0ce7fc` retries from PLAN without `CREDENTIAL_UNAVAILABLE` or `REPOSITORY_AUTHORIZATION_REQUIRED` and durably advances beyond revision 1. Any later independent failure is recorded separately."
+    },
+    {
+      "id": "AC-08",
+      "title": "W8-S2 acceptance",
+      "protected_requirement": "The same authenticated QA-owned canonical run must advance beyond the former missing-static-target PLAN failure with no `source_bootstrap_failed` caused by static Vercel target registration or missing GitHub repository authority before #377 may close."
+    },
+    {
+      "id": "AC-09",
+      "title": "Revocation remains effective",
+      "protected_requirement": "Removing repository coverage or revoking the GitHub App / Connect installation causes subsequent readiness/token exchange to fail closed without reusing cached or persisted credentials."
+    },
+    {
+      "id": "AC-10",
+      "title": "Auditability",
+      "protected_requirement": "Provider readiness decisions record non-secret evidence sufficient to identify Project, canonical repository, readiness result, and provider-side installation/connector identity where safe, while excluding raw credentials and tokens."
+    }
+  ],
+  "critique": [
+    ":\n- Repository coverage and runtime token scope are separate authority layers.\n- A Project may proceed to source bootstrap only when its exact canonical GitHub repository is covered by an approved Parallax GitHub App / Vercel Connect installation.\n- Runtime source credentials remain short-lived and exact-one-repository scoped through Vercel Connect `authorizationDetails`; broader installation coverage must never imply a broad runtime bearer token.\n- Parallax must verify the derived GitHub credential sees exactly the Project repository before any source read or mutation.\n- If installation coverage is absent, Parallax fails before Engineering Runtime source mutation with a typed, durable `REPOSITORY_AUTHORIZATION_REQUIRED` readiness state rather than a generic PLAN-time `CREDENTIAL_UNAVAILABLE` failure.\n- Project onboarding/readiness may expose a provider-consent action that authorizes the exact repository or a user-chosen broader installation scope.\n- Parallax itself may not silently broaden GitHub App installation coverage.\n- A user may deliberately choose a one-time GitHub App installation scope that covers all repositories Parallax is allowed to manage. Even under that broader\u2026"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
