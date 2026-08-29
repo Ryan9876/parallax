@@ -97,12 +97,13 @@ class LazyAuthenticatedGitHubReadClient:
 
 
 class PublicFirstGitHubReadClient:
-    """Use credential-free public reads first; fall back only for an inaccessible repo.
+    """Use credential-free public reads first; fall back only when necessary.
 
-    A verified public repository never asks a deployment provider for a GitHub
-    token. Only GitHub's ordinary anonymous 404 may select the existing exact-
-    repository credential path for a private/inaccessible repository. Ambiguous
-    metadata is rejected rather than reclassified as private.
+    A verified public repository normally never asks a deployment provider for
+    a GitHub token. GitHub can throttle a shared anonymous egress address even
+    for a public repository; that narrow failure falls back to the existing
+    exact-repository credential path. Ambiguous metadata is rejected rather
+    than reclassified as private.
     """
 
     def __init__(
@@ -120,7 +121,7 @@ class PublicFirstGitHubReadClient:
             self._selected = self._public
             return value
         except ProviderClientError as exc:
-            if str(exc) != "REPOSITORY_NOT_FOUND":
+            if str(exc) not in {"REPOSITORY_NOT_FOUND", "PROVIDER_RATE_LIMITED"}:
                 raise
         value = self._authenticated.resolve_repository(repository_ref)
         self._selected = self._authenticated
