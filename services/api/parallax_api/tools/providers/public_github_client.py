@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import httpx
 
 from .common import ProviderClientError
@@ -63,6 +65,28 @@ class PublicGitHubReadClient(GitHubRestProviderClient):
             raise ProviderClientError("PROVIDER_ERROR") from exc
 
 
+class LazyAuthenticatedGitHubReadClient:
+    """Construct the credentialed client only after anonymous visibility fails."""
+
+    def __init__(self, factory: Callable[[], GitHubRestProviderClient]) -> None:
+        self._factory = factory
+        self._client: GitHubRestProviderClient | None = None
+
+    def _get(self) -> GitHubRestProviderClient:
+        if self._client is None:
+            self._client = self._factory()
+        return self._client
+
+    def resolve_repository(self, repository_ref: str):
+        return self._get().resolve_repository(repository_ref)
+
+    def read_tree(self, repository_ref: str, source_revision: str, *, max_entries: int):
+        return self._get().read_tree(repository_ref, source_revision, max_entries=max_entries)
+
+    def read_file(self, repository_ref: str, source_revision: str, path: str, *, max_bytes: int):
+        return self._get().read_file(repository_ref, source_revision, path, max_bytes=max_bytes)
+
+
 class PublicFirstGitHubReadClient:
     """Use credential-free public reads first; fall back only for a hidden repo.
 
@@ -74,11 +98,11 @@ class PublicFirstGitHubReadClient:
     def __init__(
         self,
         public_client: PublicGitHubReadClient,
-        authenticated_client: GitHubRestProviderClient,
+        authenticated_client: LazyAuthenticatedGitHubReadClient,
     ) -> None:
         self._public = public_client
         self._authenticated = authenticated_client
-        self._selected: GitHubRestProviderClient | None = None
+        self._selected: object | None = None
 
     def resolve_repository(self, repository_ref: str):
         try:
@@ -92,7 +116,7 @@ class PublicFirstGitHubReadClient:
         self._selected = self._authenticated
         return value
 
-    def _reader(self) -> GitHubRestProviderClient:
+    def _reader(self):
         if self._selected is None:
             raise ProviderClientError("REPOSITORY_NOT_RESOLVED")
         return self._selected
@@ -116,4 +140,8 @@ class PublicFirstGitHubReadClient:
         raise ProviderClientError("PROVIDER_AUTH_DENIED")
 
 
-__all__ = ["PublicFirstGitHubReadClient", "PublicGitHubReadClient"]
+__all__ = [
+    "LazyAuthenticatedGitHubReadClient",
+    "PublicFirstGitHubReadClient",
+    "PublicGitHubReadClient",
+]
