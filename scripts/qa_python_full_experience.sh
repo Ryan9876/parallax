@@ -4,7 +4,7 @@ set -euo pipefail
 : "${OIDC_TOKEN:?OIDC_TOKEN is required}"
 : "${API_BASE:?API_BASE is required}"
 
-REPOSITORY_REF="${REPOSITORY_REF:-github:Ryan9876/parallax}"
+REPOSITORY_REF="${REPOSITORY_REF:-github:Ryan9876/Movies}"
 COOKIE_JAR="${COOKIE_JAR:-/tmp/parallax-python-full-experience.cookies}"
 
 api() {
@@ -40,7 +40,7 @@ if [ -z "${project_id}" ]; then
   jq -n \
     --arg name "QA Python Full Experience" \
     --arg slug "qa-python-full-experience" \
-    --arg description "QA-only source-only acceptance fixture; no source publication or application deployment." \
+    --arg description "QA-only source-only acceptance fixture against a minimal disposable Python source repository; no source publication or application deployment." \
     --arg repository_ref "${REPOSITORY_REF}" \
     '{name:$name,slug:$slug,description:$description,repository_ref:$repository_ref,delivery_mode:"source-only"}' \
     >/tmp/parallax-python-project-create.json
