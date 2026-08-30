@@ -80,7 +80,7 @@ jobs:
         run: bash scripts/w9_s1_reference_trial.sh
 
   w8-s2-ot-time-replay:
-    if: github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref == ''
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref == '')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -259,7 +259,7 @@ jobs:
               assert all(not name.startswith('/') and '..' not in name.split('/') for name in names)
           print(f'OT Time source-only archive verified: entries={len(names)}, bytes={archive.stat().st_size}')
           PY
-          echo "OT Time P2-V0.23.9 production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
+          echo "OT Time current-source production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
-# Replay marker: print current bounded failure evidence.
+# Replay marker: current-source validation also runs when this workflow changes on main.
