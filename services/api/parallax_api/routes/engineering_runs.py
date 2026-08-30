@@ -345,9 +345,22 @@ def pause(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService
 
 @router.post("/{run_id}/resume", response_model=EngineeringOperationRead)
 def resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):
-    prior_state = invoke(lambda: svc.get(run_id)).state
-    result = invoke(lambda: svc.resume(run_id=run_id, **payload.model_dump()))
-    if prior_state == "FAILED" and result.run.state != "FAILED":
+    prior = invoke(lambda: svc.get(run_id))
+    # Snapshot immutable scalars before the same-session resume mutation.
+    prior_state = str(prior.state)
+    prior_resume_stage = str(prior.resume_stage or "")
+    prior_project_id = str(prior.project_id or "")
+    refresh_plan = (
+        os.getenv(_AGENTIC_RUNTIME_ENABLE_ENV) == "1"
+        and prior_state == WorkflowStage.FAILED.value
+        and prior_resume_stage == WorkflowStage.IMPLEMENT.value
+        and bool(prior_project_id)
+    )
+    values = payload.model_dump()
+    if refresh_plan:
+        values["refresh_plan"] = True
+    result = invoke(lambda: svc.resume(run_id=run_id, **values))
+    if prior_state == WorkflowStage.FAILED.value and result.run.state != WorkflowStage.FAILED.value:
         invoke(lambda: worker_recovery_service(svc).prepare_human_resume(run_id=run_id))
     return result_payload(result, svc)
 
