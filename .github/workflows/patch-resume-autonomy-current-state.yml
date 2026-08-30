@@ -1,0 +1,56 @@
+name: Reconcile failed-run resume deployment
+
+on:
+  push:
+    branches:
+      - docs/resume-autonomy-production-acceptance
+    paths:
+      - .github/workflows/patch-resume-autonomy-current-state.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          old_status = ' / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**'
+          new_status = ' / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED / FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED**'
+          if old_status not in text:
+              raise SystemExit('status anchor not found')
+          text = text.replace(old_status, new_status, 1)
+
+          old_client = '''Current deployment-verified client remains:\n\n- application source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;\n- production deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;\n- Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;\n- state: `READY`.'''
+          new_client = '''Current deployment-verified client:\n\n- application source: `35c832fdd80e2a230b1ab19d51fff7980479041e`;\n- production deployment: `dpl_4Q72neK7ofr2WZMn5mCgdL3MrHYB`;\n- Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;\n- state: `READY`.'''
+          if old_client not in text:
+              raise SystemExit('client deployment anchor not found')
+          text = text.replace(old_client, new_client, 1)
+
+          anchor = '## Long-running client release freshness — DEPLOYMENT-VERIFIED\n'
+          section = '''## Failed-run resume autonomy handoff — DEPLOYMENT-VERIFIED\n\nA production recovery observation on Engineering Run `2b3cd15f-c5e2-481a-8266-c92c6534b08b` exposed a client handoff gap after a protected failure. The server accepted `/resume`, persisted `RUN_CONTROL / RESUMED` as event #15, and returned the run to `IMPLEMENT`, but the client treated that successful resume response as the end of the retry action and did not immediately invoke bounded autonomous continuation for the returned active revision. The result was a truthful active `IMPLEMENT` run that could appear parked with Worker runtime `Awaiting evidence`.\n\nPR #466 corrects both the continuation and persisted-recovery surfaces without changing server authority. After a successful FAILED/PAUSED resume, the client now immediately invokes the existing bounded autonomous endpoint when the returned run is in `PLAN`, `IMPLEMENT`, `BUILD`, `TEST`, or `VERIFY`. `REVIEW` remains a hard human boundary. The mobile Progress surface also treats an authoritatively persisted `FAILED` run as retryable after reload, rather than depending only on an ephemeral in-session failure signal, and it keeps the technical-detail path available beside the retry action.\n\nRelease evidence:\n\n- release PR: #466;\n- exact green PR head: `580d12674a57b770f477578fad3a1ad8921277c6`;\n- application release merge / deployed client source: `35c832fdd80e2a230b1ab19d51fff7980479041e`;\n- production client deployment: `dpl_4Q72neK7ofr2WZMn5mCgdL3MrHYB`;\n- deployment state: `READY`;\n- production aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`;\n- Bounded Autonomy workflow `33294115049`: SUCCESS;\n- Parallax P2 CI workflow `33294115034`: SUCCESS;\n- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS;\n- exact 390×844 failed-resume browser regression proves `resume -> autonomous`, resumed revision 4, and bounded continuation to `REVIEW` revision 5;\n- production alias shell: HTTP 200;\n- exact deployment build error scan: clean;\n- exact deployment production error/fatal runtime scan after release: clean.\n\nThis release changes no API contract, persisted state-machine transition, persistence model, source-lineage semantics, provider authority, deployment ceiling, or REVIEW boundary. It closes a client orchestration gap between a persisted protected resume and the already-authorized bounded autonomous continuation that should follow it.\n\n'''
+          if anchor not in text:
+              raise SystemExit('section anchor not found')
+          text = text.replace(anchor, section + anchor, 1)
+
+          path.write_text(text)
+          PY
+      - name: Commit reconciliation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CURRENT-STATE.md
+          git commit -m "Record failed-run resume deployment verification"
+          git push origin HEAD:docs/resume-autonomy-production-acceptance
