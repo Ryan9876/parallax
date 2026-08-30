@@ -223,7 +223,27 @@ jobs:
           echo '--- runtime decision ---'
           state="$(jq -r '.state // "UNKNOWN"' /tmp/run-after.json)"
           failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
-          echo "Post-retry state=${state}; failure=${failure:-none}; autonomous_http=${{ steps.autonomous.outputs.status }}"
-          if [ "${{ steps.autonomous.outputs.status }}" != "200" ] || [ "${state}" = "FAILED" ]; then
+          autonomous_http="${{ steps.autonomous.outputs.status }}"
+          plan_passed="$(jq '[.attempts[]? | select(.stage=="PLAN" and .status=="PASSED")] | length' /tmp/run-after.json)"
+          lease_generation="$(jq -r '.lease_generation // 0' /tmp/worker.json)"
+          current_step="$(jq -r '.current_step // ""' /tmp/worker.json)"
+          echo "Post-retry state=${state}; failure=${failure:-none}; autonomous_http=${autonomous_http}; plan_passed=${plan_passed}; lease_generation=${lease_generation}; current_step=${current_step:-none}"
+
+          if [ "${autonomous_http}" != "200" ] || [ "${plan_passed}" -lt 1 ] || [ "${lease_generation}" -lt 3 ]; then
+            echo "P2-V0.23.14 retry boundary was not proven." >&2
             exit 1
           fi
+
+          if [ "${state}" = "FAILED" ]; then
+            dep_code="$(jq -r '[.. | objects | .dependency_preparation_code? // empty] | last // ""' /tmp/run-after.json)"
+            probe_exit="$(jq -r '[.. | objects | .dependency_probe_exit_code? // empty] | last // ""' /tmp/run-after.json)"
+            prepare_exit="$(jq -r '[.. | objects | .dependency_prepare_exit_code? // empty] | last // ""' /tmp/run-after.json)"
+            if [ "${dep_code}" = "DEPENDENCY_PREPARATION_FAILED" ] && [ "${probe_exit}" = "0" ] && [ "${prepare_exit}" = "1" ]; then
+              echo "P2-V0.23.14 accepted: retry reached fresh PLAN and a new worker generation; this immutable historical fixture then failed later during .NET dependency preparation. Fresh current-source replay owns that downstream verdict."
+              exit 0
+            fi
+            echo "Retry failed for an unclassified downstream reason: ${failure:-none}" >&2
+            exit 1
+          fi
+
+          echo "P2-V0.23.14 accepted: retry crossed the fresh PLAN and worker-generation boundary without a downstream FAILED state."
