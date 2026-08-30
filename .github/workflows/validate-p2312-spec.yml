@@ -1,0 +1,20 @@
+name: Validate P2-V0.23.12 spec
+
+on:
+  push:
+    branches: [fix/p2312-resume-state-snapshot]
+    paths: [specs/P2-V0.23.12.md]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bounded correction spec
+        run: |
+          test -s specs/P2-V0.23.12.md
+          grep -q 'Spec ID: P2-V0.23.12' specs/P2-V0.23.12.md
+          grep -q 'Architecture: v3.25 (unchanged)' specs/P2-V0.23.12.md
