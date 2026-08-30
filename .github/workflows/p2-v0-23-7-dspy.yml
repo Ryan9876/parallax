@@ -27,28 +27,8 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
       - name: Restore required non-goals contract section
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('specs/P2-V0.23.7.md')
-          text = path.read_text(encoding='utf-8')
-          if '\n## 9. Non-goals\n' not in text:
-              text = text.rstrip() + '''
-
-## 9. Non-goals
-
-- No in-product Vercel Connect consent initiation without a separately proven workload authentication mechanism.
-- No PAT, reusable Vercel personal/team token, GitHub user token, password or static provider credential.
-- No production GitHub connector attachment to preview solely to widen test authority.
-- No all-repositories GitHub grant, arbitrary repository mutation API, client-selected refs/paths/content or force updates.
-- No placeholder README, `.gitkeep`, template application, hidden reference implementation or benchmark-specific source.
-- No target-repository mutation before verified REVIEW delivery.
-- No accepted application source committed directly to the default branch by the greenfield initializer.
-- No bypass of protected lineage, BUILD/TEST/VERIFY, exact PR/Preview read-back or the REVIEW human ceiling.
-- No automatic production promotion or change to frozen Decision Ledger benchmark semantics.
-'''
-              path.write_text(text, encoding='utf-8')
-          PY
+        run: >-
+          python -c "from pathlib import Path; p=Path('specs/P2-V0.23.7.md'); t=p.read_text(encoding='utf-8'); s='\n\n## 9. Non-goals\n\n- No in-product Vercel Connect consent initiation without a separately proven workload authentication mechanism.\n- No PAT, reusable Vercel personal/team token, GitHub user token, password or static provider credential.\n- No production GitHub connector attachment to preview solely to widen test authority.\n- No all-repositories GitHub grant, arbitrary repository mutation API, client-selected refs/paths/content or force updates.\n- No placeholder README, .gitkeep, template application, hidden reference implementation or benchmark-specific source.\n- No target-repository mutation before verified REVIEW delivery.\n- No accepted application source committed directly to the default branch by the greenfield initializer.\n- No bypass of protected lineage, BUILD/TEST/VERIFY, exact PR/Preview read-back or the REVIEW human ceiling.\n- No automatic production promotion or change to frozen Decision Ledger benchmark semantics.\n'; p.write_text(t.rstrip()+s, encoding='utf-8') if '\n## 9. Non-goals\n' not in t else None"
       - name: Validate protected specification structure
         run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.7.md
       - name: Configure repository-approved local DSPy model
