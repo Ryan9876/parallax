@@ -1,0 +1,40 @@
+name: P2-V0.23.7 State Fix
+
+on:
+  push:
+    branches:
+      - qa/restore-production-replay
+    paths:
+      - .github/workflows/p2-v0-23-7-state-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: qa/restore-production-replay
+          fetch-depth: 0
+      - name: Fix stale W9 wording
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+          old = 'The frozen Decision Ledger benchmark remains open. Its original empty-repository observation is a valid failed reference observation rather than a passing application benchmark. No target source was seeded out of band. Public-source bootstrap cannot manufacture an initial commit; explicit exact repository mutation authority or another governed greenfield initialization mechanism remains required before the canonical implementation trial can pass.'
+          new = 'The frozen Decision Ledger benchmark remains open. Its original empty-repository observation is a valid failed reference observation rather than a passing application benchmark. P2-V0.23.7 now supplies the previously missing governed empty-greenfield authority; however, the former disposable target was consumed by legacy Parallax QA fixture activity before v3.21. A fresh approved truly empty target is therefore required to complete the canonical end-to-end trial without rewriting repository history.'
+          if old not in text:
+              raise SystemExit('stale W9 paragraph not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/p2-v0-23-7-state-fix.yml
+          git config user.name parallax-state-bot
+          git config user.email actions@users.noreply.github.com
+          git add CURRENT-STATE.md .github/workflows/p2-v0-23-7-state-fix.yml
+          git commit -m "Align W9 current-state wording with v3.21"
+          git push origin HEAD:qa/restore-production-replay
