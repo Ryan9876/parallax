@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED / FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED**
 
 ## Current production truth
 
@@ -36,10 +36,10 @@ Focused orchestration, candidate-recovery and runtime-activation regression plus
 
 ### Client
 
-Current deployment-verified client remains:
+Current deployment-verified client:
 
-- application source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;
-- production deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;
+- application source: `35c832fdd80e2a230b1ab19d51fff7980479041e`;
+- production deployment: `dpl_4Q72neK7ofr2WZMn5mCgdL3MrHYB`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`.
 
@@ -64,6 +64,30 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
+
+## Failed-run resume autonomy handoff — DEPLOYMENT-VERIFIED
+
+A production recovery observation on Engineering Run `2b3cd15f-c5e2-481a-8266-c92c6534b08b` exposed a client handoff gap after a protected failure. The server accepted `/resume`, persisted `RUN_CONTROL / RESUMED` as event #15, and returned the run to `IMPLEMENT`, but the client treated that successful resume response as the end of the retry action and did not immediately invoke bounded autonomous continuation for the returned active revision. The result was a truthful active `IMPLEMENT` run that could appear parked with Worker runtime `Awaiting evidence`.
+
+PR #466 corrects both the continuation and persisted-recovery surfaces without changing server authority. After a successful FAILED/PAUSED resume, the client now immediately invokes the existing bounded autonomous endpoint when the returned run is in `PLAN`, `IMPLEMENT`, `BUILD`, `TEST`, or `VERIFY`. `REVIEW` remains a hard human boundary. The mobile Progress surface also treats an authoritatively persisted `FAILED` run as retryable after reload, rather than depending only on an ephemeral in-session failure signal, and it keeps the technical-detail path available beside the retry action.
+
+Release evidence:
+
+- release PR: #466;
+- exact green PR head: `580d12674a57b770f477578fad3a1ad8921277c6`;
+- application release merge / deployed client source: `35c832fdd80e2a230b1ab19d51fff7980479041e`;
+- production client deployment: `dpl_4Q72neK7ofr2WZMn5mCgdL3MrHYB`;
+- deployment state: `READY`;
+- production aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`;
+- Bounded Autonomy workflow `33294115049`: SUCCESS;
+- Parallax P2 CI workflow `33294115034`: SUCCESS;
+- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS;
+- exact 390×844 failed-resume browser regression proves `resume -> autonomous`, resumed revision 4, and bounded continuation to `REVIEW` revision 5;
+- production alias shell: HTTP 200;
+- exact deployment build error scan: clean;
+- exact deployment production error/fatal runtime scan after release: clean.
+
+This release changes no API contract, persisted state-machine transition, persistence model, source-lineage semantics, provider authority, deployment ceiling, or REVIEW boundary. It closes a client orchestration gap between a persisted protected resume and the already-authorized bounded autonomous continuation that should follow it.
 
 ## Long-running client release freshness — DEPLOYMENT-VERIFIED
 
