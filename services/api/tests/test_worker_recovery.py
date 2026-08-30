@@ -586,3 +586,102 @@ def test_worker_health_api_is_read_only_bounded_and_owner_scoped(tmp_path):
 
     owner["subject"] = "owner-b"
     assert client.get(f"/v1/engineering-runs/{run_id}/worker-health").status_code == 404
+
+
+
+def test_explicit_human_resume_rearms_terminal_worker_for_one_new_generation(tmp_path):
+    Session = db_context(tmp_path, "human-resume-worker.db")
+    binding = insert_bound_run(Session)
+    session, service = recovery_service(Session, max_retries=0, max_no_progress=99, max_oscillations=99)
+    try:
+        lease = service.acquire(run_id=binding.run_id, now=T0)
+        failed = service.checkpoint(
+            lease,
+            checkpoint(
+                binding,
+                step="IMPLEMENT",
+                lineage=LINEAGE_A,
+                lkg=LINEAGE_A,
+                evidence_refs=("validation:terminal-candidate-exhaustion",),
+            ),
+            authoritative_source_lineage_ref=LINEAGE_A,
+            retry=True,
+            now=T0 + timedelta(seconds=1),
+        ).execution
+        assert failed.state == WorkerLifecycleState.FAILED.value
+        assert failed.lease_owner_id is None
+        assert failed.retry_count == 1
+        assert failed.checkpoint_revision == 1
+        assert failed.source_lineage_ref == LINEAGE_A
+        assert failed.last_known_good_lineage_ref == LINEAGE_A
+        checkpoint_json = failed.checkpoint_json
+        checkpoint_revision = failed.checkpoint_revision
+        current_step = failed.current_step
+        generation = failed.lease_generation
+        worker_id = failed.id
+        failure_revision = failed.revision
+
+        with pytest.raises(WorkerLeaseConflict, match="protected recovery or is final"):
+            service.acquire(run_id=binding.run_id, now=T0 + timedelta(seconds=2))
+
+        prepared = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=3))
+        assert prepared is not None
+        assert prepared.id == worker_id
+        assert prepared.state == WorkerLifecycleState.RECOVERING.value
+        assert prepared.lease_owner_id is None
+        assert prepared.lease_expires_at is None
+        assert prepared.lease_generation == generation
+        assert prepared.checkpoint_json == checkpoint_json
+        assert prepared.checkpoint_revision == checkpoint_revision
+        assert prepared.current_step == current_step
+        assert prepared.source_lineage_ref == LINEAGE_A
+        assert prepared.last_known_good_lineage_ref == LINEAGE_A
+        assert prepared.retry_count == 0
+        assert prepared.no_progress_count == 0
+        assert prepared.oscillation_count == 0
+        assert prepared.progress_fingerprint is None
+        assert prepared.previous_progress_fingerprint is None
+        assert prepared.stall_classification is None
+        assert prepared.blocker_code is None
+        assert prepared.next_recovery_action == RecoveryAction.REASSIGN.value
+        assert prepared.revision == failure_revision + 1
+
+        replay = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=4))
+        assert replay is not None
+        assert replay.id == worker_id
+        assert replay.revision == prepared.revision
+        assert replay.lease_generation == generation
+
+        replacement = service.reassign(
+            run_id=binding.run_id,
+            now=T0 + timedelta(seconds=5),
+            lease_seconds=30,
+        )
+        assert replacement.execution_id == worker_id
+        assert replacement.generation == generation + 1
+        current = service.executions.get_for_run(binding.run_id)
+        assert current is not None
+        assert current.state == WorkerLifecycleState.REASSIGNED.value
+        assert current.retry_count == 0
+        assert current.checkpoint_revision == checkpoint_revision
+        assert current.source_lineage_ref == LINEAGE_A
+    finally:
+        session.close()
+
+
+def test_human_resume_prepare_does_not_rearm_nonfailed_worker(tmp_path):
+    Session = db_context(tmp_path, "human-resume-nonfailed.db")
+    binding = insert_bound_run(Session)
+    session, service = recovery_service(Session)
+    try:
+        lease = service.acquire(run_id=binding.run_id, now=T0)
+        before = service.executions.get_for_run(binding.run_id)
+        assert before is not None
+        prepared = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=1))
+        assert prepared is not None
+        assert prepared.state == WorkerLifecycleState.RUNNING.value
+        assert prepared.revision == before.revision
+        assert prepared.lease_generation == lease.generation
+        assert prepared.lease_owner_id == lease.owner_id
+    finally:
+        session.close()

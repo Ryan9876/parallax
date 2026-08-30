@@ -345,7 +345,11 @@ def pause(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService
 
 @router.post("/{run_id}/resume", response_model=EngineeringOperationRead)
 def resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):
-    return control(run_id, payload, "resume", svc)
+    prior = invoke(lambda: svc.get(run_id))
+    result = invoke(lambda: svc.resume(run_id=run_id, **payload.model_dump()))
+    if prior.state == "FAILED" and result.run.state != "FAILED":
+        invoke(lambda: worker_recovery_service(svc).prepare_human_resume(run_id=run_id))
+    return result_payload(result, svc)
 
 
 @router.post("/{run_id}/cancel", response_model=EngineeringOperationRead)

@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from ..code.worker_recovery import (
+    RecoveryAction,
     WorkerLeaseConflict,
     WorkerLeaseExpired,
     WorkerLifecycleState,
@@ -295,6 +296,54 @@ class WorkerExecutionRepository:
         refreshed = self.get(current.id)
         if refreshed is None:
             raise RuntimeError("worker execution disappeared after stall transition")
+        return refreshed
+
+    def prepare_human_resume(
+        self,
+        *,
+        run_id: str,
+        now: datetime,
+    ) -> EngineeringWorkerExecution | None:
+        current = self.get_for_run(run_id)
+        if current is None:
+            return None
+        if current.state != WorkerLifecycleState.FAILED.value:
+            return current
+        if current.lease_owner_id is not None or current.lease_expires_at is not None:
+            raise WorkerLeaseConflict("FAILED worker execution must be unleased before human resume recovery")
+
+        result = self.session.execute(
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == current.id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                    EngineeringWorkerExecution.state == WorkerLifecycleState.FAILED.value,
+                    EngineeringWorkerExecution.lease_owner_id.is_(None),
+                    EngineeringWorkerExecution.lease_expires_at.is_(None),
+                )
+                .values(
+                    state=WorkerLifecycleState.RECOVERING.value,
+                    retry_count=0,
+                    no_progress_count=0,
+                    oscillation_count=0,
+                    progress_fingerprint=None,
+                    previous_progress_fingerprint=None,
+                    stall_classification=None,
+                    blocker_code=None,
+                    next_recovery_action=RecoveryAction.REASSIGN.value,
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
+            )
+        )
+        if result.rowcount != 1:
+            self.session.rollback()
+            raise WorkerLeaseConflict("human-resume worker recovery lost a concurrent compare-and-swap race")
+        self.session.commit()
+        refreshed = self.get(current.id)
+        if refreshed is None:
+            raise RuntimeError("worker execution disappeared after human-resume recovery preparation")
         return refreshed
 
     def reassign(self, *, run_id: str, now: datetime, lease_seconds: int) -> EngineeringWorkerExecution:
