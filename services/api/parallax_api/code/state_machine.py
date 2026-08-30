@@ -19,7 +19,7 @@ class SpecBindingError(RunTransitionError):
 
 @dataclass(frozen=True, slots=True)
 class ProtectedRunPolicy:
-    version: str = "code-run-policy-v0.4.0"
+    version: str = "code-run-policy-v0.5.0"
 
     def success_target(self, stage: WorkflowStage) -> WorkflowStage:
         if stage not in ACTIVE_STAGES:
@@ -53,11 +53,23 @@ class ProtectedRunPolicy:
         if state not in ACTIVE_STAGES:
             raise RunTransitionError(f"run in {state.value} cannot be paused")
 
-    def validate_resume(self, state: WorkflowStage, resume_stage: WorkflowStage | None) -> WorkflowStage:
+    def validate_resume(
+        self,
+        state: WorkflowStage,
+        resume_stage: WorkflowStage | None,
+        *,
+        refresh_plan: bool = False,
+    ) -> WorkflowStage:
         if state not in {WorkflowStage.PAUSED, WorkflowStage.FAILED}:
             raise RunTransitionError(f"run in {state.value} cannot be resumed")
         if resume_stage not in ACTIVE_STAGES:
             raise RunTransitionError("run has no protected executable resume stage")
+        if refresh_plan:
+            if state is not WorkflowStage.FAILED or resume_stage is not WorkflowStage.IMPLEMENT:
+                raise RunTransitionError(
+                    "protected PLAN refresh requires explicit resume from FAILED IMPLEMENT"
+                )
+            return WorkflowStage.PLAN
         return resume_stage
 
     def validate_control(self, state: WorkflowStage) -> None:
