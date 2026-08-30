@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
 
 ## Current production truth
 
@@ -81,16 +81,43 @@ Authenticated production acceptance was repeated twice against the current dispo
 
 Both production runs proved the canonical hosted route begins with `openai/gpt-5.6-luna`. In each run Luna completed provider calls and the routing layer recorded the rejected attempt as `validation_failed`, followed by bounded Terra fallback; no `provider_failed / ValidationError` misclassification appeared and the full engineering lifecycle still completed. Production telemetry intentionally does not persist a subtype that distinguishes typed structured-decode rejection from the ordinary protected validator's `False` result, so the exact typed decode branch is established by deterministic protected release tests rather than by manufacturing invalid production model output. The production evidence establishes that provider-successful Luna rejection now remains inside validation classification without regressing normal fallback or lifecycle completion.
 
+## P2-V0.23.16 — WebGL preflight reduced-graphics fallback — PRODUCTION-ACCEPTED
+
+Workstream: #398. Release PR: #493. Governing specification: `P2-V0.23.16`. Architecture remains `ARCHITECTURE.md` v3.28 because this correction changes client startup capability handling, not durable server authority or state-machine architecture.
+
+The production client previously attempted CanvasKit/Skia startup before knowing whether the browser could provide WebGL. Browsers or environments with neither WebGL2 nor WebGL could therefore fail before the already-supported authenticated reduced-graphics experience became available. P2-V0.23.16 adds a bounded browser capability preflight before `LoadSkiaWeb` and before importing the Skia application. If WebGL2 and WebGL context creation are both unavailable, or the capability probe itself throws, the client selects the existing `FallbackApp` immediately. Normal WebGL-capable startup and the existing CanvasKit-initialization catch/fallback remain unchanged.
+
+The probe records no GPU vendor, renderer, extension set, fingerprint, persistence, telemetry, or API evidence. Authentication, Project binding, Work Specification behavior, Engineering Run authority, source lineage, hosted-model routing, worker ceilings, Git/deployment authority and the REVIEW boundary are unchanged.
+
+Release and production evidence:
+
+- exact green PR head: `34b4917a59e1cc3175261a24e2cd0d11a5c0823a`;
+- release merge / deployed client source: `7f6b57aa4e44414dfbe7e2045d4ada244336eb93`;
+- production deployment: `dpl_4c4KnCtsTheUiKGfvy9fpTtUxTqB`, target production, state `READY`;
+- Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
+- production aliases include `parallax-ashy-one-20.vercel.app`, `parallax-lew7.vercel.app`, and `parallax-git-main-lew7.vercel.app`;
+- exact-head Workstream Spec Validation `33341723502`: SUCCESS;
+- exact-head Bounded Autonomy `33341723488`: SUCCESS;
+- exact-head Parallax P2 CI `33341723505`: SUCCESS, including API/contracts, client state/typecheck/export, browser/Skia acceptance, protected promotion and DSPy release compilation;
+- the WebGL-unavailable Playwright acceptance disabled WebGL2, WebGL and experimental WebGL before application startup and proved the authenticated reduced-graphics shell rendered with zero mounted canvases, no `/canvaskit.wasm` request and zero browser errors;
+- the ordinary WebGL acceptance remained green and continued to mount the Skia canvas and animated client treatment;
+- production `/` returned HTTP 200 from the exact deployment above;
+- production client runtime-error scan after release found no runtime errors in the checked window.
+
+This closes the known WebGL startup gap without broadening browser capability collection or server authority.
+
 ## Production components
 
 ### Client
 
 Current deployment-verified client:
 
-- application source: `35c832fdd80e2a230b1ab19d51fff7980479041e`;
-- production deployment: `dpl_4Q72neK7ofr2WZMn5mCgdL3MrHYB`;
+- application source: `7f6b57aa4e44414dfbe7e2045d4ada244336eb93`;
+- production deployment: `dpl_4c4KnCtsTheUiKGfvy9fpTtUxTqB`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
-- state: `READY`.
+- state: `READY`;
+- production shell: HTTT 200;
+- post-release runtime-error scan: clean in the checked production window.
 
 Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA password/recovery path. Agent-runnable GitHub Actions OIDC maps to that same bounded QA principal without storing or exposing the QA password.
 
