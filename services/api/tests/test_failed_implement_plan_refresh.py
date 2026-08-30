@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
+
 import pytest
 
 from parallax_api.code.domain import WorkflowStage
+from parallax_api.code.run_events import normalize_metadata
+from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.state_machine import ProtectedRunPolicy, RunTransitionError
 
 
@@ -45,3 +50,24 @@ def test_normal_failed_resume_behavior_is_unchanged_without_refresh():
         WorkflowStage.FAILED,
         WorkflowStage.TEST,
     ) is WorkflowStage.TEST
+
+
+def test_plan_refresh_evidence_projects_to_allowlisted_run_event_metadata():
+    mutation = SimpleNamespace(
+        attempt=SimpleNamespace(
+            attempt_number=2,
+            program_id=None,
+            tool_id=None,
+            evidence_json=json.dumps(
+                {
+                    "plan_refresh_authorized": True,
+                    "prior_resume_stage": WorkflowStage.IMPLEMENT.value,
+                }
+            ),
+        )
+    )
+
+    metadata = EngineeringRunService._attempt_metadata(mutation)
+
+    assert metadata["plan_refresh_authorized"] is True
+    assert dict(normalize_metadata(metadata)) == metadata
