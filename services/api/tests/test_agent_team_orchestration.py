@@ -331,3 +331,76 @@ def test_process_recreation_from_same_immutable_values_is_identical():
     assert second is not None
     assert first.plan_id == second.plan_id
     assert schedule_team_plan(first).as_dict() == schedule_team_plan(second).as_dict()
+
+
+def _priority_admitted(name: str, priority: int) -> AdmittedAgent:
+    identity = agent(name)
+    return AdmittedAgent(
+        identity=identity,
+        admitted_work_kinds=("implementation",),
+        admitted_capabilities=identity.declared_capabilities,
+        selection_priority=priority,
+    )
+
+
+def test_server_owned_selection_priority_controls_smallest_team_order():
+    priority_roster = AdmittedRoster(
+        (
+            _priority_admitted("priority-sol", 2),
+            _priority_admitted("priority-luna", 0),
+            _priority_admitted("priority-terra", 1),
+        )
+    )
+    assert tuple(item.identity.agent_id for item in priority_roster.entries) == (
+        "priority-luna",
+        "priority-terra",
+        "priority-sol",
+    )
+
+    serial_plan = ready_plan(serial=True, selected_roster=priority_roster)
+    assert tuple(serial_plan.roster.get(item).identity.agent_id for item in serial_plan.selected_agent_digests) == (
+        "priority-luna",
+    )
+    assert serial_plan.roster.get(schedule_team_plan(serial_plan).ready[0].agent_identity_digest).identity.agent_id == "priority-luna"
+
+    parallel_plan = ready_plan(selected_roster=priority_roster)
+    assert tuple(parallel_plan.roster.get(item).identity.agent_id for item in parallel_plan.selected_agent_digests) == (
+        "priority-luna",
+        "priority-terra",
+    )
+    assert "priority-sol" not in {
+        parallel_plan.roster.get(item).identity.agent_id for item in parallel_plan.selected_agent_digests
+    }
+
+
+def test_priority_order_is_deterministic_evidence_and_digest_ties_remain_canonical():
+    first = AdmittedRoster(
+        (
+            _priority_admitted("priority-sol", 2),
+            _priority_admitted("priority-luna", 0),
+            _priority_admitted("priority-terra", 1),
+        )
+    )
+    second = AdmittedRoster(tuple(reversed(first.entries)))
+    assert first.digest == second.digest
+    assert ready_plan(selected_roster=first).plan_id == ready_plan(selected_roster=second).plan_id
+
+    changed = AdmittedRoster(
+        (
+            _priority_admitted("priority-sol", 2),
+            _priority_admitted("priority-luna", 3),
+            _priority_admitted("priority-terra", 1),
+        )
+    )
+    assert changed.digest != first.digest
+
+    tied = AdmittedRoster(
+        (
+            _priority_admitted("tie-c", 5),
+            _priority_admitted("tie-a", 5),
+            _priority_admitted("tie-b", 5),
+        )
+    )
+    assert tuple(item.identity_digest for item in tied.entries) == tuple(
+        sorted(item.identity_digest for item in tied.entries)
+    )
