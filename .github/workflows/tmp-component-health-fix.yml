@@ -58,6 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          npm --prefix apps/client ci
           npm --prefix apps/client run test:state
           git diff --check
           git config user.name parallax-ui-fix
