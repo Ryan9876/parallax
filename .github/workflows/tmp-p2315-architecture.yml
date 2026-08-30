@@ -1,0 +1,80 @@
+name: Temporary P2-V0.23.15 architecture reconciliation
+
+on:
+  push:
+    branches:
+      - fix/p2315-structured-output-classification
+    paths:
+      - .github/workflows/tmp-p2315-architecture.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2315-structured-output-classification
+          fetch-depth: 0
+      - name: Reconcile architecture v3.28
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text()
+          text = text.replace('Version: 3.27', 'Version: 3.28', 1)
+
+          lines = text.splitlines()
+          for index, line in enumerate(lines):
+              if line.startswith('Architecture v3.27 completes human-authorized PLAN refresh'):
+                  lines[index] = (
+                      'Architecture v3.28 makes hosted model-routing failure semantics truthful at the provider/output boundary: '
+                      'a provider-successful implementation proposal that fails strict server-owned JSON/schema decoding is validation failure, '
+                      'while transport, configuration, rate-limit and unrelated attempt exceptions remain provider failure. The implementation '
+                      'proposal prompt states the exact already-enforced JSON keys more explicitly, but parsing remains strict and fail-closed. '
+                      'Architecture v3.27 remains the recovered-worker PLAN-rebinding foundation, v3.26 remains the failed-IMPLEMENT PLAN-refresh '
+                      'foundation, v3.25 remains the terminal-worker re-arm foundation, v3.24 remains the hosted model escalation foundation, '
+                      'v3.23 remains the validator-guided repair foundation, v3.22 remains bounded implementation-candidate recovery, and v3.21 '
+                      'remains empty-greenfield source authority. The complete v3.19 architecture is incorporated by reference. Every v3.19 '
+                      'durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical '
+                      'Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical '
+                      'mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace '
+                      'deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 '
+                      'benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential '
+                      'scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.'
+                  )
+                  break
+          else:
+              raise SystemExit('version relationship marker not found')
+          text = '\n'.join(lines) + '\n'
+
+          marker = '## Server-owned hosted model escalation\n'
+          if '## Structured-output validation routing boundary\n' not in text:
+              section = '''## Structured-output validation routing boundary
+
+Architecture v3.28 distinguishes provider execution from protected structured-output validation. A hosted model request can complete successfully at the provider boundary and still return output that cannot be decoded into the exact server-owned `ImplementationProposal` schema. That condition is not provider unavailability.
+
+Implementation-generation programs may therefore raise one typed server-owned `ModelOutputValidationError` only after a provider result exists and strict protected proposal JSON/schema validation fails. The exception carries no raw model output, validation payload, repository text, provider response, secret, or arbitrary exception message. `ModelRouter` catches that type before its generic provider boundary and records the attempt as `validation_failed`. The existing validator-returned-false path remains `validation_failed` as well.
+
+Transport, configuration, rate-limit and unrelated program exceptions continue through the generic sanitized provider boundary and remain `provider_failed`, retaining only exception class in bounded attempt evidence. If every configured attempt is validation failure, routing remains `VALIDATION_EXHAUSTED`; if every attempt is `provider_failed / LMRateLimitError`, routing remains `RATE_LIMITED`; mixed provider and validation outcomes remain conservatively `PROVIDER_EXHAUSTED`. Exception strings and model text never determine the classification.
+
+The implementation proposal prompt now states the exact already-enforced JSON keys and forbids Markdown/prose wrappers more explicitly. This is generation guidance only. Parallax does not strip fences, extract prose, repair JSON, accept extra keys, relax acceptance coverage, or bypass strict Pydantic and safe-patch validation. Hosted order remains `Luna -> Terra -> Sol`; candidate recovery, worker recovery, reassignment ceilings, source mutation, lineage, Git/provider/deployment authority and REVIEW boundaries are unchanged.
+
+'''
+              if marker not in text:
+                  raise SystemExit('hosted model escalation marker not found')
+              text = text.replace(marker, section + marker, 1)
+
+          path.write_text(text)
+          Path('.github/workflows/tmp-p2315-architecture.yml').unlink()
+          PY
+      - name: Commit architecture reconciliation
+        run: |
+          git config user.name "parallax-qa-compiler"
+          git config user.email "actions@users.noreply.github.com"
+          git add ARCHITECTURE.md .github/workflows/tmp-p2315-architecture.yml
+          git commit -m "P2-V0.23.15: record architecture v3.28"
+          git push origin HEAD:fix/p2315-structured-output-classification
