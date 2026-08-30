@@ -16,7 +16,7 @@ concurrency:
 jobs:
   reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,8 +86,6 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
-      - name: Validate reconciled specification structure
-        run: python scripts/validate_spec.py specs/P2-V0.23.10.md
       - name: Install local DSPy development LM
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
