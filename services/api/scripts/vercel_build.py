@@ -70,7 +70,11 @@ def main() -> None:
     _run("scripts/production_delivery_permission_preflight.py")
     _run("scripts/production_projected_source_preflight.py")
 
-    if (os.getenv("VERCEL_ENV") or "unknown") == "production":
+    environment = os.getenv("VERCEL_ENV") or "unknown"
+    if environment == "preview" and os.getenv("PARALLAX_REPOSITORY_AUTHORIZATION_PROBE") == "1":
+        _run("scripts/probe_repository_authorization.py")
+
+    if environment == "production":
         # Production publication remains fail-closed on every runtime substrate
         # required for durable source bootstrap and exact-lineage execution.
         _run_isolated_preflight("scripts/production_lineage_composition_preflight.py")
