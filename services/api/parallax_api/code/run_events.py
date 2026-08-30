@@ -60,6 +60,7 @@ _METADATA_KEYS = frozenset(
         "next_recovery_action",
         "no_progress_count",
         "oscillation_count",
+        "plan_refresh_authorized",
         "preview_deployment_id",
         "preview_status",
         "program_id",
