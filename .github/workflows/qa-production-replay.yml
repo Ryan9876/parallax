@@ -189,6 +189,7 @@ jobs:
           state="$(jq -r '.state' /tmp/run-before.json)"
           test "${state}" = "PLAN"
           test -n "${run_id}"
+          echo "project_id=${project_id}" >> "${GITHUB_OUTPUT}"
           echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
           echo "OT Time replay fixture: project=${project_id}, run=${run_id}, state=${state}, revision=${revision}"
@@ -218,6 +219,7 @@ jobs:
         shell: bash
         env:
           API_BASE: https://parallax-api-tan.vercel.app
+          PROJECT_ID: ${{ steps.fixture.outputs.project_id }}
           RUN_ID: ${{ steps.fixture.outputs.run_id }}
           BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}
         run: |
@@ -243,7 +245,7 @@ jobs:
           curl --fail-with-body --silent --show-error \
             --cookie /tmp/parallax.cookies \
             -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \
+            "${API_BASE}/v1/projects/${PROJECT_ID}/engineering-runs/${RUN_ID}/source-download" \
             -o /tmp/ot-time-source.zip
           python - <<'PY'
           from pathlib import Path
@@ -257,7 +259,7 @@ jobs:
               assert all(not name.startswith('/') and '..' not in name.split('/') for name in names)
           print(f'OT Time source-only archive verified: entries={len(names)}, bytes={archive.stat().st_size}')
           PY
-          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
+          echo "OT Time P2-V0.23.9 production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
 # Replay marker: print current bounded failure evidence.
