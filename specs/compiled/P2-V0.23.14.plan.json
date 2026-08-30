@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    ": One architecture decision, maximum 160 characters"
+  ],
+  "work_items": [
+    ": One concrete implementation work item, maximum 160 characters"
+  ],
+  "validations": [
+    ": One executable validation or evidence check, maximum 160 characters",
+    "AC-01: validate protected requirement \u2014 A worker checkpoint with a changed `plan_ref` is rejected exactly as before when no protected human PLAN-refresh sequence authorizes the new reference.",
+    "AC-02: validate protected requirement \u2014 A changed reference is not admitted merely because the worker has recovered, the run is at IMPLEMENT, or a later PLAN exists. The latest PLAN history must contain the exact `RESUMED(plan_refresh_authorized=true) -> PASSED` sequence.",
+    "AC-03: validate protected requirement \u2014 The only admissible changed reference is `agentic-plan:<team_plan_id>` from the newest PASSED PLAN attempt in that exact refresh sequence. A stale, arbitrary or malformed PLAN identity fails closed.",
+    "AC-04: validate protected requirement \u2014 The exceptional changed-reference admission is limited to the first protected agent-dispatch checkpoint that follows the human-refreshed PLAN. It does not create a generic checkpoint API for changing PLAN identity.",
+    "AC-05: validate protected requirement \u2014 After the first accepted checkpoint persists the fresh PLAN reference, subsequent checkpoints use ordinary equality validation. A second unrelated PLAN change is rejected unless a later independently authorized human PLAN refresh creates another exact protected sequence.",
+    "AC-06: validate protected requirement \u2014 A durable worker carrying an old PLAN checkpoint and expired old lease can traverse protected process-loss recovery to a fresh lease generation and persist its first checkpoint under the human-refreshed PLAN without `AGENTIC_TASK_FAILED` at PLAN-reference validation.",
+    "AC-07: validate protected requirement \u2014 Worker identity, prior checkpoint history, checkpoint revision progression, accepted/last-known-good lineage, lease-generation history, prior PLAN/IMPLEMENT attempts and run events remain intact.",
+    "AC-08: validate protected requirement \u2014 A protected worker checkpoint contract failure during pre-mutation agentic generation is converted into the existing bounded implementation failure path, causing a durable FAILED IMPLEMENT attempt rather than HTTP 422 with an active IMPLEMENT run and terminal worker.",
+    "AC-09: validate protected requirement \u2014 The change grants no new source mutation, lineage acceptance, Git/provider credentials, arbitrary network/tool use, deployment, production promotion or REVIEW-completion authority.",
+    "AC-10: validate protected requirement \u2014 Focused worker/agentic/runtime tests and the full protected release gates pass. After exact-source production deployment, authenticated user-equivalent QA on a fresh failed IMPLEMENT fixture must show `resume -> fresh PLAN PASSED -> worker fresh generation -> first refreshed dispatch checkpoint` and hosted implementation dispatch, or capture the next later bounded failure with preserved diagnostic evidence."
+  ],
+  "risks": [
+    ": One material risk and mitigation, maximum 160 characters"
+  ],
+  "spec_id": "P2-V0.23.14",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Ordinary PLAN-reference immutability remains",
+      "protected_requirement": "A worker checkpoint with a changed `plan_ref` is rejected exactly as before when no protected human PLAN-refresh sequence authorizes the new reference."
+    },
+    {
+      "id": "AC-02",
+      "title": "Exact human-refresh history is required",
+      "protected_requirement": "A changed reference is not admitted merely because the worker has recovered, the run is at IMPLEMENT, or a later PLAN exists. The latest PLAN history must contain the exact `RESUMED(plan_refresh_authorized=true) -> PASSED` sequence."
+    },
+    {
+      "id": "AC-03",
+      "title": "Fresh protected PLAN identity is exact",
+      "protected_requirement": "The only admissible changed reference is `agentic-plan:<team_plan_id>` from the newest PASSED PLAN attempt in that exact refresh sequence. A stale, arbitrary or malformed PLAN identity fails closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Rebind occurs only at refreshed dispatch",
+      "protected_requirement": "The exceptional changed-reference admission is limited to the first protected agent-dispatch checkpoint that follows the human-refreshed PLAN. It does not create a generic checkpoint API for changing PLAN identity."
+    },
+    {
+      "id": "AC-05",
+      "title": "One rebind then immutability resumes",
+      "protected_requirement": "After the first accepted checkpoint persists the fresh PLAN reference, subsequent checkpoints use ordinary equality validation. A second unrelated PLAN change is rejected unless a later independently authorized human PLAN refresh creates another exact protected sequence."
+    },
+    {
+      "id": "AC-06",
+      "title": "Production-shaped expired worker recovers",
+      "protected_requirement": "A durable worker carrying an old PLAN checkpoint and expired old lease can traverse protected process-loss recovery to a fresh lease generation and persist its first checkpoint under the human-refreshed PLAN without `AGENTIC_TASK_FAILED` at PLAN-reference validation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Historical evidence and lineage are preserved",
+      "protected_requirement": "Worker identity, prior checkpoint history, checkpoint revision progression, accepted/last-known-good lineage, lease-generation history, prior PLAN/IMPLEMENT attempts and run events remain intact."
+    },
+    {
+      "id": "AC-08",
+      "title": "Typed checkpoint failures keep run and worker state coherent",
+      "protected_requirement": "A protected worker checkpoint contract failure during pre-mutation agentic generation is converted into the existing bounded implementation failure path, causing a durable FAILED IMPLEMENT attempt rather than HTTP 422 with an active IMPLEMENT run and terminal worker."
+    },
+    {
+      "id": "AC-09",
+      "title": "No authority expansion",
+      "protected_requirement": "The change grants no new source mutation, lineage acceptance, Git/provider credentials, arbitrary network/tool use, deployment, production promotion or REVIEW-completion authority."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact-head and production proof",
+      "protected_requirement": "Focused worker/agentic/runtime tests and the full protected release gates pass. After exact-source production deployment, authenticated user-equivalent QA on a fresh failed IMPLEMENT fixture must show `resume -> fresh PLAN PASSED -> worker fresh generation -> first refreshed dispatch checkpoint` and hosted implementation dispatch, or capture the next later bounded failure with preserved diagnostic evidence."
+    }
+  ],
+  "critique": [
+    "One material implementation risk or omission in the brief is the change in the accepted rebind condition. It ensures that the new PLAN reference is not a new PLAN and that the rebind is only at refreshed dispatch. This prevents the rebind from causing a bounded pre-mutation implementation failure."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
