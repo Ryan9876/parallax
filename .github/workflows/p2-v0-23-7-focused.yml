@@ -25,9 +25,10 @@ jobs:
       - run: pip install -e 'services/api[dev]'
       - name: Validate protected spec and DSPy evidence
         run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.7.md
-      - name: Run greenfield lineage and allocator tests
+      - name: Run greenfield lineage, allocator, and GitHub provider tests
         run: >-
           pytest -q
           services/api/tests/test_greenfield_lineage.py
+          services/api/tests/test_greenfield_github.py
           services/api/tests/test_code_workspace_lineage.py
           services/api/tests/test_code_workspace_allocator.py
