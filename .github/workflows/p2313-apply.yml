@@ -1,0 +1,99 @@
+name: P2-V0.23.13 Apply
+
+on:
+  push:
+    branches:
+      - fix/p2313-replan-failed-implement
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2313-replan-failed-implement
+          fetch-depth: 0
+
+      - name: Apply bounded PLAN-refresh implementation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement target, found {count}")
+              target.write_text(text.replace(old, new, 1))
+
+          service_path = "services/api/parallax_api/code/service.py"
+          replace_once(
+              service_path,
+              '        for key in ("lineage_bound_execution", "timed_out", "redacted", "mutation_applied"):\n',
+              '        for key in ("lineage_bound_execution", "timed_out", "redacted", "mutation_applied", "plan_refresh_authorized"):\n',
+          )
+
+          replace_once(
+              service_path,
+              '''    def resume(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:\n        run = self.get(run_id)\n        self._bound_work_specification(run, require_project=self.require_project_binding)\n        replay = self._idempotent_replay(run, operation_key)\n        if replay is not None:\n            return replay\n        self._require_revision(run, expected_revision)\n        state = WorkflowStage(run.state)\n        resume_stage = WorkflowStage(run.resume_stage) if run.resume_stage else None\n        target = self.policy.validate_resume(state, resume_stage)\n        mutation = self.runs.record(\n            run,\n            stage=target.value,\n            operation_key=operation_key,\n            status=AttemptStatus.RESUMED.value,\n            next_state=target.value,\n            resume_stage=None,\n        )\n        return self._result(mutation)\n''',
+              '''    def resume(\n        self,\n        *,\n        run_id: str,\n        operation_key: str,\n        expected_revision: int,\n        refresh_plan: bool = False,\n    ) -> RunOperationResult:\n        run = self.get(run_id)\n        self._bound_work_specification(run, require_project=self.require_project_binding)\n        replay = self._idempotent_replay(run, operation_key)\n        if replay is not None:\n            return replay\n        self._require_revision(run, expected_revision)\n        state = WorkflowStage(run.state)\n        resume_stage = WorkflowStage(run.resume_stage) if run.resume_stage else None\n        target = self.policy.validate_resume(\n            state,\n            resume_stage,\n            refresh_plan=refresh_plan,\n        )\n        evidence = None\n        if refresh_plan:\n            evidence = {\n                "plan_refresh_authorized": True,\n                "prior_resume_stage": resume_stage.value if resume_stage is not None else None,\n            }\n        mutation = self.runs.record(\n            run,\n            stage=target.value,\n            operation_key=operation_key,\n            status=AttemptStatus.RESUMED.value,\n            next_state=target.value,\n            resume_stage=None,\n            evidence=evidence,\n        )\n        return self._result(mutation)\n''',
+          )
+
+          route_path = "services/api/parallax_api/routes/engineering_runs.py"
+          replace_once(
+              route_path,
+              '''@router.post("/{run_id}/resume", response_model=EngineeringOperationRead)\ndef resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):\n    prior_state = invoke(lambda: svc.get(run_id)).state\n    result = invoke(lambda: svc.resume(run_id=run_id, **payload.model_dump()))\n    if prior_state == "FAILED" and result.run.state != "FAILED":\n        invoke(lambda: worker_recovery_service(svc).prepare_human_resume(run_id=run_id))\n    return result_payload(result, svc)\n''',
+              '''@router.post("/{run_id}/resume", response_model=EngineeringOperationRead)\ndef resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):\n    prior = invoke(lambda: svc.get(run_id))\n    # Snapshot immutable scalars before the same-session resume mutation.\n    prior_state = str(prior.state)\n    prior_resume_stage = str(prior.resume_stage or "")\n    prior_project_id = str(prior.project_id or "")\n    refresh_plan = (\n        os.getenv(_AGENTIC_RUNTIME_ENABLE_ENV) == "1"\n        and prior_state == WorkflowStage.FAILED.value\n        and prior_resume_stage == WorkflowStage.IMPLEMENT.value\n        and bool(prior_project_id)\n    )\n    values = payload.model_dump()\n    if refresh_plan:\n        values["refresh_plan"] = True\n    result = invoke(lambda: svc.resume(run_id=run_id, **values))\n    if prior_state == WorkflowStage.FAILED.value and result.run.state != WorkflowStage.FAILED.value:\n        invoke(lambda: worker_recovery_service(svc).prepare_human_resume(run_id=run_id))\n    return result_payload(result, svc)\n''',
+          )
+
+          Path("services/api/tests/test_resume_route_snapshot.py").write_text('''from __future__ import annotations\n\nfrom types import SimpleNamespace\n\nfrom parallax_api.routes import engineering_runs as routes\n\n\nclass _Payload:\n    def model_dump(self) -> dict[str, object]:\n        return {"operation_key": "resume-route-snapshot", "expected_revision": 7}\n\n\nclass _AliasedService:\n    """Model same-session ORM identity mutation and capture server-only resume mode."""\n\n    def __init__(self, *, resume_stage: str = "IMPLEMENT") -> None:\n        self.run = SimpleNamespace(\n            state="FAILED",\n            resume_stage=resume_stage,\n            project_id="project-1",\n        )\n        self.refresh_plan_values: list[bool] = []\n\n    def get(self, run_id: str):\n        assert run_id == "run-1"\n        return self.run\n\n    def resume(\n        self,\n        *,\n        run_id: str,\n        operation_key: str,\n        expected_revision: int,\n        refresh_plan: bool = False,\n    ):\n        assert run_id == "run-1"\n        assert operation_key == "resume-route-snapshot"\n        assert expected_revision == 7\n        self.refresh_plan_values.append(refresh_plan)\n        # SQLAlchemy may refresh/mutate this exact object after the pre-read.\n        self.run.state = "PLAN" if refresh_plan else self.run.resume_stage\n        self.run.resume_stage = None\n        return SimpleNamespace(run=self.run, attempt_id="attempt-1", replayed=False)\n\n\nclass _Recovery:\n    def __init__(self) -> None:\n        self.calls: list[str] = []\n\n    def prepare_human_resume(self, *, run_id: str):\n        self.calls.append(run_id)\n        return SimpleNamespace(state="RECOVERING")\n\n\ndef _wire(monkeypatch, recovery: _Recovery) -> None:\n    monkeypatch.setattr(routes, "worker_recovery_service", lambda svc: recovery)\n    monkeypatch.setattr(\n        routes,\n        "result_payload",\n        lambda result, svc: {"state": result.run.state, "attempt_id": result.attempt_id},\n    )\n\n\ndef test_failed_agentic_implement_resume_snapshots_state_and_refreshes_plan(monkeypatch):\n    service = _AliasedService()\n    recovery = _Recovery()\n    _wire(monkeypatch, recovery)\n    monkeypatch.setenv("PARALLAX_AGENTIC_RUNTIME_ENABLED", "1")\n\n    response = routes.resume("run-1", _Payload(), service)\n\n    assert response == {"state": "PLAN", "attempt_id": "attempt-1"}\n    assert service.refresh_plan_values == [True]\n    assert recovery.calls == ["run-1"]\n\n\ndef test_failed_implement_resume_without_agentic_runtime_preserves_direct_resume(monkeypatch):\n    service = _AliasedService()\n    recovery = _Recovery()\n    _wire(monkeypatch, recovery)\n    monkeypatch.delenv("PARALLAX_AGENTIC_RUNTIME_ENABLED", raising=False)\n\n    response = routes.resume("run-1", _Payload(), service)\n\n    assert response == {"state": "IMPLEMENT", "attempt_id": "attempt-1"}\n    assert service.refresh_plan_values == [False]\n    assert recovery.calls == ["run-1"]\n\n\ndef test_failed_non_implement_resume_does_not_refresh_plan(monkeypatch):\n    service = _AliasedService(resume_stage="TEST")\n    recovery = _Recovery()\n    _wire(monkeypatch, recovery)\n    monkeypatch.setenv("PARALLAX_AGENTIC_RUNTIME_ENABLED", "1")\n\n    response = routes.resume("run-1", _Payload(), service)\n\n    assert response == {"state": "TEST", "attempt_id": "attempt-1"}\n    assert service.refresh_plan_values == [False]\n    assert recovery.calls == ["run-1"]\n''')
+
+          Path("services/api/tests/test_failed_implement_plan_refresh.py").write_text('''from __future__ import annotations\n\nimport pytest\n\nfrom parallax_api.code.domain import WorkflowStage\nfrom parallax_api.code.state_machine import ProtectedRunPolicy, RunTransitionError\n\n\ndef test_failed_implement_can_refresh_to_plan_only_when_explicitly_authorized():\n    policy = ProtectedRunPolicy()\n\n    assert policy.validate_resume(\n        WorkflowStage.FAILED,\n        WorkflowStage.IMPLEMENT,\n        refresh_plan=True,\n    ) is WorkflowStage.PLAN\n\n\ndef test_plan_refresh_cannot_be_used_from_paused_run():\n    policy = ProtectedRunPolicy()\n\n    with pytest.raises(RunTransitionError, match="FAILED IMPLEMENT"):\n        policy.validate_resume(\n            WorkflowStage.PAUSED,\n            WorkflowStage.IMPLEMENT,\n            refresh_plan=True,\n        )\n\n\ndef test_plan_refresh_cannot_retarget_non_implement_failure():\n    policy = ProtectedRunPolicy()\n\n    with pytest.raises(RunTransitionError, match="FAILED IMPLEMENT"):\n        policy.validate_resume(\n            WorkflowStage.FAILED,\n            WorkflowStage.TEST,\n            refresh_plan=True,\n        )\n\n\ndef test_normal_failed_resume_behavior_is_unchanged_without_refresh():\n    policy = ProtectedRunPolicy()\n\n    assert policy.validate_resume(\n        WorkflowStage.FAILED,\n        WorkflowStage.TEST,\n    ) is WorkflowStage.TEST\n''')
+
+          architecture = Path("ARCHITECTURE.md")
+          text = architecture.read_text()
+          if "Version: 3.25" not in text:
+              raise SystemExit("ARCHITECTURE.md version marker drifted")
+          text = text.replace("Version: 3.25", "Version: 3.26", 1)
+          old_relationship = "Architecture v3.25 adds explicit human-authorized terminal-worker re-arm after a successful failed-run resume to v3.24 without changing hosted model escalation, candidate-recovery, or validator-guided repair bounds."
+          new_relationship = "Architecture v3.26 adds human-authorized PLAN refresh for Project-bound agentic retries that begin from FAILED IMPLEMENT, so current server-owned orchestration and routing policy is re-established before worker reassignment. Architecture v3.25 remains the terminal-worker re-arm foundation; hosted model escalation, candidate-recovery, validator-guided repair, source authority, deployment authority, and REVIEW ceilings remain unchanged."
+          if old_relationship not in text:
+              raise SystemExit("ARCHITECTURE.md relationship marker drifted")
+          text = text.replace(old_relationship, new_relationship, 1)
+          section = '''\n\n## Human-authorized PLAN refresh after failed IMPLEMENT\n\nA Project-bound Engineering Run using the live agentic runtime may accumulate historical protected PLAN evidence that no longer matches current server-owned orchestration, admitted-agent ordering, routing policy, or competition policy. Such drift must continue to fail closed; historical PLAN evidence is never silently reinterpreted as current.\n\nWhen an authenticated operator explicitly resumes a run that entered the request in durable `FAILED` state with protected `resume_stage=IMPLEMENT`, the server may select the bounded `PLAN` refresh resume target. This selection is derived only from immutable pre-resume run state, canonical Project binding, and the server-owned agentic-runtime enablement flag. The public resume schema exposes no PLAN-refresh switch, and model/browser/repository text has no authority over the decision.\n\nThe resume records a new `RESUMED` control attempt targeting `PLAN` with bounded evidence that the plan refresh was human-authorized. The already-approved terminal-worker preparation remains separate: the old terminal worker becomes `RECOVERING` but receives no lease during PLAN. Autonomous continuation then executes the ordinary protected PLAN runtime against current accepted source lineage and policy. Only after that PLAN succeeds and the run re-enters IMPLEMENT may the existing `RECOVERING -> REASSIGNED` worker transition mint a fresh lease generation for hosted implementation dispatch.\n\nPAUSED resumes and FAILED retries from BUILD, TEST, VERIFY, PLAN, or SPECIFY retain their existing direct resume-stage semantics. Ordinary autonomous calls, reconnects, refreshes, and background execution cannot refresh PLAN or restart a terminal run. Historical attempts, events, worker checkpoints, source lineage, repository/provider authority, production deployment authority, and the explicit REVIEW boundary remain unchanged.\n'''
+          if "## Human-authorized PLAN refresh after failed IMPLEMENT" not in text:
+              text += section
+          architecture.write_text(text)
+          PY
+
+      - name: Syntax validation
+        run: |
+          python -m compileall -q \
+            services/api/parallax_api/code/state_machine.py \
+            services/api/parallax_api/code/service.py \
+            services/api/parallax_api/routes/engineering_runs.py \
+            services/api/tests/test_resume_route_snapshot.py \
+            services/api/tests/test_failed_implement_plan_refresh.py
+          git diff --check
+
+      - name: Commit implementation
+        run: |
+          git config user.name "parallax-qa-compiler"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            ARCHITECTURE.md \
+            services/api/parallax_api/code/service.py \
+            services/api/parallax_api/routes/engineering_runs.py \
+            services/api/tests/test_resume_route_snapshot.py \
+            services/api/tests/test_failed_implement_plan_refresh.py
+          if git diff --cached --quiet; then
+            echo "No implementation changes required"
+            exit 0
+          fi
+          git commit -m "P2-V0.23.13: refresh PLAN on failed agentic IMPLEMENT retry"
+          git push origin HEAD:fix/p2313-replan-failed-implement
