@@ -1,50 +1,51 @@
 {
   "architecture_decisions": [
-    "The architecture decision is to implement a structured autonomous failure for exact repository-consent failure, retain current HTTP status semantics but return bounded structured detail: ```json { \"detail\": { \"message\": \"Repository authorization is required before Parallax can continue.\", \"code\": \"REPOSITORY_AUTHORIZATION_REQUIRED\" } } ``` Other errors may retain existing string detail unless independently typed. Client behavior must never parse display text to infer authority state."
+    "The architecture decision is to implement a structured autonomous failure mechanism for exact repository-consent failure, retain current status semantics but return a bounded structured code without message parsing."
   ],
   "work_items": [
-    "Implement a bounded structured autonomous failure for exact repository-consent failure, retain current HTTP status semantics but return bounded structured detail: ```json { \"detail\": { \"message\": \"Repository authorization is required before Parallax can continue.\", \"code\": \"REPOSITORY_AUTHORIZATION_REQUIRED\" } } ``` Other errors may retain existing string detail unless independently typed. Client behavior must never parse display text to infer authority state."
+    "Implement a typed read-only provider operation that returns only one of: missing/unauthorized failure; commit-bearing repository with canonical default branch and head revision; positively empty repository with canonical default branch and no head revision. The operation uses existing exact-repository credential authority and returns no source bytes. Ordinary commit-bearing public/Python/.NET bootstrap remains unchanged."
   ],
   "validations": [
-    "Validate that the bounded structured autonomous failure for exact repository-consent failure is implemented correctly, and that it behaves as expected.",
-    "AC-01: validate protected requirement \u2014 Autonomy returns `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without display-message parsing.",
+    "Validate the implementation by testing the structured autonomous failure mechanism with various scenarios, including exact repository-consent failure, missing/unauthorized failure, commit-bearing repository with canonical default branch and head revision, positively empty repository with canonical default branch and no head revision, and ordinary source failure alone cannot initialize greenfield lineage.",
+    "AC-01: validate protected requirement \u2014 Autonomy returns `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without message parsing.",
     "AC-02: validate protected requirement \u2014 Runtime introduces no PAT, reusable Vercel personal/team token, GitHub user token, password or static provider bearer to initiate repository consent.",
-    "AC-03: validate protected requirement \u2014 Preview environments are not granted production `github/parallax-runtime` mutation authority merely to make consent initiation testable.",
-    "AC-04: validate protected requirement \u2014 After external exact-repository consent, ordinary production Connect token exchange plus exact-one-repository GitHub verification remains the only readiness proof.",
-    "AC-05: validate protected requirement \u2014 Permission changes do not alter Project/work/run identity; the same durable Engineering Run remains retryable.",
-    "AC-06: validate protected requirement \u2014 Repository-permission guidance appears only for exact `REPOSITORY_AUTHORIZATION_REQUIRED`; no unverified consent URL is surfaced.",
-    "AC-07: validate protected requirement \u2014 A typed read-only operation deterministically distinguishes commit-bearing, positively empty and missing/unauthorized repositories under exact repository scope.",
-    "AC-08: validate protected requirement \u2014 Provider outage, 404/403, credential failure, malformed response or ordinary `SOURCE_NOT_FOUND` alone cannot initialize greenfield lineage.",
-    "AC-09: validate protected requirement \u2014 A dedicated greenfield initialization operation creates a zero-file root lineage with canonical empty digest and provenance; ordinary source packages remain non-empty by contract.",
-    "AC-10: validate protected requirement \u2014 Zero-file manifest/materialization is accepted only for a root `greenfield` lineage with exact invariants; forged empty implementation/non-greenfield lineage is rejected.",
-    "AC-11: validate protected requirement \u2014 IMPLEMENT must produce at least one safe protected source file and a changed non-root lineage before BUILD/TEST/VERIFY can pass.",
-    "AC-12: validate protected requirement \u2014 PLAN through VERIFY on an empty repository performs no GitHub commit/ref/source mutation merely to initialize baseline.",
-    "AC-13: validate protected requirement \u2014 At REVIEW, the fixed GitHub initialization action creates empty tree, zero-parent provenance-bound commit and default-branch ref without force and proves exact read-back.",
-    "AC-14: validate protected requirement \u2014 Retry reuses an existing baseline only if zero parents, empty tree, deterministic provenance, Project/run/root lineage and default ref all match exactly.",
-    "AC-15: validate protected requirement \u2014 Any unrelated head or incompatible ref state fails closed and is never overwritten.",
-    "AC-16: validate protected requirement \u2014 After baseline initialization, accepted source is committed on bounded Parallax branch from baseline, never directly on default.",
-    "AC-17: validate protected requirement \u2014 Existing PR create/read-back semantics prove exact repository, head branch/revision and base branch for greenfield delivery.",
-    "AC-18: validate protected requirement \u2014 Vercel Preview is created from exact accepted implementation commit and existing Preview read-back proves repository/source revision/target identity.",
-    "AC-19: validate protected requirement \u2014 Delivery records bounded initialization, branch, accepted commit, PR and Preview evidence without credentials/raw provider payloads and remains replay-safe.",
-    "AC-20: validate protected requirement \u2014 Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, ordinary repository-root lineage and GitHub delivery remain green.",
-    "AC-21: validate protected requirement \u2014 Source-only delivery does not acquire a Vercel application-delivery dependency because of greenfield support.",
-    "AC-22: validate protected requirement \u2014 Greenfield publication ends at REVIEW and cannot grant work approval, production promotion or REVIEW completion.",
-    "AC-23: validate protected requirement \u2014 Runtime/provider/client code does not inspect Decision Ledger identity, `sickbeard`, benchmark tokens or expected solution content.",
-    "AC-24: validate protected requirement \u2014 Temporary authorization probe code, preview marker and temporary build invocation are removed before final PR; the negative result is retained only as governance evidence.",
-    "AC-25: validate protected requirement \u2014 The release record states that workload-OIDC authorization initiation was not proven and is therefore not shipped; this is not represented as a deployed capability.",
-    "AC-26: validate protected requirement \u2014 After explicit exact-repository consent, the canonical Decision Ledger trial proceeds without out-of-band source edits through positive empty proof, greenfield root, accepted source, protected BUILD/TEST/VERIFY, REVIEW-only baseline initialization, bounded GitHub branch/PR publication, Vercel Preview and REVIEW.",
-    "AC-27: validate protected requirement \u2014 If consent, empty inspection, initialization, implementation, delivery or Preview exposes another boundary, it is recorded and separately governed rather than weakening gates.",
-    "AC-28: validate protected requirement \u2014 This amended exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full API tests, applicable client/browser acceptance, Bounded Autonomy, protected promotion evaluation and release gates before merge/deployment."
+    "AC-03: validate protected requirement \u2014 Preview is not granted production `github/parallax-runtime` mutation authority merely to make consent initiation testable.",
+    "AC-04: validate protected requirement \u2014 After external exact-repository consent, ordinary production Connect token exchange plus exact-one-repository GitHub verification remains the readiness proof.",
+    "AC-05: validate protected requirement \u2014 Permission changes preserve Project/work/run identity and the same Engineering Run remains retryable.",
+    "AC-06: validate protected requirement \u2014 Permission guidance appears only for exact authorization-required code; no unverified consent URL is surfaced.",
+    "AC-07: validate protected requirement \u2014 Typed read-only inspection deterministically distinguishes commit-bearing, positively empty and missing/unauthorized states under exact scope.",
+    "AC-08: validate protected requirement \u2014 Outage, 404/403, credential failure, malformed response or ordinary source failure alone cannot initialize greenfield lineage.",
+    "AC-09: validate protected requirement \u2014 Dedicated greenfield initialization creates a zero-file root with canonical empty digest/provenance; ordinary source packages remain non-empty.",
+    "AC-10: validate protected requirement \u2014 Zero-file manifest/materialization is accepted only for exact root-greenfield invariants; forged empty implementation/non-greenfield lineage is rejected.",
+    "AC-11: validate protected requirement \u2014 IMPLEMENT produces at least one safe protected file and changed non-root lineage before BUILD/TEST/VERIFY can pass.",
+    "AC-12: validate protected requirement \u2014 PLAN through VERIFY performs no GitHub source/ref mutation merely to initialize empty baseline.",
+    "AC-13: validate protected requirement \u2014 At REVIEW, fixed initializer creates the deterministic bootstrap root commit via repository-contents API, serially deletes the exact bootstrap file, and proves the resulting default-branch head tree is empty.",
+    "AC-14: validate protected requirement \u2014 Replay reuses an existing baseline only when cleanup head, bootstrap parent, parent count, trees, fixed path/content/messages/actor, provenance and default ref all match exactly.",
+    "AC-15: validate protected requirement \u2014 Any unrelated head, extra file, modified bootstrap or incompatible ref state fails closed and is never overwritten/force-updated.",
+    "AC-16: validate protected requirement \u2014 The bootstrap path is absent from the verified default-branch head before accepted implementation publication; it exists only in immutable initialization history.",
+    "AC-17: validate protected requirement \u2014 Accepted application source is committed on bounded Parallax branch from the verified empty baseline, never directly to default by the initializer.",
+    "AC-18: validate protected requirement \u2014 Existing PR create/read-back proves exact repository, head branch/revision and base branch.",
+    "AC-19: validate protected requirement \u2014 Vercel Preview is created from exact accepted commit and read-back proves repository/source revision/target identity.",
+    "AC-20: validate protected requirement \u2014 Delivery records bounded initialization, accepted commit, PR and Preview evidence without credentials/raw provider payloads and remains replay-safe.",
+    "AC-21: validate protected requirement \u2014 Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, ordinary lineage and GitHub delivery remain green.",
+    "AC-22: validate protected requirement \u2014 Greenfield support does not add Vercel application-delivery dependency to source-only mode.",
+    "AC-23: validate protected requirement \u2014 Greenfield publication ends at REVIEW and cannot approve work, promote production or complete REVIEW.",
+    "AC-24: validate protected requirement \u2014 Runtime/provider/client code does not inspect Decision Ledger identity, `sickbeard`, benchmark tokens or expected solution content.",
+    "AC-25: validate protected requirement \u2014 Authorization probe/preview marker and temporary qualification/focused workflows are absent from final PR; negative capability evidence remains governance evidence only.",
+    "AC-26: validate protected requirement \u2014 Release record states workload-OIDC consent initiation was not proven and GitHub REST cannot create a ref in an empty repository; neither is represented as a deployed capability.",
+    "AC-27: validate protected requirement \u2014 After explicit exact-repository consent, canonical Decision Ledger trial proceeds without out-of-band source edits through positive empty proof, greenfield root, accepted source, protected BUILD/TEST/VERIFY, REVIEW-only REST baseline, bounded branch/PR, Vercel Preview and REVIEW.",
+    "AC-28: validate protected requirement \u2014 Any newly exposed consent/inspection/initialization/delivery/Preview boundary is recorded and separately governed rather than weakening gates.",
+    "AC-29: validate protected requirement \u2014 This amended exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before provider/delivery semantic implementation. Final exact head passes protected spec validation, focused/full API tests, applicable client/browser acceptance, Bounded Autonomy, protected promotion and release gates before merge/deployment."
   ],
   "risks": [
-    "Risk is low, as the bounded structured autonomous failure for exact repository-consent failure is implemented correctly and behaves as expected."
+    "The risk is to introduce a new type of failure that may not be easily detected or handled by the client, leading to potential data loss or security breaches."
   ],
   "spec_id": "P2-V0.23.7",
   "protected_acceptance_map": [
     {
       "id": "AC-01",
       "title": "Structured exact recovery signal",
-      "protected_requirement": "Autonomy returns `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without display-message parsing."
+      "protected_requirement": "Autonomy returns `REPOSITORY_AUTHORIZATION_REQUIRED` as a bounded structured code without message parsing."
     },
     {
       "id": "AC-02",
@@ -54,136 +55,141 @@
     {
       "id": "AC-03",
       "title": "No preview authority expansion",
-      "protected_requirement": "Preview environments are not granted production `github/parallax-runtime` mutation authority merely to make consent initiation testable."
+      "protected_requirement": "Preview is not granted production `github/parallax-runtime` mutation authority merely to make consent initiation testable."
     },
     {
       "id": "AC-04",
       "title": "Existing readiness proof remains authoritative",
-      "protected_requirement": "After external exact-repository consent, ordinary production Connect token exchange plus exact-one-repository GitHub verification remains the only readiness proof."
+      "protected_requirement": "After external exact-repository consent, ordinary production Connect token exchange plus exact-one-repository GitHub verification remains the readiness proof."
     },
     {
       "id": "AC-05",
       "title": "Same-run recovery",
-      "protected_requirement": "Permission changes do not alter Project/work/run identity; the same durable Engineering Run remains retryable."
+      "protected_requirement": "Permission changes preserve Project/work/run identity and the same Engineering Run remains retryable."
     },
     {
       "id": "AC-06",
       "title": "Recovery UI is exact and non-fabricated",
-      "protected_requirement": "Repository-permission guidance appears only for exact `REPOSITORY_AUTHORIZATION_REQUIRED`; no unverified consent URL is surfaced."
+      "protected_requirement": "Permission guidance appears only for exact authorization-required code; no unverified consent URL is surfaced."
     },
     {
       "id": "AC-07",
       "title": "Exact repository inspection",
-      "protected_requirement": "A typed read-only operation deterministically distinguishes commit-bearing, positively empty and missing/unauthorized repositories under exact repository scope."
+      "protected_requirement": "Typed read-only inspection deterministically distinguishes commit-bearing, positively empty and missing/unauthorized states under exact scope."
     },
     {
       "id": "AC-08",
       "title": "Empty state requires positive proof",
-      "protected_requirement": "Provider outage, 404/403, credential failure, malformed response or ordinary `SOURCE_NOT_FOUND` alone cannot initialize greenfield lineage."
+      "protected_requirement": "Outage, 404/403, credential failure, malformed response or ordinary source failure alone cannot initialize greenfield lineage."
     },
     {
       "id": "AC-09",
       "title": "Explicit zero-file root contract",
-      "protected_requirement": "A dedicated greenfield initialization operation creates a zero-file root lineage with canonical empty digest and provenance; ordinary source packages remain non-empty by contract."
+      "protected_requirement": "Dedicated greenfield initialization creates a zero-file root with canonical empty digest/provenance; ordinary source packages remain non-empty."
     },
     {
       "id": "AC-10",
       "title": "Greenfield manifest integrity",
-      "protected_requirement": "Zero-file manifest/materialization is accepted only for a root `greenfield` lineage with exact invariants; forged empty implementation/non-greenfield lineage is rejected."
+      "protected_requirement": "Zero-file manifest/materialization is accepted only for exact root-greenfield invariants; forged empty implementation/non-greenfield lineage is rejected."
     },
     {
       "id": "AC-11",
       "title": "Non-empty implementation required",
-      "protected_requirement": "IMPLEMENT must produce at least one safe protected source file and a changed non-root lineage before BUILD/TEST/VERIFY can pass."
+      "protected_requirement": "IMPLEMENT produces at least one safe protected file and changed non-root lineage before BUILD/TEST/VERIFY can pass."
     },
     {
       "id": "AC-12",
       "title": "No pre-REVIEW repository mutation",
-      "protected_requirement": "PLAN through VERIFY on an empty repository performs no GitHub commit/ref/source mutation merely to initialize baseline."
+      "protected_requirement": "PLAN through VERIFY performs no GitHub source/ref mutation merely to initialize empty baseline."
     },
     {
       "id": "AC-13",
-      "title": "Typed empty-baseline action",
-      "protected_requirement": "At REVIEW, the fixed GitHub initialization action creates empty tree, zero-parent provenance-bound commit and default-branch ref without force and proves exact read-back."
+      "title": "REST-compatible empty baseline",
+      "protected_requirement": "At REVIEW, fixed initializer creates the deterministic bootstrap root commit via repository-contents API, serially deletes the exact bootstrap file, and proves the resulting default-branch head tree is empty."
     },
     {
       "id": "AC-14",
       "title": "Initialization idempotency",
-      "protected_requirement": "Retry reuses an existing baseline only if zero parents, empty tree, deterministic provenance, Project/run/root lineage and default ref all match exactly."
+      "protected_requirement": "Replay reuses an existing baseline only when cleanup head, bootstrap parent, parent count, trees, fixed path/content/messages/actor, provenance and default ref all match exactly."
     },
     {
       "id": "AC-15",
       "title": "Stale/conflicting repository protection",
-      "protected_requirement": "Any unrelated head or incompatible ref state fails closed and is never overwritten."
+      "protected_requirement": "Any unrelated head, extra file, modified bootstrap or incompatible ref state fails closed and is never overwritten/force-updated."
     },
     {
       "id": "AC-16",
-      "title": "Greenfield accepted-source publication",
-      "protected_requirement": "After baseline initialization, accepted source is committed on bounded Parallax branch from baseline, never directly on default."
+      "title": "No persistent bootstrap source",
+      "protected_requirement": "The bootstrap path is absent from the verified default-branch head before accepted implementation publication; it exists only in immutable initialization history."
     },
     {
       "id": "AC-17",
-      "title": "Pull-request exactness",
-      "protected_requirement": "Existing PR create/read-back semantics prove exact repository, head branch/revision and base branch for greenfield delivery."
+      "title": "Greenfield accepted-source publication",
+      "protected_requirement": "Accepted application source is committed on bounded Parallax branch from the verified empty baseline, never directly to default by the initializer."
     },
     {
       "id": "AC-18",
-      "title": "Preview exactness",
-      "protected_requirement": "Vercel Preview is created from exact accepted implementation commit and existing Preview read-back proves repository/source revision/target identity."
+      "title": "Pull-request exactness",
+      "protected_requirement": "Existing PR create/read-back proves exact repository, head branch/revision and base branch."
     },
     {
       "id": "AC-19",
-      "title": "Durable greenfield evidence",
-      "protected_requirement": "Delivery records bounded initialization, branch, accepted commit, PR and Preview evidence without credentials/raw provider payloads and remains replay-safe."
+      "title": "Preview exactness",
+      "protected_requirement": "Vercel Preview is created from exact accepted commit and read-back proves repository/source revision/target identity."
     },
     {
       "id": "AC-20",
-      "title": "Existing repository paths do not regress",
-      "protected_requirement": "Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, ordinary repository-root lineage and GitHub delivery remain green."
+      "title": "Durable greenfield evidence",
+      "protected_requirement": "Delivery records bounded initialization, accepted commit, PR and Preview evidence without credentials/raw provider payloads and remains replay-safe."
     },
     {
       "id": "AC-21",
-      "title": "Source-only independence",
-      "protected_requirement": "Source-only delivery does not acquire a Vercel application-delivery dependency because of greenfield support."
+      "title": "Existing paths do not regress",
+      "protected_requirement": "Commit-bearing public bootstrap, Python acceptance, OT Time .NET source-only acceptance, ordinary lineage and GitHub delivery remain green."
     },
     {
       "id": "AC-22",
-      "title": "REVIEW ceiling preserved",
-      "protected_requirement": "Greenfield publication ends at REVIEW and cannot grant work approval, production promotion or REVIEW completion."
+      "title": "Source-only independence",
+      "protected_requirement": "Greenfield support does not add Vercel application-delivery dependency to source-only mode."
     },
     {
       "id": "AC-23",
+      "title": "REVIEW ceiling preserved",
+      "protected_requirement": "Greenfield publication ends at REVIEW and cannot approve work, promote production or complete REVIEW."
+    },
+    {
+      "id": "AC-24",
       "title": "No benchmark backdoor",
       "protected_requirement": "Runtime/provider/client code does not inspect Decision Ledger identity, `sickbeard`, benchmark tokens or expected solution content."
     },
     {
-      "id": "AC-24",
-      "title": "Failed probe is removed",
-      "protected_requirement": "Temporary authorization probe code, preview marker and temporary build invocation are removed before final PR; the negative result is retained only as governance evidence."
-    },
-    {
       "id": "AC-25",
-      "title": "Capability conclusion is explicit",
-      "protected_requirement": "The release record states that workload-OIDC authorization initiation was not proven and is therefore not shipped; this is not represented as a deployed capability."
+      "title": "Temporary diagnostics removed",
+      "protected_requirement": "Authorization probe/preview marker and temporary qualification/focused workflows are absent from final PR; negative capability evidence remains governance evidence only."
     },
     {
       "id": "AC-26",
-      "title": "Canonical W9 replay",
-      "protected_requirement": "After explicit exact-repository consent, the canonical Decision Ledger trial proceeds without out-of-band source edits through positive empty proof, greenfield root, accepted source, protected BUILD/TEST/VERIFY, REVIEW-only baseline initialization, bounded GitHub branch/PR publication, Vercel Preview and REVIEW."
+      "title": "Provider constraints recorded honestly",
+      "protected_requirement": "Release record states workload-OIDC consent initiation was not proven and GitHub REST cannot create a ref in an empty repository; neither is represented as a deployed capability."
     },
     {
       "id": "AC-27",
-      "title": "Failure remains evidence",
-      "protected_requirement": "If consent, empty inspection, initialization, implementation, delivery or Preview exposes another boundary, it is recorded and separately governed rather than weakening gates."
+      "title": "Canonical W9 replay",
+      "protected_requirement": "After explicit exact-repository consent, canonical Decision Ledger trial proceeds without out-of-band source edits through positive empty proof, greenfield root, accepted source, protected BUILD/TEST/VERIFY, REVIEW-only REST baseline, bounded branch/PR, Vercel Preview and REVIEW."
     },
     {
       "id": "AC-28",
+      "title": "Failure remains evidence",
+      "protected_requirement": "Any newly exposed consent/inspection/initialization/delivery/Preview boundary is recorded and separately governed rather than weakening gates."
+    },
+    {
+      "id": "AC-29",
       "title": "Authentic DSPy and exact-head release gates",
-      "protected_requirement": "This amended exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before semantic implementation. Final exact head passes protected spec validation, focused/full API tests, applicable client/browser acceptance, Bounded Autonomy, protected promotion evaluation and release gates before merge/deployment."
+      "protected_requirement": "This amended exact spec obtains authentic DSPy SpecCritic + SpecCompiler evidence before provider/delivery semantic implementation. Final exact head passes protected spec validation, focused/full API tests, applicable client/browser acceptance, Bounded Autonomy, protected promotion and release gates before merge/deployment."
     }
   ],
   "critique": [
-    "The specification does not clearly define the boundary for repository authorization, which could lead to unexpected behavior in the runtime. The specification does not provide a clear and bounded structure for handling repository authorization failures, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a clear and bounded structure for handling repository inspection, which could result in runtime errors or unexpected behavior. The specification does not provide a"
+    "The specification does not explicitly address the material implementation risk or omission related to repository authorization and greenfield source lineage. The focus is more on the technical implementation details and acceptance anchors."
   ],
   "dspy_run": {
     "executed": true,
