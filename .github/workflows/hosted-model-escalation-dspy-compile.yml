@@ -32,18 +32,18 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull qwen2.5-coder:1.5b
+          ollama pull qwen2.5:0.5b
       - name: Compile exact specification
         timeout-minutes: 10
         env:
-          DSPY_MODEL: ollama_chat/qwen2.5-coder:1.5b
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
           DSPY_API_BASE: http://127.0.0.1:11434
           DSPY_API_KEY: ''
           DSPY_LOCAL_DEVELOPMENT: '1'
         run: python scripts/compile_spec.py specs/P2-V0.23.9.md
       - name: Verify authentic compiled evidence
         env:
-          DSPY_MODEL: ollama_chat/qwen2.5-coder:1.5b
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
           DSPY_API_BASE: http://127.0.0.1:11434
           DSPY_API_KEY: ''
           DSPY_LOCAL_DEVELOPMENT: '1'
