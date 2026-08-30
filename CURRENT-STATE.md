@@ -2,7 +2,7 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**
 
 ## Current production truth
 
@@ -13,6 +13,8 @@ W8-S2 is now complete. The former OT Time failure was reduced from public-source
 The public-source bootstrap remains independent from Vercel application delivery. Public commit-bearing GitHub source uses Git smart HTTP plus exact commit-addressed codeload archives. Source-only Projects do not require a Vercel Project, Preview target, application deployment, GitHub publication, or production-promotion authority.
 
 P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected pre-mutation implementation candidates are distinct from worker/process loss and may recover only through deterministic, already-admitted alternate agents within the existing reassignment bound. Protected proposal validation and all canonical source, lineage, Git, deployment, and REVIEW authority remain unchanged.
+
+Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 logical-deletion correction has an authenticated post-cutover production smoke proving the active-work 409 guard, terminal cancellation path, Project and bound-conversation disappearance from active reads, active slug/repository identity reuse, fixture cleanup, and zero external-provider mutation. Internal protected-evidence retention and non-owner authorization remain established by the exact-head regression suite; production does not expose a deleted-history audit read merely for QA.
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
@@ -47,7 +49,7 @@ The production build preflight restored and qualified both execution substrates 
 - common snapshot: exact identity, deny-all networking, required Python dependencies, `node --version`, and source-free root verified;
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
-Later `main` commit `fd96a8352b70799cb32db66bc83832b972a9ef36` is a QA-harness-only alignment of the canonical W8-S2 replay to P2-V0.23.6. It is not a newer deployed API runtime and must not be recorded as such.
+Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
 
 ## P2-V0.23.8 — Bounded rejected-candidate recovery — DEPLOYMENT-VERIFIED
 
@@ -157,9 +159,9 @@ Acceptance target: `github:Ryan9876/Movies`.
 
 Authorized QA workflow: `.github/workflows/qa-production-replay.yml`.
 
-Final workflow run: `33277189927`.
+Final canonical workflow run: `33277189927`.
 
-Final workflow job: `99165862378` / `python-full-experience` — **SUCCESS**.
+Final canonical workflow job: `99165862378` / `python-full-experience` — **SUCCESS**.
 
 Exact production evidence:
 
@@ -180,7 +182,54 @@ Exact production evidence:
 - source publication: `false`;
 - application deployment: `false`.
 
-This remains the clean production proof for the established common-snapshot Python path and guards against regression while .NET uses its dedicated snapshot.
+The companion Python regression in QA Production Replay `33287875970`, job `99194169048`, also passed while the safe-deletion production acceptance was executed. This confirms the accepted common-snapshot Python source-only path remained healthy during the deletion verification.
+
+## Safe deletion — DEPLOYMENT-VERIFIED / PRODUCTION-ACCEPTED
+
+Workstream: #290.
+
+Corrective specification: `P2-V0.18.12`.
+
+Corrective release evidence:
+
+- initial logical-deletion merge: `a6d7a6fd4d556d5544ede9c43b93972a8c590011`;
+- production migration: `20260827173141` / `safe_conversation_project_deletion` — applied;
+- corrective PR: #294;
+- corrective merge: `109444dcd7e13bfe842dea71355607941258b073`;
+- production API deployment: `dpl_FacxfrczQSQa8PUidqUA94hLT2Ex`;
+- deployment state: `READY`;
+- exact corrective deployment source: `109444dcd7e13bfe842dea71355607941258b073`;
+- post-cutover `/health` and `/ready`: HTTP 200;
+- exact corrective API deployment error/fatal scan: clean;
+- unauthenticated protected conversation route: HTTP 401;
+- exact-head specification, API, Bounded Autonomy, client, protected lifecycle and deletion regressions: PASS.
+
+Final authenticated production behavior was accepted through the existing trusted `QA Production Replay` OIDC identity:
+
+- workflow run: `33287875970`;
+- job: `99194168944` / `safe-deletion-production-smoke` — **SUCCESS**;
+- disposable Project: `4e062e22-e706-4dbb-ac14-e1319d2b82ff`;
+- disposable conversation: `2c990ee7-61bc-4499-b0f9-8c467a61b472`;
+- Work Specification: `5d3e7000-b252-4bdf-8395-ad2a84d347e8`;
+- protected Engineering Run: `0851a300-0041-4d46-a7a6-8d03a1609af1`;
+- run activation: `PLAN` revision `1`;
+- Project delete while protected work was active: HTTP `409`, with the Project remaining active;
+- protected run cancellation: `CANCELLED` revision `2`;
+- Project delete after terminal cancellation: HTTP `204`;
+- deleted Project active read: HTTP `404`;
+- deleted bound-conversation active read: HTTP `404`;
+- active-list checks: deleted Project and conversation absent;
+- exact slug/repository active identity reuse: HTTP `201`, new Project `c37ae153-e653-49d1-9d11-76125a7e38f1`;
+- replacement Project cleanup: HTTP `204`, followed by `404` active read;
+- synthetic repository identity: `github:Ryan9876/qa-safe-delete-33287875970-1`;
+- external provider mutation authorized: `false`;
+- external provider resource created: `false`;
+- external provider resource deleted: `false`;
+- bounded evidence artifact: `safe-deletion-production-evidence-33287875970-1`, artifact `9725006991`, 602 bytes, ZIP SHA-256 `719d17a92d69d8c1050b6fd9d84f9110ead17d8c2eb34845448432fa346e65ae`.
+
+The production smoke establishes the server-authoritative user-visible destructive behavior without deleting a real GitHub repository, Vercel deployment, or other provider resource. Production active-owner routes intentionally hide logically deleted Project-bound records, so this smoke does not manufacture a deleted-history audit endpoint to prove physical retention. Protected Work Specifications, Engineering Runs, attempts, events, source-lineage evidence, immutable artifacts, cross-owner failure behavior, historical-unbound owner requirements and active-row uniqueness remain established by the exact-head regression suite that qualified the deployed P2-V0.18.12 semantics.
+
+A first standalone smoke workflow correctly failed OIDC session exchange with HTTP 401 before creating any fixture because the bounded QA trust policy did not authorize that workflow identity. The acceptance run was moved into the already-authorized `QA Production Replay` workflow rather than widening authentication. The one-shot destructive job was removed after successful evidence capture; `scripts/qa_safe_deletion_smoke.sh` remains as a bounded reusable harness.
 
 ## Public source bootstrap — DEPLOYMENT-VERIFIED
 
@@ -279,15 +328,14 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## Other open governed work
 
-- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity;
-- #290 — safe deletion final authenticated destructive smoke remains open.
+- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity.
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.8 release. It records the exact v3.22 runtime source/deployment and post-deploy authenticated regression evidence, distinguishes normal-path production acceptance from deterministic protected coverage of the candidate-rejection recovery branch, and preserves the still-pending canonical greenfield benchmark and safe-deletion smoke as open work.
+`CURRENT-STATE.md` was updated after authenticated safe-deletion production acceptance. It now records the deployed P2-V0.18.12 correction, the exact trusted-workflow production smoke, the companion successful Python regression, the intentionally preserved distinction between production-visible deletion behavior and protected internal evidence-retention tests, and removes #290 from open governed work.
 
-`ARCHITECTURE.md` remains authoritative at v3.22. PR #447 already records the durable bounded implementation-candidate recovery contract; no additional architecture revision is required for this state reconciliation.
+`ARCHITECTURE.md` remains authoritative at v3.22. Safe-deletion terminal-state and destructive-authorization semantics were already incorporated into the durable architecture beginning with v3.7, and this acceptance run did not change those semantics.
 
 `DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
 
-`PROJECT-CONSTITUTION.md` was not changed because the release exercised existing least-privilege, explicit-authority, immutable-lineage and REVIEW-ceiling principles rather than introducing a new constitutional rule.
+`PROJECT-CONSTITUTION.md` was not changed because the smoke exercised existing least-privilege, explicit-authority, evidence-preservation and provider-isolation principles rather than introducing a new constitutional rule.
