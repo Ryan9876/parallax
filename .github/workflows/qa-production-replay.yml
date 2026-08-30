@@ -2,6 +2,11 @@ name: QA Production Replay
 
 on:
   workflow_dispatch:
+    inputs:
+      w9_s1_repository_ref:
+        description: Fresh approved empty public GitHub target for W9-S1 (github:Owner/Repo). Leave blank to skip W9-S1.
+        required: false
+        type: string
   push:
     branches:
       - main
@@ -47,7 +52,7 @@ jobs:
         run: bash scripts/qa_python_full_experience.sh
 
   w9-s1-decision-ledger-reference-trial:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -71,10 +76,11 @@ jobs:
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           API_BASE: https://parallax-api-tan.vercel.app
+          REPOSITORY_REF: ${{ inputs.w9_s1_repository_ref }}
         run: bash scripts/w9_s1_reference_trial.sh
 
   w8-s2-ot-time-replay:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
