@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE LUNA-FIRST PRODUCTION ACCEPTANCE PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED / FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED / P2-V0.23.11 HUMAN-RESUME TERMINAL-WORKER RE-ARM PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING EXPLICIT RETRY**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / HISTORICAL PRE-REPAIR OT TIME RESTORE FAILURE CLASSIFIED AS STALE IMMUTABLE SOURCE LINEAGE / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
 
 ## Current production truth
 
@@ -22,7 +22,7 @@ Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 lo
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
-## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE PRODUCTION ACCEPTANCE PENDING
+## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-ACCEPTED
 
 Workstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.
 
@@ -30,7 +30,28 @@ Production evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol
 
 The implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
 
-The P2-V0.23.10 implementation is now present in the exact production API source recorded below. Its focused orchestration, candidate-recovery and runtime-activation regressions plus full protected release gates passed before the later P2-V0.23.11 release, and the shared exact production deployment is READY. This is deployment verification only for the ordering change: representative production autonomous evidence proving Luna-first hosted implementation selection is still pending and must not be inferred from deployment alone.
+The P2-V0.23.10 implementation is now present in the exact production API source recorded below. Its focused orchestration, candidate-recovery and runtime-activation regressions plus full protected release gates passed before the later P2-V0.23.11 release, and the shared exact production deployment is READY. Representative authenticated production autonomous evidence now proves Luna-first hosted implementation selection. Luna was attempted first on the accepted current-source OT Time replay before bounded fallback to Terra and Sol when lower-tier proposal/output validation did not pass; the server-owned route order remains `Luna -> Terra -> Sol`.
+
+## P2-V0.23.13 / P2-V0.23.14 — Failed IMPLEMENT replan and recovered-worker PLAN rebind — PRODUCTION-ACCEPTED
+
+P2-V0.23.13 / Architecture v3.26 adds one narrow human-authorized retry transition for Project-bound agentic runs that are durably `FAILED` with `resume_stage=IMPLEMENT`: explicit resume targets `PLAN`, ordinary protected PLAN execution persists current evidence, and IMPLEMENT may then obtain the existing bounded worker recovery lease. Historical PLAN evidence, Work Specification binding, source lineage, worker ceilings, public resume payloads, and ordinary autonomous/reconnect behavior remain unchanged.
+
+P2-V0.23.14 / Architecture v3.27 binds a recovered worker checkpoint to the exact fresh PLAN accepted after that human-authorized replan. It preserves checkpoint/source-lineage history and does not widen model, mutation, Git, deployment, or REVIEW authority.
+
+Production acceptance evidence:
+
+- deployed API source: `c6c7b80e912f4f68efe43b8fa83ee30b8c18ee20`;
+- production deployment: `dpl_2kQpJfG9hk5gppPySMBbgT3Zi4Nz`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- P2-V0.23.14 retry QA run `33336924911`: SUCCESS; explicit FAILED/IMPLEMENT resume returned PLAN, autonomous continuation returned HTTP 200, fresh PLAN passed, and the worker advanced from lease generation 4 to generation 5 before hosted proposal work;
+- the immutable historical OT Time fixture then failed later at `dotnet restore` with `DEPENDENCY_PREPARATION_FAILED`, probe exit 0 and prepare exit 1; that fixture predates the independent OT Time .NET repair and was correctly not silently rebased;
+- fresh current-source production replay `33336924912`: SUCCESS; OT Time Engineering Run `27deec1b-9234-40f0-809f-2fc957f9f7d6` advanced PLAN -> IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW, revision 6, with no failure;
+- that replay returned and validated the authenticated source-only ZIP: 32 entries, 74,761 bytes;
+- the same replay independently proved hosted selection starts with Luna; bounded validation fallback later reached Terra and Sol without changing the canonical route order;
+- parallel source-only Python full-experience run `4b046e29-718f-42d8-b8eb-5d5183681911` also reached REVIEW revision 6 with PLAN, IMPLEMENT, BUILD, TEST and VERIFY all PASSED;
+- main QA-harness reconciliation source `5303eef4053a2ed6100dbbe4e28429124e992e5d` passed Parallax P2 CI, including API/contracts, client/browser/Skia, protected promotion, and DSPy release compilation; its Vercel deployment was canceled because it changed QA/workflow files only, so it is not a newer deployed API runtime.
+
+The former dependency-preparation blocker is therefore classified as stale immutable source-lineage behavior on the historical fixture, not a current `dotnet-v1` runtime defect. No dependency-preparation runtime change is warranted from that evidence.
 
 ## Production components
 
@@ -49,12 +70,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;
-- production deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;
+- source: `c6c7b80e912f4f68efe43b8fa83ee30b8c18ee20`;
+- production deployment: `dpl_2kQpJfG9hk5gppPySMBbgT3Zi4Nz`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.25.
+- architecture: `ARCHITECTURE.md` v3.27.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -65,7 +86,7 @@ The production build preflight restored and qualified both execution substrates 
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
 
-## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING
+## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-ACCEPTED THROUGH LATER RETRY PROOF
 
 Workstream: #470. Release PR: #472. Governing specification: `P2-V0.23.11`. Architecture: `ARCHITECTURE.md` v3.25.
 
@@ -87,7 +108,7 @@ Deployment evidence:
 - production `/ready`: HTTP 200 with database/providers ready and one provider target;
 - post-release runtime-error scan: no runtime errors in the checked production window.
 
-This release is deployment-verified but not yet behaviorally production-accepted. The representative failed Engineering Run still requires one explicit operator retry so the new human-authorized recovery boundary can be exercised. Production acceptance requires evidence that the resumed run obtains a new worker generation and progresses to hosted implementation dispatch instead of stopping at the prior terminal-worker conflict.
+Later P2-V0.23.13/P2-V0.23.14 production retry evidence exercises this boundary: the explicit FAILED/IMPLEMENT retry re-arms the recovered worker, a fresh worker generation is minted, and hosted implementation dispatch proceeds. P2-V0.23.11 is therefore behaviorally production-accepted through that later proof.
 
 ## Failed-run resume autonomy handoff — DEPLOYMENT-VERIFIED
 
