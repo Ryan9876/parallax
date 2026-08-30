@@ -2,7 +2,7 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
@@ -11,6 +11,8 @@ Parallax production now has verified end-to-end source-only engineering paths fo
 W8-S2 is now complete. The former OT Time failure was reduced from public-source bootstrap, to missing .NET sandbox readiness, and finally to independent defects in the OT Time benchmark repository itself. Parallax now selects a dedicated server-owned .NET execution snapshot for `dotnet-v1`; production preflight verifies exact snapshot identity, deny-all networking, fixed toolchain readiness and source-free state. After the OT Time benchmark was independently repaired and validated, the canonical authenticated production replay reached REVIEW at revision 6 with no failure and verified the exact-lineage source-only handoff.
 
 The public-source bootstrap remains independent from Vercel application delivery. Public commit-bearing GitHub source uses Git smart HTTP plus exact commit-addressed codeload archives. Source-only Projects do not require a Vercel Project, Preview target, application deployment, GitHub publication, or production-promotion authority.
+
+P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected pre-mutation implementation candidates are distinct from worker/process loss and may recover only through deterministic, already-admitted alternate agents within the existing reassignment bound. Protected proposal validation and all canonical source, lineage, Git, deployment, and REVIEW authority remain unchanged.
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
@@ -31,12 +33,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `2619aada4d3fd732589c6489a99ebe95dcc0d01d`;
-- production deployment: `dpl_8LBreMU3LGxUR8RWW8LfSCJRGxxx`;
+- source: `319f548b5950ba1c27603ccf0c5921d5a3aaee5f`;
+- production deployment: `dpl_H6oQUkxyzX9C32VEHgWiRwLpZr1G`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.21.
+- architecture: `ARCHITECTURE.md` v3.22.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -46,6 +48,38 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later `main` commit `fd96a8352b70799cb32db66bc83832b972a9ef36` is a QA-harness-only alignment of the canonical W8-S2 replay to P2-V0.23.6. It is not a newer deployed API runtime and must not be recorded as such.
+
+## P2-V0.23.8 — Bounded rejected-candidate recovery — DEPLOYMENT-VERIFIED
+
+Workstream: #446.
+
+Governing specification: `P2-V0.23.8`.
+
+Production incident evidence:
+
+- affected Engineering Run: `0cb9e8c5-1381-4913-a890-7bd48bc0384f`;
+- prior runtime: `dpl_8LBreMU3LGxUR8RWW8LfSCJRGxxx`;
+- hosted `openai/gpt-5.6-sol` call completed successfully, then the server-owned proposal validator emitted `parallax_model_route validation_failed`;
+- the rejected proposal did not mutate canonical source;
+- pre-v3.22 behavior incorrectly projected that candidate rejection as `AGENTIC_TASK_FAILED` and persisted `AUTONOMOUS_IMPLEMENT_FAILED`.
+
+Architecture v3.22 now separates pre-mutation candidate rejection from worker/process loss. A rejected proposal remains non-authoritative and non-mutating. The same work unit may retry only through another already-admitted eligible implementation agent in deterministic server-owned order, with incremented assignment generation and fresh dispatch identity. Recovery is capped by the existing `max_reassignments_per_work_unit` bound. Exhaustion fails closed as bounded `CANDIDATE_GENERATION_EXHAUSTED` evidence with `worker_process_loss=false`; protected proposal validation, safe mutation, lineage, Git, deployment and REVIEW authority are unchanged.
+
+Release evidence:
+
+- release PR: #447;
+- exact green release head: `22e96f20378c1e91e1c105a0e62c4865a7034510`;
+- application release merge: `319f548b5950ba1c27603ccf0c5921d5a3aaee5f`;
+- production deployment: `dpl_H6oQUkxyzX9C32VEHgWiRwLpZr1G`;
+- deployment state: `READY`;
+- exact deployment source: `319f548b5950ba1c27603ccf0c5921d5a3aaee5f`;
+- production provider/storage, exact-repository scoped delivery permission, projected-source, private Blob, lineage-composition, agentic-runtime, projected-bootstrap, run-event schema and execution-snapshot preflights: PASS;
+- exact-head full API regression, Bounded Autonomy, client state/type/export, browser/Skia, changed-spec protected DSPy plan, DSPy release compilation and protected-promotion gates: PASS;
+- authentic P2-V0.23.8 DSPy qualification used `ollama_chat/qwen2.5-coder:1.5b` and passed `--require-dspy` before merge.
+
+Post-deploy regression used the existing bounded QA OIDC identity against `github:Ryan9876/Movies`: workflow run `33285758959`, rerun job `99191707001` — **SUCCESS**. Engineering Run `f13e9c12-b0ca-47ac-a0ba-b5578f2e5c62` reached `REVIEW` revision `6`, `last_failure_code=null`, stop reason `REVIEW_REQUIRED`; EXECUTOR, PLAN, IMPLEMENT, BUILD, TEST and VERIFY all passed; authenticated source archive verification passed with 7 entries / 1404 bytes; `source_publication=false`; `app_deployment=false`.
+
+That post-deploy run proves normal production execution remains healthy but its first implementation candidate was accepted. It therefore does **not** claim that the candidate-rejection retry branch happened naturally in production. The retry/exhaustion branch is established by deterministic protected regression tests and the exact-head release gates; no production failure injector or weakened validator was introduced merely to manufacture that observation.
 
 ## P2-V0.23.6 — Profile-qualified protected execution snapshots — DEPLOYMENT-VERIFIED
 
@@ -250,9 +284,9 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.7 release. It records the exact v3.21 runtime source/deployment and preflight evidence, distinguishes implementation/deployment verification from the still-pending canonical greenfield benchmark acceptance, and records that the fixed Decision Ledger target was consumed by legacy QA fixture activity before v3.21.
+`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.8 release. It records the exact v3.22 runtime source/deployment and post-deploy authenticated regression evidence, distinguishes normal-path production acceptance from deterministic protected coverage of the candidate-rejection recovery branch, and preserves the still-pending canonical greenfield benchmark and safe-deletion smoke as open work.
 
-`ARCHITECTURE.md` remains authoritative at v3.21. PR #443 already records the durable positive-empty inspection, zero-file greenfield lineage, structured authorization recovery and isolated REVIEW-only empty-baseline mutation contract; no additional architecture revision is required for this state reconciliation.
+`ARCHITECTURE.md` remains authoritative at v3.22. PR #447 already records the durable bounded implementation-candidate recovery contract; no additional architecture revision is required for this state reconciliation.
 
 `DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
 
