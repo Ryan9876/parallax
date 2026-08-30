@@ -129,7 +129,7 @@ class EngineeringRunService:
             value = evidence.get(key)
             if isinstance(value, str) and len(value) == 64:
                 metadata[key] = value
-        for key in ("lineage_bound_execution", "timed_out", "redacted", "mutation_applied"):
+        for key in ("lineage_bound_execution", "timed_out", "redacted", "mutation_applied", "plan_refresh_authorized"):
             value = evidence.get(key)
             if isinstance(value, bool):
                 metadata[key] = value
@@ -663,7 +663,14 @@ class EngineeringRunService:
         )
         return self._result(mutation)
 
-    def resume(self, *, run_id: str, operation_key: str, expected_revision: int) -> RunOperationResult:
+    def resume(
+        self,
+        *,
+        run_id: str,
+        operation_key: str,
+        expected_revision: int,
+        refresh_plan: bool = False,
+    ) -> RunOperationResult:
         run = self.get(run_id)
         self._bound_work_specification(run, require_project=self.require_project_binding)
         replay = self._idempotent_replay(run, operation_key)
@@ -672,7 +679,17 @@ class EngineeringRunService:
         self._require_revision(run, expected_revision)
         state = WorkflowStage(run.state)
         resume_stage = WorkflowStage(run.resume_stage) if run.resume_stage else None
-        target = self.policy.validate_resume(state, resume_stage)
+        target = self.policy.validate_resume(
+            state,
+            resume_stage,
+            refresh_plan=refresh_plan,
+        )
+        evidence = None
+        if refresh_plan:
+            evidence = {
+                "plan_refresh_authorized": True,
+                "prior_resume_stage": resume_stage.value if resume_stage is not None else None,
+            }
         mutation = self.runs.record(
             run,
             stage=target.value,
@@ -680,6 +697,7 @@ class EngineeringRunService:
             status=AttemptStatus.RESUMED.value,
             next_state=target.value,
             resume_stage=None,
+            evidence=evidence,
         )
         return self._result(mutation)
 
