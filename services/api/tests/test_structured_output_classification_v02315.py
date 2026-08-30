@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import nullcontext
 from hashlib import sha256
 from types import SimpleNamespace
@@ -20,6 +21,7 @@ from parallax_api.intelligence.implementation_generation import (
 from parallax_api.intelligence.router import (
     ModelOutputValidationError,
     ModelRouter,
+    RoutingFailure,
     RoutingFailureKind,
 )
 
@@ -209,23 +211,36 @@ def test_rate_limit_chain_classification_is_unchanged():
     class LMRateLimitError(RuntimeError):
         pass
 
-    coordinator = ImplementationGenerationCoordinator(
-        router=ModelRouter(("openai/gpt-5.6-luna", "openai/gpt-5.6-terra")),
-        program_factory=lambda _model: _ProviderFailureProgram(),
-    )
+    router = ModelRouter(("openai/gpt-5.6-luna", "openai/gpt-5.6-terra"))
 
     async def attempt(_model: str):
         raise LMRateLimitError("synthetic rate-limit body")
 
-    with pytest.raises(Exception) as captured:
-        import asyncio
-
-        asyncio.run(coordinator.router.route(attempt, lambda _proposal: True))
+    with pytest.raises(RoutingFailure) as captured:
+        asyncio.run(router.route(attempt, lambda _proposal: True))
 
     routing_failure = captured.value
     assert routing_failure.kind == RoutingFailureKind.RATE_LIMITED
     assert all(item.status == "provider_failed" for item in routing_failure.attempts)
     assert all(item.error == "LMRateLimitError" for item in routing_failure.attempts)
+
+
+def test_typed_output_validation_is_only_admitted_from_attempt_boundary():
+    router = ModelRouter(("openai/gpt-5.6-luna",))
+
+    async def attempt(_model: str):
+        return object()
+
+    def validator(_proposal):
+        raise ModelOutputValidationError("validator should remain outside typed attempt authority")
+
+    with pytest.raises(RoutingFailure) as captured:
+        asyncio.run(router.route(attempt, validator))
+
+    failure = captured.value
+    assert failure.kind == RoutingFailureKind.PROVIDER_EXHAUSTED
+    assert failure.attempts[0].status == "provider_failed"
+    assert failure.attempts[0].error == "ModelOutputValidationError"
 
 
 def test_prompt_contract_names_exact_strict_json_shape_without_parser_relaxation():
