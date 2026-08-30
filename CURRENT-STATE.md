@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**
 
 ## Current production truth
 
@@ -22,15 +22,34 @@ Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 lo
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
-## P2-V0.23.10 — Hosted model escalation ordering — IMPLEMENTED / FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING
+## P2-V0.23.10 — Hosted model escalation ordering — DEPLOYMENT-VERIFIED / PRODUCTION-ACCEPTED
 
 Workstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.
 
 Production evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol -> openai/gpt-5.6-terra -> openai/gpt-5.6-luna` even though the canonical hosted escalation policy is `Luna -> Terra -> Sol`. The cause was deterministic SHA-256 identity sorting inside agent-team orchestration, which unintentionally made an integrity identifier a routing priority.
 
-The implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
+The released implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
 
-Focused orchestration, candidate-recovery and runtime-activation regression plus authentic DSPy compilation are required on the reconciled current-main branch before release. This section does **not** claim deployment. The production API remains the v3.23 runtime recorded below until exact-head release gates, merge, READY deployment evidence and representative production autonomous runtime evidence prove Luna-first behavior.
+Release and production acceptance evidence:
+
+- release PR: #467;
+- exact green PR head: `50fa74cb9f8b14fe318e8c98bf86ed8bebb38627`;
+- application release merge / deployed API source: `3077d719273b295b5ab9c05ea937cd5dae7fa76e`;
+- production API deployment: `dpl_AMkcDM2iXkXEKqjraY7o4mKfZBPd`;
+- deployment state: `READY` with canonical alias `parallax-api-tan.vercel.app` and no alias error;
+- production `/health`: HTTP 200 / service `ok`; production `/ready`: HTTP 200 with database and providers `ok`;
+- exact-head Workstream Spec Validation workflow `33293777463`: SUCCESS;
+- exact-head Bounded Autonomy Pilot workflow `33293777452`: SUCCESS;
+- exact-head Parallax P2 CI workflow `33293777468`: SUCCESS;
+- authentic DSPy compile and protected `--require-dspy` validation plus focused orchestration/candidate-recovery/runtime-activation regression: PASS;
+- one-shot dispatcher workflow `33294036729`: SUCCESS and dispatched only the existing trusted QA production replay;
+- trusted QA Production Replay workflow `33294039327`: Python full experience job `99210536817` SUCCESS and OT Time replay job `99210536961` SUCCESS;
+- representative OT Time Engineering Run `0e32e3af-040f-446f-81c6-fdad9ed27687` advanced from PLAN revision 1 through EXECUTOR, PLAN, IMPLEMENT, BUILD, TEST and VERIFY to REVIEW revision 6 with `last_failure_code=null` and `REVIEW_REQUIRED`;
+- authenticated source-only handoff verified 32 ZIP entries / 74,820 bytes;
+- exact production runtime logs for that autonomous request show `parallax_model_transport transport=vercel_ai_gateway model=openai/gpt-5.6-luna` and a successful Luna completion;
+- exact deployment/time-window searches found no `openai/gpt-5.6-terra` or `openai/gpt-5.6-sol` invocation, proving the successful normal path began and ended on Luna without unnecessary escalation.
+
+This production replay validates the intended first-choice routing path. It does not manufacture a rejected candidate to exercise Terra/Sol fallback; bounded alternate escalation remains established by protected deterministic regression tests. No production failure injector or validator relaxation was introduced for acceptance.
 
 ## Production components
 
@@ -49,12 +68,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
-- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
+- source: `3077d719273b295b5ab9c05ea937cd5dae7fa76e`;
+- production deployment: `dpl_AMkcDM2iXkXEKqjraY7o4mKfZBPd`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.23.
+- architecture: `ARCHITECTURE.md` v3.24.
 
 The production build preflight restored and qualified both execution substrates before release:
 
