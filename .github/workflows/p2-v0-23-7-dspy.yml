@@ -26,6 +26,29 @@ jobs:
           cache: pip
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
+      - name: Restore required non-goals contract section
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('specs/P2-V0.23.7.md')
+          text = path.read_text(encoding='utf-8')
+          if '\n## 9. Non-goals\n' not in text:
+              text = text.rstrip() + '''
+
+## 9. Non-goals
+
+- No in-product Vercel Connect consent initiation without a separately proven workload authentication mechanism.
+- No PAT, reusable Vercel personal/team token, GitHub user token, password or static provider credential.
+- No production GitHub connector attachment to preview solely to widen test authority.
+- No all-repositories GitHub grant, arbitrary repository mutation API, client-selected refs/paths/content or force updates.
+- No placeholder README, `.gitkeep`, template application, hidden reference implementation or benchmark-specific source.
+- No target-repository mutation before verified REVIEW delivery.
+- No accepted application source committed directly to the default branch by the greenfield initializer.
+- No bypass of protected lineage, BUILD/TEST/VERIFY, exact PR/Preview read-back or the REVIEW human ceiling.
+- No automatic production promotion or change to frozen Decision Ledger benchmark semantics.
+'''
+              path.write_text(text, encoding='utf-8')
+          PY
       - name: Validate protected specification structure
         run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.7.md
       - name: Configure repository-approved local DSPy model
@@ -48,15 +71,15 @@ jobs:
         run: python scripts/compile_spec.py specs/P2-V0.23.7.md
       - name: Verify authentic DSPy evidence
         run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.7.md
-      - name: Commit exact generated plan
+      - name: Commit exact qualified specification and generated plan
         run: |
           set -euo pipefail
           git config user.name "parallax-spec-compiler"
           git config user.email "actions@users.noreply.github.com"
-          git add specs/compiled/P2-V0.23.7.plan.json
+          git add specs/P2-V0.23.7.md specs/compiled/P2-V0.23.7.plan.json
           if git diff --cached --quiet; then
-            echo "Compiled plan already current"
+            echo "Qualified spec and compiled plan already current"
             exit 0
           fi
-          git commit -m "Compile P2-V0.23.7 DSPy plan"
+          git commit -m "Qualify amended P2-V0.23.7 DSPy plan"
           git push origin HEAD:work/w9-s1-repository-authorization
