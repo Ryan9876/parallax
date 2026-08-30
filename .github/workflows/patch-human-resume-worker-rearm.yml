@@ -1,0 +1,182 @@
+name: Patch P2-V0.23.11 human resume worker rearm
+
+on:
+  push:
+    branches:
+      - fix/human-resume-worker-rearm
+    paths:
+      - .github/workflows/patch-human-resume-worker-rearm.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Implement protected human-resume worker rearm
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          repo_path = Path('services/api/parallax_api/repositories/worker_executions.py')
+          text = repo_path.read_text()
+          old_import = '''from ..code.worker_recovery import (\n    WorkerLeaseConflict,\n    WorkerLeaseExpired,\n    WorkerLifecycleState,\n    WorkerStaleLease,\n)'''
+          new_import = '''from ..code.worker_recovery import (\n    RecoveryAction,\n    WorkerLeaseConflict,\n    WorkerLeaseExpired,\n    WorkerLifecycleState,\n    WorkerStaleLease,\n)'''
+          if old_import not in text:
+              raise SystemExit('worker repository import anchor not found')
+          text = text.replace(old_import, new_import, 1)
+
+          reassign_anchor = '''    def reassign(self, *, run_id: str, now: datetime, lease_seconds: int) -> EngineeringWorkerExecution:\n'''
+          prepare_method = '''    def prepare_human_resume(\n        self,\n        *,\n        run_id: str,\n        now: datetime,\n    ) -> EngineeringWorkerExecution | None:\n        current = self.get_for_run(run_id)\n        if current is None:\n            return None\n        if current.state != WorkerLifecycleState.FAILED.value:\n            return current\n        if current.lease_owner_id is not None or current.lease_expires_at is not None:\n            raise WorkerLeaseConflict("FAILED worker execution must be unleased before human resume recovery")\n\n        result = self.session.execute(\n            _cas(\n                update(EngineeringWorkerExecution)\n                .where(\n                    EngineeringWorkerExecution.id == current.id,\n                    EngineeringWorkerExecution.revision == current.revision,\n                    EngineeringWorkerExecution.state == WorkerLifecycleState.FAILED.value,\n                    EngineeringWorkerExecution.lease_owner_id.is_(None),\n                    EngineeringWorkerExecution.lease_expires_at.is_(None),\n                )\n                .values(\n                    state=WorkerLifecycleState.RECOVERING.value,\n                    retry_count=0,\n                    no_progress_count=0,\n                    oscillation_count=0,\n                    progress_fingerprint=None,\n                    previous_progress_fingerprint=None,\n                    stall_classification=None,\n                    blocker_code=None,\n                    next_recovery_action=RecoveryAction.REASSIGN.value,\n                    revision=current.revision + 1,\n                    updated_at=now,\n                )\n            )\n        )\n        if result.rowcount != 1:\n            self.session.rollback()\n            raise WorkerLeaseConflict("human-resume worker recovery lost a concurrent compare-and-swap race")\n        self.session.commit()\n        refreshed = self.get(current.id)\n        if refreshed is None:\n            raise RuntimeError("worker execution disappeared after human-resume recovery preparation")\n        return refreshed\n\n'''
+          if reassign_anchor not in text:
+              raise SystemExit('worker repository reassign anchor not found')
+          text = text.replace(reassign_anchor, prepare_method + reassign_anchor, 1)
+          repo_path.write_text(text)
+
+          service_path = Path('services/api/parallax_api/code/worker_service.py')
+          text = service_path.read_text()
+          begin_anchor = '''    def begin_recovery(self, *, run_id: str, now: datetime | None = None) -> EngineeringWorkerExecution:\n'''
+          service_method = '''    def prepare_human_resume(\n        self,\n        *,\n        run_id: str,\n        now: datetime | None = None,\n    ) -> EngineeringWorkerExecution | None:\n        self._run(run_id)\n        current = self.executions.get_for_run(run_id)\n        if current is None or current.state != WorkerLifecycleState.FAILED.value:\n            return current\n        execution = self.executions.prepare_human_resume(run_id=run_id, now=_utc(now))\n        if execution is None:\n            return None\n        self._emit_worker_event(\n            execution,\n            event_key=f"worker:{execution.id}:state:{execution.revision}:HUMAN_RESUME_RECOVERING",\n            outcome=RunEventOutcome.RECOVERING,\n            summary="Explicit Engineering Run resume re-armed the terminal worker for one new bounded generation.",\n        )\n        return execution\n\n'''
+          if begin_anchor not in text:
+              raise SystemExit('worker service begin recovery anchor not found')
+          text = text.replace(begin_anchor, service_method + begin_anchor, 1)
+          service_path.write_text(text)
+
+          route_path = Path('services/api/parallax_api/routes/engineering_runs.py')
+          text = route_path.read_text()
+          old_resume = '''@router.post("/{run_id}/resume", response_model=EngineeringOperationRead)\ndef resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):\n    return control(run_id, payload, "resume", svc)\n'''
+          new_resume = '''@router.post("/{run_id}/resume", response_model=EngineeringOperationRead)\ndef resume(run_id: str, payload: EngineeringOperation, svc: EngineeringRunService = Depends(service)):\n    prior = invoke(lambda: svc.get(run_id))\n    result = invoke(lambda: svc.resume(run_id=run_id, **payload.model_dump()))\n    if prior.state == "FAILED" and result.run.state != "FAILED":\n        invoke(lambda: worker_recovery_service(svc).prepare_human_resume(run_id=run_id))\n    return result_payload(result, svc)\n'''
+          if old_resume not in text:
+              raise SystemExit('engineering run resume route anchor not found')
+          text = text.replace(old_resume, new_resume, 1)
+          route_path.write_text(text)
+
+          test_path = Path('services/api/tests/test_worker_recovery.py')
+          text = test_path.read_text()
+          append = r'''
+
+
+def test_explicit_human_resume_rearms_terminal_worker_for_one_new_generation(tmp_path):
+    Session = db_context(tmp_path, "human-resume-worker.db")
+    binding = insert_bound_run(Session)
+    session, service = recovery_service(Session, max_retries=0, max_no_progress=99, max_oscillations=99)
+    try:
+        lease = service.acquire(run_id=binding.run_id, now=T0)
+        failed = service.checkpoint(
+            lease,
+            checkpoint(
+                binding,
+                step="IMPLEMENT",
+                lineage=LINEAGE_A,
+                lkg=LINEAGE_A,
+                evidence_refs=("validation:terminal-candidate-exhaustion",),
+            ),
+            authoritative_source_lineage_ref=LINEAGE_A,
+            retry=True,
+            now=T0 + timedelta(seconds=1),
+        ).execution
+        assert failed.state == WorkerLifecycleState.FAILED.value
+        assert failed.lease_owner_id is None
+        assert failed.retry_count == 1
+        assert failed.checkpoint_revision == 1
+        assert failed.source_lineage_ref == LINEAGE_A
+        assert failed.last_known_good_lineage_ref == LINEAGE_A
+        checkpoint_json = failed.checkpoint_json
+        checkpoint_revision = failed.checkpoint_revision
+        current_step = failed.current_step
+        generation = failed.lease_generation
+        worker_id = failed.id
+        failure_revision = failed.revision
+
+        with pytest.raises(WorkerLeaseConflict, match="protected recovery or is final"):
+            service.acquire(run_id=binding.run_id, now=T0 + timedelta(seconds=2))
+
+        prepared = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=3))
+        assert prepared is not None
+        assert prepared.id == worker_id
+        assert prepared.state == WorkerLifecycleState.RECOVERING.value
+        assert prepared.lease_owner_id is None
+        assert prepared.lease_expires_at is None
+        assert prepared.lease_generation == generation
+        assert prepared.checkpoint_json == checkpoint_json
+        assert prepared.checkpoint_revision == checkpoint_revision
+        assert prepared.current_step == current_step
+        assert prepared.source_lineage_ref == LINEAGE_A
+        assert prepared.last_known_good_lineage_ref == LINEAGE_A
+        assert prepared.retry_count == 0
+        assert prepared.no_progress_count == 0
+        assert prepared.oscillation_count == 0
+        assert prepared.progress_fingerprint is None
+        assert prepared.previous_progress_fingerprint is None
+        assert prepared.stall_classification is None
+        assert prepared.blocker_code is None
+        assert prepared.next_recovery_action == RecoveryAction.REASSIGN.value
+        assert prepared.revision == failure_revision + 1
+
+        replay = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=4))
+        assert replay is not None
+        assert replay.id == worker_id
+        assert replay.revision == prepared.revision
+        assert replay.lease_generation == generation
+
+        replacement = service.reassign(
+            run_id=binding.run_id,
+            now=T0 + timedelta(seconds=5),
+            lease_seconds=30,
+        )
+        assert replacement.execution_id == worker_id
+        assert replacement.generation == generation + 1
+        current = service.executions.get_for_run(binding.run_id)
+        assert current is not None
+        assert current.state == WorkerLifecycleState.REASSIGNED.value
+        assert current.retry_count == 0
+        assert current.checkpoint_revision == checkpoint_revision
+        assert current.source_lineage_ref == LINEAGE_A
+    finally:
+        session.close()
+
+
+def test_human_resume_prepare_does_not_rearm_nonfailed_worker(tmp_path):
+    Session = db_context(tmp_path, "human-resume-nonfailed.db")
+    binding = insert_bound_run(Session)
+    session, service = recovery_service(Session)
+    try:
+        lease = service.acquire(run_id=binding.run_id, now=T0)
+        before = service.executions.get_for_run(binding.run_id)
+        assert before is not None
+        prepared = service.prepare_human_resume(run_id=binding.run_id, now=T0 + timedelta(seconds=1))
+        assert prepared is not None
+        assert prepared.state == WorkerLifecycleState.RUNNING.value
+        assert prepared.revision == before.revision
+        assert prepared.lease_generation == lease.generation
+        assert prepared.lease_owner_id == lease.owner_id
+    finally:
+        session.close()
+'''
+          marker = 'def test_explicit_human_resume_rearms_terminal_worker_for_one_new_generation'
+          if marker in text:
+              raise SystemExit('human resume tests already present')
+          test_path.write_text(text + append)
+          PY
+      - name: Validate focused implementation
+        shell: bash
+        working-directory: services/api
+        run: |
+          python -m pip install -e '.[dev]'
+          pytest -q tests/test_worker_recovery.py
+      - name: Validate governing specification
+        shell: bash
+        run: python scripts/validate_spec.py specs/P2-V0.23.11.md
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/api/parallax_api/repositories/worker_executions.py services/api/parallax_api/code/worker_service.py services/api/parallax_api/routes/engineering_runs.py services/api/tests/test_worker_recovery.py
+          git commit -m "Re-arm terminal worker after explicit failed-run resume"
+          git push origin HEAD:fix/human-resume-worker-rearm
