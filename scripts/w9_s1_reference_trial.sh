@@ -3,9 +3,24 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-https://parallax-api-tan.vercel.app}"
 FIXTURE="benchmarks/parallax-engineering/real-world/decision-ledger-v1.json"
-TARGET_REPO="github:ryan9876/sickbeard"
-TARGET_GIT="https://github.com/Ryan9876/sickbeard.git"
+TARGET_REPO="${REPOSITORY_REF:-}"
 COOKIE_JAR="/tmp/parallax.cookies"
+
+: "${GITHUB_RUN_ID:?GITHUB_RUN_ID is required}"
+: "${GITHUB_RUN_ATTEMPT:?GITHUB_RUN_ATTEMPT is required}"
+
+if [ -z "${TARGET_REPO}" ]; then
+  echo "REPOSITORY_REF is required for the W9-S1 greenfield reference trial." >&2
+  exit 2
+fi
+if [[ ! "${TARGET_REPO}" =~ ^github:([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9_.-]{0,98}[A-Za-z0-9])/([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9_.-]{0,98}[A-Za-z0-9])$ ]]; then
+  echo "REPOSITORY_REF must use exact github:Owner/Repo identity form." >&2
+  exit 2
+fi
+TARGET_OWNER="${BASH_REMATCH[1]}"
+TARGET_NAME="${BASH_REMATCH[2]}"
+TARGET_GIT="https://github.com/${TARGET_OWNER}/${TARGET_NAME}.git"
+TARGET_REPO_LOWER="${TARGET_REPO,,}"
 
 api() {
   curl --fail-with-body --silent --show-error \
@@ -28,7 +43,11 @@ record_boundary() {
     '{w9_s1_reference_observation:{disposition:$disposition,project_id:(if $project_id=="" then null else $project_id end),conversation_id:(if $conversation_id=="" then null else $conversation_id end),work_specification_id:(if $spec_id=="" then null else $spec_id end)}}'
 }
 
-refs="$(git ls-remote "${TARGET_GIT}")"
+if ! refs="$(git ls-remote "${TARGET_GIT}" 2>/tmp/w9-s1-ls-remote.err)"; then
+  echo "Decision Ledger target could not be positively verified as a publicly readable GitHub repository; refusing to start trial." >&2
+  cat /tmp/w9-s1-ls-remote.err >&2 || true
+  exit 1
+fi
 if [ -n "${refs}" ]; then
   echo "Decision Ledger target is no longer greenfield; refusing to start trial." >&2
   exit 1
@@ -63,9 +82,13 @@ fixture_digest="$(jq -r '.fixture_digest' "${FIXTURE}")"
 started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 api "${API_BASE}/v1/projects" >/tmp/projects.json
-project_id="$(jq -r '.[] | select((.repository_ref // "" | ascii_downcase) == "github:ryan9876/sickbeard") | .id' /tmp/projects.json | head -n1)"
+project_id="$(jq -r --arg repo "${TARGET_REPO_LOWER}" '[.[] | select((.repository_ref // "" | ascii_downcase) == $repo)][0].id // empty' /tmp/projects.json)"
 if [ -z "${project_id}" ]; then
-  jq -n '{name:"Decision Ledger W9-S1 Reference",repository_ref:"github:ryan9876/sickbeard"}' >/tmp/project-create.json
+  project_slug="w9-s1-decision-ledger-${GITHUB_RUN_ID}"
+  jq -n \
+    --arg slug "${project_slug}" \
+    --arg repository_ref "${TARGET_REPO}" \
+    '{name:"Decision Ledger W9-S1 Reference",slug:$slug,repository_ref:$repository_ref}' >/tmp/project-create.json
   api --data-binary @/tmp/project-create.json -X POST "${API_BASE}/v1/projects" >/tmp/project.json
   project_id="$(jq -r '.id' /tmp/project.json)"
 fi
@@ -217,7 +240,7 @@ jq -n \
   --arg started_at "${started_at}" \
   --arg completed_at "${completed_at}" \
   --arg disposition "${disposition}" \
-  '{w9_s1_reference_observation:{schema_version:1,template_id:$template_id,template_version:$template_version,fixture_digest:$fixture_digest,benchmark_case_digest:$benchmark_case_digest,acceptance_ids:$acceptance_ids,project_id:$project_id,conversation_id:$conversation_id,work_specification_id:$work_specification_id,work_specification_revision:$work_specification_revision,work_specification_digest:$work_specification_digest,engineering_run_id:$run_id,final_state:$final_state,final_revision:$final_revision,last_failure_code:(if $last_failure_code=="" then null else $last_failure_code end),started_at:$started_at,completed_at:$completed_at,pre_approval_clarifications:0,post_approval_corrections:0,out_of_band_source_edits:0,disposition:$disposition}}'
+  '{w9_s1_reference_observation:{schema_version:1,template_id:$template_id,template_version:$template_version,fixture_digest:$fixture_digest,benchmark_case_digest:$benchmark_case_digest,acceptance_ids:$acceptance_ids,project_id:$project_id,conversation_id:$conversation_id,work_specification_id:$work_specification_id,work_specification_revision:$work_specification_revision,work_specification_digest:$work_specification_digest,engineering_run_id:$engineering_run_id,final_state:$final_state,final_revision:$final_revision,last_failure_code:(if $last_failure_code=="" then null else $last_failure_code end),started_at:$started_at,completed_at:$completed_at,pre_approval_clarifications:0,post_approval_corrections:0,out_of_band_source_edits:0,disposition:$disposition}}'
 
 # QA replay marker: exercise production PREPARE failure projection after deployment 9f9414f5.
 
