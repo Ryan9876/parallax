@@ -1,0 +1,71 @@
+name: P2-V0.23.7 Finalize Release Branch
+
+on:
+  push:
+    branches: [work/w9-s1-repository-authorization]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2-v0-23-7-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/w9-s1-repository-authorization
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Record durable v3.21 architecture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text()
+          if 'Version: 3.20' not in text:
+              raise SystemExit('expected architecture version missing')
+          text = text.replace('Version: 3.20', 'Version: 3.21', 1)
+          old = 'Architecture v3.20 is a bounded protected-execution substrate qualification to v3.19, not a platform rewrite.'
+          new = 'Architecture v3.21 is a bounded empty-greenfield source-authority extension to v3.20, not a platform rewrite.'
+          if old not in text:
+              raise SystemExit('version relationship seam missing')
+          text = text.replace(old, new, 1)
+          anchor = '## Repository-aware protected validation\n'
+          section = '''## Empty-greenfield lineage and REVIEW-only repository initialization\n\nArchitecture v3.21 adds a narrow source-root state for a canonical GitHub repository that is positively proven empty under exact repository authority. A public/source error, 404/403 ambiguity, provider outage, malformed response, or missing credential never creates greenfield authority. The runtime first preserves the existing public/credentialed commit-bearing bootstrap. Only when no durable root exists may a typed authenticated `repository.inspect` distinguish a positively empty canonical repository from ordinary failure.\n\nA greenfield durable root is explicit and unique: `source_kind=greenfield`, no parent, zero files, zero bytes, the canonical empty content digest, and non-null provenance/source-reference digests bound to the canonical repository and default branch. Ordinary repository/template/starter roots remain non-empty. IMPLEMENT must produce a changed non-root lineage containing at least one protected source artifact before protected BUILD/TEST/VERIFY can succeed.\n\nRepository initialization is not PLAN authority. PLAN through VERIFY performs no GitHub mutation merely to make an empty repository usable. Only after accepted source has passed VERIFY and the run reaches REVIEW may Vercel-Preview delivery invoke the separate server-owned `repository.initialize-empty` mutation capability. That capability reuses the already readiness-qualified short-lived exact-repository GitHub credential but is isolated from the ordinary branch/commit/PR capability registry.\n\nGitHub REST cannot create the first ref in an empty repository. The released initializer therefore follows the provider-supported Contents API sequence: create one fixed non-executable `.parallax-greenfield` bootstrap marker with deterministic server-owned actor/message/content and a one-way provenance digest; serially delete that exact returned blob on the canonical default branch; then read back and prove the resulting head tree is empty. Replay is accepted only when the current cleanup head, its single bootstrap parent, both messages/actors, the fixed marker path/content/provenance, empty head tree, parent count, and default ref match exactly. An unrelated head or concurrent change fails closed; no force update occurs.\n\nThe temporary marker exists only in immutable initialization history and is absent from the default-branch head before application source publication. Accepted source is then published through the existing bounded Parallax branch -> accepted-lineage commit -> pull request -> Vercel Preview path and remains capped at REVIEW. Source-only delivery never invokes this Vercel-Preview repository initializer and remains independent from application deployment.\n\nRepository installation consent remains an explicit provider/user boundary. The production runtime exposes the bounded `REPOSITORY_AUTHORIZATION_REQUIRED` code and preserves same-run retry, but v3.21 adds no provider-consent endpoint, PAT, reusable Vercel account token, GitHub user token, browser-supplied provider credential, or Preview authority widening. Runtime readiness after external consent remains ordinary Connect token exchange plus exact-one-repository scope verification.\n\n'''
+          if anchor not in text:
+              raise SystemExit('architecture insertion anchor missing')
+          text = text.replace(anchor, section + anchor, 1)
+          old_rel = 'Architecture v3.20 addresses the next independently exposed boundary: an admitted `.NET` profile may not rely on a Python-qualified common execution image.'
+          new_rel = old_rel + ' Architecture v3.21 addresses the next greenfield boundary: a positively empty canonical repository has no commit-bearing source root and must remain mutation-free until verified REVIEW delivery.'
+          if old_rel not in text:
+              raise SystemExit('W8/W9 relationship seam missing')
+          text = text.replace(old_rel, new_rel, 1)
+          path.write_text(text)
+          PY
+      - name: Remove temporary qualification and integration workflows
+        run: |
+          git rm -f \
+            .github/workflows/p2-v0-23-7-dspy.yml \
+            .github/workflows/p2-v0-23-7-focused.yml \
+            .github/workflows/p2-v0-23-7-integration.yml \
+            .github/workflows/p2-v0-23-7-integration-fix.yml \
+            .github/workflows/p2-v0-23-7-finalize.yml
+      - name: Validate durable branch
+        run: |
+          pip install -e 'services/api[dev]'
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.7.md
+          pytest -q services/api/tests/test_greenfield_lineage.py services/api/tests/test_greenfield_github.py services/api/tests/test_greenfield_recovery_contract.py services/api/tests/test_code_workspace_lineage.py services/api/tests/test_code_workspace_allocator.py
+          python -m compileall -q services/api/parallax_api
+      - name: Commit finalized branch
+        run: |
+          git config user.name 'parallax-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add ARCHITECTURE.md
+          git commit -am 'Finalize P2-V0.23.7 greenfield architecture and release branch'
+          git push origin HEAD:work/w9-s1-repository-authorization
