@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from ..intelligence.implementation_generation import (
@@ -9,7 +9,7 @@ from ..intelligence.implementation_generation import (
     ImplementationProposal,
     validate_implementation_proposal,
 )
-from ..intelligence.router import AttemptRecord
+from ..intelligence.router import AttemptRecord, RoutingFailureKind
 from .agent_protocol import AgentLifecycleStatus, AgentSourceContext
 from .agent_team_orchestration import (
     AssignmentEvidence,
@@ -35,9 +35,19 @@ from .service import EngineeringRunService
 from .worker_recovery import WorkerLifecycleState, WorkerStallEvidence, WorkerRecoveryError
 
 
-CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.8"
+CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.9"
 CANDIDATE_GENERATION_EXHAUSTED = "CANDIDATE_GENERATION_EXHAUSTED"
 _CANDIDATE_EXHAUSTED_BLOCKER = "AGENTIC_CANDIDATE_EXHAUSTED"
+VALIDATOR_REPAIR_GUIDANCE = (
+    "The previous admitted candidate produced a parsed proposal but the server-owned safe proposal validator rejected it. "
+    "Repair the proposal without changing the approved objective or acceptance criteria. Use only the supplied protected "
+    "source context. For every existing target, copy the exact path and lowercase SHA-256 from source context; for a new "
+    "file, bind to the SHA-256 of empty content. Emit one patch per target. Every unified diff must be strict single-file "
+    "form with headers exactly matching the declared path (`--- a/path` and `+++ b/path`, or `--- /dev/null` for a new "
+    "file), exact hunk coordinates and counts, and removed/context lines copied exactly from the supplied source text. "
+    "Do not emit multi-file diffs, duplicate targets, unsupported or binary-prone paths, secret material, or no-op patches."
+)
+_BOUNDED_ROUTING_FAILURES = frozenset(item.value for item in RoutingFailureKind)
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,9 +55,10 @@ class CandidateRejection:
     work_unit_id: str
     agent_identity_digest: str
     generation: int
+    failure_kind: str | None = None
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        evidence: dict[str, object] = {
             "work_unit_id": self.work_unit_id,
             "agent_identity_digest": self.agent_identity_digest,
             "generation": self.generation,
@@ -57,6 +68,22 @@ class CandidateRejection:
             "deployment_mutation": False,
             "review_completed": False,
         }
+        if self.failure_kind is not None:
+            evidence["failure_kind"] = self.failure_kind
+        return evidence
+
+
+def candidate_generation_failure_kind(exc: ImplementationGenerationFailure) -> str | None:
+    evidence = exc.diagnostic_evidence
+    if not isinstance(evidence, dict):
+        return None
+    routing = evidence.get("routing_failure")
+    if not isinstance(routing, dict):
+        return None
+    reason = routing.get("reason_code")
+    if isinstance(reason, str) and reason in _BOUNDED_ROUTING_FAILURES:
+        return reason
+    return None
 
 
 def candidate_recovery_assignment(
@@ -169,6 +196,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                     assignment = scheduled_assignment
                     attempted_agents: list[str] = []
                     rejection_count = 0
+                    repair_guidance: str | None = None
 
                     while True:
                         agent_digest = assignment.agent_identity_digest or ""
@@ -198,6 +226,11 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                             unit.acceptance_ids,
                             alternative_round=alternative_round,
                         )
+                        if repair_guidance is not None:
+                            subrequest = replace(
+                                subrequest,
+                                constraints=(*subrequest.constraints, repair_guidance),
+                            )
                         adapter = self._adapter(agent_digest)
                         try:
                             result, generation = adapter.generate(
@@ -205,12 +238,14 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                 subrequest,
                                 proposal_validator=proposal_validator,
                             )
-                        except ImplementationGenerationFailure:
+                        except ImplementationGenerationFailure as exc:
                             rejection_count += 1
+                            failure_kind = candidate_generation_failure_kind(exc)
                             rejection = CandidateRejection(
                                 work_unit_id=unit.unit_id,
                                 agent_identity_digest=agent_digest,
                                 generation=assignment.generation,
+                                failure_kind=failure_kind,
                             )
                             rejections.append(rejection)
                             lease = self.worker_bridge.checkpoint(
@@ -247,6 +282,11 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                         }
                                     },
                                 )
+                            repair_guidance = (
+                                VALIDATOR_REPAIR_GUIDANCE
+                                if failure_kind == RoutingFailureKind.VALIDATION_EXHAUSTED.value
+                                else None
+                            )
                             assignment = replacement
                             generation_by_work_unit[unit.unit_id] = replacement.generation
                             continue
@@ -371,6 +411,8 @@ __all__ = [
     "CANDIDATE_RECOVERY_VERSION",
     "CandidateRejection",
     "ResilientLiveAgenticControlPlane",
+    "VALIDATOR_REPAIR_GUIDANCE",
     "build_resilient_live_agentic_runtime_composition",
+    "candidate_generation_failure_kind",
     "candidate_recovery_assignment",
 ]
