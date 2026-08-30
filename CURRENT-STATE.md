@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / HISTORICAL PRE-REPAIR OT TIME RESTORE FAILURE CLASSIFIED AS STALE IMMUTABLE SOURCE LINEAGE / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
 
 ## Current production truth
 
@@ -53,6 +53,34 @@ Production acceptance evidence:
 
 The former dependency-preparation blocker is therefore classified as stale immutable source-lineage behavior on the historical fixture, not a current `dotnet-v1` runtime defect. No dependency-preparation runtime change is warranted from that evidence.
 
+## P2-V0.23.15 — Structured-output validation classification — PRODUCTION-ACCEPTED
+
+Workstream: #488. Release PR: #491. Governing specification: `P2-V0.23.15`. Architecture: `ARCHITECTURE.md` v3.28.
+
+The production replay that accepted P2-V0.23.14 also exposed a telemetry/control-classification defect at the hosted implementation boundary. Luna completed its provider call successfully, but protected `ImplementationProposal` JSON/schema decoding raised a Pydantic validation failure; the generic router exception boundary then mislabeled that provider-successful model-output failure as `provider_failed`. P2-V0.23.15 adds one bounded server-owned `ModelOutputValidationError` emitted only by protected proposal decoding and records that attempt as `validation_failed` before the generic provider-failure boundary. Transport, configuration, rate-limit and unrelated exceptions remain `provider_failed`; all-validation exhaustion remains `VALIDATION_EXHAUSTED`; all-rate-limit exhaustion remains `RATE_LIMITED`; mixed provider/validation outcomes remain conservatively `PROVIDER_EXHAUSTED`.
+
+The fixed implementation proposal prompt now states the exact JSON keys already enforced by the protected schema, but parsing remains strict and fail-closed. No Markdown stripping, JSON repair, prose extraction, permissive fallback, same-model retry, source-mutation authority, candidate-validation relaxation, worker-ceiling change, Git/deployment authority, or REVIEW authority was added. The typed output-validation exception is raised without retaining the original Pydantic exception as its cause, and durable routing diagnostics still omit raw model output and provider payloads.
+
+Release and deployment evidence:
+
+- exact green PR head: `71f5bbab36ce1efb5595ff0972c06186fd575c16`;
+- release merge / deployed application source: `04b1893e3a520202a77614fd1ff4ab00dac0ab1c`;
+- production deployment: `dpl_EngoShekvZLYDC3mfdyzDwP8rUpx`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- exact-head Workstream Spec Validation `33340266792`: SUCCESS;
+- exact-head Bounded Autonomy `33340266798`: SUCCESS;
+- exact-head Parallax P2 CI `33340266789`: SUCCESS, including API/contracts, client/browser/Skia, protected promotion and DSPy release compilation;
+- post-merge Workstream Spec Validation `33340420874`: SUCCESS;
+- post-merge Parallax P2 CI `33340420982`: SUCCESS;
+- production build provider, delivery-permission, projected-source, Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot and run-event-schema preflights: PASS;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production runtime-error scan after deployment: no runtime errors in the checked 30-minute window.
+
+Authenticated production acceptance was repeated twice against the current disposable OT Time source under the exact deployment above. Engineering Run `4221c919-ad70-46fe-886e-b1c6231444db` reached REVIEW revision 6 with PLAN, IMPLEMENT, BUILD, TEST and VERIFY all PASSED and returned a validated 32-entry, 74,757-byte source-only ZIP. A second independent replay, Engineering Run `b9db6eb1-7621-446c-a6c6-7cfdffeed78d`, also reached REVIEW revision 6 with every protected stage PASSED and returned a validated 32-entry, 74,739-byte source-only ZIP.
+
+Both production runs proved the canonical hosted route begins with `openai/gpt-5.6-luna`. In each run Luna completed provider calls and the routing layer recorded the rejected attempt as `validation_failed`, followed by bounded Terra fallback; no `provider_failed / ValidationError` misclassification appeared and the full engineering lifecycle still completed. Production telemetry intentionally does not persist a subtype that distinguishes typed structured-decode rejection from the ordinary protected validator's `False` result, so the exact typed decode branch is established by deterministic protected release tests rather than by manufacturing invalid production model output. The production evidence establishes that provider-successful Luna rejection now remains inside validation classification without regressing normal fallback or lifecycle completion.
+
 ## Production components
 
 ### Client
@@ -70,12 +98,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `c6c7b80e912f4f68efe43b8fa83ee30b8c18ee20`;
-- production deployment: `dpl_2kQpJfG9hk5gppPySMBbgT3Zi4Nz`;
+- source: `04b1893e3a520202a77614fd1ff4ab00dac0ab1c`;
+- production deployment: `dpl_EngoShekvZLYDC3mfdyzDwP8rUpx`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.27.
+- architecture: `ARCHITECTURE.md` v3.28.
 
 The production build preflight restored and qualified both execution substrates before release:
 
