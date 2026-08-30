@@ -221,7 +221,9 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
   const canRunAutonomously = bound && AUTONOMOUS_STAGES.includes(run.state);
   const stopReason = (run as EngineeringRunView).autonomy_stop_reason;
   const boundary = boundaryMessage(run, stopReason);
-  const requestError = plainRunError(effectiveError);
+  const requestError = storedFailure?.code === 'REPOSITORY_AUTHORIZATION_REQUIRED'
+    ? 'This repository needs one-time provider permission before Parallax can continue. Grant access to this exact repository in your connected GitHub provider, then choose Try again. Your current run is preserved.'
+    : plainRunError(effectiveError);
   const currentIndex = currentJourneyIndex(run);
   const currentStep = JOURNEY[currentIndex] ?? JOURNEY[0]!;
   const complete = run.state === 'COMPLETE';

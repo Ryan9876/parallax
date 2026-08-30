@@ -2,6 +2,7 @@ type EngineeringRunFailure = {
   conversationId: string;
   runId: string;
   message: string;
+  code?: string | null;
 };
 
 type FailureListener = () => void;
