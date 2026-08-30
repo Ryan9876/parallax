@@ -25,30 +25,46 @@ jobs:
           path = Path('.github/workflows/qa-production-replay.yml')
           text = path.read_text()
 
-          replacements = [
-              (
-                  '          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"\n          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"',
-                  '          echo "project_id=${project_id}" >> "${GITHUB_OUTPUT}"\n          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"\n          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"',
-              ),
-              (
-                  '          API_BASE: https://parallax-api-tan.vercel.app\n          RUN_ID: ${{ steps.fixture.outputs.run_id }}\n          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}',
-                  '          API_BASE: https://parallax-api-tan.vercel.app\n          PROJECT_ID: ${{ steps.fixture.outputs.project_id }}\n          RUN_ID: ${{ steps.fixture.outputs.run_id }}\n          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}',
-              ),
-              (
-                  '            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \\',
-                  '            "${API_BASE}/v1/projects/${PROJECT_ID}/engineering-runs/${RUN_ID}/source-download" \\',
-              ),
-              (
-                  '          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"',
-                  '          echo "OT Time P2-V0.23.9 production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"',
-              ),
-          ]
+          run_output = '          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"'
+          if text.count(run_output) != 1:
+              raise SystemExit(f'expected one run_id output, found {text.count(run_output)}')
+          text = text.replace(
+              run_output,
+              '          echo "project_id=${project_id}" >> "${GITHUB_OUTPUT}"\n' + run_output,
+              1,
+          )
 
-          for old, new in replacements:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'expected exactly one match, found {count}: {old!r}')
-              text = text.replace(old, new, 1)
+          marker = '      - name: Verify OT Time reaches REVIEW and source-only ZIP handoff\n'
+          marker_index = text.find(marker)
+          if marker_index < 0:
+              raise SystemExit('verify step marker missing')
+          run_marker_index = text.find('        run: |\n', marker_index)
+          if run_marker_index < 0:
+              raise SystemExit('verify run marker missing')
+          verify_prefix = text[marker_index:run_marker_index]
+          if '          PROJECT_ID:' in verify_prefix:
+              raise SystemExit('PROJECT_ID already present in verify env')
+          run_line = next((line for line in verify_prefix.splitlines() if line.startswith('          RUN_ID: ')), None)
+          if run_line is None:
+              raise SystemExit('verify RUN_ID env line missing')
+          project_expr = '$' + '{{ steps.fixture.outputs.project_id }}'
+          text = text[:marker_index] + verify_prefix.replace(
+              run_line,
+              f'          PROJECT_ID: {project_expr}\n{run_line}',
+              1,
+          ) + text[run_marker_index:]
+
+          old_route = '            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \\'
+          new_route = '            "${API_BASE}/v1/projects/${PROJECT_ID}/engineering-runs/${RUN_ID}/source-download" \\'
+          if text.count(old_route) != 1:
+              raise SystemExit(f'expected one legacy source route, found {text.count(old_route)}')
+          text = text.replace(old_route, new_route, 1)
+
+          old_echo = '          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"'
+          new_echo = '          echo "OT Time P2-V0.23.9 production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"'
+          if text.count(old_echo) != 1:
+              raise SystemExit(f'expected one legacy acceptance label, found {text.count(old_echo)}')
+          text = text.replace(old_echo, new_echo, 1)
 
           path.write_text(text)
       - name: Commit QA harness correction
