@@ -19,6 +19,11 @@ BASELINE = "b" * 40
 BLOB = "c" * 40
 PROVENANCE = "d" * 64
 CONTENT = f"parallax-greenfield-v1\nprovenance={PROVENANCE}\n"
+ACTOR = {
+    "name": "Parallax App Builder",
+    "email": "parallax-app-builder@users.noreply.github.com",
+    "date": "2000-01-01T00:00:00Z",
+}
 
 
 class _Credentials:
@@ -43,6 +48,10 @@ def _repo() -> httpx.Response:
         200,
         json={"full_name": "Ryan9876/empty-target", "default_branch": DEFAULT_BRANCH},
     )
+
+
+def _commit(message: str, parents: list[dict[str, str]]) -> dict[str, object]:
+    return {"message": message, "parents": parents, "author": ACTOR, "committer": ACTOR}
 
 
 def test_positive_empty_inspection_is_distinct_from_not_found() -> None:
@@ -81,18 +90,20 @@ def test_initializer_creates_marker_deletes_it_and_verifies_empty_head() -> None
             payload = __import__("json").loads(request.content)
             assert base64.b64decode(payload["content"]).decode() == CONTENT
             assert payload["branch"] == DEFAULT_BRANCH
+            assert payload["author"] == ACTOR == payload["committer"]
             return httpx.Response(201, json={"commit": {"sha": BOOTSTRAP}, "content": {"sha": BLOB}})
         if path.endswith("/contents/.parallax-greenfield") and request.method == "DELETE":
             writes.append("delete")
             payload = __import__("json").loads(request.content)
             assert payload["sha"] == BLOB
+            assert payload["author"] == ACTOR == payload["committer"]
             return httpx.Response(200, json={"commit": {"sha": BASELINE}})
         if path.endswith(f"/git/commits/{BASELINE}"):
-            return httpx.Response(200, json={"message": "Finalize Parallax empty greenfield baseline", "parents": [{"sha": BOOTSTRAP}]})
+            return httpx.Response(200, json=_commit("Finalize Parallax empty greenfield baseline", [{"sha": BOOTSTRAP}]))
         if path.endswith(f"/git/trees/{BASELINE}"):
             return httpx.Response(200, json={"truncated": False, "tree": []})
         if path.endswith(f"/git/commits/{BOOTSTRAP}"):
-            return httpx.Response(200, json={"message": "Initialize Parallax greenfield baseline", "parents": []})
+            return httpx.Response(200, json=_commit("Initialize Parallax greenfield baseline", []))
         if path.endswith(f"/git/trees/{BOOTSTRAP}"):
             return httpx.Response(200, json={"truncated": False, "tree": [{"path": ".parallax-greenfield", "type": "blob", "mode": "100644", "sha": BLOB}]})
         if path.endswith(f"/git/blobs/{BLOB}"):
@@ -117,11 +128,11 @@ def test_existing_exact_baseline_is_replayed_read_only_and_conflict_fails_closed
         if path.endswith("/git/ref/heads/main"):
             return httpx.Response(200, json={"object": {"sha": BASELINE}})
         if path.endswith(f"/git/commits/{BASELINE}"):
-            return httpx.Response(200, json={"message": "Finalize Parallax empty greenfield baseline", "parents": [{"sha": BOOTSTRAP}]})
+            return httpx.Response(200, json=_commit("Finalize Parallax empty greenfield baseline", [{"sha": BOOTSTRAP}]))
         if path.endswith(f"/git/trees/{BASELINE}"):
             return httpx.Response(200, json={"truncated": False, "tree": []})
         if path.endswith(f"/git/commits/{BOOTSTRAP}"):
-            return httpx.Response(200, json={"message": "Initialize Parallax greenfield baseline", "parents": []})
+            return httpx.Response(200, json=_commit("Initialize Parallax greenfield baseline", []))
         if path.endswith(f"/git/trees/{BOOTSTRAP}"):
             return httpx.Response(200, json={"truncated": False, "tree": [{"path": ".parallax-greenfield", "type": "blob", "mode": "100644", "sha": BLOB}]})
         if path.endswith(f"/git/blobs/{BLOB}"):
@@ -139,7 +150,7 @@ def test_existing_exact_baseline_is_replayed_read_only_and_conflict_fails_closed
         if path.endswith("/git/ref/heads/main"):
             return httpx.Response(200, json={"object": {"sha": BASELINE}})
         if path.endswith(f"/git/commits/{BASELINE}"):
-            return httpx.Response(200, json={"message": "unrelated user commit", "parents": [{"sha": BOOTSTRAP}]})
+            return httpx.Response(200, json=_commit("unrelated user commit", [{"sha": BOOTSTRAP}]))
         raise AssertionError(request.url)
 
     with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):
