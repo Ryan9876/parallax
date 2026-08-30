@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- Ensure that the recovered durable worker can checkpoint against the newly persisted protected PLAN without altering the ordinary rule that an accepted worker checkpoint cannot arbitrarily change its PLAN reference."
+  ],
+  "work_items": [
+    "- Implement a mechanism to allow the recovered worker to checkpoint against the newly persisted protected PLAN without violating the existing rule that an accepted worker checkpoint cannot arbitrarily change its PLAN reference."
+  ],
+  "validations": [
+    "- Verify that the implementation does not allow the recovered worker to checkpoint against a different PLAN reference than the exact refreshed PLAN reference, thereby maintaining the integrity of the ordinary rule that an accepted worker checkpoint cannot arbitrarily change its PLAN reference.",
+    "AC-01: validate protected requirement \u2014 Without a valid human-authorized PLAN-refresh cycle, changing an accepted worker checkpoint `plan_ref` continues to raise `WorkerCheckpointError`.",
+    "AC-02: validate protected requirement \u2014 A persisted `PLAN / RESUMED` attempt with `plan_refresh_authorized=true` followed by a later `PLAN / PASSED` attempt authorizes only `agentic-plan:<team_plan_id>` from that successful refreshed PLAN.",
+    "AC-03: validate protected requirement \u2014 Missing, false or malformed refresh evidence, missing/malformed `team_plan_id`, or a refresh control without a later PASSED PLAN does not authorize rebinding.",
+    "AC-04: validate protected requirement \u2014 Even after a valid refresh cycle, a checkpoint cannot select any PLAN reference other than the exact refreshed PLAN reference.",
+    "AC-05: validate protected requirement \u2014 The change does not alter lease acquisition/reassignment limits, Work Specification binding, source-lineage equality, canonical mutation, provider/Git/deployment authority or REVIEW boundaries.",
+    "AC-06: validate protected requirement \u2014 Browser input, public request payloads, model output, repository content, exception strings and worker-local flags cannot create or select the authorized replacement PLAN reference.",
+    "AC-07: validate protected requirement \u2014 If a later human-authorized PLAN-refresh control exists but no later protected PLAN has passed, any prior replacement authority is invalidated until the new PLAN succeeds.",
+    "AC-08: validate protected requirement \u2014 Once the refreshed PLAN reference is accepted into the current worker checkpoint, subsequent checkpoints remain bound to that exact reference under the ordinary equality rule unless another complete explicit human-authorized refresh cycle occurs.",
+    "AC-09: validate protected requirement \u2014 No database migration, persistence column, browser request field or response schema is added. Rollback is application revert only.",
+    "AC-10: validate protected requirement \u2014 After exact-source deployment, an authenticated user-equivalent retry of a QA-owned failed IMPLEMENT run must persist the fresh PLAN, worker reassignment and at least the first post-reassignment worker checkpoint under the refreshed PLAN, then reach hosted implementation dispatch or expose a later bounded failure beyond PLAN-reference validation."
+  ],
+  "risks": [
+    "- The risk of introducing a new mechanism that allows the recovered worker to checkpoint against a different PLAN reference than the exact refreshed PLAN reference could potentially weaken the ordinary rule that an accepted worker checkpoint cannot arbitrarily change its PLAN reference. This could lead to unintended consequences and require additional testing to ensure that the new mechanism does not introduce any new vulnerabilities or risks."
+  ],
+  "spec_id": "P2-V0.23.14",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Default PLAN immutability remains intact",
+      "protected_requirement": "Without a valid human-authorized PLAN-refresh cycle, changing an accepted worker checkpoint `plan_ref` continues to raise `WorkerCheckpointError`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Explicit refresh authorizes only the fresh protected PLAN",
+      "protected_requirement": "A persisted `PLAN / RESUMED` attempt with `plan_refresh_authorized=true` followed by a later `PLAN / PASSED` attempt authorizes only `agentic-plan:<team_plan_id>` from that successful refreshed PLAN."
+    },
+    {
+      "id": "AC-03",
+      "title": "Malformed or incomplete refresh evidence fails closed",
+      "protected_requirement": "Missing, false or malformed refresh evidence, missing/malformed `team_plan_id`, or a refresh control without a later PASSED PLAN does not authorize rebinding."
+    },
+    {
+      "id": "AC-04",
+      "title": "Historical or arbitrary PLAN references remain denied",
+      "protected_requirement": "Even after a valid refresh cycle, a checkpoint cannot select any PLAN reference other than the exact refreshed PLAN reference."
+    },
+    {
+      "id": "AC-05",
+      "title": "Worker/source authority is unchanged",
+      "protected_requirement": "The change does not alter lease acquisition/reassignment limits, Work Specification binding, source-lineage equality, canonical mutation, provider/Git/deployment authority or REVIEW boundaries."
+    },
+    {
+      "id": "AC-06",
+      "title": "Refresh authority comes only from protected persisted attempts",
+      "protected_requirement": "Browser input, public request payloads, model output, repository content, exception strings and worker-local flags cannot create or select the authorized replacement PLAN reference."
+    },
+    {
+      "id": "AC-07",
+      "title": "Newer incomplete refresh fails closed",
+      "protected_requirement": "If a later human-authorized PLAN-refresh control exists but no later protected PLAN has passed, any prior replacement authority is invalidated until the new PLAN succeeds."
+    },
+    {
+      "id": "AC-08",
+      "title": "Post-rebind immutability resumes immediately",
+      "protected_requirement": "Once the refreshed PLAN reference is accepted into the current worker checkpoint, subsequent checkpoints remain bound to that exact reference under the ordinary equality rule unless another complete explicit human-authorized refresh cycle occurs."
+    },
+    {
+      "id": "AC-09",
+      "title": "Persistence and public API remain compatible",
+      "protected_requirement": "No database migration, persistence column, browser request field or response schema is added. Rollback is application revert only."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production retry progresses beyond checkpoint rebinding",
+      "protected_requirement": "After exact-source deployment, an authenticated user-equivalent retry of a QA-owned failed IMPLEMENT run must persist the fresh PLAN, worker reassignment and at least the first post-reassignment worker checkpoint under the refreshed PLAN, then reach hosted implementation dispatch or expose a later bounded failure beyond PLAN-reference validation."
+    }
+  ],
+  "critique": [
+    "{finding}"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
