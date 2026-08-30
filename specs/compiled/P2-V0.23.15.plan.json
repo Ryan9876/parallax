@@ -1,0 +1,83 @@
+{
+  "architecture_decisions": [
+    "AC-01"
+  ],
+  "work_items": [
+    "Structured proposal decode failure is validation: A provider-successful attempt whose proposal fails `ImplementationProposal` JSON/schema decoding is recorded as `validation_failed`, not provider/transport failures."
+  ],
+  "validations": [
+    "AC-02",
+    "AC-04: validate protected requirement \u2014 If every configured model attempt fails as `provider_failed / LMRateLimitError`, the routing failure remains `RATE_LIMITED`.",
+    "AC-05: validate protected requirement \u2014 A route containing both provider failures and validation failures remains `PROVIDER_EXHAUSTED` rather than inferring a more specific cross-provider conclusion.",
+    "AC-06: validate protected requirement \u2014 Bounded implementation-generation diagnostic evidence continues to persist only status, provider kind and provider error class where applicable. Raw model output and provider payloads remain absent.",
+    "AC-07: validate protected requirement \u2014 The fixed implementation proposal prompt explicitly names the exact JSON keys already enforced by the protected schema. No Markdown stripping, JSON repair, prose extraction or permissive fallback parser is added.",
+    "AC-08: validate protected requirement \u2014 No source mutation, candidate validation, lineage, Git, deployment, approval, worker, Engineering Run transition or REVIEW authority changes.",
+    "AC-09: validate protected requirement \u2014 Focused router/generation regressions plus the full protected API, client/browser, promotion, Bounded Autonomy and DSPy release gates pass on the exact candidate head.",
+    "AC-10: validate protected requirement \u2014 After exact-source deployment, an authenticated production replay proves Luna-first hosted selection and, if a structured-output decode failure occurs, records it as validation rather than provider failure. A clean Luna success also satisfies this criterion by demonstrating the corrected path does not regress normal execution."
+  ],
+  "risks": [
+    "AC-03"
+  ],
+  "spec_id": "P2-V0.23.15",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Structured proposal decode failure is validation",
+      "protected_requirement": "A provider-successful attempt whose proposal fails `ImplementationProposal` JSON/schema decoding is recorded as `validation_failed`, not `provider_failed`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Provider failures remain provider failures",
+      "protected_requirement": "Transport, configuration, rate-limit and unrelated program exceptions remain `provider_failed` with only sanitized exception-class evidence."
+    },
+    {
+      "id": "AC-03",
+      "title": "Validation exhaustion remains correct",
+      "protected_requirement": "If every configured model attempt ends in structured-output validation failure or ordinary protected validation rejection, the resulting routing failure is `VALIDATION_EXHAUSTED`."
+    },
+    {
+      "id": "AC-04",
+      "title": "Rate-limit exhaustion remains correct",
+      "protected_requirement": "If every configured model attempt fails as `provider_failed / LMRateLimitError`, the routing failure remains `RATE_LIMITED`."
+    },
+    {
+      "id": "AC-05",
+      "title": "Mixed outcomes remain conservative",
+      "protected_requirement": "A route containing both provider failures and validation failures remains `PROVIDER_EXHAUSTED` rather than inferring a more specific cross-provider conclusion."
+    },
+    {
+      "id": "AC-06",
+      "title": "No raw output persistence",
+      "protected_requirement": "Bounded implementation-generation diagnostic evidence continues to persist only status, provider kind and provider error class where applicable. Raw model output and provider payloads remain absent."
+    },
+    {
+      "id": "AC-07",
+      "title": "Prompt contract is stricter, parser is not looser",
+      "protected_requirement": "The fixed implementation proposal prompt explicitly names the exact JSON keys already enforced by the protected schema. No Markdown stripping, JSON repair, prose extraction or permissive fallback parser is added."
+    },
+    {
+      "id": "AC-08",
+      "title": "Authority remains unchanged",
+      "protected_requirement": "No source mutation, candidate validation, lineage, Git, deployment, approval, worker, Engineering Run transition or REVIEW authority changes."
+    },
+    {
+      "id": "AC-09",
+      "title": "Regression suite remains green",
+      "protected_requirement": "Focused router/generation regressions plus the full protected API, client/browser, promotion, Bounded Autonomy and DSPy release gates pass on the exact candidate head."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production telemetry is truthful",
+      "protected_requirement": "After exact-source deployment, an authenticated production replay proves Luna-first hosted selection and, if a structured-output decode failure occurs, records it as validation rather than provider failure. A clean Luna success also satisfies this criterion by demonstrating the corrected path does not regress normal execution."
+    }
+  ],
+  "critique": [
+    ":\n- AC-01: Provider-successful attempt whose proposal fails `ImplementationProposal` JSON/schema decoding is recorded as `validation_failed`, not\u2026\n- AC-02: Provider failures remain provider failures: Transport, configuration, rate-limit and unrelated program exceptions remain `provider_failed` with only sanitized exception-class evidence.\n- AC-03: Validation exhaustion remains correct: If every configured model attempt ends in structured-output validation failure or ordinary protected validation rejection, the resulting routing\u2026\n- AC-04: Rate-limit exhaustion remains correct: If every configured model attempt fails as `provider_failed / LMRateLimitError`, the routing failure remains `RATE_LIMITED`.\n- AC-05: Mixed outcomes remain conservative: A route containing both provider failures and validation failures remains `PROVIDER_EXHAUSTED` rather than inferring a more specific cross-provider\u2026\n- AC-06: No raw output persistence: Bounded implementation-generation diagnostic evidence continues to persist only status, provider kind and provider error class where applicable\n- AC-07: Prompt contract is stricter, parser is not looser: The fixed implementation proposal prompt explicitly names the exact JSON keys already enforced by the protected schema\n- AC-08: Authority remains unchanged: No source mutation, candidate validation, lineage, Git, deployment, approval, worker, Engineering Run transition or REVIEW authority changes.\n- AC-09: Regression suite remains green: Focused router/generation regressions plus the full protected API, client/browser, promotion, Bounded Autonomy and DSPy release gates pass on the\u2026\n- AC-10: Production telemetry is truthful: After exact-source deployment, an authenticated production replay proves Luna-first hosted selection and, if a structured-output decode failure\u2026"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
