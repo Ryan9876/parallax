@@ -11,7 +11,7 @@ permissions:
 jobs:
   compile:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,7 +32,7 @@ jobs:
             echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
           else
             echo "provider=false" >> "$GITHUB_OUTPUT"
-            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:1.5b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
             echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
@@ -47,14 +47,30 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull qwen2.5:0.5b
+          ollama pull qwen2.5:1.5b
+      - name: Expand local proof output budget
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('services/api/parallax_api/intelligence/dspy_programs.py')
+          text = path.read_text()
+          old = 'kwargs["max_tokens"] = 384'
+          if text.count(old) != 1:
+              raise SystemExit('local DSPy token-budget marker drifted')
+          path.write_text(text.replace(old, 'kwargs["max_tokens"] = 768', 1))
+          PY
       - name: Compile protected plan
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py specs/P2-V0.23.13.md
       - name: Validate protected plan
         run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.13.md
+      - name: Restore temporary compiler tuning
+        if: always()
+        run: git restore services/api/parallax_api/intelligence/dspy_programs.py
       - name: Commit compiled plan
+        if: success()
         run: |
           git config user.name "parallax-qa-compiler"
           git config user.email "actions@users.noreply.github.com"
