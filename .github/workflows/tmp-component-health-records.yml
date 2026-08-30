@@ -22,9 +22,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import base64
 
           path = Path('CURRENT-STATE.md')
           text = path.read_text()
+
+          def b64(value):
+              return base64.b64decode(value).decode('utf-8')
 
           def replace_once(old, new, label):
               global text
@@ -38,8 +42,7 @@ jobs:
           replace_once(old_status, new_status, 'status')
 
           truth_anchor = 'P2-V0.23.9 / Architecture v3.23 is now production-deployment-verified and has a successful authenticated normal-path production replay. The production incident showed that all already-admitted alternates could independently return provider-successful proposals that the protected safe-patch validator rejected; later admitted candidates now receive only fixed server-owned validator-repair guidance after a bounded `VALIDATION_EXHAUSTED` classification. Provider/rate-limit failures remain separate, retry bounds are unchanged, and no mutation authority is added. The corrected post-deploy OT Time replay reached REVIEW at revision 6 with no failure and verified the authenticated source-only ZIP handoff. The replay did not artificially induce candidate rejection; branch-specific validator-guided recovery is established by deterministic protected tests.\n'
-          truth_addition = truth_anchor + '\nThe production client now projects resumed component health against the latest persisted control boundary rather than treating an older worker failure as current health forever. Historical failure events remain visible and unchanged. After a later persisted `RUN_CONTROL / RESUMED` event, an older dedicated worker failure is presented as `Awaiting evidence` until fresh worker evidence arrives. Worker IDs and source-lineage references on unrelated failed events are observation references only; they no longer cause Worker runtime or Source lineage to inherit that event failure. Dedicated lineage acceptance evidence remains authoritative for lineage health.\n'
-          replace_once(truth_anchor, truth_addition, 'production truth')
+          replace_once(truth_anchor, truth_anchor + '\n' + b64('VGhlIHByb2R1Y3Rpb24gY2xpZW50IG5vdyBwcm9qZWN0cyByZXN1bWVkIGNvbXBvbmVudCBoZWFsdGggYWdhaW5zdCB0aGUgbGF0ZXN0IHBlcnNpc3RlZCBjb250cm9sIGJvdW5kYXJ5IHJhdGhlciB0aGFuIHRyZWF0aW5nIGFuIG9sZGVyIHdvcmtlciBmYWlsdXJlIGFzIGN1cnJlbnQgaGVhbHRoIGZvcmV2ZXIuIEhpc3RvcmljYWwgZmFpbHVyZSBldmVudHMgcmVtYWluIHZpc2libGUgYW5kIHVuY2hhbmdlZC4gQWZ0ZXIgYSBsYXRlciBwZXJzaXN0ZWQgYFJVTl9DT05UUk9MIC8gUkVTVU1FRGAgZXZlbnQsIGFuIG9sZGVyIGRlZGljYXRlZCB3b3JrZXIgZmFpbHVyZSBpcyBwcmVzZW50ZWQgYXMgYEF3YWl0aW5nIGV2aWRlbmNlYCB1bnRpbCBmcmVzaCB3b3JrZXIgZXZpZGVuY2UgYXJyaXZlcy4gV29ya2VyIElEcyBhbmQgc291cmNlLWxpbmVhZ2UgcmVmZXJlbmNlcyBvbiB1bnJlbGF0ZWQgZmFpbGVkIGV2ZW50cyBhcmUgb2JzZXJ2YXRpb24gcmVmZXJlbmNlcyBvbmx5OyB0aGV5IG5vIGxvbmdlciBjYXVzZSBXb3JrZXIgcnVudGltZSBvciBTb3VyY2UgbGluZWFnZSB0byBpbmhlcml0IHRoYXQgZXZlbnQgZmFpbHVyZS4gRGVkaWNhdGVkIGxpbmVhZ2UgYWNjZXB0YW5jZSBldmlkZW5jZSByZW1haW5zIGF1dGhvcml0YXRpdmUgZm9yIGxpbmVhZ2UgaGVhbHRoLgo='), 'production truth')
 
           replace_once(
               '- application source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;\n- production deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`;',
@@ -50,33 +53,11 @@ jobs:
           section_anchor = '## P2-V0.23.9 — Validator-guided alternate-candidate repair — DEPLOYMENT-VERIFIED / NORMAL-PATH PRODUCTION-ACCEPTED\n'
           if text.count(section_anchor) != 1:
               raise SystemExit(f'section anchor count={text.count(section_anchor)}')
-          section = '''## Client resumed-component health projection — DEPLOYMENT-VERIFIED
-
-Production observation showed a truthful event history but a stale current-health projection: persisted event #11 recorded a failed Worker state (`AGENTIC_CANDIDATE_EXHAUSTED`), event #12 recorded failed IMPLEMENT (`AUTONOMOUS_IMPLEMENT_FAILED`), and later event #13 recorded `RUN_CONTROL / RESUMED`, while the authoritative Engineering Run was active in IMPLEMENT. The Component Health card nevertheless continued to show Worker runtime and Source lineage as current `Attention` from #11.
-
-The defect was client-only. `componentHealth()` treated any event carrying `worker_execution_id` or `source_lineage_ref` as direct health evidence for those components and had no resume supersession rule. That allowed an unrelated failure to contaminate component health and allowed a historical worker failure to remain current after a persisted resume.
-
-Correction and release evidence:
-
-- release PR: #461;
-- merged/deployed client source: `77cf04086211e260c39733aba6b95dd1f2cc5c19`;
-- production client deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
-- deployment state: `READY`;
-- production alias observed by the user: `parallax-ashy-one-20.vercel.app`;
-- Bounded Autonomy workflow `33291202942`: SUCCESS;
-- Parallax P2 CI workflow `33291202984`: SUCCESS;
-- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS.
-
-Current-health projection now separates dedicated component evidence from reference-only evidence. A newer persisted resume boundary supersedes an older dedicated worker failure for current-health presentation, yielding `Awaiting evidence` until fresh component evidence exists; it does not erase or rewrite the historical failure event. Source lineage uses dedicated lineage/acceptance evidence when available, while a lineage reference on another subsystem's failed event is observation-only. Worker execution references receive the same observation-only treatment. GitHub and Vercel remain `Unavailable` until their own persisted evidence exists.
-
-This release changes no API, persisted event, Engineering Run state-machine, source-lineage authority, provider authority, deployment ceiling or REVIEW boundary.
-
-'''
+          section = b64('IyMgQ2xpZW50IHJlc3VtZWQtY29tcG9uZW50IGhlYWx0aCBwcm9qZWN0aW9uIOKAlCBERVBMT1lNRU5ULVZFUklGSUVECgpQcm9kdWN0aW9uIG9ic2VydmF0aW9uIHNob3dlZCBhIHRydXRoZnVsIGV2ZW50IGhpc3RvcnkgYnV0IGEgc3RhbGUgY3VycmVudC1oZWFsdGggcHJvamVjdGlvbjogcGVyc2lzdGVkIGV2ZW50ICMxMSByZWNvcmRlZCBhIGZhaWxlZCBXb3JrZXIgc3RhdGUgKGBBR0VOVElDX0NBTkRJREFURV9FWEhBVVNURURgKSwgZXZlbnQgIzEyIHJlY29yZGVkIGZhaWxlZCBJTVBMRU1FTlQgKGBBVVRPTk9NT1VTX0lNUExFTUVOVF9GQUlMRURgKSwgYW5kIGxhdGVyIGV2ZW50ICMxMyByZWNvcmRlZCBgUlVOX0NPTlRST0wgLyBSRVNVTUVEYCwgd2hpbGUgdGhlIGF1dGhvcml0YXRpdmUgRW5naW5lZXJpbmcgUnVuIHdhcyBhY3RpdmUgaW4gSU1QTEVNRU5ULiBUaGUgQ29tcG9uZW50IEhlYWx0aCBjYXJkIG5ldmVydGhlbGVzcyBjb250aW51ZWQgdG8gc2hvdyBXb3JrZXIgcnVudGltZSBhbmQgU291cmNlIGxpbmVhZ2UgYXMgY3VycmVudCBgQXR0ZW50aW9uYCBmcm9tICMxMS4KClRoZSBkZWZlY3Qgd2FzIGNsaWVudC1vbmx5LiBgY29tcG9uZW50SGVhbHRoKClgIHRyZWF0ZWQgYW55IGV2ZW50IGNhcnJ5aW5nIGB3b3JrZXJfZXhlY3V0aW9uX2lkYCBvciBgc291cmNlX2xpbmVhZ2VfcmVmYCBhcyBkaXJlY3QgaGVhbHRoIGV2aWRlbmNlIGZvciB0aG9zZSBjb21wb25lbnRzIGFuZCBoYWQgbm8gcmVzdW1lIHN1cGVyc2Vzc2lvbiBydWxlLiBUaGF0IGFsbG93ZWQgYW4gdW5yZWxhdGVkIGZhaWx1cmUgdG8gY29udGFtaW5hdGUgY29tcG9uZW50IGhlYWx0aCBhbmQgYWxsb3dlZCBhIGhpc3RvcmljYWwgd29ya2VyIGZhaWx1cmUgdG8gcmVtYWluIGN1cnJlbnQgYWZ0ZXIgYSBwZXJzaXN0ZWQgcmVzdW1lLgoKQ29ycmVjdGlvbiBhbmQgcmVsZWFzZSBldmlkZW5jZToKCi0gcmVsZWFzZSBQUjogIzQ2MTsKLSBtZXJnZWQvZGVwbG95ZWQgY2xpZW50IHNvdXJjZTogYDc3Y2YwNDA4NjIxMWUyNjBjMzk3MzNhYmE2Yjk1ZGQxZjJjYzVjMTlgOwotIHByb2R1Y3Rpb24gY2xpZW50IGRlcGxveW1lbnQ6IGBkcGxfN3JMeGdGaDlDSDNhWTlzZG9TQ1RuRDF4SERWM2A7Ci0gZGVwbG95bWVudCBzdGF0ZTogYFJFQURZYDsKLSBwcm9kdWN0aW9uIGFsaWFzIG9ic2VydmVkIGJ5IHRoZSB1c2VyOiBgcGFyYWxsYXgtYXNoeS1vbmUtMjAudmVyY2VsLmFwcGA7Ci0gQm91bmRlZCBBdXRvbm9teSB3b3JrZmxvdyBgMzMyOTEyMDI5NDJgOiBTVUNDRVNTOwotIFBhcmFsbGF4IFAyIENJIHdvcmtmbG93IGAzMzI5MTIwMjk4NGA6IFNVQ0NFU1M7Ci0gRmFzdCBBUEkvY29udHJhY3RzLCBGYXN0IGNsaWVudC90eXBlY2hlY2svc3RhdGUvZXhwb3J0L2Jyb3dzZXIvU2tpYSwgcHJvdGVjdGVkIHByb21vdGlvbiBhbmQgRFNQeSByZWxlYXNlIGNvbXBpbGF0aW9uOiBQQVNTLgoKQ3VycmVudC1oZWFsdGggcHJvamVjdGlvbiBub3cgc2VwYXJhdGVzIGRlZGljYXRlZCBjb21wb25lbnQgZXZpZGVuY2UgZnJvbSByZWZlcmVuY2Utb25seSBldmlkZW5jZS4gQSBuZXdlciBwZXJzaXN0ZWQgcmVzdW1lIGJvdW5kYXJ5IHN1cGVyc2VkZXMgYW4gb2xkZXIgZGVkaWNhdGVkIHdvcmtlciBmYWlsdXJlIGZvciBjdXJyZW50LWhlYWx0aCBwcmVzZW50YXRpb24sIHlpZWxkaW5nIGBBd2FpdGluZyBldmlkZW5jZWAgdW50aWwgZnJlc2ggY29tcG9uZW50IGV2aWRlbmNlIGV4aXN0czsgaXQgZG9lcyBub3QgZXJhc2Ugb3IgcmV3cml0ZSB0aGUgaGlzdG9yaWNhbCBmYWlsdXJlIGV2ZW50LiBTb3VyY2UgbGluZWFnZSB1c2VzIGRlZGljYXRlZCBsaW5lYWdlL2FjY2VwdGFuY2UgZXZpZGVuY2Ugd2hlbiBhdmFpbGFibGUsIHdoaWxlIGEgbGluZWFnZSByZWZlcmVuY2Ugb24gYW5vdGhlciBzdWJzeXN0ZW0ncyBmYWlsZWQgZXZlbnQgaXMgb2JzZXJ2YXRpb24tb25seS4gV29ya2VyIGV4ZWN1dGlvbiByZWZlcmVuY2VzIHJlY2VpdmUgdGhlIHNhbWUgb2JzZXJ2YXRpb24tb25seSB0cmVhdG1lbnQuIEdpdEh1YiBhbmQgVmVyY2VsIHJlbWFpbiBgVW5hdmFpbGFibGVgIHVudGlsIHRoZWlyIG93biBwZXJzaXN0ZWQgZXZpZGVuY2UgZXhpc3RzLgoKVGhpcyByZWxlYXNlIGNoYW5nZXMgbm8gQVBJLCBwZXJzaXN0ZWQgZXZlbnQsIEVuZ2luZWVyaW5nIFJ1biBzdGF0ZS1tYWNoaW5lLCBzb3VyY2UtbGluZWFnZSBhdXRob3JpdHksIHByb3ZpZGVyIGF1dGhvcml0eSwgZGVwbG95bWVudCBjZWlsaW5nIG9yIFJFVklFVyBib3VuZGFyeS4KCg==')
           text = text.replace(section_anchor, section + section_anchor, 1)
 
           auth_anchor = '## Authoritative-record update\n\n'
-          auth_addition = auth_anchor + '`CURRENT-STATE.md` was updated again after deployment verification of the resumed-component-health client correction. It records the production symptom, client-only projection root cause, exact merged source and READY deployment, successful release gates, and the rule that historical failures remain intact while current health follows later persisted resume/component evidence.\n\n`ARCHITECTURE.md` remains authoritative at v3.23 because this correction changes no durable lifecycle, authority, persistence, recovery or provider contract; it fixes only how existing persisted evidence is projected in the client.\n\n`DESIGN-SYSTEM.md` was not changed because no durable visual token, component pattern or interaction rule changed.\n\n`PROJECT-CONSTITUTION.md` was not changed because no constitutional product or authority principle changed.\n\n'
-          replace_once(auth_anchor, auth_addition, 'authoritative record heading')
+          replace_once(auth_anchor, auth_anchor + b64('YENVUlJFTlQtU1RBVEUubWRgIHdhcyB1cGRhdGVkIGFnYWluIGFmdGVyIGRlcGxveW1lbnQgdmVyaWZpY2F0aW9uIG9mIHRoZSByZXN1bWVkLWNvbXBvbmVudC1oZWFsdGggY2xpZW50IGNvcnJlY3Rpb24uIEl0IHJlY29yZHMgdGhlIHByb2R1Y3Rpb24gc3ltcHRvbSwgY2xpZW50LW9ubHkgcHJvamVjdGlvbiByb290IGNhdXNlLCBleGFjdCBtZXJnZWQgc291cmNlIGFuZCBSRUFEWSBkZXBsb3ltZW50LCBzdWNjZXNzZnVsIHJlbGVhc2UgZ2F0ZXMsIGFuZCB0aGUgcnVsZSB0aGF0IGhpc3RvcmljYWwgZmFpbHVyZXMgcmVtYWluIGludGFjdCB3aGlsZSBjdXJyZW50IGhlYWx0aCBmb2xsb3dzIGxhdGVyIHBlcnNpc3RlZCByZXN1bWUvY29tcG9uZW50IGV2aWRlbmNlLgoKYEFSQ0hJVEVDVFVSRS5tZGAgcmVtYWlucyBhdXRob3JpdGF0aXZlIGF0IHYzLjIzIGJlY2F1c2UgdGhpcyBjb3JyZWN0aW9uIGNoYW5nZXMgbm8gZHVyYWJsZSBsaWZlY3ljbGUsIGF1dGhvcml0eSwgcGVyc2lzdGVuY2UsIHJlY292ZXJ5IG9yIHByb3ZpZGVyIGNvbnRyYWN0OyBpdCBmaXhlcyBvbmx5IGhvdyBleGlzdGluZyBwZXJzaXN0ZWQgZXZpZGVuY2UgaXMgcHJvamVjdGVkIGluIHRoZSBjbGllbnQuCgpgREVTSUdOLVNZU1RFTS5tZGAgd2FzIG5vdCBjaGFuZ2VkIGJlY2F1c2Ugbm8gZHVyYWJsZSB2aXN1YWwgdG9rZW4sIGNvbXBvbmVudCBwYXR0ZXJuIG9yIGludGVyYWN0aW9uIHJ1bGUgY2hhbmdlZC4KCmBQUk9KRUNULUNPTlNUSVRVVElPTi5tZGAgd2FzIG5vdCBjaGFuZ2VkIGJlY2F1c2Ugbm8gY29uc3RpdHV0aW9uYWwgcHJvZHVjdCBvciBhdXRob3JpdHkgcHJpbmNpcGxlIGNoYW5nZWQuCgo='), 'authoritative record heading')
 
           path.write_text(text)
           PY
