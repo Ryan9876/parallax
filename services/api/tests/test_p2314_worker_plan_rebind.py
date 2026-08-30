@@ -215,6 +215,7 @@ def test_expired_old_worker_rebinds_once_to_exact_human_refreshed_plan(tmp_path)
             now=T0 + timedelta(seconds=1),
             lease_seconds=5,
         )
+        # Snapshot the scalar: later repository reads refresh the same ORM identity in this session.
         old_checkpoint_revision = int(old_progress.execution.checkpoint_revision)
         assert json.loads(old_progress.execution.checkpoint_json)["plan_ref"] == f"agentic-plan:{OLD_PLAN_ID}"
 
