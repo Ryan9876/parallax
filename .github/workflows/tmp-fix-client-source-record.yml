@@ -1,0 +1,42 @@
+name: Temporary Client Source Record Correction
+
+on:
+  push:
+    branches:
+      - docs/component-health-client-release
+    paths:
+      - .github/workflows/tmp-fix-client-source-record.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/component-health-client-release
+      - name: Correct exact deployed client source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+          old = '77cf04086211e260c39733aba6b95dd1f2cc5c19'
+          new = '77cf1f4537023849f43c5b9eaaff9363ef77196c'
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f'expected two deployed-source references, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          grep -q '77cf1f4537023849f43c5b9eaaff9363ef77196c' CURRENT-STATE.md
+          ! grep -q '77cf04086211e260c39733aba6b95dd1f2cc5c19' CURRENT-STATE.md
+          git diff --check
+          git config user.name parallax-record-reconciler
+          git config user.email actions@users.noreply.github.com
+          git add CURRENT-STATE.md
+          git commit -m 'Correct deployed client source record'
+          git push origin HEAD:docs/component-health-client-release
