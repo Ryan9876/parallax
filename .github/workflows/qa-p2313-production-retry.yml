@@ -1,4 +1,4 @@
-name: QA P2-V0.23.13 Production Retry
+name: QA P2-V0.23.14 Production Retry
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - services/api/parallax_api/services/github_actions_identity.py
       - services/api/parallax_api/code/service.py
       - services/api/parallax_api/code/state_machine.py
+      - services/api/parallax_api/code/worker_recovery.py
       - services/api/parallax_api/routes/engineering_runs.py
   workflow_dispatch:
 
@@ -17,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: qa-p2313-production-retry
+  group: qa-p2314-production-retry
   cancel-in-progress: false
 
 jobs:
@@ -43,7 +44,7 @@ jobs:
           echo "::add-mask::${token}"
           echo "token=${token}" >> "${GITHUB_OUTPUT}"
 
-      - name: Wait for exact production deployment and establish QA session
+      - name: Wait for production and establish QA session
         shell: bash
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
@@ -88,19 +89,70 @@ jobs:
           resume_stage="$(jq -r '.resume_stage // ""' /tmp/run-before.json)"
           revision="$(jq -r '.revision' /tmp/run-before.json)"
           echo "Pre-retry: state=${state}; resume_stage=${resume_stage}; revision=${revision}"
-          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-8:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-before.json
-          test "${state}" = "FAILED"
-          test "${resume_stage}" = "IMPLEMENT"
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-10:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-before.json
+          case "${state}" in
+            FAILED)
+              test "${resume_stage}" = "IMPLEMENT"
+              ;;
+            IMPLEMENT)
+              echo "Run still reflects the pre-fix active-IMPLEMENT/terminal-worker anomaly; normalization is required."
+              ;;
+            *)
+              echo "Unexpected pre-retry state ${state}; refusing to mutate the fixture." >&2
+              exit 1
+              ;;
+          esac
+          echo "state=${state}" >> "${GITHUB_OUTPUT}"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+
+      - name: Normalize stale active IMPLEMENT if required
+        id: normalize
+        shell: bash
+        env:
+          BEFORE_STATE: ${{ steps.before.outputs.state }}
+          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+        run: |
+          set -euo pipefail
+          revision="${EXPECTED_REVISION}"
+          if [ "${BEFORE_STATE}" = "IMPLEMENT" ]; then
+            operation_key="qa-p2314-normalize-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            jq -n \
+              --arg operation_key "${operation_key}" \
+              --argjson expected_revision "${EXPECTED_REVISION}" \
+              '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/normalize-request.json
+            status="$(curl --silent --show-error --max-time 900 \
+              --output /tmp/normalize-response.json --write-out '%{http_code}' \
+              --cookie "${COOKIE_JAR}" \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              --data-binary @/tmp/normalize-request.json \
+              -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" || true)"
+            echo "Normalization autonomous HTTP ${status}"
+            jq '.' /tmp/normalize-response.json || cat /tmp/normalize-response.json || true
+
+            curl --fail-with-body --silent --show-error \
+              --cookie "${COOKIE_JAR}" \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-normalized.json
+            state="$(jq -r '.state' /tmp/run-normalized.json)"
+            resume_stage="$(jq -r '.resume_stage // ""' /tmp/run-normalized.json)"
+            revision="$(jq -r '.revision' /tmp/run-normalized.json)"
+            echo "Normalized state=${state}; resume_stage=${resume_stage}; revision=${revision}"
+            jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-8:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-normalized.json
+            test "${state}" = "FAILED"
+            test "${resume_stage}" = "IMPLEMENT"
+          fi
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
 
       - name: Act as user - retry failed IMPLEMENT run
         id: retry
         shell: bash
         env:
-          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+          EXPECTED_REVISION: ${{ steps.normalize.outputs.revision }}
         run: |
           set -euo pipefail
-          operation_key="qa-p2313-retry-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          operation_key="qa-p2314-retry-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           jq -n \
             --arg operation_key "${operation_key}" \
             --argjson expected_revision "${EXPECTED_REVISION}" \
@@ -128,7 +180,7 @@ jobs:
           EXPECTED_REVISION: ${{ steps.retry.outputs.revision }}
         run: |
           set -euo pipefail
-          operation_key="qa-p2313-autonomous-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          operation_key="qa-p2314-autonomous-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           jq -n \
             --arg operation_key "${operation_key}" \
             --argjson expected_revision "${EXPECTED_REVISION}" \
@@ -158,13 +210,16 @@ jobs:
           }
           echo '--- run after ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-after.json
-          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-12:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-after.json
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-16:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-after.json
           echo '--- worker health ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}/worker-health" >/tmp/worker.json
           jq '.' /tmp/worker.json
           echo '--- latest events ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}/events" >/tmp/events.json
-          jq 'if type=="array" then .[-20:] elif .events then {events:.events[-20:],next_after_sequence,has_more} else . end' /tmp/events.json
+          jq 'if type=="array" then .[-30:] elif .events then {events:.events[-30:],next_after_sequence,has_more} else . end' /tmp/events.json
+          echo '--- P2-V0.23.14 evidence markers ---'
+          jq '[.attempts[]? | select(.stage=="PLAN") | {attempt_number,status,evidence}] | .[-6:]' /tmp/run-after.json
+          jq 'if .checkpoint then {state,lease_generation,checkpoint_revision,current_step,checkpoint:.checkpoint} else . end' /tmp/worker.json
           echo '--- runtime decision ---'
           state="$(jq -r '.state // "UNKNOWN"' /tmp/run-after.json)"
           failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
