@@ -195,7 +195,7 @@ Greenfield repository-authority remediation:
 - production deployment: `dpl_4LAkdawZteqrAX34pmGAtLMvVq9V`;
 - state: **IMPLEMENTED / MAIN-MERGED / API PRODUCTION-DEPLOYMENT-VERIFIED**.
 
-The frozen Decision Ledger benchmark remains open. Its original empty-repository observation is a valid failed reference observation rather than a passing application benchmark. No target source was seeded out of band. Public-source bootstrap cannot manufacture an initial commit; explicit exact repository mutation authority or another governed greenfield initialization mechanism remains required before the canonical implementation trial can pass.
+The frozen Decision Ledger benchmark remains open. Its original empty-repository observation is a valid failed reference observation rather than a passing application benchmark. P2-V0.23.7 now supplies the previously missing governed empty-greenfield authority; however, the former disposable target was consumed by legacy Parallax QA fixture activity before v3.21. A fresh approved truly empty target is therefore required to complete the canonical end-to-end trial without rewriting repository history.
 
 ## P2-V0.23.7 — Empty-greenfield repository authority — DEPLOYMENT-VERIFIED / CANONICAL TARGET REPLACEMENT REQUIRED
 
