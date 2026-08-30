@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Preserve the model router\u2019s existing bounded attempt records and failure classification."
+  ],
+  "work_items": [
+    "Do not copy this brief."
+  ],
+  "validations": [
+    "In candidate recovery, inspect only that bounded diagnostic.",
+    "AC-01: validate protected requirement \u2014 `ImplementationGenerationFailure` exposes bounded router failure classification without raw provider/model output.",
+    "AC-02: validate protected requirement \u2014 A parsed proposal rejected by the protected proposal validator causes the next admitted candidate for the same work unit to receive static server-owned safe-patch repair guidance.",
+    "AC-03: validate protected requirement \u2014 Provider/rate-limit failures do not receive validator-specific repair guidance and remain governed by existing candidate/provider recovery semantics.",
+    "AC-04: validate protected requirement \u2014 Repair guidance states the exact safe-patch requirements needed by the unchanged server validator, including exact path/digest binding and strict single-file unified-diff form.",
+    "AC-05: validate protected requirement \u2014 The existing `max_reassignments_per_work_unit` bound and eligible-agent set remain authoritative. No additional unbounded retry loop is introduced.",
+    "AC-06: validate protected requirement \u2014 Repair guidance grants no canonical source, lineage, Git, deployment, REVIEW, Engineering Run transition, credential, or network authority.",
+    "AC-07: validate protected requirement \u2014 If all admitted candidates still fail, exhaustion evidence records only bounded server-owned rejection kind values and preserves `worker_process_loss=false` with all mutation claims false.",
+    "AC-08: validate protected requirement \u2014 A first candidate that passes the protected proposal validator follows the existing path with no repair guidance or semantic change.",
+    "AC-09: validate protected requirement \u2014 Tests prove validation classification, validation-guided next-candidate repair, provider-failure separation, finite recovery, and bounded diagnostics.",
+    "AC-10: validate protected requirement \u2014 Protected spec/plan validation, focused tests, full API regression, Bounded Autonomy, client/browser, protected promotion, and DSPy release gates are green before merge."
+  ],
+  "risks": [
+    "Provider exhaustion/rate-limit failures continue without validator-specific guidance."
+  ],
+  "spec_id": "P2-V0.23.9",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Failure classification survives generation boundary",
+      "protected_requirement": "`ImplementationGenerationFailure` exposes bounded router failure classification without raw provider/model output."
+    },
+    {
+      "id": "AC-02",
+      "title": "Validation-only repair guidance",
+      "protected_requirement": "A parsed proposal rejected by the protected proposal validator causes the next admitted candidate for the same work unit to receive static server-owned safe-patch repair guidance."
+    },
+    {
+      "id": "AC-03",
+      "title": "Provider-failure separation",
+      "protected_requirement": "Provider/rate-limit failures do not receive validator-specific repair guidance and remain governed by existing candidate/provider recovery semantics."
+    },
+    {
+      "id": "AC-04",
+      "title": "Strict contract reinforcement",
+      "protected_requirement": "Repair guidance states the exact safe-patch requirements needed by the unchanged server validator, including exact path/digest binding and strict single-file unified-diff form."
+    },
+    {
+      "id": "AC-05",
+      "title": "Finite recovery preserved",
+      "protected_requirement": "The existing `max_reassignments_per_work_unit` bound and eligible-agent set remain authoritative. No additional unbounded retry loop is introduced."
+    },
+    {
+      "id": "AC-06",
+      "title": "No authority expansion",
+      "protected_requirement": "Repair guidance grants no canonical source, lineage, Git, deployment, REVIEW, Engineering Run transition, credential, or network authority."
+    },
+    {
+      "id": "AC-07",
+      "title": "Bounded exhaustion evidence",
+      "protected_requirement": "If all admitted candidates still fail, exhaustion evidence records only bounded server-owned rejection kind values and preserves `worker_process_loss=false` with all mutation claims false."
+    },
+    {
+      "id": "AC-08",
+      "title": "Success-path parity",
+      "protected_requirement": "A first candidate that passes the protected proposal validator follows the existing path with no repair guidance or semantic change."
+    },
+    {
+      "id": "AC-09",
+      "title": "Regression proof",
+      "protected_requirement": "Tests prove validation classification, validation-guided next-candidate repair, provider-failure separation, finite recovery, and bounded diagnostics."
+    },
+    {
+      "id": "AC-10",
+      "title": "Release gates",
+      "protected_requirement": "Protected spec/plan validation, focused tests, full API regression, Bounded Autonomy, client/browser, protected promotion, and DSPy release gates are green before merge."
+    }
+  ],
+  "critique": [
+    ":\n- `SafeImplementationEngine` and `TextPatchEngine` remain authoritative and unchanged.\n- A rejected candidate remains non-authoritative and non-mutating.\n- Only router-classified `VALIDATION_EXHAUSTED` failures may trigger safe-patch repair guidance.\n- Repair guidance is server-owned static text.\n- Repair guidance may be appended only to a later already-admitted candidate generation request for the same work unit.\n- Candidate count and alternate-agent budget remain unchanged; this release does not add an unbounded or hidden same-model loop.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate admission, disposable validation, independent evaluation, routing, canonical mutation, Git delivery, Preview delivery, REVIEW, and production authority remain unchanged.\n- Exact acceptance ownership, candidate"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

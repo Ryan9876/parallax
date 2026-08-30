@@ -22,6 +22,13 @@ SOURCE_CONTEXT_AUTHORITY_RULE = (
     "protected source context. Do not refuse solely because source was absent from conversational context. All "
     "substantive Work Specification constraints and acceptance criteria remain authoritative."
 )
+STRICT_SAFE_PATCH_RULE = (
+    "For every existing target, copy the exact path and lowercase SHA-256 from source context. For a new file, "
+    "use the SHA-256 of empty content. Emit one patch per target. Each unified diff must be a strict single-file "
+    "diff whose headers exactly match the declared path (`--- a/path` and `+++ b/path`, or `--- /dev/null` for "
+    "a new file) and whose hunk coordinates, counts, removed lines, and context lines exactly match the supplied "
+    "source text. Do not emit multi-file diffs, unsupported/binary targets, secret material, or no-op patches."
+)
 _ACCEPTANCE_RE = re.compile(r"^AC-\d{2,}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -107,6 +114,7 @@ class ImplementationGenerationRequest:
         if self.source_context.files:
             payload["runtime_source_access"] = "SERVER_PROVIDED_PROTECTED_SOURCE"
             payload["runtime_source_authority_rule"] = SOURCE_CONTEXT_AUTHORITY_RULE
+            payload["strict_safe_patch_rule"] = STRICT_SAFE_PATCH_RULE
         return payload
 
     def contract_payload(self) -> dict[str, object]:
@@ -128,7 +136,7 @@ class ImplementationGenerationProgram(Protocol):
 
 
 class DspyImplementationGenerationProgram:
-    version = "implementation-generation-v0.15.4"
+    version = "implementation-generation-v0.23.9"
 
     def __init__(self, model: str):
         try:
@@ -141,19 +149,20 @@ class DspyImplementationGenerationProgram:
 
             Return only the requested JSON proposal. Cover exactly the acceptance IDs supplied by the server.
             Patch paths and expected SHA-256 values must come from source context, except a new file may bind to
-            the SHA-256 of empty content. When source context declares SERVER_PROVIDED_PROTECTED_SOURCE, treat an
-            earlier repository/file-provision precondition as satisfied by that current context; do not relax any
-            substantive constraint or acceptance criterion. Never output commands, filesystem roots, URLs,
-            credentials, environment values, Git/deployment actions, approval claims, hidden reasoning, scratchpads,
-            or extra authority.
+            the SHA-256 of empty content. Unified diffs must obey the strict safe-patch rule supplied in source
+            context, including exact target headers and source-matching hunk coordinates/counts/context. When source
+            context declares SERVER_PROVIDED_PROTECTED_SOURCE, treat an earlier repository/file-provision precondition
+            as satisfied by that current context; do not relax any substantive constraint or acceptance criterion.
+            Never output commands, filesystem roots, URLs, credentials, environment values, Git/deployment actions,
+            approval claims, hidden reasoning, scratchpads, or extra authority.
             """
 
             work_specification_json: str = dspy.InputField(desc="immutable approved Work Specification contract")
-            source_context_json: str = dspy.InputField(desc="bounded source files with path, digest, size and text")
+            source_context_json: str = dspy.InputField(desc="bounded source files with path, digest, size, text and strict safe-patch rule")
             proposal_json: str = dspy.OutputField(
                 desc=(
                     "JSON object only: acceptance_ids_covered as the exact supplied IDs in the same order, and "
-                    "patches as 1-16 objects containing only path, expected_base_sha256 and unified_diff"
+                    "patches as 1-16 objects containing only path, expected_base_sha256 and a strict single-file unified_diff"
                 )
             )
 
@@ -204,6 +213,25 @@ ProgramFactory = Callable[[str], ImplementationGenerationProgram]
 ProposalValidator = Callable[[ImplementationProposal], bool]
 
 
+def _bounded_routing_failure_evidence(exc: RoutingFailure) -> dict[str, object]:
+    return {
+        "routing_failure": {
+            "reason_code": exc.kind.value,
+            "attempt_count": len(exc.attempts),
+            "attempts": [
+                {
+                    "status": item.status,
+                    "provider_kind": item.provider_kind,
+                    "error_class": item.error if item.status == "provider_failed" else None,
+                }
+                for item in exc.attempts
+            ],
+            "raw_model_output_persisted": False,
+            "raw_provider_payload_persisted": False,
+        }
+    }
+
+
 class ImplementationGenerationCoordinator:
     def __init__(
         self,
@@ -236,7 +264,10 @@ class ImplementationGenerationCoordinator:
         try:
             result = await self.router.route(attempt, validate)
         except RoutingFailure as exc:
-            raise ImplementationGenerationFailure("Parallax could not produce a protected implementation proposal") from exc
+            raise ImplementationGenerationFailure(
+                "Parallax could not produce a protected implementation proposal",
+                diagnostic_evidence=_bounded_routing_failure_evidence(exc),
+            ) from exc
         return ImplementationGeneration(
             proposal=result.value,
             model=result.model,
