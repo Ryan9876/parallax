@@ -382,6 +382,27 @@ class WorkerRecoveryService:
         )
         return decision
 
+    def prepare_human_resume(
+        self,
+        *,
+        run_id: str,
+        now: datetime | None = None,
+    ) -> EngineeringWorkerExecution | None:
+        self._run(run_id)
+        current = self.executions.get_for_run(run_id)
+        if current is None or current.state != WorkerLifecycleState.FAILED.value:
+            return current
+        execution = self.executions.prepare_human_resume(run_id=run_id, now=_utc(now))
+        if execution is None:
+            return None
+        self._emit_worker_event(
+            execution,
+            event_key=f"worker:{execution.id}:state:{execution.revision}:HUMAN_RESUME_RECOVERING",
+            outcome=RunEventOutcome.RECOVERING,
+            summary="Explicit Engineering Run resume re-armed the terminal worker for one new bounded generation.",
+        )
+        return execution
+
     def begin_recovery(self, *, run_id: str, now: datetime | None = None) -> EngineeringWorkerExecution:
         execution = self._execution(run_id)
         if execution.state != WorkerLifecycleState.STALLED.value:
