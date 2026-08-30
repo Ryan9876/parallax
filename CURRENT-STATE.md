@@ -2,7 +2,7 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / W9-S1 CONTROLLED REFERENCE OBSERVATION COMPLETE WITH GREENFIELD INITIALIZATION AUTHORITY STILL OPEN / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
 
 ## Current production truth
 
@@ -12,7 +12,7 @@ W8-S2 is now complete. The former OT Time failure was reduced from public-source
 
 The public-source bootstrap remains independent from Vercel application delivery. Public commit-bearing GitHub source uses Git smart HTTP plus exact commit-addressed codeload archives. Source-only Projects do not require a Vercel Project, Preview target, application deployment, GitHub publication, or production-promotion authority.
 
-The separate W9-S1 empty-greenfield initialization boundary remains open. A repository with no public commit has no source revision for the public read-only transport to bootstrap, so canonical greenfield initialization still needs exact explicit repository mutation authority or another governed initialization mechanism.
+W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
 ## Production components
 
@@ -31,12 +31,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `e204d69ed0d6a9a69d68374ad63e8a1dbd630813`;
-- production deployment: `dpl_8e87ZdYGACUvf4YvivsSWwomDE5n`;
+- source: `2619aada4d3fd732589c6489a99ebe95dcc0d01d`;
+- production deployment: `dpl_8LBreMU3LGxUR8RWW8LfSCJRGxxx`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.20.
+- architecture: `ARCHITECTURE.md` v3.21.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -197,6 +197,35 @@ Greenfield repository-authority remediation:
 
 The frozen Decision Ledger benchmark remains open. Its original empty-repository observation is a valid failed reference observation rather than a passing application benchmark. No target source was seeded out of band. Public-source bootstrap cannot manufacture an initial commit; explicit exact repository mutation authority or another governed greenfield initialization mechanism remains required before the canonical implementation trial can pass.
 
+## P2-V0.23.7 — Empty-greenfield repository authority — DEPLOYMENT-VERIFIED / CANONICAL TARGET REPLACEMENT REQUIRED
+
+Workstream follow-up: #442.
+
+Architecture: `ARCHITECTURE.md` v3.21.
+
+Release evidence:
+
+- release PR: #443;
+- exact green release head: `a36a81d379e8f9b696f0879afa7126c31761a0e8`;
+- application release merge: `2619aada4d3fd732589c6489a99ebe95dcc0d01d`;
+- production API deployment: `dpl_8LBreMU3LGxUR8RWW8LfSCJRGxxx`;
+- deployment state: `READY`;
+- exact deployment source: `2619aada4d3fd732589c6489a99ebe95dcc0d01d`;
+- production provider/storage preflight: PASS;
+- exact-repository scoped delivery-token preflight: PASS;
+- projected-source, private Blob, lineage composition and agentic-runtime preflights: PASS;
+- exact-head specification, API regression, Bounded Autonomy, client/browser/Skia, DSPy release compilation and protected-promotion gates: PASS.
+
+Durable behavior now supports a positively authenticated empty GitHub repository without manufacturing source or widening authority. Empty classification requires exact credentialed inspection; ambiguous/provider failures remain fail-closed. A zero-file `greenfield` root is explicit durable lineage, and accepted implementation must become non-empty before validation. Missing repository authorization is surfaced as structured `REPOSITORY_AUTHORIZATION_REQUIRED` with same-run retry. Empty-baseline mutation is REVIEW-only, fixed, idempotent and isolated behind `repository.initialize-empty`; normal GitHub delivery, Preview ceiling and human REVIEW boundary remain unchanged.
+
+### Canonical Decision Ledger acceptance target was consumed before v3.21
+
+The fixed target `Ryan9876/sickbeard` is no longer an empty repository. Its root commit `b7e8399724e38ee60b3380aa02ecb079a43acee3` was created at `2026-08-29T20:46:01Z` with message `Initialize minimal Parallax QA source fixture`, followed by four serial commits titled `Complete minimal Parallax QA source fixture`. Those commits predate the v3.21 production deployment by roughly nineteen minutes and contain QA-only fixture content. They are therefore not evidence that the v3.21 greenfield initializer ran.
+
+After v3.21 became READY, bounded QA replay `33285377567` / job `99187551677` obtained the existing approved `parallax://qa-production` OIDC identity, but `scripts/w9_s1_reference_trial.sh` correctly stopped at its preflight with `Decision Ledger target is no longer greenfield; refusing to start trial.` No new Project/run or v3.21 repository mutation was created by that attempt.
+
+The repository history is preserved rather than destructively rewritten. Canonical AC-27 remains pending a fresh user-approved truly empty repository with exact GitHub App/Vercel Connect coverage and the required Preview target readiness. This is an acceptance-fixture prerequisite, not an unverified runtime implementation claim.
+
 ## Wave 9 S2 — Governed skill intake and capability catalog
 
 Control Tower: #391.
@@ -216,14 +245,14 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## Other open governed work
 
-- #406 — code-side greenfield repository-authority remediation is deployment-verified; canonical empty-repository initialization authority remains unresolved for W9-S1;
+- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity;
 - #290 — safe deletion final authenticated destructive smoke remains open.
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.6 release and successful authenticated W8-S2 OT Time production acceptance. It now records the exact runtime deployment, qualified snapshots, canonical workflow, Project, Engineering Run, lifecycle state/revision and source-only ZIP handoff evidence and marks Wave 8 complete.
+`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.7 release. It records the exact v3.21 runtime source/deployment and preflight evidence, distinguishes implementation/deployment verification from the still-pending canonical greenfield benchmark acceptance, and records that the fixed Decision Ledger target was consumed by legacy QA fixture activity before v3.21.
 
-`ARCHITECTURE.md` remains authoritative at v3.20. It already records the durable profile-qualified snapshot contract, public-source/deployment separation, bounded PREPARE behavior, source-only handoff, immutable lineage and REVIEW ceiling proven by this acceptance; no further architecture revision is required.
+`ARCHITECTURE.md` remains authoritative at v3.21. PR #443 already records the durable positive-empty inspection, zero-file greenfield lineage, structured authorization recovery and isolated REVIEW-only empty-baseline mutation contract; no additional architecture revision is required for this state reconciliation.
 
 `DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
 
