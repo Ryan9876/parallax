@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**
 
 ## Current production truth
 
@@ -28,8 +28,8 @@ W9-S1 empty-greenfield initialization authority is now implemented and productio
 
 Current deployment-verified client remains:
 
-- application source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;
-- production deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
+- application source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;
+- production deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`.
 
@@ -54,6 +54,30 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
+
+## Long-running client release freshness — DEPLOYMENT-VERIFIED
+
+A production observation exposed a second, distinct client issue after the resumed-component health correction was deployed: an iPhone Safari tab that had been opened before the new client release continued executing its already-loaded JavaScript while receiving later API events. The server and production alias were current, but the long-running tab had no mechanism to learn that a newer client shell existed. This can leave truthful fresh run events rendered through obsolete client projection logic until the operator manually reloads.
+
+PR #463 adds an advisory web release guard without changing API or Engineering Run semantics. The loaded client records the same-origin hashed script/stylesheet signature from its shell, checks a no-cache `/index.html` release shell every 60 seconds and when the page regains focus, returns from the page cache, or becomes visible, and compares the current release signature. If a newer shell is present, Parallax shows an accessible persistent `Parallax was updated` notice with a minimum-44pt `Refresh now` action. It does not force-reload an active operator session. Network failures in the release check are non-disruptive. `/index.html` is explicitly served with `Cache-Control: public, max-age=0, must-revalidate` so the comparison cannot silently rely on an obsolete shell.
+
+The same release closes the browser-level acceptance gap that allowed the original observation to escape automation. A 390×844 Playwright regression now reproduces the exact Activity sequence `#11 WORKER_STATE FAILED / AGENTIC_CANDIDATE_EXHAUSTED` → `#12 IMPLEMENT FAILED / AUTONOMOUS_IMPLEMENT_FAILED` → `#13 RUN_CONTROL RESUMED` → `#14 IMPLEMENT FAILED / AUTONOMOUS_IMPLEMENT_FAILED` on the actual operator Activity surface. The regression requires Component Health to preserve the historical failures in the timeline while projecting Worker runtime as `Awaiting evidence`, preserving accepted Source lineage as observed, and rejecting stale current `Attention` inherited from pre-resume worker evidence. A separate browser regression simulates a newer deployed shell while the old tab remains open and proves stale-client detection, explicit refresh availability, minimum mobile target sizing, and successful loading of the current shell after refresh.
+
+Release evidence:
+
+- release PR: #463;
+- exact green PR head: `e77bdf22c3070a57638fdc4f3d15e733a932792e`;
+- application release merge / deployed client source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;
+- production client deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;
+- deployment state: `READY`;
+- user-observed production alias `parallax-ashy-one-20.vercel.app` is attached to that deployment;
+- Bounded Autonomy workflow `33292775470`: SUCCESS;
+- Parallax P2 CI workflow `33292775471`: SUCCESS;
+- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS;
+- production release-check shell on `parallax-ashy-one-20.vercel.app`: HTTP 200 with `Cache-Control: public, max-age=0, must-revalidate`;
+- exact deployment build error scan: clean.
+
+A browser tab loaded before this release cannot retroactively contain the release guard and requires one final manual refresh. Once this release is loaded, later client deployments are detected by the guard on the bounded interval or page-return signals above. No API, persistence, persisted event, Engineering Run state machine, source-lineage authority, provider authority, deployment ceiling or REVIEW boundary changed.
 
 ## Client resumed-component health projection — DEPLOYMENT-VERIFIED
 
