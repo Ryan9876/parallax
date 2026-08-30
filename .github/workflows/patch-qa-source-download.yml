@@ -1,0 +1,63 @@
+name: Temporary QA Source Download Patch
+
+on:
+  push:
+    branches:
+      - fix/qa-source-download-endpoint
+    paths:
+      - .github/workflows/patch-qa-source-download.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/qa-source-download-endpoint
+      - name: Patch OT Time production replay handoff route
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('.github/workflows/qa-production-replay.yml')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  '          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"\n          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"',
+                  '          echo "project_id=${project_id}" >> "${GITHUB_OUTPUT}"\n          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"\n          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"',
+              ),
+              (
+                  '          API_BASE: https://parallax-api-tan.vercel.app\n          RUN_ID: ${{ steps.fixture.outputs.run_id }}\n          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}',
+                  '          API_BASE: https://parallax-api-tan.vercel.app\n          PROJECT_ID: ${{ steps.fixture.outputs.project_id }}\n          RUN_ID: ${{ steps.fixture.outputs.run_id }}\n          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}',
+              ),
+              (
+                  '            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \\',
+                  '            "${API_BASE}/v1/projects/${PROJECT_ID}/engineering-runs/${RUN_ID}/source-download" \\',
+              ),
+              (
+                  '          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"',
+                  '          echo "OT Time P2-V0.23.9 production replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one match, found {count}: {old!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+      - name: Commit QA harness correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name parallax-qa-harness
+          git config user.email actions@users.noreply.github.com
+          git add .github/workflows/qa-production-replay.yml
+          git diff --cached --check
+          git commit -m "Fix OT Time source handoff verification route"
+          git push origin HEAD:fix/qa-source-download-endpoint
