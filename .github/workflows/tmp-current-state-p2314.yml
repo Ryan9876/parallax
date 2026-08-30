@@ -1,0 +1,80 @@
+name: Temporary CURRENT-STATE P2-V0.23.14 reconciliation
+
+on:
+  push:
+    branches:
+      - chore/current-state-p2314-acceptance
+    paths:
+      - .github/workflows/tmp-current-state-p2314.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/current-state-p2314-acceptance
+          fetch-depth: 0
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          status = (
+              'Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE '
+              'PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / '
+              'P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER '
+              'PLAN REBIND PRODUCTION-ACCEPTED / HISTORICAL PRE-REPAIR OT TIME RESTORE FAILURE CLASSIFIED AS '
+              'STALE IMMUTABLE SOURCE LINEAGE / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**'
+          )
+          text, n = re.subn(r'^Status: \*\*.*?\*\*$', status, text, count=1, flags=re.M)
+          if n != 1:
+              raise SystemExit('status line not found exactly once')
+
+          replacements = {
+              '- source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;': '- source: `c6c7b80e912f4f68efe43b8fa83ee30b8c18ee20`;',
+              '- production deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;': '- production deployment: `dpl_2kQpJfG9hk5gppPySMBbgT3Zi4Nz`;',
+              '- architecture: `ARCHITECTURE.md` v3.25.': '- architecture: `ARCHITECTURE.md` v3.27.',
+              '## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE PRODUCTION ACCEPTANCE PENDING': '## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-ACCEPTED',
+              'This is deployment verification only for the ordering change: representative production autonomous evidence proving Luna-first hosted implementation selection is still pending and must not be inferred from deployment alone.': 'Representative authenticated production autonomous evidence now proves Luna-first hosted implementation selection. Luna was attempted first on the accepted current-source OT Time replay before bounded fallback to Terra and Sol when lower-tier proposal/output validation did not pass; the server-owned route order remains `Luna -> Terra -> Sol`.',
+              '## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING': '## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-ACCEPTED THROUGH LATER RETRY PROOF',
+              'This release is deployment-verified but not yet behaviorally production-accepted. The representative failed Engineering Run still requires one explicit operator retry so the new human-authorized recovery boundary can be exercised. Production acceptance requires evidence that the resumed run obtains a new worker generation and progresses to hosted implementation dispatch instead of stopping at the prior terminal-worker conflict.': 'Later P2-V0.23.13/P2-V0.23.14 production retry evidence exercises this boundary: the explicit FAILED/IMPLEMENT retry re-arms the recovered worker, a fresh worker generation is minted, and hosted implementation dispatch proceeds. P2-V0.23.11 is therefore behaviorally production-accepted through that later proof.'
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'expected CURRENT-STATE text not found: {old[:90]}')
+              text = text.replace(old, new, 1)
+
+          marker = '## P2-V0.23.13 / P2-V0.23.14 — Failed IMPLEMENT replan and recovered-worker PLAN rebind — PRODUCTION-ACCEPTED'
+          if marker not in text:
+              insertion = '''\n## P2-V0.23.13 / P2-V0.23.14 — Failed IMPLEMENT replan and recovered-worker PLAN rebind — PRODUCTION-ACCEPTED\n\nP2-V0.23.13 / Architecture v3.26 adds one narrow human-authorized retry transition for Project-bound agentic runs that are durably `FAILED` with `resume_stage=IMPLEMENT`: explicit resume targets `PLAN`, ordinary protected PLAN execution persists current evidence, and IMPLEMENT may then obtain the existing bounded worker recovery lease. Historical PLAN evidence, Work Specification binding, source lineage, worker ceilings, public resume payloads, and ordinary autonomous/reconnect behavior remain unchanged.\n\nP2-V0.23.14 / Architecture v3.27 binds a recovered worker checkpoint to the exact fresh PLAN accepted after that human-authorized replan. It preserves checkpoint/source-lineage history and does not widen model, mutation, Git, deployment, or REVIEW authority.\n\nProduction acceptance evidence:\n\n- deployed API source: `c6c7b80e912f4f68efe43b8fa83ee30b8c18ee20`;\n- production deployment: `dpl_2kQpJfG9hk5gppPySMBbgT3Zi4Nz`, target production, state `READY`;\n- canonical production alias: `parallax-api-tan.vercel.app`;\n- P2-V0.23.14 retry QA run `33336924911`: SUCCESS; explicit FAILED/IMPLEMENT resume returned PLAN, autonomous continuation returned HTTP 200, fresh PLAN passed, and the worker advanced from lease generation 4 to generation 5 before hosted proposal work;\n- the immutable historical OT Time fixture then failed later at `dotnet restore` with `DEPENDENCY_PREPARATION_FAILED`, probe exit 0 and prepare exit 1; that fixture predates the independent OT Time .NET repair and was correctly not silently rebased;\n- fresh current-source production replay `33336924912`: SUCCESS; OT Time Engineering Run `27deec1b-9234-40f0-809f-2fc957f9f7d6` advanced PLAN -> IMPLEMENT -> BUILD -> TEST -> VERIFY -> REVIEW, revision 6, with no failure;\n- that replay returned and validated the authenticated source-only ZIP: 32 entries, 74,761 bytes;\n- the same replay independently proved hosted selection starts with Luna; bounded validation fallback later reached Terra and Sol without changing the canonical route order;\n- parallel source-only Python full-experience run `4b046e29-718f-42d8-b8eb-5d5183681911` also reached REVIEW revision 6 with PLAN, IMPLEMENT, BUILD, TEST and VERIFY all PASSED;\n- main QA-harness reconciliation source `5303eef4053a2ed6100dbbe4e28429124e992e5d` passed Parallax P2 CI, including API/contracts, client/browser/Skia, protected promotion, and DSPy release compilation; its Vercel deployment was canceled because it changed QA/workflow files only, so it is not a newer deployed API runtime.\n\nThe former dependency-preparation blocker is therefore classified as stale immutable source-lineage behavior on the historical fixture, not a current `dotnet-v1` runtime defect. No dependency-preparation runtime change is warranted from that evidence.\n'''
+              anchor = '\n## Production components\n'
+              if anchor not in text:
+                  raise SystemExit('Production components anchor not found')
+              text = text.replace(anchor, insertion + anchor, 1)
+
+          path.write_text(text)
+          PY
+          git diff --check
+          git diff -- CURRENT-STATE.md
+      - name: Commit reconciled record
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name parallax-record-bot
+          git config user.email actions@users.noreply.github.com
+          git add CURRENT-STATE.md
+          if git diff --cached --quiet; then
+            echo 'CURRENT-STATE already reconciled.'
+            exit 0
+          fi
+          git commit -m 'Reconcile P2-V0.23.14 production acceptance state'
+          git push origin HEAD:chore/current-state-p2314-acceptance
