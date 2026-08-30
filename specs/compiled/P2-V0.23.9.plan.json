@@ -1,0 +1,46 @@
+{
+  "architecture_decisions": [
+    "Keep safe proposal validation and all mutation authority unchanged; expose only bounded router failure classification and feed static validator-specific repair guidance to the next already-admitted candidate after VALIDATION_EXHAUSTED."
+  ],
+  "work_items": [
+    "Project bounded routing failure diagnostics across the implementation-generation boundary.",
+    "Add validator-guided alternate-candidate repair constraints without increasing retry bounds.",
+    "Add focused regression tests for classification, guidance, provider separation, finite recovery, and bounded evidence."
+  ],
+  "validations": [
+    "AC-01: ImplementationGenerationFailure exposes bounded router failure classification without raw provider/model output.",
+    "AC-02: A proposal-validator rejection supplies static safe-patch repair guidance to the next admitted candidate for the same work unit.",
+    "AC-03: Provider/rate-limit failures do not receive validator-specific guidance.",
+    "AC-04: Repair guidance reinforces exact path/digest binding and strict single-file unified-diff requirements.",
+    "AC-05: Existing max_reassignments_per_work_unit and eligible-agent bounds remain unchanged.",
+    "AC-06: Repair guidance grants no canonical source, lineage, Git, deployment, REVIEW, run-transition, credential, or network authority.",
+    "AC-07: Exhaustion evidence remains bounded and records only server-owned rejection kind values.",
+    "AC-08: First-candidate success path is unchanged.",
+    "AC-09: Focused regression tests prove the new classification and recovery behavior.",
+    "AC-10: Protected spec/plan validation and all release gates are green before merge."
+  ],
+  "risks": [
+    "Static guidance may not repair every malformed candidate; the run must still fail closed after the existing finite candidate budget rather than weakening validation."
+  ],
+  "spec_id": "P2-V0.23.9",
+  "protected_acceptance_map": [
+    {"id":"AC-01","title":"Failure classification survives generation boundary","protected_requirement":"ImplementationGenerationFailure exposes bounded router failure classification without raw provider/model output."},
+    {"id":"AC-02","title":"Validation-only repair guidance","protected_requirement":"A parsed proposal rejected by the protected proposal validator causes the next admitted candidate for the same work unit to receive static server-owned safe-patch repair guidance."},
+    {"id":"AC-03","title":"Provider-failure separation","protected_requirement":"Provider/rate-limit failures do not receive validator-specific repair guidance and remain governed by existing recovery semantics."},
+    {"id":"AC-04","title":"Strict contract reinforcement","protected_requirement":"Repair guidance states the exact safe-patch requirements needed by the unchanged server validator."},
+    {"id":"AC-05","title":"Finite recovery preserved","protected_requirement":"The existing max_reassignments_per_work_unit bound and eligible-agent set remain authoritative."},
+    {"id":"AC-06","title":"No authority expansion","protected_requirement":"Repair guidance grants no canonical source, lineage, Git, deployment, REVIEW, Engineering Run transition, credential, or network authority."},
+    {"id":"AC-07","title":"Bounded exhaustion evidence","protected_requirement":"Exhaustion evidence records only bounded server-owned rejection kind values and preserves worker_process_loss=false with all mutation claims false."},
+    {"id":"AC-08","title":"Success-path parity","protected_requirement":"A first candidate that passes the protected proposal validator follows the existing path with no repair guidance or semantic change."},
+    {"id":"AC-09","title":"Regression proof","protected_requirement":"Tests prove validation classification, validation-guided next-candidate repair, provider-failure separation, finite recovery, and bounded diagnostics."},
+    {"id":"AC-10","title":"Release gates","protected_requirement":"Protected spec/plan validation, focused tests, full API regression, Bounded Autonomy, client/browser, protected promotion, and DSPy release gates are green before merge."}
+  ],
+  "critique": [
+    "The design intentionally does not weaken the validator or add extra retries; if static guidance is insufficient, production evidence should drive a separately governed deterministic proposal-construction improvement."
+  ],
+  "dspy_run": {
+    "executed": false,
+    "model": "server-authored deterministic protected plan",
+    "local_development_view": false
+  }
+}
