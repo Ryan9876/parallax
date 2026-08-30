@@ -1,0 +1,26 @@
+name: P2-V0.23.7 Generated Artifact Cleanup
+
+on:
+  push:
+    branches: [work/w9-s1-repository-authorization]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/w9-s1-repository-authorization
+      - name: Remove generated install artifacts and this one-shot workflow
+        run: |
+          git rm -f apps/client/package-lock.json
+          git rm -rf services/api/parallax_api.egg-info
+          git rm -f .github/workflows/p2-v0-23-7-artifact-cleanup.yml
+          git config user.name 'parallax-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Remove generated P2-V0.23.7 install artifacts'
+          git push origin HEAD:work/w9-s1-repository-authorization
