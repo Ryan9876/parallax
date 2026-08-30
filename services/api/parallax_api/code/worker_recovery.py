@@ -25,6 +25,7 @@ DEFAULT_MAX_NO_PROGRESS = 3
 DEFAULT_MAX_OSCILLATIONS = 2
 
 _LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
+_AGENTIC_PLAN_REF_RE = re.compile(r"^agentic-plan:([0-9a-f]{64})$")
 _STEP_RE = re.compile(r"^[A-Z][A-Z0-9_-]{0,63}$")
 _SAFE_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,239}$")
 _FORBIDDEN_REF_PREFIXES = (
@@ -112,8 +113,13 @@ class WorkerStaleLease(WorkerRecoveryError):
     pass
 
 
-class WorkerCheckpointError(WorkerRecoveryError):
-    pass
+class WorkerCheckpointError(WorkerRecoveryError, ValueError):
+    """Protected worker checkpoint contract failure.
+
+    The ValueError facet lets the implementation generation boundary classify
+    pre-mutation checkpoint-contract failures through its existing bounded
+    contract-error path, while WorkerRecoveryError compatibility remains intact.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +246,76 @@ def _validate_refs(values: tuple[str, ...], *, field: str) -> tuple[str, ...]:
     return normalized
 
 
+def _attempt_evidence(attempt: object) -> dict[str, object] | None:
+    raw = getattr(attempt, "evidence_json", None)
+    if not isinstance(raw, str):
+        return None
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return decoded if isinstance(decoded, dict) else None
+
+
+def _human_refreshed_agentic_plan_rebind_authorized(
+    run: "EngineeringRun",
+    checkpoint: WorkerCheckpoint,
+    *,
+    existing_plan_ref: str,
+    requested_plan_ref: str,
+) -> bool:
+    """Prove one changed PLAN reference from immutable run history.
+
+    The worker checkpoint does not create rebind authority. It can only consume
+    the exact latest PLAN identity that immediately followed an explicit
+    P2-V0.23.13 human PLAN-refresh control attempt. Restricting the exceptional
+    admission to AGENT_DISPATCH keeps it at the first protected dispatch
+    checkpoint; after persistence, ordinary equality validation applies again.
+    """
+
+    if (
+        getattr(run, "state", None) != "IMPLEMENT"
+        or checkpoint.current_step != "AGENT_DISPATCH"
+        or existing_plan_ref == requested_plan_ref
+    ):
+        return False
+    match = _AGENTIC_PLAN_REF_RE.fullmatch(requested_plan_ref)
+    if match is None:
+        return False
+
+    plan_attempts = [
+        attempt
+        for attempt in getattr(run, "attempts", ())
+        if getattr(attempt, "stage", None) == "PLAN"
+    ]
+    if len(plan_attempts) < 2:
+        return False
+    refreshed_plan = plan_attempts[-1]
+    refresh_control = plan_attempts[-2]
+    if (
+        getattr(refreshed_plan, "status", None) != "PASSED"
+        or getattr(refresh_control, "status", None) != "RESUMED"
+    ):
+        return False
+
+    refresh_evidence = _attempt_evidence(refresh_control)
+    plan_evidence = _attempt_evidence(refreshed_plan)
+    if refresh_evidence is None or plan_evidence is None:
+        return False
+    if (
+        refresh_evidence.get("plan_refresh_authorized") is not True
+        or refresh_evidence.get("prior_resume_stage") != "IMPLEMENT"
+        or plan_evidence.get("decision_kind") != "SERVER_OWNED_AGENTIC_PLAN"
+    ):
+        return False
+    team_plan_id = plan_evidence.get("team_plan_id")
+    return (
+        isinstance(team_plan_id, str)
+        and team_plan_id == match.group(1)
+        and requested_plan_ref == f"agentic-plan:{team_plan_id}"
+    )
+
+
 def validate_checkpoint(
     run: "EngineeringRun",
     checkpoint: WorkerCheckpoint,
@@ -260,7 +336,16 @@ def validate_checkpoint(
         raise WorkerCheckpointError("worker checkpoint Work Specification digest is invalid")
 
     plan_ref = _validate_ref(checkpoint.plan_ref, field="plan_ref")
-    if existing_plan_ref is not None and plan_ref != existing_plan_ref:
+    if (
+        existing_plan_ref is not None
+        and plan_ref != existing_plan_ref
+        and not _human_refreshed_agentic_plan_rebind_authorized(
+            run,
+            checkpoint,
+            existing_plan_ref=existing_plan_ref,
+            requested_plan_ref=plan_ref,
+        )
+    ):
         raise WorkerCheckpointError("worker checkpoint plan reference cannot change after acceptance")
     if not _STEP_RE.fullmatch(checkpoint.current_step):
         raise WorkerCheckpointError("worker checkpoint current step is invalid")
