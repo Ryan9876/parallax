@@ -53,17 +53,19 @@ jobs:
 
           marker = '## Server-owned hosted model escalation\n'
           if '## Structured-output validation routing boundary\n' not in text:
-              section = '''## Structured-output validation routing boundary
-
-Architecture v3.28 distinguishes provider execution from protected structured-output validation. A hosted model request can complete successfully at the provider boundary and still return output that cannot be decoded into the exact server-owned `ImplementationProposal` schema. That condition is not provider unavailability.
-
-Implementation-generation programs may therefore raise one typed server-owned `ModelOutputValidationError` only after a provider result exists and strict protected proposal JSON/schema validation fails. The exception carries no raw model output, validation payload, repository text, provider response, secret, or arbitrary exception message. `ModelRouter` catches that type before its generic provider boundary and records the attempt as `validation_failed`. The existing validator-returned-false path remains `validation_failed` as well.
-
-Transport, configuration, rate-limit and unrelated program exceptions continue through the generic sanitized provider boundary and remain `provider_failed`, retaining only exception class in bounded attempt evidence. If every configured attempt is validation failure, routing remains `VALIDATION_EXHAUSTED`; if every attempt is `provider_failed / LMRateLimitError`, routing remains `RATE_LIMITED`; mixed provider and validation outcomes remain conservatively `PROVIDER_EXHAUSTED`. Exception strings and model text never determine the classification.
-
-The implementation proposal prompt now states the exact already-enforced JSON keys and forbids Markdown/prose wrappers more explicitly. This is generation guidance only. Parallax does not strip fences, extract prose, repair JSON, accept extra keys, relax acceptance coverage, or bypass strict Pydantic and safe-patch validation. Hosted order remains `Luna -> Terra -> Sol`; candidate recovery, worker recovery, reassignment ceilings, source mutation, lineage, Git/provider/deployment authority and REVIEW boundaries are unchanged.
-
-'''
+              section_lines = [
+                  '## Structured-output validation routing boundary',
+                  '',
+                  'Architecture v3.28 distinguishes provider execution from protected structured-output validation. A hosted model request can complete successfully at the provider boundary and still return output that cannot be decoded into the exact server-owned `ImplementationProposal` schema. That condition is not provider unavailability.',
+                  '',
+                  'Implementation-generation programs may therefore raise one typed server-owned `ModelOutputValidationError` only after a provider result exists and strict protected proposal JSON/schema validation fails. The exception carries no raw model output, validation payload, repository text, provider response, secret, or arbitrary exception message. `ModelRouter` catches that type before its generic provider boundary and records the attempt as `validation_failed`. The existing validator-returned-false path remains `validation_failed` as well.',
+                  '',
+                  'Transport, configuration, rate-limit and unrelated program exceptions continue through the generic sanitized provider boundary and remain `provider_failed`, retaining only exception class in bounded attempt evidence. If every configured attempt is validation failure, routing remains `VALIDATION_EXHAUSTED`; if every attempt is `provider_failed / LMRateLimitError`, routing remains `RATE_LIMITED`; mixed provider and validation outcomes remain conservatively `PROVIDER_EXHAUSTED`. Exception strings and model text never determine the classification.',
+                  '',
+                  'The implementation proposal prompt now states the exact already-enforced JSON keys and forbids Markdown/prose wrappers more explicitly. This is generation guidance only. Parallax does not strip fences, extract prose, repair JSON, accept extra keys, relax acceptance coverage, or bypass strict Pydantic and safe-patch validation. Hosted order remains `Luna -> Terra -> Sol`; candidate recovery, worker recovery, reassignment ceilings, source mutation, lineage, Git/provider/deployment authority and REVIEW boundaries are unchanged.',
+                  '',
+              ]
+              section = '\n'.join(section_lines) + '\n'
               if marker not in text:
                   raise SystemExit('hosted model escalation marker not found')
               text = text.replace(marker, section + marker, 1)
