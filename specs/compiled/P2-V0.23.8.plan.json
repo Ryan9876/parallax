@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "The proposed architecture decision is to implement a deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new model loop."
+  ],
+  "work_items": [
+    "The proposed work item is to implement a deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new model loop."
+  ],
+  "validations": [
+    "The proposed validation is to implement a deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new model loop.",
+    "AC-01: validate protected requirement \u2014 A first assigned hosted implementation agent whose proposal is rejected by the protected proposal validator does not immediately terminate IMPLEMENT when another admitted eligible agent exists.",
+    "AC-02: validate protected requirement \u2014 The alternate attempt uses a different eligible agent identity, incremented assignment generation, and fresh operation/request/attempt identity.",
+    "AC-03: validate protected requirement \u2014 The rejected proposal causes no canonical workspace mutation, lineage acceptance, Git mutation, deployment, REVIEW completion, or Engineering Run transition.",
+    "AC-04: validate protected requirement \u2014 A successful alternate proposal continues through the existing exact acceptance-coverage checks and ordinary disposable candidate validation, independent evaluation, routing and competition path.",
+    "AC-05: validate protected requirement \u2014 Recovery attempts are deterministic and bounded by `max_reassignments_per_work_unit`; no unbounded model loop is possible.",
+    "AC-06: validate protected requirement \u2014 If every eligible alternate fails generation/validation, IMPLEMENT fails closed with bounded `candidate_generation_failure` evidence whose reason is `CANDIDATE_GENERATION_EXHAUSTED`, with `worker_process_loss=false` and no raw provider/model output or secrets.",
+    "AC-07: validate protected requirement \u2014 Existing process-loss and lease-expiry worker reassignment semantics remain unchanged.",
+    "AC-08: validate protected requirement \u2014 Existing successful single-agent and multi-agent paths remain unchanged when the first assigned agent succeeds.",
+    "AC-09: validate protected requirement \u2014 Tests prove deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new authority claims.",
+    "AC-10: validate protected requirement \u2014 Protected spec/plan validation, full API regression, Bounded Autonomy, client/browser, protected promotion and DSPy release gates are green before merge."
+  ],
+  "risks": [
+    "The proposed risk is to implement a deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new model loop."
+  ],
+  "spec_id": "P2-V0.23.8",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Alternate recovery",
+      "protected_requirement": "A first assigned hosted implementation agent whose proposal is rejected by the protected proposal validator does not immediately terminate IMPLEMENT when another admitted eligible agent exists."
+    },
+    {
+      "id": "AC-02",
+      "title": "Fresh bounded identity",
+      "protected_requirement": "The alternate attempt uses a different eligible agent identity, incremented assignment generation, and fresh operation/request/attempt identity."
+    },
+    {
+      "id": "AC-03",
+      "title": "No rejected-candidate mutation",
+      "protected_requirement": "The rejected proposal causes no canonical workspace mutation, lineage acceptance, Git mutation, deployment, REVIEW completion, or Engineering Run transition."
+    },
+    {
+      "id": "AC-04",
+      "title": "Existing validation path preserved",
+      "protected_requirement": "A successful alternate proposal continues through the existing exact acceptance-coverage checks and ordinary disposable candidate validation, independent evaluation, routing and competition path."
+    },
+    {
+      "id": "AC-05",
+      "title": "Finite recovery",
+      "protected_requirement": "Recovery attempts are deterministic and bounded by `max_reassignments_per_work_unit`; no unbounded model loop is possible."
+    },
+    {
+      "id": "AC-06",
+      "title": "Exhaustion diagnostic",
+      "protected_requirement": "If every eligible alternate fails generation/validation, IMPLEMENT fails closed with bounded `candidate_generation_failure` evidence whose reason is `CANDIDATE_GENERATION_EXHAUSTED`, with `worker_process_loss=false` and no raw provider/model output or secrets."
+    },
+    {
+      "id": "AC-07",
+      "title": "Worker recovery parity",
+      "protected_requirement": "Existing process-loss and lease-expiry worker reassignment semantics remain unchanged."
+    },
+    {
+      "id": "AC-08",
+      "title": "Success-path parity",
+      "protected_requirement": "Existing successful single-agent and multi-agent paths remain unchanged when the first assigned agent succeeds."
+    },
+    {
+      "id": "AC-09",
+      "title": "Regression proof",
+      "protected_requirement": "Tests prove deterministic first-agent rejection followed by alternate assignment, finite alternate exhaustion, fresh dispatch identities and no new authority claims."
+    },
+    {
+      "id": "AC-10",
+      "title": "Release gates",
+      "protected_requirement": "Protected spec/plan validation, full API regression, Bounded Autonomy, client/browser, protected promotion and DSPy release gates are green before merge."
+    }
+  ],
+  "critique": [
+    "The specification does not explicitly mention any material implementation risks or omissions. It outlines a detailed architecture and acceptance criteria for the Compact Parallax implementation, but does not provide any specific material issues or concerns."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5-coder:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

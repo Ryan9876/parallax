@@ -291,9 +291,9 @@ def autonomous(
 
         if agentic_enabled:
             try:
-                from ..code.agentic_runtime_live import build_live_agentic_runtime_composition
+                from ..code.agentic_candidate_recovery import build_resilient_live_agentic_runtime_composition
 
-                runtime = build_live_agentic_runtime_composition(
+                runtime = build_resilient_live_agentic_runtime_composition(
                     svc,
                     allocator,
                     legacy_executor,
