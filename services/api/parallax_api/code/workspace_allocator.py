@@ -65,6 +65,15 @@ class ProjectWorkspaceAllocator:
         lineage = self.lineage_store.initialize(identity, provider)
         return self._materialize(identity, lineage)
 
+    def initialize_greenfield(self, identity: ProjectRunIdentity, *, source_ref: str) -> MaterializedWorkspace:
+        initializer = getattr(self.lineage_store, "initialize_greenfield", None)
+        if not callable(initializer):
+            raise SourcePolicyError("durable lineage store does not admit greenfield roots")
+        lineage = initializer(identity, source_ref=source_ref)
+        if not isinstance(lineage, SourceLineage) or lineage.source_kind != "greenfield":
+            raise SourcePolicyError("greenfield lineage initialization returned an invalid root")
+        return self._materialize(identity, lineage)
+
     def resolve(self, identity: ProjectRunIdentity, lineage_id: str | None = None) -> MaterializedWorkspace:
         lineage = (
             self.lineage_store.current(identity)
