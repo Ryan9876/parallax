@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED**
 
 ## Current production truth
 
@@ -16,6 +16,8 @@ P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected 
 
 P2-V0.23.9 / Architecture v3.23 is now production-deployment-verified and has a successful authenticated normal-path production replay. The production incident showed that all already-admitted alternates could independently return provider-successful proposals that the protected safe-patch validator rejected; later admitted candidates now receive only fixed server-owned validator-repair guidance after a bounded `VALIDATION_EXHAUSTED` classification. Provider/rate-limit failures remain separate, retry bounds are unchanged, and no mutation authority is added. The corrected post-deploy OT Time replay reached REVIEW at revision 6 with no failure and verified the authenticated source-only ZIP handoff. The replay did not artificially induce candidate rejection; branch-specific validator-guided recovery is established by deterministic protected tests.
 
+The production client now projects resumed component health against the latest persisted control boundary rather than treating an older worker failure as current health forever. Historical failure events remain visible and unchanged. After a later persisted `RUN_CONTROL / RESUMED` event, an older dedicated worker failure is presented as `Awaiting evidence` until fresh worker evidence arrives. Worker IDs and source-lineage references on unrelated failed events are observation references only; they no longer cause Worker runtime or Source lineage to inherit that event failure. Dedicated lineage acceptance evidence remains authoritative for lineage health.
+
 Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 logical-deletion correction has an authenticated post-cutover production smoke proving the active-work 409 guard, terminal cancellation path, Project and bound-conversation disappearance from active reads, active slug/repository identity reuse, fixture cleanup, and zero external-provider mutation. Internal protected-evidence retention and non-owner authorization remain established by the exact-head regression suite; production does not expose a deleted-history audit read merely for QA.
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
@@ -26,8 +28,8 @@ W9-S1 empty-greenfield initialization authority is now implemented and productio
 
 Current deployment-verified client remains:
 
-- application source: `4f812bd2cd6a5939c3d39ede457c091bac7b6e0f`;
-- production deployment: `dpl_CbuQzRDz3iJgF8rnqEpivmfmpQaM`;
+- application source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;
+- production deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`.
 
@@ -52,6 +54,27 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
+
+## Client resumed-component health projection — DEPLOYMENT-VERIFIED
+
+Production observation showed a truthful event history but a stale current-health projection: persisted event #11 recorded a failed Worker state (`AGENTIC_CANDIDATE_EXHAUSTED`), event #12 recorded failed IMPLEMENT (`AUTONOMOUS_IMPLEMENT_FAILED`), and later event #13 recorded `RUN_CONTROL / RESUMED`, while the authoritative Engineering Run was active in IMPLEMENT. The Component Health card nevertheless continued to show Worker runtime and Source lineage as current `Attention` from #11.
+
+The defect was client-only. `componentHealth()` treated any event carrying `worker_execution_id` or `source_lineage_ref` as direct health evidence for those components and had no resume supersession rule. That allowed an unrelated failure to contaminate component health and allowed a historical worker failure to remain current after a persisted resume.
+
+Correction and release evidence:
+
+- release PR: #461;
+- merged/deployed client source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;
+- production client deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
+- deployment state: `READY`;
+- production alias observed by the user: `parallax-ashy-one-20.vercel.app`;
+- Bounded Autonomy workflow `33291202942`: SUCCESS;
+- Parallax P2 CI workflow `33291202984`: SUCCESS;
+- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS.
+
+Current-health projection now separates dedicated component evidence from reference-only evidence. A newer persisted resume boundary supersedes an older dedicated worker failure for current-health presentation, yielding `Awaiting evidence` until fresh component evidence exists; it does not erase or rewrite the historical failure event. Source lineage uses dedicated lineage/acceptance evidence when available, while a lineage reference on another subsystem's failed event is observation-only. Worker execution references receive the same observation-only treatment. GitHub and Vercel remain `Unavailable` until their own persisted evidence exists.
+
+This release changes no API, persisted event, Engineering Run state-machine, source-lineage authority, provider authority, deployment ceiling or REVIEW boundary.
 
 ## P2-V0.23.9 — Validator-guided alternate-candidate repair — DEPLOYMENT-VERIFIED / NORMAL-PATH PRODUCTION-ACCEPTED
 
@@ -382,6 +405,14 @@ S2 remains non-executing capability intake. External observations are quarantine
 - #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity.
 
 ## Authoritative-record update
+
+`CURRENT-STATE.md` was updated again after deployment verification of the resumed-component-health client correction. It records the production symptom, client-only projection root cause, exact merged source and READY deployment, successful release gates, and the rule that historical failures remain intact while current health follows later persisted resume/component evidence.
+
+`ARCHITECTURE.md` remains authoritative at v3.23 because this correction changes no durable lifecycle, authority, persistence, recovery or provider contract; it fixes only how existing persisted evidence is projected in the client.
+
+`DESIGN-SYSTEM.md` was not changed because no durable visual token, component pattern or interaction rule changed.
+
+`PROJECT-CONSTITUTION.md` was not changed because no constitutional product or authority principle changed.
 
 `CURRENT-STATE.md` was updated after P2-V0.23.9 exact-source deployment verification and successful authenticated normal-path production acceptance. It records the original validator-exhaustion incident, the bounded repair semantics, release/deployment evidence, the obsolete-QA-route finding and correction, the corrected REVIEW/source-handoff replay, and closure of #456. #442 remains the only listed open governed work.
 
