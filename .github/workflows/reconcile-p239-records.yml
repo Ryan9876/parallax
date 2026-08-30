@@ -1,0 +1,172 @@
+name: Temporary P2-V0.23.9 Record Reconciliation
+
+on:
+  push:
+    branches:
+      - docs/p239-production-acceptance
+    paths:
+      - .github/workflows/reconcile-p239-records.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/p239-production-acceptance
+      - name: Reconcile architecture and current state
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old, new, 1)
+
+          # ARCHITECTURE.md — durable v3.23 candidate-repair contract.
+          architecture_path = Path('ARCHITECTURE.md')
+          architecture = architecture_path.read_text()
+          architecture = replace_once(
+              architecture,
+              'Version: 3.22',
+              'Version: 3.23',
+              'architecture version',
+          )
+          architecture = replace_once(
+              architecture,
+              'Architecture v3.22 is a bounded implementation-candidate recovery extension to v3.21, not a platform rewrite. Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation.',
+              'Architecture v3.23 is a bounded validator-guided alternate-candidate repair extension to v3.22, not a platform rewrite. Architecture v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation.',
+              'architecture relationship',
+          )
+          section_anchor = '## Repository-aware protected validation\n'
+          if architecture.count(section_anchor) != 1:
+              raise SystemExit(f'architecture section anchor count={architecture.count(section_anchor)}')
+          repair_section = '''## Validator-guided alternate-candidate repair
+
+Architecture v3.23 makes bounded candidate recovery informative without weakening validation. When a candidate-generation attempt returns a parsed proposal that the unchanged protected proposal validator rejects, the router may project only the server-owned bounded classification `VALIDATION_EXHAUSTED` across the generation boundary. Raw provider/model output, arbitrary exception text, repository text and browser input are not repair diagnostics.
+
+Only a later candidate already admitted for the same work unit by the existing server-owned eligible-agent roster may receive validator-repair guidance. The guidance is fixed server-owned text and only restates the unchanged safe-patch contract: exact canonical path/digest binding and strict single-file unified-diff form. It cannot alter requirements, select a candidate, relax validation, add files or commands, or grant source, lineage, Git, provider, deployment, credential, network, Engineering Run transition or REVIEW authority.
+
+Provider, rate-limit, transport and unrelated generation failures remain separate and do not receive validator-specific guidance. The existing `max_reassignments_per_work_unit` bound, deterministic alternate order and fresh assignment/operation/request/task/attempt identities remain authoritative; v3.23 introduces no same-model retry loop or hidden unbounded recovery.
+
+A first candidate that passes protected proposal validation follows the existing v3.22 path unchanged. If all already-admitted candidates fail, exhaustion remains fail-closed with bounded server-owned rejection-kind evidence, `worker_process_loss=false`, and no mutation claims. Actual process loss continues through durable worker recovery and is never reclassified as candidate rejection.
+
+'''
+          architecture = architecture.replace(section_anchor, repair_section + section_anchor, 1)
+          architecture_path.write_text(architecture)
+
+          # CURRENT-STATE.md — exact deployed source plus production acceptance evidence.
+          state_path = Path('CURRENT-STATE.md')
+          state = state_path.read_text()
+          state = replace_once(state, 'Date: 2026-08-29', 'Date: 2026-08-30', 'current-state date')
+          old_status = 'Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**'
+          new_status = 'Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**'
+          state = replace_once(state, old_status, new_status, 'current-state status')
+
+          prior_truth = 'P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected pre-mutation implementation candidates are distinct from worker/process loss and may recover only through deterministic, already-admitted alternate agents within the existing reassignment bound. Protected proposal validation and all canonical source, lineage, Git, deployment, and REVIEW authority remain unchanged.\n'
+          truth_addition = prior_truth + '\nP2-V0.23.9 / Architecture v3.23 is now production-deployment-verified and has a successful authenticated normal-path production replay. The production incident showed that all already-admitted alternates could independently return provider-successful proposals that the protected safe-patch validator rejected; later admitted candidates now receive only fixed server-owned validator-repair guidance after a bounded `VALIDATION_EXHAUSTED` classification. Provider/rate-limit failures remain separate, retry bounds are unchanged, and no mutation authority is added. The corrected post-deploy OT Time replay reached REVIEW at revision 6 with no failure and verified the authenticated source-only ZIP handoff. The replay did not artificially induce candidate rejection; branch-specific validator-guided recovery is established by deterministic protected tests.\n'
+          state = replace_once(state, prior_truth, truth_addition, 'current production truth')
+
+          state = replace_once(
+              state,
+              '- source: `319f548b5950ba1c27603ccf0c5921d5a3aaee5f`;\n- production deployment: `dpl_H6oQUkxyzX9C32VEHgWiRwLpZr1G`;',
+              '- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;\n- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;',
+              'production API source/deployment',
+          )
+          state = replace_once(
+              state,
+              '- architecture: `ARCHITECTURE.md` v3.22.',
+              '- architecture: `ARCHITECTURE.md` v3.23.',
+              'production architecture',
+          )
+
+          section_anchor = '## P2-V0.23.8 — Bounded rejected-candidate recovery — DEPLOYMENT-VERIFIED\n'
+          if state.count(section_anchor) != 1:
+              raise SystemExit(f'P2-V0.23.8 anchor count={state.count(section_anchor)}')
+          p239_section = '''## P2-V0.23.9 — Validator-guided alternate-candidate repair — DEPLOYMENT-VERIFIED / NORMAL-PATH PRODUCTION-ACCEPTED
+
+Workstream: #456 (completed).
+
+Governing specification: `P2-V0.23.9`.
+
+Architecture: `ARCHITECTURE.md` v3.23.
+
+Production incident evidence:
+
+- affected Engineering Run: `2b3cd15f-c5e2-481a-8266-c92c6534b08b`;
+- all three already-admitted hosted implementation candidates completed provider calls but were rejected by the unchanged protected proposal validator;
+- terminal evidence: `AGENTIC_CANDIDATE_EXHAUSTED` / `AUTONOMOUS_IMPLEMENT_FAILED`;
+- canonical source mutation: none;
+- defect: alternate-candidate recovery was finite and safe but blind to the bounded fact that a prior candidate had failed strict safe-patch validation.
+
+P2-V0.23.9 preserves the validator and every mutation/authority ceiling. Only a server-classified `VALIDATION_EXHAUSTED` result may cause a later already-admitted candidate for the same work unit to receive fixed server-owned safe-patch repair guidance. The guidance restates exact path/digest binding and strict single-file unified-diff form only. Provider/rate-limit failures remain separate. The existing eligible-agent roster and `max_reassignments_per_work_unit` bound remain authoritative, and no new same-model or unbounded retry loop exists.
+
+Release evidence:
+
+- release PR: #457;
+- exact green release head: `682faae2eadfeb63698a8fffc0ee772cba89348d`;
+- application release merge / deployed source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
+- production API deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
+- deployment state: `READY`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database and providers ready;
+- provider/storage, exact-repository delivery-token, projected-source, private Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot and run-event preflights: PASS;
+- exact deployment error/fatal runtime-log scan: clean;
+- workstream contract and protected-plan validation, Bounded Autonomy/full API regression, client/browser/Skia, protected promotion and DSPy release compilation: PASS.
+
+Post-deploy acceptance was intentionally non-destructive and did not manufacture a validator failure. The first trusted replay `33289874294` already proved the released runtime could progress through PLAN, IMPLEMENT, BUILD, TEST and VERIFY to REVIEW revision 6 with no runtime failure; that job failed only after REVIEW because the QA harness called the obsolete `/v1/engineering-runs/{run}/source-archive` route and received HTTP 404. Harness-only PR #459 corrected verification to the existing Project-scoped authenticated `/source-download` endpoint and merged as `a4d7cc83f2e3c60619e19d735c63af843742647e`; no application runtime changed.
+
+Corrected trusted workflow-dispatch acceptance:
+
+- workflow run: `33290221272`;
+- W8 OT Time job: `99200534358` — SUCCESS;
+- Project: `7b4c2377-6f06-4b43-b174-206e059e24f0`;
+- Engineering Run: `cb9a75aa-413b-4f6c-b019-e493fa112655`;
+- initial state/revision: PLAN / 1;
+- final stop/state/revision: `REVIEW_REQUIRED` / REVIEW / 6;
+- `last_failure_code`: null;
+- PLAN, IMPLEMENT, BUILD, TEST and VERIFY: PASSED;
+- IMPLEMENT tool: `safe-source-implementation-v1`;
+- authenticated source-only ZIP handoff: 32 entries / 74,870 bytes;
+- companion Python full-experience job `99200534320`: SUCCESS.
+
+The corrected production replay succeeded on its first admitted `openai/gpt-5.6-sol` implementation candidate, so validator-guided alternate-candidate repair was not artificially triggered in production. That branch is established by deterministic protected regression tests covering bounded failure classification, validation-only next-candidate guidance, provider-failure separation, finite recovery, bounded diagnostics and unchanged authority. Production acceptance therefore combines exact-source deployment verification, clean normal-path full-experience replay, and deterministic protected proof of the repair branch rather than weakening or deliberately tripping the production validator.
+
+'''
+          state = state.replace(section_anchor, p239_section + section_anchor, 1)
+
+          auth_heading = '## Authoritative-record update\n\n'
+          auth_index = state.find(auth_heading)
+          if auth_index < 0:
+              raise SystemExit('authoritative-record heading missing')
+          auth_tail = '''## Authoritative-record update
+
+`CURRENT-STATE.md` was updated after P2-V0.23.9 exact-source deployment verification and successful authenticated normal-path production acceptance. It records the original validator-exhaustion incident, the bounded repair semantics, release/deployment evidence, the obsolete-QA-route finding and correction, the corrected REVIEW/source-handoff replay, and closure of #456. #442 remains the only listed open governed work.
+
+`ARCHITECTURE.md` was advanced to v3.23 because P2-V0.23.9 introduces a durable candidate-recovery rule: only bounded server-classified validation rejection may project fixed safe-patch repair guidance to a later already-admitted candidate, while provider failures, retry bounds, mutation authority and lifecycle ceilings remain unchanged.
+
+`DESIGN-SYSTEM.md` was not changed because this release does not alter durable visual or interaction-system rules.
+
+`PROJECT-CONSTITUTION.md` was not changed because the release preserves existing least-privilege, explicit-authority, fail-closed validation and evidence-preservation principles rather than introducing a new constitutional rule.
+'''
+          state = state[:auth_index] + auth_tail
+          state_path.write_text(state)
+      - name: Validate and commit authoritative records
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '^Version: 3.23$' ARCHITECTURE.md
+          grep -q 'P2-V0.23.9 — Validator-guided alternate-candidate repair' CURRENT-STATE.md
+          grep -q 'f0706d489b26ff715891f75c8d2723fb0f734c3b' CURRENT-STATE.md
+          grep -q 'dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm' CURRENT-STATE.md
+          git diff --check
+          git config user.name parallax-record-reconciler
+          git config user.email actions@users.noreply.github.com
+          git add ARCHITECTURE.md CURRENT-STATE.md
+          git commit -m "Record P2-V0.23.9 production acceptance"
+          git push origin HEAD:docs/p239-production-acceptance
