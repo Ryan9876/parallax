@@ -249,8 +249,11 @@ try {
   await mobile.getByTestId('run-event-13').getByText('Engineering Run control recorded as RESUMED.', { exact: true }).waitFor();
   await mobile.getByTestId('run-event-14').getByText('AUTONOMOUS_IMPLEMENT_FAILED', { exact: true }).waitFor();
 
-  await mobile.getByRole('tab', { name: 'Health', exact: true }).click();
+  // Component Health is intentionally part of the Activity narrative, exactly as
+  // it appears in the operator view. Keep the regression on that same surface
+  // rather than switching to the separate compact Health/context section.
   const health = mobile.getByTestId('observability-component-health');
+  await health.scrollIntoViewIfNeeded();
   await health.getByText('Component Health', { exact: true }).waitFor();
   await health.getByText('Awaiting evidence', { exact: true }).waitFor();
   await health.getByText('Run control resumed after prior component failure #11; awaiting fresh component evidence.', { exact: true }).waitFor();
@@ -259,6 +262,7 @@ try {
 
   console.log(JSON.stringify({
     observedSequence: [11, 12, 13, 14],
+    activitySurfaceMatched: true,
     workerHealth: 'Awaiting evidence',
     sourceLineage: 'Observed',
     historicalFailurePreserved: true,
