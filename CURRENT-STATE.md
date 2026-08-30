@@ -28,7 +28,7 @@ W9-S1 empty-greenfield initialization authority is now implemented and productio
 
 Current deployment-verified client remains:
 
-- application source: `77cf04086211e260c39733aba6b95dd1f2cc5c19`;
+- application source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;
 - production deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`.
@@ -64,7 +64,7 @@ The defect was client-only. `componentHealth()` treated any event carrying `work
 Correction and release evidence:
 
 - release PR: #461;
-- merged/deployed client source: `77cf04086211e260c39733aba6b95dd1f2cc5c19`;
+- merged/deployed client source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;
 - production client deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;
 - deployment state: `READY`;
 - production alias observed by the user: `parallax-ashy-one-20.vercel.app`;
