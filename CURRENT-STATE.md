@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED / FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE LUNA-FIRST PRODUCTION ACCEPTANCE PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED / RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED / FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED / P2-V0.23.11 HUMAN-RESUME TERMINAL-WORKER RE-ARM PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING EXPLICIT RETRY**
 
 ## Current production truth
 
@@ -22,7 +22,7 @@ Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 lo
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
-## P2-V0.23.10 — Hosted model escalation ordering — IMPLEMENTED / FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING
+## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE PRODUCTION ACCEPTANCE PENDING
 
 Workstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.
 
@@ -30,7 +30,7 @@ Production evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol
 
 The implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
 
-Focused orchestration, candidate-recovery and runtime-activation regression plus authentic DSPy compilation are required on the reconciled current-main branch before release. This section does **not** claim deployment. The production API remains the v3.23 runtime recorded below until exact-head release gates, merge, READY deployment evidence and representative production autonomous runtime evidence prove Luna-first behavior.
+The P2-V0.23.10 implementation is now present in the exact production API source recorded below. Its focused orchestration, candidate-recovery and runtime-activation regressions plus full protected release gates passed before the later P2-V0.23.11 release, and the shared exact production deployment is READY. This is deployment verification only for the ordering change: representative production autonomous evidence proving Luna-first hosted implementation selection is still pending and must not be inferred from deployment alone.
 
 ## Production components
 
@@ -49,12 +49,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
-- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
+- source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;
+- production deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.23.
+- architecture: `ARCHITECTURE.md` v3.25.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -64,6 +64,30 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
+
+## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING
+
+Workstream: #470. Release PR: #472. Governing specification: `P2-V0.23.11`. Architecture: `ARCHITECTURE.md` v3.25.
+
+Production evidence on Engineering Run `2b3cd15f-c5e2-481a-8266-c92c6534b08b` showed that the already-deployed client correctly performed `resume -> autonomous`, but autonomous continuation stopped before hosted candidate generation because the prior durable worker remained terminal `FAILED`. The correction adds one narrow server-owned recovery transition: only a successful explicit Engineering Run resume that began from run state `FAILED` may move the matching unleased terminal worker from `FAILED` to `RECOVERING`. It preserves worker identity, checkpoint/source-lineage/current-step evidence and lease-generation history, resets only worker-local anti-loop counters/fingerprints and current terminal markers, and reuses the existing protected `RECOVERING -> REASSIGNED` path for the fresh mutation lease generation. Ordinary autonomous calls and reconnects still cannot restart a terminal worker.
+
+Deployment evidence:
+
+- release PR: #472;
+- application merge / deployed API source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;
+- production API deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;
+- deployment target/state: production / `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- Workstream Spec Validation workflow `33295368023`: SUCCESS;
+- Bounded Autonomy workflow `33295368017`: SUCCESS;
+- Parallax P2 CI workflow `33295368018`: SUCCESS, including API/contracts, client/browser/Skia, protected promotion and DSPy release compilation;
+- production build provider preflight: PASS;
+- exact-repository delivery permission preflight: PASS;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- post-release runtime-error scan: no runtime errors in the checked production window.
+
+This release is deployment-verified but not yet behaviorally production-accepted. The representative failed Engineering Run still requires one explicit operator retry so the new human-authorized recovery boundary can be exercised. Production acceptance requires evidence that the resumed run obtains a new worker generation and progresses to hosted implementation dispatch instead of stopping at the prior terminal-worker conflict.
 
 ## Failed-run resume autonomy handoff — DEPLOYMENT-VERIFIED
 
