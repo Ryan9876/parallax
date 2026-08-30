@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
 
+# Branch-only one-shot reconciler; removed before PR review.
 jobs:
   update:
     runs-on: ubuntu-latest
