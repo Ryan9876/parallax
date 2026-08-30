@@ -440,7 +440,8 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
   const effectiveError = runFailure?.message ?? error;
   const currentIndex = currentJourneyIndex(specification, run);
   const currentStep = JOURNEY_STEPS[currentIndex] ?? JOURNEY_STEPS[0]!;
-  const currentActivity = runFailure
+  const retryableFailure = Boolean(runFailure || run?.state === 'FAILED');
+  const currentActivity = retryableFailure
     ? 'Something needs attention'
     : specification?.status === 'DRAFT'
       ? 'Your build plan needs your review'
@@ -475,9 +476,9 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
       <View style={styles.activityCard}>
         <Text style={styles.detailLabel}>RIGHT NOW</Text>
         <Text style={styles.activityTitle}>{currentActivity}</Text>
-        {runFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
+        {retryableFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
         {plainError(effectiveError) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{plainError(effectiveError)}</Text> : null}
-        {runFailure && run ? (
+        {retryableFailure && run ? (
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Try again"
