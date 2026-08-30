@@ -440,7 +440,8 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
   const effectiveError = runFailure?.message ?? error;
   const currentIndex = currentJourneyIndex(specification, run);
   const currentStep = JOURNEY_STEPS[currentIndex] ?? JOURNEY_STEPS[0]!;
-  const currentActivity = runFailure
+  const retryableFailure = Boolean(runFailure || run?.state === 'FAILED');
+  const currentActivity = retryableFailure
     ? 'Something needs attention'
     : specification?.status === 'DRAFT'
       ? 'Your build plan needs your review'
@@ -475,19 +476,24 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
       <View style={styles.activityCard}>
         <Text style={styles.detailLabel}>RIGHT NOW</Text>
         <Text style={styles.activityTitle}>{currentActivity}</Text>
-        {runFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
+        {retryableFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
         {plainError(effectiveError) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{plainError(effectiveError)}</Text> : null}
-        {runFailure && run ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Try again"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            onPress={() => requestEngineeringRunRetry(run.conversation_id)}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>
-          </TouchableOpacity>
+        {retryableFailure && run ? (
+          <>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              onPress={() => requestEngineeringRunRetry(run.conversation_id)}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open technical build details" onPress={onOpenDetails} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Open detailed view</Text>
+            </TouchableOpacity>
+          </>
         ) : !specification && canDraft ? (
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Create build plan" disabled={busy} onPress={onCaptureSpecification} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>{busy ? 'Creating plan…' : 'Create build plan'}</Text>

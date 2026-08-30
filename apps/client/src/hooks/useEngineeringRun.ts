@@ -169,14 +169,54 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     } finally { setBusy(false); }
   }, [applyAutonomyResult, busy, clearFailure, recordFailure, run]);
 
+  const resumeAndContinue = React.useCallback(async () => {
+    if (!run || busy || !['PAUSED', 'FAILED'].includes(run.state)) return;
+    setBusy(true);
+    clearFailure();
+    try {
+      const result = await api.resumeEngineeringRun(
+        run,
+        `resume-${run.id}-${run.revision}-${Date.now()}`,
+      );
+      const resumed = result.run;
+      setRun(resumed);
+      clearFailure();
+
+      // Resume is a durable control transition, not execution by itself. If the
+      // server resumes into a protected autonomous stage, immediately hand the
+      // new revision back to the bounded autonomy endpoint. Without this handoff
+      // a FAILED/PAUSED run can truthfully record RESUMED and then sit idle.
+      if (!canContinueEngineeringRunAutonomously(resumed)) return;
+      try {
+        await applyAutonomyResult(resumed, automaticAutonomyOperationKey(resumed));
+      } catch (caught) {
+        // Preserve the successful RESUMED transition and surface only the
+        // autonomous continuation failure. A later retry remains idempotently
+        // bound to the current server revision.
+        recordFailure(
+          caught instanceof Error ? caught.message : 'Autonomous Code run failed after resume.',
+          resumed.id,
+          caught instanceof EngineeringAutonomyError ? caught.code : null,
+        );
+      }
+    } catch (caught) {
+      recordFailure(
+        caught instanceof Error ? caught.message : 'Code run resume failed.',
+        run.id,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [applyAutonomyResult, busy, clearFailure, recordFailure, run]);
+
   const continueRun = React.useCallback(async () => {
     if (!run) return;
     if (canContinueEngineeringRunAutonomously(run)) {
       await runAutonomously();
       return;
     }
-    await mutate('resume');
-  }, [mutate, run, runAutonomously]);
+    await resumeAndContinue();
+  }, [resumeAndContinue, run, runAutonomously]);
 
   React.useEffect(() => subscribeEngineeringRunRetry((targetConversationId) => {
     if (!enabled || !conversationId || targetConversationId !== conversationId) return;
@@ -193,9 +233,9 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     error,
     refresh,
     pause: () => mutate('pause'),
-    // Existing App wiring uses the resume callback. In active protected stages,
-    // continuation means the bounded autonomous cycle; PAUSED/FAILED retains
-    // the original explicit resume behavior.
+    // Existing App wiring uses the resume callback. Active protected stages run
+    // the bounded autonomous cycle directly; PAUSED/FAILED first persist RESUMED
+    // and then immediately continue the newly resumed revision autonomously.
     resume: continueRun,
     cancel: () => mutate('cancel'),
     runAutonomously,
