@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.21
+Version: 3.22
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.21 is a bounded empty-greenfield source-authority extension to v3.20, not a platform rewrite. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
+Architecture v3.22 is a bounded implementation-candidate recovery extension to v3.21, not a platform rewrite. Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
 Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
@@ -92,6 +92,16 @@ GitHub REST cannot create the first ref in an empty repository. The released ini
 The temporary marker exists only in immutable initialization history and is absent from the default-branch head before application source publication. Accepted source is then published through the existing bounded Parallax branch -> accepted-lineage commit -> pull request -> Vercel Preview path and remains capped at REVIEW. Source-only delivery never invokes this Vercel-Preview repository initializer and remains independent from application deployment.
 
 Repository installation consent remains an explicit provider/user boundary. The production runtime exposes the bounded `REPOSITORY_AUTHORIZATION_REQUIRED` code and preserves same-run retry, but v3.21 adds no provider-consent endpoint, PAT, reusable Vercel account token, GitHub user token, browser-supplied provider credential, or Preview authority widening. Runtime readiness after external consent remains ordinary Connect token exchange plus exact-one-repository scope verification.
+
+## Bounded implementation-candidate recovery
+
+Architecture v3.22 distinguishes a **rejected pre-mutation implementation candidate** from worker/process loss. A hosted implementation agent may return syntactically valid model output that fails the server-owned proposal validator or safe candidate-generation contract. That rejection is observation only: it cannot mutate canonical source, accept lineage, write Git, deploy, transition REVIEW, or borrow worker-loss authority.
+
+When candidate generation fails before canonical mutation, the live agentic control plane may retry only the same work unit through another agent identity already present in the server-owned admitted roster and listed in that work unit's eligible-agent set. Retry order is deterministic and server-owned. Every alternate receives an incremented assignment generation plus fresh operation, request, task and attempt identity. Model text, browser input and repository contents cannot select the alternate.
+
+Candidate recovery is finite. The existing `max_reassignments_per_work_unit` bound caps alternate attempts beyond the original assignment. A successful alternate still traverses the unchanged exact acceptance-coverage, safe source proposal, disposable candidate validation, independent evaluation, routing, competition and canonical mutation boundaries. Validation is never relaxed merely to obtain progress.
+
+If all admitted alternatives are rejected, the run fails closed with bounded `CANDIDATE_GENERATION_EXHAUSTED` diagnostic evidence that explicitly records `worker_process_loss=false` and no canonical mutation/lineage authority. Raw provider/model output, secrets and arbitrary exception text are not durable diagnostics. Actual lease expiry, process loss and worker recovery continue to use the pre-existing durable worker recovery state machine and are not reclassified as candidate rejection.
 
 ## Repository-aware protected validation
 
