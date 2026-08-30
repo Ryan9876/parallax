@@ -7,11 +7,11 @@ import json
 import re
 from typing import Callable, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from ..code.source_context import SourceContextSnapshot
 from .dspy_programs import build_lm
-from .router import AttemptRecord, ModelRouter, RoutingFailure
+from .router import AttemptRecord, ModelOutputValidationError, ModelRouter, RoutingFailure
 
 
 MAX_PROPOSAL_PATCHES = 16
@@ -28,6 +28,12 @@ STRICT_SAFE_PATCH_RULE = (
     "diff whose headers exactly match the declared path (`--- a/path` and `+++ b/path`, or `--- /dev/null` for "
     "a new file) and whose hunk coordinates, counts, removed lines, and context lines exactly match the supplied "
     "source text. Do not emit multi-file diffs, unsupported/binary targets, secret material, or no-op patches."
+)
+IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT = (
+    "Return exactly one JSON object with only two top-level keys: acceptance_ids_covered and patches. "
+    "acceptance_ids_covered must be the exact supplied acceptance IDs in the same order. patches must contain "
+    "1-16 JSON objects, each with only path, expected_base_sha256, and unified_diff. Do not wrap the JSON in "
+    "Markdown, prose, labels, commentary, or code fences, and do not add any other keys."
 )
 _ACCEPTANCE_RE = re.compile(r"^AC-\d{2,}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -136,7 +142,7 @@ class ImplementationGenerationProgram(Protocol):
 
 
 class DspyImplementationGenerationProgram:
-    version = "implementation-generation-v0.23.9"
+    version = "implementation-generation-v0.23.15"
 
     def __init__(self, model: str):
         try:
@@ -159,12 +165,7 @@ class DspyImplementationGenerationProgram:
 
             work_specification_json: str = dspy.InputField(desc="immutable approved Work Specification contract")
             source_context_json: str = dspy.InputField(desc="bounded source files with path, digest, size, text and strict safe-patch rule")
-            proposal_json: str = dspy.OutputField(
-                desc=(
-                    "JSON object only: acceptance_ids_covered as the exact supplied IDs in the same order, and "
-                    "patches as 1-16 objects containing only path, expected_base_sha256 and a strict single-file unified_diff"
-                )
-            )
+            proposal_json: str = dspy.OutputField(desc=IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT)
 
         self._dspy = dspy
         self._lm = build_lm(model)
@@ -178,7 +179,12 @@ class DspyImplementationGenerationProgram:
                 work_specification_json=contract_json,
                 source_context_json=source_json,
             )
-        return ImplementationProposal.model_validate_json(str(prediction.proposal_json))
+        try:
+            return ImplementationProposal.model_validate_json(str(prediction.proposal_json))
+        except ValidationError as exc:
+            raise ModelOutputValidationError(
+                "protected implementation proposal failed structured-output validation"
+            ) from exc
 
 
 @dataclass(frozen=True, slots=True)
