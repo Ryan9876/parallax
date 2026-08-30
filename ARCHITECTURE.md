@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.22
+Version: 3.23
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.22 is a bounded implementation-candidate recovery extension to v3.21, not a platform rewrite. Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
+Architecture v3.23 is a bounded validator-guided alternate-candidate repair extension to v3.22, not a platform rewrite. Architecture v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
 Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
@@ -102,6 +102,16 @@ When candidate generation fails before canonical mutation, the live agentic cont
 Candidate recovery is finite. The existing `max_reassignments_per_work_unit` bound caps alternate attempts beyond the original assignment. A successful alternate still traverses the unchanged exact acceptance-coverage, safe source proposal, disposable candidate validation, independent evaluation, routing, competition and canonical mutation boundaries. Validation is never relaxed merely to obtain progress.
 
 If all admitted alternatives are rejected, the run fails closed with bounded `CANDIDATE_GENERATION_EXHAUSTED` diagnostic evidence that explicitly records `worker_process_loss=false` and no canonical mutation/lineage authority. Raw provider/model output, secrets and arbitrary exception text are not durable diagnostics. Actual lease expiry, process loss and worker recovery continue to use the pre-existing durable worker recovery state machine and are not reclassified as candidate rejection.
+
+## Validator-guided alternate-candidate repair
+
+Architecture v3.23 makes bounded candidate recovery informative without weakening validation. When a candidate-generation attempt returns a parsed proposal that the unchanged protected proposal validator rejects, the router may project only the server-owned bounded classification `VALIDATION_EXHAUSTED` across the generation boundary. Raw provider/model output, arbitrary exception text, repository text and browser input are not repair diagnostics.
+
+Only a later candidate already admitted for the same work unit by the existing server-owned eligible-agent roster may receive validator-repair guidance. The guidance is fixed server-owned text and only restates the unchanged safe-patch contract: exact canonical path/digest binding and strict single-file unified-diff form. It cannot alter requirements, select a candidate, relax validation, add files or commands, or grant source, lineage, Git, provider, deployment, credential, network, Engineering Run transition or REVIEW authority.
+
+Provider, rate-limit, transport and unrelated generation failures remain separate and do not receive validator-specific guidance. The existing `max_reassignments_per_work_unit` bound, deterministic alternate order and fresh assignment/operation/request/task/attempt identities remain authoritative; v3.23 introduces no same-model retry loop or hidden unbounded recovery.
+
+A first candidate that passes protected proposal validation follows the existing v3.22 path unchanged. If all already-admitted candidates fail, exhaustion remains fail-closed with bounded server-owned rejection-kind evidence, `worker_process_loss=false`, and no mutation claims. Actual process loss continues through durable worker recovery and is never reclassified as candidate rejection.
 
 ## Repository-aware protected validation
 

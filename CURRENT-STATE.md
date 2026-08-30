@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Date: 2026-08-29
+Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED**
 
 ## Current production truth
 
@@ -13,6 +13,8 @@ W8-S2 is now complete. The former OT Time failure was reduced from public-source
 The public-source bootstrap remains independent from Vercel application delivery. Public commit-bearing GitHub source uses Git smart HTTP plus exact commit-addressed codeload archives. Source-only Projects do not require a Vercel Project, Preview target, application deployment, GitHub publication, or production-promotion authority.
 
 P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected pre-mutation implementation candidates are distinct from worker/process loss and may recover only through deterministic, already-admitted alternate agents within the existing reassignment bound. Protected proposal validation and all canonical source, lineage, Git, deployment, and REVIEW authority remain unchanged.
+
+P2-V0.23.9 / Architecture v3.23 is now production-deployment-verified and has a successful authenticated normal-path production replay. The production incident showed that all already-admitted alternates could independently return provider-successful proposals that the protected safe-patch validator rejected; later admitted candidates now receive only fixed server-owned validator-repair guidance after a bounded `VALIDATION_EXHAUSTED` classification. Provider/rate-limit failures remain separate, retry bounds are unchanged, and no mutation authority is added. The corrected post-deploy OT Time replay reached REVIEW at revision 6 with no failure and verified the authenticated source-only ZIP handoff. The replay did not artificially induce candidate rejection; branch-specific validator-guided recovery is established by deterministic protected tests.
 
 Safe deletion is now production-accepted. The previously deployed P2-V0.18.12 logical-deletion correction has an authenticated post-cutover production smoke proving the active-work 409 guard, terminal cancellation path, Project and bound-conversation disappearance from active reads, active slug/repository identity reuse, fixture cleanup, and zero external-provider mutation. Internal protected-evidence retention and non-owner authorization remain established by the exact-head regression suite; production does not expose a deleted-history audit read merely for QA.
 
@@ -35,12 +37,12 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `319f548b5950ba1c27603ccf0c5921d5a3aaee5f`;
-- production deployment: `dpl_H6oQUkxyzX9C32VEHgWiRwLpZr1G`;
+- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
+- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.22.
+- architecture: `ARCHITECTURE.md` v3.23.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -50,6 +52,55 @@ The production build preflight restored and qualified both execution substrates 
 - .NET snapshot: exact identity, deny-all networking, `dotnet --info` on .NET SDK 8.0.424, and source-free root verified.
 
 Later main commits used only for authoritative-record and QA-harness reconciliation are not newer deployed API runtimes and must not be recorded as such. The current API runtime source remains the exact application source above.
+
+## P2-V0.23.9 — Validator-guided alternate-candidate repair — DEPLOYMENT-VERIFIED / NORMAL-PATH PRODUCTION-ACCEPTED
+
+Workstream: #456 (completed).
+
+Governing specification: `P2-V0.23.9`.
+
+Architecture: `ARCHITECTURE.md` v3.23.
+
+Production incident evidence:
+
+- affected Engineering Run: `2b3cd15f-c5e2-481a-8266-c92c6534b08b`;
+- all three already-admitted hosted implementation candidates completed provider calls but were rejected by the unchanged protected proposal validator;
+- terminal evidence: `AGENTIC_CANDIDATE_EXHAUSTED` / `AUTONOMOUS_IMPLEMENT_FAILED`;
+- canonical source mutation: none;
+- defect: alternate-candidate recovery was finite and safe but blind to the bounded fact that a prior candidate had failed strict safe-patch validation.
+
+P2-V0.23.9 preserves the validator and every mutation/authority ceiling. Only a server-classified `VALIDATION_EXHAUSTED` result may cause a later already-admitted candidate for the same work unit to receive fixed server-owned safe-patch repair guidance. The guidance restates exact path/digest binding and strict single-file unified-diff form only. Provider/rate-limit failures remain separate. The existing eligible-agent roster and `max_reassignments_per_work_unit` bound remain authoritative, and no new same-model or unbounded retry loop exists.
+
+Release evidence:
+
+- release PR: #457;
+- exact green release head: `682faae2eadfeb63698a8fffc0ee772cba89348d`;
+- application release merge / deployed source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
+- production API deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
+- deployment state: `READY`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database and providers ready;
+- provider/storage, exact-repository delivery-token, projected-source, private Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot and run-event preflights: PASS;
+- exact deployment error/fatal runtime-log scan: clean;
+- workstream contract and protected-plan validation, Bounded Autonomy/full API regression, client/browser/Skia, protected promotion and DSPy release compilation: PASS.
+
+Post-deploy acceptance was intentionally non-destructive and did not manufacture a validator failure. The first trusted replay `33289874294` already proved the released runtime could progress through PLAN, IMPLEMENT, BUILD, TEST and VERIFY to REVIEW revision 6 with no runtime failure; that job failed only after REVIEW because the QA harness called the obsolete `/v1/engineering-runs/{run}/source-archive` route and received HTTP 404. Harness-only PR #459 corrected verification to the existing Project-scoped authenticated `/source-download` endpoint and merged as `a4d7cc83f2e3c60619e19d735c63af843742647e`; no application runtime changed.
+
+Corrected trusted workflow-dispatch acceptance:
+
+- workflow run: `33290221272`;
+- W8 OT Time job: `99200534358` — SUCCESS;
+- Project: `7b4c2377-6f06-4b43-b174-206e059e24f0`;
+- Engineering Run: `cb9a75aa-413b-4f6c-b019-e493fa112655`;
+- initial state/revision: PLAN / 1;
+- final stop/state/revision: `REVIEW_REQUIRED` / REVIEW / 6;
+- `last_failure_code`: null;
+- PLAN, IMPLEMENT, BUILD, TEST and VERIFY: PASSED;
+- IMPLEMENT tool: `safe-source-implementation-v1`;
+- authenticated source-only ZIP handoff: 32 entries / 74,870 bytes;
+- companion Python full-experience job `99200534320`: SUCCESS.
+
+The corrected production replay succeeded on its first admitted `openai/gpt-5.6-sol` implementation candidate, so validator-guided alternate-candidate repair was not artificially triggered in production. That branch is established by deterministic protected regression tests covering bounded failure classification, validation-only next-candidate guidance, provider-failure separation, finite recovery, bounded diagnostics and unchanged authority. Production acceptance therefore combines exact-source deployment verification, clean normal-path full-experience replay, and deterministic protected proof of the repair branch rather than weakening or deliberately tripping the production validator.
 
 ## P2-V0.23.8 — Bounded rejected-candidate recovery — DEPLOYMENT-VERIFIED
 
@@ -332,10 +383,10 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after authenticated safe-deletion production acceptance. It now records the deployed P2-V0.18.12 correction, the exact trusted-workflow production smoke, the companion successful Python regression, the intentionally preserved distinction between production-visible deletion behavior and protected internal evidence-retention tests, and removes #290 from open governed work.
+`CURRENT-STATE.md` was updated after P2-V0.23.9 exact-source deployment verification and successful authenticated normal-path production acceptance. It records the original validator-exhaustion incident, the bounded repair semantics, release/deployment evidence, the obsolete-QA-route finding and correction, the corrected REVIEW/source-handoff replay, and closure of #456. #442 remains the only listed open governed work.
 
-`ARCHITECTURE.md` remains authoritative at v3.22. Safe-deletion terminal-state and destructive-authorization semantics were already incorporated into the durable architecture beginning with v3.7, and this acceptance run did not change those semantics.
+`ARCHITECTURE.md` was advanced to v3.23 because P2-V0.23.9 introduces a durable candidate-recovery rule: only bounded server-classified validation rejection may project fixed safe-patch repair guidance to a later already-admitted candidate, while provider failures, retry bounds, mutation authority and lifecycle ceilings remain unchanged.
 
-`DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
+`DESIGN-SYSTEM.md` was not changed because this release does not alter durable visual or interaction-system rules.
 
-`PROJECT-CONSTITUTION.md` was not changed because the smoke exercised existing least-privilege, explicit-authority, evidence-preservation and provider-isolation principles rather than introducing a new constitutional rule.
+`PROJECT-CONSTITUTION.md` was not changed because the release preserves existing least-privilege, explicit-authority, fail-closed validation and evidence-preservation principles rather than introducing a new constitutional rule.
