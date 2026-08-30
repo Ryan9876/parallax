@@ -106,6 +106,28 @@ Release and production evidence:
 
 This closes the known WebGL startup gap without broadening browser capability collection or server authority.
 
+## Post-acceptance QA trust retirement — PRODUCTION-VERIFIED
+
+Issue: #495. Release PR: #496. This cleanup retires the temporary authenticated GitHub Actions workflow used to prove the P2-V0.23.13/P2-V0.23.14 production retry path after that behavioral acceptance was completed.
+
+The production API trust surface now admits only the two continuing exact main-branch QA workflow identities: `.github/workflows/qa-production-replay.yml` and `.github/workflows/w8-s2-qa-replay.yml`. The temporary `.github/workflows/qa-p2313-production-retry.yml` workflow was deleted, its `P2313_QA_AUTOMATION_WORKFLOW_REF` allowlist entry was removed, and the former positive identity regression was replaced by a fail-closed test proving that retired workflow reference is rejected. Repository, `refs/heads/main`, GitHub-hosted runner, event-name and `parallax://qa-production` audience checks are unchanged.
+
+Release and production evidence:
+
+- exact green PR head: `22a9cf19f3e1de9f2ad9092976d3fe960f88249d`;
+- release merge / deployed API source: `51e1c95873a813464b45c6c4ce50b8c2f35e1111`;
+- production deployment: `dpl_G2TFSXDgxZXyGKGZMfKH33F44s3H`, target production, state `READY`;
+- exact-head Bounded Autonomy `33342425289`: SUCCESS;
+- exact-head Parallax P2 CI `33342425268`: SUCCESS, including API/contracts, client/browser/Skia, protected promotion and DSPy release compilation;
+- production provider, exact-repository delivery-permission, projected-source, private Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot and run-event-schema preflights: PASS;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production runtime-error scan after deployment: no runtime errors in the checked 30-minute window;
+- main no longer contains `.github/workflows/qa-p2313-production-retry.yml`, and the deployed source's exact allowlist no longer contains the P2-V0.23.14 retry workflow.
+
+This is a contraction of temporary QA authentication surface only. Normal user authentication, the continuing bounded QA principal, Project and Work Specification identity, Engineering Run state authority, source lineage, hosted-model routing, worker recovery, Git/deployment authority and the REVIEW boundary are unchanged. `ARCHITECTURE.md` remains v3.28 because no durable architecture contract changed.
+
 ## Production components
 
 ### Client
@@ -125,11 +147,14 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `04b1893e3a520202a77614fd1ff4ab00dac0ab1c`;
-- production deployment: `dpl_EngoShekvZLYDC3mfdyzDwP8rUpx`;
+- source: `51e1c95873a813464b45c6c4ce50b8c2f35e1111`;
+- production deployment: `dpl_G2TFSXDgxZXyGKGZMfKH33F44s3H`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
+- `/health`: HTTP 200;
+- `/ready`: HTTP 200 with database/providers ready and one provider target;
+- post-release runtime-error scan: clean in the checked 30-minute production window;
 - architecture: `ARCHITECTURE.md` v3.28.
 
 The production build preflight restored and qualified both execution substrates before release:
