@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.23
+Version: 3.24
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.23 is a bounded validator-guided alternate-candidate repair extension to v3.22, not a platform rewrite. Architecture v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
+Architecture v3.24 adds explicit server-owned hosted implementation-model escalation to v3.23 without changing the validator-guided alternate-candidate repair contract. Architecture v3.23 remains the authoritative validator-guided repair foundation, v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and v3.21 remains the authoritative empty-greenfield source-authority foundation. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
 Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
@@ -92,6 +92,18 @@ GitHub REST cannot create the first ref in an empty repository. The released ini
 The temporary marker exists only in immutable initialization history and is absent from the default-branch head before application source publication. Accepted source is then published through the existing bounded Parallax branch -> accepted-lineage commit -> pull request -> Vercel Preview path and remains capped at REVIEW. Source-only delivery never invokes this Vercel-Preview repository initializer and remains independent from application deployment.
 
 Repository installation consent remains an explicit provider/user boundary. The production runtime exposes the bounded `REPOSITORY_AUTHORIZATION_REQUIRED` code and preserves same-run retry, but v3.21 adds no provider-consent endpoint, PAT, reusable Vercel account token, GitHub user token, browser-supplied provider credential, or Preview authority widening. Runtime readiness after external consent remains ordinary Connect token exchange plus exact-one-repository scope verification.
+
+## Server-owned hosted model escalation
+
+Architecture v3.24 separates implementation-agent identity from model-selection priority. `AgentIdentity.digest` remains a cryptographic identity/integrity value only; lexical SHA-256 order has no economic or capability meaning and cannot select which hosted model runs first.
+
+The admitted roster carries bounded server-owned `selection_priority` metadata. Roster canonicalization orders agents by `(selection_priority, identity_digest)`, so equivalent priority values retain deterministic digest tie-breaking while explicit priority controls selection. Priority is serialized into admitted-roster evidence and therefore changes the roster digest and orchestration plan identity when policy changes. Browser input, repository content, model output, and provider responses cannot supply or alter this value.
+
+The released hosted implementation order is `openai/gpt-5.6-luna` first, `openai/gpt-5.6-terra` second, and `openai/gpt-5.6-sol` last. The smallest-capable-team rule remains authoritative: a serial equal-capability implementation unit selects Luna; two genuinely parallel independent equal-capability units may select Luna and Terra; Sol is retained as the final bounded alternate rather than being selected because its identity digest happens to sort first.
+
+`UnitPlan` and `TeamPlan` canonicalize selected and eligible identities against the priority-ordered admitted roster. Scheduling therefore consumes one stable priority sequence, and P2-V0.23.8 candidate-rejection recovery naturally escalates through that same sequence without a separate retry-order authority. P2-V0.23.9 validator-guided alternate-candidate repair remains unchanged and consumes the same already-admitted alternate sequence. Capability eligibility, concurrency and reassignment bounds, protected proposal validation, independent evaluation, safe canonical mutation, source lineage, Git/deployment authority, worker-loss recovery, and the REVIEW ceiling are unchanged.
+
+The ordinary non-agentic `ModelRouter` retains its existing hosted `Luna -> Terra -> Sol` sequence. Architecture v3.24 changes only agent-team selection semantics that previously allowed deterministic identity-digest ordering to override that intended escalation policy.
 
 ## Bounded implementation-candidate recovery
 

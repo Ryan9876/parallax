@@ -120,6 +120,8 @@ _MODEL_ORDER = (
     "openai/gpt-5.6-terra",
     "openai/gpt-5.6-sol",
 )
+_MODEL_SELECTION_PRIORITY = {model: priority for priority, model in enumerate(_MODEL_ORDER)}
+_DEFAULT_AGENT_SELECTION_PRIORITY = 100
 
 
 class AgenticRuntimeError(ValueError):
@@ -808,7 +810,7 @@ class AgenticControlPlane:
         return _digest(
             {
                 "version": AGENTIC_RUNTIME_VERSION,
-                "team_selection": "smallest-capable-team",
+                "team_selection": "smallest-capable-team:server-priority-v1",
                 "decomposition": "clear-independent-domains-only",
                 "competition": self.competition_policy.digest,
                 "routing": self.routing_policy.digest,
@@ -823,6 +825,10 @@ class AgenticControlPlane:
                     adapter.describe(),
                     admitted_work_kinds=("implementation",),
                     admitted_capabilities=("bounded-source-evidence",),
+                    selection_priority=_MODEL_SELECTION_PRIORITY.get(
+                        getattr(adapter, "model", ""),
+                        _DEFAULT_AGENT_SELECTION_PRIORITY,
+                    ),
                 )
                 for adapter in self.adapters
             )

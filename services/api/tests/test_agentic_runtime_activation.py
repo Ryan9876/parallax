@@ -591,3 +591,17 @@ def test_live_agent_task_binds_real_source_context_digest_before_dispatch(tmp_pa
         assert context_digest != base.content_digest
     finally:
         session.close()
+
+
+def test_hosted_runtime_admits_canonical_model_priority_independent_of_adapter_input_order():
+    from parallax_api.code.agentic_runtime import AgenticControlPlane, HostedImplementationAgent, _MODEL_ORDER
+
+    control = object.__new__(AgenticControlPlane)
+    control.adapters = tuple(HostedImplementationAgent(model) for model in reversed(_MODEL_ORDER))
+    roster = control._roster
+    model_by_digest = {
+        HostedImplementationAgent(model).describe().digest: model
+        for model in _MODEL_ORDER
+    }
+    assert tuple(model_by_digest[item.identity_digest] for item in roster.entries) == _MODEL_ORDER
+    assert tuple(item.selection_priority for item in roster.entries) == (0, 1, 2)

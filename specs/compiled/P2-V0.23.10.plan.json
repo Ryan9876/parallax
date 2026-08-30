@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "4.1 Admission metadata `AdmittedAgent` gains a bounded non-negative integer selection-priority field. The default preserves generic/reference behavior. The value is server admission policy, not part of `AgentIdentity`, but it is serialized into the admitted-roster evidence so changing priority changes the roster digest and therefore plan identity."
+  ],
+  "work_items": [
+    "4.1 Admission metadata `AdmittedAgent` gains a bounded non-negative integer selection-priority field. The default preserves generic/reference behavior. The value is server admission policy, not part of `AgentIdentity`, but it is serialized into the admitted-roster evidence so changing priority changes the roster digest and therefore plan identity."
+  ],
+  "validations": [
+    "4.1 Admission metadata `AdmittedAgent` gains a bounded non-negative integer selection-priority field. The default preserves generic/reference behavior. The value is server admission policy, not part of `AgentIdentity`, but it is serialized into the admitted-roster evidence so changing priority changes the roster digest and therefore plan identity.",
+    "AC-01: validate protected requirement \u2014 For a serial implementation work unit with all three hosted agents equally eligible, the first scheduled model is `openai/gpt-5.6-luna` even when its identity digest does not sort first lexically.",
+    "AC-02: validate protected requirement \u2014 When Luna is rejected before canonical mutation, candidate recovery selects Terra next; if Terra is also rejected and the existing reassignment bound permits another alternate, Sol is selected last.",
+    "AC-03: validate protected requirement \u2014 For equivalent-capability work, a one-agent plan selects Luna; a two-agent parallel plan selects Luna and Terra. Sol is not selected merely because of digest order.",
+    "AC-04: validate protected requirement \u2014 Equivalent graph, roster, priority metadata and policy produce identical roster digest, plan ID and schedule regardless of input tuple ordering.",
+    "AC-05: validate protected requirement \u2014 Changing an admitted agent's selection priority changes admitted-roster evidence/digest and therefore cannot silently alter scheduling under an unchanged plan identity.",
+    "AC-06: validate protected requirement \u2014 Agents with equal selection priority retain deterministic identity-digest tie ordering.",
+    "AC-07: validate protected requirement \u2014 Duplicate, unknown, malformed or non-admitted selected/eligible digests remain rejected. Priority cannot make an ineligible agent schedulable.",
+    "AC-08: validate protected requirement \u2014 Candidate recovery remains bounded by `max_reassignments_per_work_unit`; worker process/lease recovery semantics remain unchanged.",
+    "AC-09: validate protected requirement \u2014 The ordinary non-agentic `ModelRouter` continues to use its existing `Luna -> Terra -> Sol` sequence and no provider/model authority is widened.",
+    "AC-10: validate protected requirement \u2014 Focused orchestration/candidate-recovery tests, full API regression, Bounded Autonomy, protected spec/plan, DSPy release and protected promotion gates pass on exact head. Production runtime evidence after deployment shows a representative autonomous implementation starts with Luna, and a Luna-success path does not call Sol."
+  ],
+  "risks": [
+    "4.1 Admission metadata `AdmittedAgent` gains a bounded non-negative integer selection-priority field. The default preserves generic/reference behavior. The value is server admission policy, not part of `AgentIdentity`, but it is serialized into the admitted-roster evidence so changing priority changes the roster digest and therefore plan identity."
+  ],
+  "spec_id": "P2-V0.23.10",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical hosted first choice",
+      "protected_requirement": "For a serial implementation work unit with all three hosted agents equally eligible, the first scheduled model is `openai/gpt-5.6-luna` even when its identity digest does not sort first lexically."
+    },
+    {
+      "id": "AC-02",
+      "title": "Canonical escalation",
+      "protected_requirement": "When Luna is rejected before canonical mutation, candidate recovery selects Terra next; if Terra is also rejected and the existing reassignment bound permits another alternate, Sol is selected last."
+    },
+    {
+      "id": "AC-03",
+      "title": "Sol excluded from ordinary smallest team",
+      "protected_requirement": "For equivalent-capability work, a one-agent plan selects Luna; a two-agent parallel plan selects Luna and Terra. Sol is not selected merely because of digest order."
+    },
+    {
+      "id": "AC-04",
+      "title": "Deterministic replay",
+      "protected_requirement": "Equivalent graph, roster, priority metadata and policy produce identical roster digest, plan ID and schedule regardless of input tuple ordering."
+    },
+    {
+      "id": "AC-05",
+      "title": "Priority is evidence",
+      "protected_requirement": "Changing an admitted agent's selection priority changes admitted-roster evidence/digest and therefore cannot silently alter scheduling under an unchanged plan identity."
+    },
+    {
+      "id": "AC-06",
+      "title": "Tie determinism",
+      "protected_requirement": "Agents with equal selection priority retain deterministic identity-digest tie ordering."
+    },
+    {
+      "id": "AC-07",
+      "title": "Fail-closed plan integrity",
+      "protected_requirement": "Duplicate, unknown, malformed or non-admitted selected/eligible digests remain rejected. Priority cannot make an ineligible agent schedulable."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing recovery bounds preserved",
+      "protected_requirement": "Candidate recovery remains bounded by `max_reassignments_per_work_unit`; worker process/lease recovery semantics remain unchanged."
+    },
+    {
+      "id": "AC-09",
+      "title": "Existing routing parity",
+      "protected_requirement": "The ordinary non-agentic `ModelRouter` continues to use its existing `Luna -> Terra -> Sol` sequence and no provider/model authority is widened."
+    },
+    {
+      "id": "AC-10",
+      "title": "Regression and release proof",
+      "protected_requirement": "Focused orchestration/candidate-recovery tests, full API regression, Bounded Autonomy, protected spec/plan, DSPy release and protected promotion gates pass on exact head. Production runtime evidence after deployment shows a representative autonomous implementation starts with Luna, and a Luna-success path does not call Sol."
+    }
+  ],
+  "critique": [
+    "The hosted implementation-agent selection follows the server-owned cost/capability escalation policy `openai/gpt-5.6-luna -> openai/gpt-5.6-terra -> openai/gpt-5.6-sol`. The selected agent identity digests remain cryptographic identity/integrity values only and never determine model priority. The priority is finite, deterministic, included in orchestration evidence/digests, and cannot be supplied by browser text, model output, repository content or provider response. The generic orchestration retains deterministic input-order independence: priority ties are broken by identity digest. The unit eligibility order and selected-team order are canonicalized from the priority-ordered admitted roster rather than re-sorted lexically by digest. The smallest-capable-team rule remains. For equivalent hosted implementation agents, a serial unit selects Luna alone; two truly parallel independent units may select Terra."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

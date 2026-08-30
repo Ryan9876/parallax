@@ -39,8 +39,9 @@ def _plan():
             _identity(name),
             admitted_work_kinds=("implementation",),
             admitted_capabilities=("bounded-source-evidence",),
+            selection_priority=priority,
         )
-        for name in ("model-a", "model-b", "model-c")
+        for priority, name in enumerate(("model-luna", "model-terra", "model-sol"))
     )
     graph = WorkGraph(
         approved_acceptance_ids=("AC-01",),
@@ -75,10 +76,17 @@ def _plan():
     return decision.plan
 
 
+def _model_label(plan, digest: str) -> str:
+    value = plan.roster.get(digest).identity.model_runtime_label
+    assert value is not None
+    return value
+
+
 def test_candidate_rejection_reassigns_to_next_admitted_agent_with_fresh_identity():
     plan = _plan()
     original = schedule_team_plan(plan).ready[0]
     assert original.agent_identity_digest is not None
+    assert _model_label(plan, original.agent_identity_digest) == "model-luna"
 
     retry = candidate_recovery_assignment(
         plan,
@@ -91,6 +99,7 @@ def test_candidate_rejection_reassigns_to_next_admitted_agent_with_fresh_identit
     assert retry.disposition is OrchestrationDisposition.REASSIGNED
     assert retry.reason_code == "CANDIDATE_GENERATION_RETRY"
     assert retry.agent_identity_digest != original.agent_identity_digest
+    assert _model_label(plan, retry.agent_identity_digest) == "model-terra"
     assert retry.agent_identity_digest in plan.unit_plan("implementation").eligible_agent_digests
     assert retry.generation == original.generation + 1
     assert retry.operation_id != original.operation_id
@@ -118,6 +127,8 @@ def test_candidate_recovery_is_deterministic_and_stops_at_existing_bound():
         rejection_count=2,
     )
     assert retry2 is not None
+    assert retry2.agent_identity_digest is not None
+    assert _model_label(plan, retry2.agent_identity_digest) == "model-sol"
     assert retry2.agent_identity_digest not in {
         original.agent_identity_digest,
         retry1.agent_identity_digest,
