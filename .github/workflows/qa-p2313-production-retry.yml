@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 25
     env:
       API_BASE: https://parallax-api-tan.vercel.app
-      RUN_ID: bb848593-d7f0-4d77-84d4-b9b6adb84d98
+      RUN_ID: 03bb96e1-5f42-483f-bca3-5b8d6d3bf4cb
       COOKIE_JAR: /tmp/parallax.cookies
     steps:
       - name: Request GitHub Actions OIDC token
@@ -88,7 +88,7 @@ jobs:
           resume_stage="$(jq -r '.resume_stage // ""' /tmp/run-before.json)"
           revision="$(jq -r '.revision' /tmp/run-before.json)"
           echo "Pre-retry: state=${state}; resume_stage=${resume_stage}; revision=${revision}"
-          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-8:][]? | {attempt_number,stage,status,failure_code,model_id,tool_id,evidence}]}' /tmp/run-before.json
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-8:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-before.json
           test "${state}" = "FAILED"
           test "${resume_stage}" = "IMPLEMENT"
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
@@ -113,11 +113,12 @@ jobs:
             --data-binary @/tmp/resume-request.json \
             -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/resume" || true)"
           echo "Resume HTTP ${status}"
-          jq '.' /tmp/resume-response.json || cat /tmp/resume-response.json
+          jq '{attempt_id,replayed,run:{id:.run.id,state:.run.state,revision:.run.revision,resume_stage:.run.resume_stage,last_failure_code:.run.last_failure_code}}' /tmp/resume-response.json || cat /tmp/resume-response.json
           test "${status}" = "200"
-          state="$(jq -r '.state' /tmp/resume-response.json)"
-          revision="$(jq -r '.revision' /tmp/resume-response.json)"
+          state="$(jq -r '.run.state' /tmp/resume-response.json)"
+          revision="$(jq -r '.run.revision' /tmp/resume-response.json)"
           test "${state}" = "PLAN"
+          test "${revision}" -gt "${EXPECTED_REVISION}"
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
 
       - name: Act as user - continue autonomously once
@@ -157,13 +158,13 @@ jobs:
           }
           echo '--- run after ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-after.json
-          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-12:][]? | {attempt_number,stage,status,failure_code,model_id,tool_id,evidence}]}' /tmp/run-after.json
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-12:][]? | {attempt_number,stage,status,failure_code,evidence}]}' /tmp/run-after.json
           echo '--- worker health ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}/worker-health" >/tmp/worker.json
           jq '.' /tmp/worker.json
           echo '--- latest events ---'
           api "${API_BASE}/v1/engineering-runs/${RUN_ID}/events" >/tmp/events.json
-          jq 'if type=="array" then .[-20:] else . end' /tmp/events.json
+          jq 'if type=="array" then .[-20:] elif .events then {events:.events[-20:],next_after_sequence,has_more} else . end' /tmp/events.json
           echo '--- runtime decision ---'
           state="$(jq -r '.state // "UNKNOWN"' /tmp/run-after.json)"
           failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
