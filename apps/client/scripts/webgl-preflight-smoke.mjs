@@ -26,6 +26,11 @@ function listen(server, port) {
 
 const server = createServer((request, response) => {
   const rawPath = new URL(request.url ?? '/', 'http://localhost').pathname;
+  if (rawPath === '/favicon.ico') {
+    response.writeHead(204, { 'cache-control': 'no-store' });
+    response.end();
+    return;
+  }
   const relative = rawPath === '/' ? 'index.html' : rawPath.replace(/^\/+/, '');
   const target = normalize(join(root, relative));
   if (!target.startsWith(normalize(root)) || !existsSync(target)) {
@@ -81,11 +86,15 @@ try {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: JSON.stringify([conversation]) });
       return;
     }
+    if (/^\/v1\/conversations\/[^/]+\/work-specifications\/latest$/.test(url.pathname) && request.method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: 'null' });
+      return;
+    }
     if (url.pathname === '/v1/projects' && request.method() === 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: '[]' });
       return;
     }
-    await route.fulfill({ status: 404, contentType: 'application/json', headers: cors, body: JSON.stringify({ detail: 'not found' }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: 'null' });
   });
 
   await page.addInitScript(() => {
