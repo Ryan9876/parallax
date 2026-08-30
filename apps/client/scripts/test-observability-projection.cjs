@@ -96,6 +96,34 @@ assert.equal(health.find((item) => item.key === 'github').status, 'Observed');
 assert.equal(health.find((item) => item.key === 'vercel').status, 'Observed');
 assert.equal(health.find((item) => item.key === 'evaluation').status, 'Unavailable');
 
+const resumedEvents = [
+  event(10, { event_type: 'SOURCE_LINEAGE_ACCEPTED', stage: 'IMPLEMENT', outcome: 'SUCCEEDED', subsystem: 'SOURCE_LINEAGE', source_lineage_ref: CANDIDATE, parent_source_lineage_ref: PARENT, summary: 'Candidate lineage persisted.' }),
+  event(11, { event_type: 'WORKER_STATE', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'WORKER', worker_execution_id: 'worker:failed', source_lineage_ref: CANDIDATE, failure_code: 'AGENTIC_CANDIDATE_EXHAUSTED', summary: 'Protected worker stall classification produced FAILED state.' }),
+  event(12, { event_type: 'STAGE_RESULT', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'IMPLEMENTATION', failure_code: 'AUTONOMOUS_IMPLEMENT_FAILED', summary: 'Protected IMPLEMENT attempt recorded as FAILED.' }),
+  event(13, { event_type: 'RUN_CONTROL', stage: 'IMPLEMENT', outcome: 'PROGRESSED', subsystem: 'IMPLEMENTATION', summary: 'Engineering Run control recorded as RESUMED.', metadata: { control_status: 'RESUMED' } }),
+];
+const resumedRun = { state: 'IMPLEMENT', resume_stage: 'IMPLEMENT', last_failure_code: null };
+const resumedHealth = componentHealth(resumedEvents, 'LIVE', resumedRun);
+const resumedWorker = resumedHealth.find((item) => item.key === 'worker');
+const resumedLineage = resumedHealth.find((item) => item.key === 'source-lineage');
+assert.equal(resumedWorker.status, 'Awaiting evidence');
+assert.equal(resumedWorker.tone, 'teal');
+assert.equal(resumedWorker.sequence, 13);
+assert.equal(resumedWorker.detail.includes('prior component failure #11'), true);
+assert.equal(resumedLineage.status, 'Observed');
+assert.equal(resumedLineage.tone, 'olive');
+assert.equal(resumedLineage.sequence, 10);
+assert.equal(resumedLineage.detail, 'Candidate lineage persisted.');
+
+const referencedOnlyEvents = [
+  event(20, { event_type: 'STAGE_RESULT', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'IMPLEMENTATION', worker_execution_id: 'worker:referenced', source_lineage_ref: CANDIDATE, failure_code: 'IMPLEMENT_FAILED', summary: 'Implementation failed for a reason outside component health.' }),
+];
+const referencedOnlyHealth = componentHealth(referencedOnlyEvents, 'LIVE', { state: 'IMPLEMENT', resume_stage: 'IMPLEMENT', last_failure_code: null });
+assert.equal(referencedOnlyHealth.find((item) => item.key === 'worker').status, 'Observed');
+assert.equal(referencedOnlyHealth.find((item) => item.key === 'worker').tone, 'teal');
+assert.equal(referencedOnlyHealth.find((item) => item.key === 'source-lineage').status, 'Observed');
+assert.equal(referencedOnlyHealth.find((item) => item.key === 'source-lineage').tone, 'teal');
+
 const audit = evidenceAuditFacts(events);
 assert.equal(audit.find((item) => item.key === 'project').value, PROJECT_ID);
 assert.equal(audit.find((item) => item.key === 'run').value, RUN_ID);

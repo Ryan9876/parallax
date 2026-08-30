@@ -108,9 +108,20 @@ function statusForEvent(event: RunEventDto): PipelineStatus {
   return 'ACTIVE';
 }
 
-function componentStatus(event: RunEventDto | null): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {
+function componentStatus(
+  event: RunEventDto | null,
+  supersedingRunControl: RunEventDto | null = null,
+): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {
   if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };
   if (event.outcome === 'FAILED' || event.outcome === 'DENIED') {
+    if (supersedingRunControl && supersedingRunControl.sequence > event.sequence) {
+      return {
+        status: 'Awaiting evidence',
+        tone: 'teal',
+        detail: `Run control resumed after prior component failure #${event.sequence}; awaiting fresh component evidence.`,
+        sequence: supersedingRunControl.sequence,
+      };
+    }
     return { status: 'Attention', tone: 'rust', detail: event.summary || event.failure_code || 'Persisted failure evidence.', sequence: event.sequence };
   }
   if (event.outcome === 'RECOVERING' || event.outcome === 'REPLAYED') {
@@ -131,6 +142,22 @@ function latestMatching(events: RunEventDto[], predicate: (event: RunEventDto) =
     if (event && predicate(event)) return event;
   }
   return null;
+}
+
+function latestResumeBoundary(events: RunEventDto[]): RunEventDto | null {
+  return latestMatching(events, (event) => {
+    if (event.event_type !== 'RUN_CONTROL') return false;
+    const controlStatus = String(event.metadata.control_status ?? '').toUpperCase();
+    return controlStatus === 'RESUMED' || event.outcome === 'PROGRESSED' || event.outcome === 'REPLAYED';
+  });
+}
+
+function referencedComponentStatus(
+  event: RunEventDto | null,
+  detail: string,
+): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {
+  if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };
+  return { status: 'Observed', tone: 'teal', detail, sequence: event.sequence };
 }
 
 export function projectPipeline(run: EngineeringRunDto, events: RunEventDto[]): PipelineItem[] {
@@ -250,17 +277,27 @@ export function componentHealth(events: RunEventDto[], transport: RunTransportSt
           : { key: 'run', label: 'Engineering Run', status: 'Active', detail: `Authoritative run state: ${run.state}.`, sequence: null, tone: 'teal' }
     : null;
 
-  const worker = latestMatching(events, (event) => event.subsystem === 'WORKER' || Boolean(event.worker_execution_id));
-  const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || Boolean(event.source_lineage_ref));
+  const resumeBoundary = latestResumeBoundary(events);
+  const worker = latestMatching(events, (event) => event.subsystem === 'WORKER');
+  const workerReference = latestMatching(events, (event) => Boolean(event.worker_execution_id));
+  const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || event.event_type === 'SOURCE_LINEAGE_ACCEPTED');
+  const lineageReference = latestMatching(events, (event) => Boolean(event.source_lineage_ref));
   const github = latestMatching(events, (event) => event.subsystem === 'GITHUB');
   const vercel = latestMatching(events, (event) => event.subsystem === 'VERCEL');
   const evaluation = latestMatching(events, (event) => event.subsystem === 'EVALUATION' || event.event_type === 'EVALUATION_RESULT');
 
+  const workerStatus = worker
+    ? componentStatus(worker, resumeBoundary)
+    : referencedComponentStatus(workerReference, 'Worker execution identity is present in persisted run evidence; no dedicated worker-health event is available yet.');
+  const lineageStatus = lineage
+    ? componentStatus(lineage, resumeBoundary)
+    : referencedComponentStatus(lineageReference, 'Source lineage is referenced by persisted run evidence; no dedicated lineage-health event is available yet.');
+
   return [
     ...(authoritativeRun ? [authoritativeRun] : []),
     transportItem,
-    { key: 'worker', label: 'Worker runtime', ...componentStatus(worker) },
-    { key: 'source-lineage', label: 'Source lineage', ...componentStatus(lineage) },
+    { key: 'worker', label: 'Worker runtime', ...workerStatus },
+    { key: 'source-lineage', label: 'Source lineage', ...lineageStatus },
     { key: 'github', label: 'GitHub provider', ...componentStatus(github) },
     { key: 'vercel', label: 'Vercel Preview', ...componentStatus(vercel) },
     { key: 'evaluation', label: 'Evaluation', ...componentStatus(evaluation) },
