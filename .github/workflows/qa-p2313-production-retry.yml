@@ -1,0 +1,173 @@
+name: QA P2-V0.23.13 Production Retry
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/qa-p2313-production-retry.yml
+      - services/api/parallax_api/services/github_actions_identity.py
+      - services/api/parallax_api/code/service.py
+      - services/api/parallax_api/code/state_machine.py
+      - services/api/parallax_api/routes/engineering_runs.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: qa-p2313-production-retry
+  cancel-in-progress: false
+
+jobs:
+  retry-affected-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      API_BASE: https://parallax-api-tan.vercel.app
+      RUN_ID: 2b3cd15f-c5e2-481a-8266-c92c6534b08b
+      COOKIE_JAR: /tmp/parallax.cookies
+    steps:
+      - name: Request GitHub Actions OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${request_url}" | jq -r '.value')"
+          test -n "${token}"
+          test "${token}" != "null"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+
+      - name: Wait for exact production deployment and establish QA session
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          authenticated=0
+          for attempt in $(seq 1 36); do
+            status="$(curl --silent --show-error \
+              --output /tmp/session.json \
+              --write-out '%{http_code}' \
+              --cookie-jar "${COOKIE_JAR}" \
+              -H "Authorization: Bearer ${OIDC_TOKEN}" \
+              -X POST "${API_BASE}/v1/session/qa-automation" || true)"
+            if [ "${status}" = "200" ] && jq -e '.authenticated == true' /tmp/session.json >/dev/null 2>&1; then
+              authenticated=1
+              echo "QA session established on attempt ${attempt}"
+              break
+            fi
+            echo "QA session not admitted yet: status=${status}; attempt=${attempt}/36"
+            sleep 10
+          done
+          if [ "${authenticated}" != "1" ]; then
+            echo "Production never admitted the exact QA workflow identity" >&2
+            cat /tmp/session.json >&2 || true
+            exit 1
+          fi
+
+      - name: Capture pre-retry durable state
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          api() {
+            curl --fail-with-body --silent --show-error \
+              --cookie "${COOKIE_JAR}" \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              "$@"
+          }
+          api "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-before.json
+          state="$(jq -r '.state' /tmp/run-before.json)"
+          resume_stage="$(jq -r '.resume_stage // ""' /tmp/run-before.json)"
+          revision="$(jq -r '.revision' /tmp/run-before.json)"
+          echo "Pre-retry: state=${state}; resume_stage=${resume_stage}; revision=${revision}"
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-8:][]? | {attempt_number,stage,status,failure_code,model_id,tool_id,evidence}]}' /tmp/run-before.json
+          test "${state}" = "FAILED"
+          test "${resume_stage}" = "IMPLEMENT"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+
+      - name: Act as user - retry failed IMPLEMENT run
+        id: retry
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ steps.before.outputs.revision }}
+        run: |
+          set -euo pipefail
+          operation_key="qa-p2313-retry-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          jq -n \
+            --arg operation_key "${operation_key}" \
+            --argjson expected_revision "${EXPECTED_REVISION}" \
+            '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/resume-request.json
+          status="$(curl --silent --show-error --max-time 120 \
+            --output /tmp/resume-response.json --write-out '%{http_code}' \
+            --cookie "${COOKIE_JAR}" \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/resume-request.json \
+            -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/resume" || true)"
+          echo "Resume HTTP ${status}"
+          jq '.' /tmp/resume-response.json || cat /tmp/resume-response.json
+          test "${status}" = "200"
+          state="$(jq -r '.state' /tmp/resume-response.json)"
+          revision="$(jq -r '.revision' /tmp/resume-response.json)"
+          test "${state}" = "PLAN"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+
+      - name: Act as user - continue autonomously once
+        id: autonomous
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ steps.retry.outputs.revision }}
+        run: |
+          set -euo pipefail
+          operation_key="qa-p2313-autonomous-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          jq -n \
+            --arg operation_key "${operation_key}" \
+            --argjson expected_revision "${EXPECTED_REVISION}" \
+            '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/autonomous-request.json
+          status="$(curl --silent --show-error --max-time 900 \
+            --output /tmp/autonomous-response.json --write-out '%{http_code}' \
+            --cookie "${COOKIE_JAR}" \
+            -H "X-Parallax-Session: 1" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/autonomous-request.json \
+            -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" || true)"
+          echo "Autonomous HTTP ${status}"
+          jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,resume_stage:.run.resume_stage,last_failure_code:.run.last_failure_code},steps}' /tmp/autonomous-response.json || cat /tmp/autonomous-response.json
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+
+      - name: Capture post-retry evidence
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          api() {
+            curl --silent --show-error \
+              --cookie "${COOKIE_JAR}" \
+              -H "X-Parallax-Session: 1" \
+              -H "Content-Type: application/json" \
+              "$@"
+          }
+          echo '--- run after ---'
+          api "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-after.json
+          jq '{id,state,revision,resume_stage,last_failure_code,attempts:[.attempts[-12:][]? | {attempt_number,stage,status,failure_code,model_id,tool_id,evidence}]}' /tmp/run-after.json
+          echo '--- worker health ---'
+          api "${API_BASE}/v1/engineering-runs/${RUN_ID}/worker-health" >/tmp/worker.json
+          jq '.' /tmp/worker.json
+          echo '--- latest events ---'
+          api "${API_BASE}/v1/engineering-runs/${RUN_ID}/events" >/tmp/events.json
+          jq 'if type=="array" then .[-20:] else . end' /tmp/events.json
+          echo '--- runtime decision ---'
+          state="$(jq -r '.state // "UNKNOWN"' /tmp/run-after.json)"
+          failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
+          echo "Post-retry state=${state}; failure=${failure:-none}; autonomous_http=${{ steps.autonomous.outputs.status }}"
+          if [ "${{ steps.autonomous.outputs.status }}" != "200" ] || [ "${state}" = "FAILED" ]; then
+            exit 1
+          fi

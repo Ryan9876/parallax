@@ -16,8 +16,15 @@ QA_AUTOMATION_WORKFLOW_REF = (
 W8_S2_QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax/.github/workflows/w8-s2-qa-replay.yml@refs/heads/main"
 )
+P2313_QA_AUTOMATION_WORKFLOW_REF = (
+    "Ryan9876/parallax/.github/workflows/qa-p2313-production-retry.yml@refs/heads/main"
+)
 QA_AUTOMATION_WORKFLOW_REFS = frozenset(
-    {QA_AUTOMATION_WORKFLOW_REF, W8_S2_QA_AUTOMATION_WORKFLOW_REF}
+    {
+        QA_AUTOMATION_WORKFLOW_REF,
+        W8_S2_QA_AUTOMATION_WORKFLOW_REF,
+        P2313_QA_AUTOMATION_WORKFLOW_REF,
+    }
 )
 QA_AUTOMATION_EMAIL = "parallax.qa.ai@gmail.com"
 QA_AUTOMATION_EVENTS = frozenset({"workflow_dispatch", "push"})
