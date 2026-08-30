@@ -1,0 +1,56 @@
+name: Reconcile client release freshness record
+
+on:
+  push:
+    branches:
+      - docs/reconcile-client-release-freshness
+    paths:
+      - .github/workflows/reconcile-client-release-freshness.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          old_status = 'RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED**'
+          new_status = 'RESUMED COMPONENT HEALTH CLIENT CORRECTION DEPLOYMENT-VERIFIED / LONG-RUNNING CLIENT RELEASE FRESHNESS DEPLOYMENT-VERIFIED**'
+          if old_status not in text:
+              raise SystemExit('status anchor not found')
+          text = text.replace(old_status, new_status, 1)
+
+          old_client = '''- application source: `77cf1f4537023849f43c5b9eaaff9363ef77196c`;\n- production deployment: `dpl_7rLxgFh9CH3aY9sdoSCTnD1xHDV3`;'''
+          new_client = '''- application source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;\n- production deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;'''
+          if old_client not in text:
+              raise SystemExit('client deployment anchor not found')
+          text = text.replace(old_client, new_client, 1)
+
+          anchor = '## Client resumed-component health projection — DEPLOYMENT-VERIFIED\n'
+          if anchor not in text:
+              raise SystemExit('client section anchor not found')
+
+          section = '''## Long-running client release freshness — DEPLOYMENT-VERIFIED\n\nA production observation exposed a second, distinct client issue after the resumed-component health correction was deployed: an iPhone Safari tab that had been opened before the new client release continued executing its already-loaded JavaScript while receiving later API events. The server and production alias were current, but the long-running tab had no mechanism to learn that a newer client shell existed. This can leave truthful fresh run events rendered through obsolete client projection logic until the operator manually reloads.\n\nPR #463 adds an advisory web release guard without changing API or Engineering Run semantics. The loaded client records the same-origin hashed script/stylesheet signature from its shell, checks a no-cache `/index.html` release shell every 60 seconds and when the page regains focus, returns from the page cache, or becomes visible, and compares the current release signature. If a newer shell is present, Parallax shows an accessible persistent `Parallax was updated` notice with a minimum-44pt `Refresh now` action. It does not force-reload an active operator session. Network failures in the release check are non-disruptive. `/index.html` is explicitly served with `Cache-Control: public, max-age=0, must-revalidate` so the comparison cannot silently rely on an obsolete shell.\n\nThe same release closes the browser-level acceptance gap that allowed the original observation to escape automation. A 390×844 Playwright regression now reproduces the exact Activity sequence `#11 WORKER_STATE FAILED / AGENTIC_CANDIDATE_EXHAUSTED` → `#12 IMPLEMENT FAILED / AUTONOMOUS_IMPLEMENT_FAILED` → `#13 RUN_CONTROL RESUMED` → `#14 IMPLEMENT FAILED / AUTONOMOUS_IMPLEMENT_FAILED` on the actual operator Activity surface. The regression requires Component Health to preserve the historical failures in the timeline while projecting Worker runtime as `Awaiting evidence`, preserving accepted Source lineage as observed, and rejecting stale current `Attention` inherited from pre-resume worker evidence. A separate browser regression simulates a newer deployed shell while the old tab remains open and proves stale-client detection, explicit refresh availability, minimum mobile target sizing, and successful loading of the current shell after refresh.\n\nRelease evidence:\n\n- release PR: #463;\n- exact green PR head: `e77bdf22c3070a57638fdc4f3d15e733a932792e`;\n- application release merge / deployed client source: `8ad310ec0efeb54dbe6067d80878e40b91f8560d`;\n- production client deployment: `dpl_7CC8atxBusUuBXYnVg3XBzagSJ4E`;\n- deployment state: `READY`;\n- user-observed production alias `parallax-ashy-one-20.vercel.app` is attached to that deployment;\n- Bounded Autonomy workflow `33292775470`: SUCCESS;\n- Parallax P2 CI workflow `33292775471`: SUCCESS;\n- Fast API/contracts, Fast client/typecheck/state/export/browser/Skia, protected promotion and DSPy release compilation: PASS;\n- production release-check shell on `parallax-ashy-one-20.vercel.app`: HTTP 200 with `Cache-Control: public, max-age=0, must-revalidate`;\n- exact deployment build error scan: clean.\n\nA browser tab loaded before this release cannot retroactively contain the release guard and requires one final manual refresh. Once this release is loaded, later client deployments are detected by the guard on the bounded interval or page-return signals above. No API, persistence, persisted event, Engineering Run state machine, source-lineage authority, provider authority, deployment ceiling or REVIEW boundary changed.\n\n'''
+          text = text.replace(anchor, section + anchor, 1)
+          path.write_text(text)
+          PY
+      - name: Commit authoritative record
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CURRENT-STATE.md
+          git commit -m "Record client release freshness deployment"
+          git push origin HEAD:docs/reconcile-client-release-freshness
