@@ -2,9 +2,10 @@ name: Record P2-V0.23.10 Production Acceptance
 
 on:
   push:
-    branches: [docs/p2310-production-acceptance]
+    branches:
+      - docs/p2310-production-acceptance
     paths:
-      - '.github/workflows/p2310-record-production-acceptance.yml'
+      - .github/workflows/p2310-record-production-acceptance.yml
 
 permissions:
   contents: write
@@ -17,97 +18,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: docs/p2310-production-acceptance
-      - name: Record deployment and production acceptance evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('CURRENT-STATE.md')
-          text = path.read_text()
-
-          old_status = 'P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING'
-          new_status = 'P2-V0.23.10 HOSTED MODEL ESCALATION DEPLOYMENT-VERIFIED + PRODUCTION-ACCEPTED'
-          if old_status not in text:
-              raise SystemExit('P2-V0.23.10 top status anchor changed')
-          text = text.replace(old_status, new_status, 1)
-
-          old_section = '''## P2-V0.23.10 — Hosted model escalation ordering — IMPLEMENTED / FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING
-
-Workstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.
-
-Production evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol -> openai/gpt-5.6-terra -> openai/gpt-5.6-luna` even though the canonical hosted escalation policy is `Luna -> Terra -> Sol`. The cause was deterministic SHA-256 identity sorting inside agent-team orchestration, which unintentionally made an integrity identifier a routing priority.
-
-The implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
-
-Focused orchestration, candidate-recovery and runtime-activation regression plus authentic DSPy compilation are required on the reconciled current-main branch before release. This section does **not** claim deployment. The production API remains the v3.23 runtime recorded below until exact-head release gates, merge, READY deployment evidence and representative production autonomous runtime evidence prove Luna-first behavior.
-'''
-          new_section = '''## P2-V0.23.10 — Hosted model escalation ordering — DEPLOYMENT-VERIFIED / PRODUCTION-ACCEPTED
-
-Workstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.
-
-Production evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol -> openai/gpt-5.6-terra -> openai/gpt-5.6-luna` even though the canonical hosted escalation policy is `Luna -> Terra -> Sol`. The cause was deterministic SHA-256 identity sorting inside agent-team orchestration, which unintentionally made an integrity identifier a routing priority.
-
-The released implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.
-
-Release and production acceptance evidence:
-
-- release PR: #467;
-- exact green PR head: `50fa74cb9f8b14fe318e8c98bf86ed8bebb38627`;
-- application release merge / deployed API source: `3077d719273b295b5ab9c05ea937cd5dae7fa76e`;
-- production API deployment: `dpl_AMkcDM2iXkXEKqjraY7o4mKfZBPd`;
-- deployment state: `READY` with canonical alias `parallax-api-tan.vercel.app` and no alias error;
-- production `/health`: HTTP 200 / service `ok`; production `/ready`: HTTP 200 with database and providers `ok`;
-- exact-head Workstream Spec Validation workflow `33293777463`: SUCCESS;
-- exact-head Bounded Autonomy Pilot workflow `33293777452`: SUCCESS;
-- exact-head Parallax P2 CI workflow `33293777468`: SUCCESS;
-- authentic DSPy compile and protected `--require-dspy` validation plus focused orchestration/candidate-recovery/runtime-activation regression: PASS;
-- one-shot dispatcher workflow `33294036729`: SUCCESS and dispatched only the existing trusted QA production replay;
-- trusted QA Production Replay workflow `33294039327`: Python full experience job `99210536817` SUCCESS and OT Time replay job `99210536961` SUCCESS;
-- representative OT Time Engineering Run `0e32e3af-040f-446f-81c6-fdad9ed27687` advanced from PLAN revision 1 through EXECUTOR, PLAN, IMPLEMENT, BUILD, TEST and VERIFY to REVIEW revision 6 with `last_failure_code=null` and `REVIEW_REQUIRED`;
-- authenticated source-only handoff verified 32 ZIP entries / 74,820 bytes;
-- exact production runtime logs for that autonomous request show `parallax_model_transport transport=vercel_ai_gateway model=openai/gpt-5.6-luna` and a successful Luna completion;
-- exact deployment/time-window searches found no `openai/gpt-5.6-terra` or `openai/gpt-5.6-sol` invocation, proving the successful normal path began and ended on Luna without unnecessary escalation.
-
-This production replay validates the intended first-choice routing path. It does not manufacture a rejected candidate to exercise Terra/Sol fallback; bounded alternate escalation remains established by protected deterministic regression tests. No production failure injector or validator relaxation was introduced for acceptance.
-'''
-          if old_section not in text:
-              raise SystemExit('P2-V0.23.10 section anchor changed')
-          text = text.replace(old_section, new_section, 1)
-
-          old_api = '''Current deployment-verified production API:
-
-- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;
-- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;
-- Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
-- state: `READY`;
-- canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.23.
-'''
-          new_api = '''Current deployment-verified production API:
-
-- source: `3077d719273b295b5ab9c05ea937cd5dae7fa76e`;
-- production deployment: `dpl_AMkcDM2iXkXEKqjraY7o4mKfZBPd`;
-- Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
-- state: `READY`;
-- canonical production alias: `parallax-api-tan.vercel.app`;
-- architecture: `ARCHITECTURE.md` v3.24.
-'''
-          if old_api not in text:
-              raise SystemExit('production API record anchor changed')
-          text = text.replace(old_api, new_api, 1)
-
-          path.write_text(text)
-          PY
+      - name: Reconcile current state
+        run: python scripts/reconcile_p2310_acceptance.py
       - name: Commit authoritative record
-        shell: bash
         run: |
-          set -euo pipefail
           git config user.name parallax-workstream
           git config user.email actions@users.noreply.github.com
           rm .github/workflows/p2310-record-production-acceptance.yml
+          rm scripts/reconcile_p2310_acceptance.py
           git add -A
           git diff --cached --check
-          git commit -m 'Record P2-V0.23.10 production acceptance'
+          git commit -m "Record P2-V0.23.10 production acceptance"
           git push origin HEAD:docs/p2310-production-acceptance
