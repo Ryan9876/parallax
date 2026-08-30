@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- Explicit human authority for failed IMPLEMENT retries to resume to PLAN, refreshing prior evidence"
+  ],
+  "work_items": [
+    "- Implement a human retry mechanism for failed IMPLEMENT runs to resume to PLAN"
+  ],
+  "validations": [
+    "- Validate that the human retry resumes to PLAN, refreshing prior evidence, without attempting to infer stale PLAN evidence",
+    "AC-01: validate protected requirement \u2014 When the request begins from durable `FAILED`, `resume_stage=IMPLEMENT`, the run is Project-bound, and the agentic runtime is enabled, the successful resume target is `PLAN`.",
+    "AC-02: validate protected requirement \u2014 Ordinary autonomous execution cannot move a FAILED run to PLAN or refresh prior PLAN evidence.",
+    "AC-03: validate protected requirement \u2014 FAILED runs whose protected resume stage is BUILD, TEST, VERIFY, PLAN or SPECIFY resume through the existing policy and do not gain PLAN-refresh behavior solely because agentic runtime is enabled.",
+    "AC-04: validate protected requirement \u2014 A PAUSED run resumes to its protected resume stage and cannot use the failed-run PLAN-refresh mode.",
+    "AC-05: validate protected requirement \u2014 After a PLAN-refresh resume, autonomous continuation executes the existing protected PLAN runtime and persists a new successful PLAN attempt before IMPLEMENT dispatch.",
+    "AC-06: validate protected requirement \u2014 The explicit failed-run retry prepares the prior terminal worker as `RECOVERING`; PLAN execution does not mint a worker lease. IMPLEMENT dispatch alone may move the worker through the existing `RECOVERING -> REASSIGNED` path and increment lease generation.",
+    "AC-07: validate protected requirement \u2014 Prior PLAN attempts, implementation failures, worker checkpoints, accepted lineage and run events remain unchanged and visible.",
+    "AC-08: validate protected requirement \u2014 The refreshed PLAN is generated from current server-owned orchestration/routing policy. Historical selected-agent ordering is never replayed merely to satisfy the retry.",
+    "AC-09: validate protected requirement \u2014 The client sends the same `/resume` payload as before. PLAN refresh is derived server-side; no browser/model/repository text can request it directly.",
+    "AC-10: validate protected requirement \u2014 Focused state-machine/service/route/worker/agentic-runtime tests and full protected release gates pass. After exact-source production deployment, acting through the existing authenticated QA/user flow on a failed IMPLEMENT run must show a new PLAN event followed by worker `REASSIGNED` evidence and hosted implementation dispatch, or expose the next bounded failure with preserved diagnostic evidence."
+  ],
+  "risks": [
+    "- Risk of human intervention being required for a failed IMPLEMENT run to resume to PLAN, potentially leading to delays or missed opportunities"
+  ],
+  "spec_id": "P2-V0.23.13",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Explicit failed IMPLEMENT retry resumes to PLAN",
+      "protected_requirement": "When the request begins from durable `FAILED`, `resume_stage=IMPLEMENT`, the run is Project-bound, and the agentic runtime is enabled, the successful resume target is `PLAN`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Human authority is required",
+      "protected_requirement": "Ordinary autonomous execution cannot move a FAILED run to PLAN or refresh prior PLAN evidence."
+    },
+    {
+      "id": "AC-03",
+      "title": "Non-IMPLEMENT failures are unchanged",
+      "protected_requirement": "FAILED runs whose protected resume stage is BUILD, TEST, VERIFY, PLAN or SPECIFY resume through the existing policy and do not gain PLAN-refresh behavior solely because agentic runtime is enabled."
+    },
+    {
+      "id": "AC-04",
+      "title": "PAUSED behavior is unchanged",
+      "protected_requirement": "A PAUSED run resumes to its protected resume stage and cannot use the failed-run PLAN-refresh mode."
+    },
+    {
+      "id": "AC-05",
+      "title": "Current PLAN evidence is persisted before IMPLEMENT",
+      "protected_requirement": "After a PLAN-refresh resume, autonomous continuation executes the existing protected PLAN runtime and persists a new successful PLAN attempt before IMPLEMENT dispatch."
+    },
+    {
+      "id": "AC-06",
+      "title": "Worker recovery remains bounded",
+      "protected_requirement": "The explicit failed-run retry prepares the prior terminal worker as `RECOVERING`; PLAN execution does not mint a worker lease. IMPLEMENT dispatch alone may move the worker through the existing `RECOVERING -> REASSIGNED` path and increment lease generation."
+    },
+    {
+      "id": "AC-07",
+      "title": "Historical evidence is preserved",
+      "protected_requirement": "Prior PLAN attempts, implementation failures, worker checkpoints, accepted lineage and run events remain unchanged and visible."
+    },
+    {
+      "id": "AC-08",
+      "title": "Current routing policy is authoritative",
+      "protected_requirement": "The refreshed PLAN is generated from current server-owned orchestration/routing policy. Historical selected-agent ordering is never replayed merely to satisfy the retry."
+    },
+    {
+      "id": "AC-09",
+      "title": "Public API remains compatible",
+      "protected_requirement": "The client sends the same `/resume` payload as before. PLAN refresh is derived server-side; no browser/model/repository text can request it directly."
+    },
+    {
+      "id": "AC-10",
+      "title": "Release and production proof",
+      "protected_requirement": "Focused state-machine/service/route/worker/agentic-runtime tests and full protected release gates pass. After exact-source production deployment, acting through the existing authenticated QA/user flow on a failed IMPLEMENT run must show a new PLAN event followed by worker `REASSIGNED` evidence and hosted implementation dispatch, or expose the next bounded failure with preserved diagnostic evidence."
+    }
+  ],
+  "critique": [
+    "The single most material implementation risk or omission in the approved software specification is the absence of a clear and explicit mechanism to handle PLAN refreshes for failed runs. The specification does not provide a clear path for human intervention to refresh the PLAN, which is necessary to ensure that runs can be restarted from a fresh state after orchestration or routing policy changes. This omission could lead to runs being trapped in a stale PLAN state, preventing them from being restarted properly."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:1.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
