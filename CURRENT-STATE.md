@@ -2,7 +2,7 @@
 
 Date: 2026-08-29
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION FINAL AUTHENTICATED DESTRUCTIVE SMOKE OPEN**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED / W9-S1 P2-V0.23.7 GREENFIELD AUTHORITY IMPLEMENTED + API DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE PENDING FRESH APPROVED EMPTY TARGET / W9-S2 API PRODUCTION-DEPLOYMENT-VERIFIED / SAFE-DELETION DEPLOYMENT-VERIFIED**
 
 ## Current production truth
 
@@ -13,6 +13,8 @@ W8-S2 is now complete. The former OT Time failure was reduced from public-source
 The public-source bootstrap remains independent from Vercel application delivery. Public commit-bearing GitHub source uses Git smart HTTP plus exact commit-addressed codeload archives. Source-only Projects do not require a Vercel Project, Preview target, application deployment, GitHub publication, or production-promotion authority.
 
 P2-V0.23.8 / Architecture v3.22 is now production-deployment-verified. Rejected pre-mutation implementation candidates are distinct from worker/process loss and may recover only through deterministic, already-admitted alternate agents within the existing reassignment bound. Protected proposal validation and all canonical source, lineage, Git, deployment, and REVIEW authority remain unchanged.
+
+Safe deletion is now production deployment-verified. An authenticated production smoke through the existing bounded `parallax://qa-production` OIDC path proved non-terminal protected work blocks Project deletion, terminal cancellation permits logical deletion, deleted Projects and bound conversations disappear from active reads, active slug/repository identity is reusable, and no external provider resource was created, mutated, or deleted.
 
 W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target.
 
@@ -277,17 +279,43 @@ Release:
 
 S2 remains non-executing capability intake. External observations are quarantined metadata until exact approval and existing registry admission succeed; discovered content receives no package-install, generic shell/network, provider, merge, deployment, or REVIEW authority.
 
+## Safe deletion — DEPLOYMENT-VERIFIED
+
+Workstream: #290.
+
+Governing corrective specification: `P2-V0.18.12`.
+
+The durable contract remains logical deletion, not evidence destruction. Protected Engineering Runs outside authoritative terminal states block deletion; protected Work Specifications, Engineering Runs, attempts, run events, source-lineage evidence and immutable artifacts are preserved; linked GitHub repositories and Vercel deployments are never deleted by this action; Project ownership and historical-unbound owner-role constraints remain fail-closed.
+
+Authenticated production acceptance used the existing trusted `.github/workflows/qa-production-replay.yml` OIDC identity after a standalone workflow correctly failed the trust boundary with HTTP 401 before creating any fixture. Trusted workflow run `33287875970`, job `99194168944` — **SUCCESS** — then proved:
+
+- disposable Project: `4e062e22-e706-4dbb-ac14-e1319d2b82ff`;
+- bound conversation: `2c990ee7-61bc-4499-b0f9-8c467a61b472`;
+- protected Engineering Run: `0851a300-0041-4d46-a7a6-8d03a1609af1`;
+- Work Specification: `5d3e7000-b252-4bdf-8395-ad2a84d347e8`;
+- active protected run at `PLAN` revision `1` blocked Project deletion with HTTP `409` and no mutation;
+- ordinary protected cancel moved the run to `CANCELLED` revision `2`;
+- terminal Project deletion returned HTTP `204`;
+- deleted Project direct read returned HTTP `404`;
+- bound conversation direct read returned HTTP `404` and both were absent from active list reads;
+- exact active slug/repository identity reuse returned HTTP `201` as replacement Project `c37ae153-e653-49d1-9d11-76125a7e38f1`;
+- replacement cleanup returned HTTP `204`;
+- synthetic repository identity: `github:Ryan9876/qa-safe-delete-33287875970-1`;
+- no external provider mutation was authorized; no external provider resource was created or deleted;
+- bounded evidence artifact: `safe-deletion-production-evidence-33287875970-1`, artifact ID `9725006991`, uploaded successfully.
+
+The production smoke verifies the externally observable destructive contract. Physical retained-evidence semantics remain additionally covered by the existing exact-head persistence regressions; no deleted-history audit backdoor was added solely to manufacture production proof.
+
 ## Other open governed work
 
-- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity;
-- #290 — safe deletion final authenticated destructive smoke remains open.
+- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity.
 
 ## Authoritative-record update
 
-`CURRENT-STATE.md` was updated after the deployment-verified P2-V0.23.8 release. It records the exact v3.22 runtime source/deployment and post-deploy authenticated regression evidence, distinguishes normal-path production acceptance from deterministic protected coverage of the candidate-rejection recovery branch, and preserves the still-pending canonical greenfield benchmark and safe-deletion smoke as open work.
+`CURRENT-STATE.md` was updated after the authenticated production safe-deletion smoke. It now records #290 as deployment-verified with exact production evidence while preserving the still-pending canonical greenfield benchmark as open work.
 
-`ARCHITECTURE.md` remains authoritative at v3.22. PR #447 already records the durable bounded implementation-candidate recovery contract; no additional architecture revision is required for this state reconciliation.
+`ARCHITECTURE.md` remains authoritative at v3.22. Safe deletion exercised the already-recorded protected terminal-state and destructive-authorization contract; no durable architecture rule changed.
 
 `DESIGN-SYSTEM.md` was not changed because this work did not alter durable visual or interaction-system rules.
 
-`PROJECT-CONSTITUTION.md` was not changed because the release exercised existing least-privilege, explicit-authority, immutable-lineage and REVIEW-ceiling principles rather than introducing a new constitutional rule.
+`PROJECT-CONSTITUTION.md` was not changed because the acceptance exercised existing least-privilege, explicit-authority, evidence-retention and REVIEW-ceiling principles rather than introducing a new constitutional rule.
