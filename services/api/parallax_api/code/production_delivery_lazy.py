@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..projects.repository import ProjectRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
 from .delivery_readiness import production_source_delivery_ready
+from .greenfield_delivery_upgrade import upgrade_greenfield_delivery
 from .production_bootstrap import production_source_bootstrap
 from .source_delivery_composition import (
     EngineeringAttemptDeliveryRecordStore,
@@ -60,6 +61,7 @@ class DeferredVerifiedLineageDelivery:
             project_id=self._project_id,
             **self._kwargs,
         )
+        current = upgrade_greenfield_delivery(current, project_id=self._project_id)
         self._resolved = current
         return current
 
@@ -91,10 +93,6 @@ def production_source_delivery_lazy(
 ) -> SourceDeliveryComposition:
     """Compose repository source independently from optional deployment delivery."""
 
-    # Production always supplies the SQLAlchemy request Session. A small set of
-    # composition contract tests intentionally use an inert object because they
-    # verify only that Vercel readiness stays deferred; preserve that structural
-    # seam as the legacy Vercel mode without creating a production override.
     project = None
     projects = ProjectRepository(session)
     if isinstance(session, Session):
