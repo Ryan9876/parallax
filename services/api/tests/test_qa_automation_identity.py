@@ -71,16 +71,18 @@ def test_accepts_isolated_w8_s2_workflow(monkeypatch):
     assert result.workflow_ref == identity.W8_S2_QA_AUTOMATION_WORKFLOW_REF
 
 
-def test_accepts_exact_p2313_production_retry_workflow(monkeypatch):
+def test_rejects_retired_p2314_production_retry_workflow(monkeypatch):
     _install_valid_decode(
         monkeypatch,
-        workflow_ref=identity.P2313_QA_AUTOMATION_WORKFLOW_REF,
+        workflow_ref=(
+            "Ryan9876/parallax/.github/workflows/"
+            "qa-p2313-production-retry.yml@refs/heads/main"
+        ),
         event_name="push",
     )
 
-    result = identity.verify_github_actions_identity(TOKEN)
-
-    assert result.workflow_ref == identity.P2313_QA_AUTOMATION_WORKFLOW_REF
+    with pytest.raises(identity.GitHubActionsIdentityError):
+        identity.verify_github_actions_identity(TOKEN)
 
 
 @pytest.mark.parametrize(
