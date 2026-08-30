@@ -299,6 +299,11 @@ try {
   await health.getByText('Candidate lineage persisted.', { exact: true }).waitFor();
   assert(await health.getByText('Attention', { exact: true }).count() === 0, 'Historical worker failure must not remain current Attention after persisted resume');
 
+  // Close the first active IMPLEMENT client before switching the shared fixture
+  // into FAILED recovery mode. Otherwise that page can legitimately continue
+  // autonomous work and race the dedicated retry scenario below.
+  await mobile.close();
+
   // Reproduce the production failure that occurred after the health-projection
   // fix: the server persisted FAILED, the operator chose Try again, /resume
   // returned IMPLEMENT, but the old client stopped there and never called the
