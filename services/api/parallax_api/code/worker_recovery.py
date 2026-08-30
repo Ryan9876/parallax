@@ -27,6 +27,7 @@ DEFAULT_MAX_OSCILLATIONS = 2
 _LINEAGE_RE = re.compile(r"^src:[0-9a-f]{64}$")
 _STEP_RE = re.compile(r"^[A-Z][A-Z0-9_-]{0,63}$")
 _SAFE_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,239}$")
+_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 _FORBIDDEN_REF_PREFIXES = (
     "http://",
     "https://",
@@ -240,6 +241,37 @@ def _validate_refs(values: tuple[str, ...], *, field: str) -> tuple[str, ...]:
     return normalized
 
 
+def _authorized_plan_refresh_ref(run: "EngineeringRun") -> str | None:
+    """Return only the exact PLAN ref authorized by the latest protected refresh cycle."""
+
+    refresh_pending = False
+    authorized_ref: str | None = None
+    for attempt in run.attempts:
+        if attempt.stage != "PLAN":
+            continue
+        try:
+            evidence = json.loads(attempt.evidence_json or "{}")
+        except (TypeError, json.JSONDecodeError):
+            evidence = {}
+        if not isinstance(evidence, dict):
+            evidence = {}
+
+        if attempt.status == "RESUMED" and evidence.get("plan_refresh_authorized") is True:
+            refresh_pending = True
+            authorized_ref = None
+            continue
+
+        if refresh_pending and attempt.status == "PASSED":
+            team_plan_id = evidence.get("team_plan_id")
+            if isinstance(team_plan_id, str) and _HEX64_RE.fullmatch(team_plan_id):
+                authorized_ref = f"agentic-plan:{team_plan_id}"
+            else:
+                authorized_ref = None
+            refresh_pending = False
+
+    return authorized_ref
+
+
 def validate_checkpoint(
     run: "EngineeringRun",
     checkpoint: WorkerCheckpoint,
@@ -261,7 +293,8 @@ def validate_checkpoint(
 
     plan_ref = _validate_ref(checkpoint.plan_ref, field="plan_ref")
     if existing_plan_ref is not None and plan_ref != existing_plan_ref:
-        raise WorkerCheckpointError("worker checkpoint plan reference cannot change after acceptance")
+        if plan_ref != _authorized_plan_refresh_ref(run):
+            raise WorkerCheckpointError("worker checkpoint plan reference cannot change after acceptance")
     if not _STEP_RE.fullmatch(checkpoint.current_step):
         raise WorkerCheckpointError("worker checkpoint current step is invalid")
 
