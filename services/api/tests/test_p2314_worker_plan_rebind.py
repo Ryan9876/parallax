@@ -215,6 +215,7 @@ def test_expired_old_worker_rebinds_once_to_exact_human_refreshed_plan(tmp_path)
             now=T0 + timedelta(seconds=1),
             lease_seconds=5,
         )
+        old_checkpoint_revision = int(old_progress.execution.checkpoint_revision)
         assert json.loads(old_progress.execution.checkpoint_json)["plan_ref"] == f"agentic-plan:{OLD_PLAN_ID}"
 
         _append_human_refresh_history(Session, run.id)
@@ -246,7 +247,7 @@ def test_expired_old_worker_rebinds_once_to_exact_human_refreshed_plan(tmp_path)
         )
         rebound_payload = json.loads(rebound.execution.checkpoint_json)
         assert rebound_payload["plan_ref"] == f"agentic-plan:{FRESH_PLAN_ID}"
-        assert rebound.execution.checkpoint_revision == old_progress.execution.checkpoint_revision + 1
+        assert rebound.execution.checkpoint_revision == old_checkpoint_revision + 1
         assert rebound.execution.source_lineage_ref == LINEAGE
         assert rebound.execution.last_known_good_lineage_ref == LINEAGE
 
