@@ -1,0 +1,41 @@
+name: Preserve failed-run retry details
+
+on:
+  push:
+    branches:
+      - fix/resume-autonomy-handoff
+    paths:
+      - .github/workflows/patch-failed-retry-details.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preserve retry and technical details together
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/client/src/components/mobile/MobileExperience.tsx')
+          text = path.read_text()
+          old = '''        {retryableFailure && run ? (\n          <TouchableOpacity\n            accessibilityRole="button"\n            accessibilityLabel="Try again"\n            accessibilityState={{ disabled: busy }}\n            disabled={busy}\n            onPress={() => requestEngineeringRunRetry(run.conversation_id)}\n            style={styles.primaryButton}\n          >\n            <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>\n          </TouchableOpacity>\n        ) : !specification && canDraft ? ('''
+          new = '''        {retryableFailure && run ? (\n          <>\n            <TouchableOpacity\n              accessibilityRole="button"\n              accessibilityLabel="Try again"\n              accessibilityState={{ disabled: busy }}\n              disabled={busy}\n              onPress={() => requestEngineeringRunRetry(run.conversation_id)}\n              style={styles.primaryButton}\n            >\n              <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>\n            </TouchableOpacity>\n            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open technical build details" onPress={onOpenDetails} style={styles.secondaryButton}>\n              <Text style={styles.secondaryButtonText}>Open detailed view</Text>\n            </TouchableOpacity>\n          </>\n        ) : !specification && canDraft ? ('''
+          if old not in text:
+              raise SystemExit('retry branch anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/client/src/components/mobile/MobileExperience.tsx
+          git commit -m "Preserve failed-run technical details beside retry"
+          git push origin HEAD:fix/resume-autonomy-handoff
