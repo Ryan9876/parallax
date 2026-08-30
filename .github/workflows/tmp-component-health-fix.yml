@@ -1,0 +1,67 @@
+name: Temporary Component Health Fix
+
+on:
+  push:
+    branches:
+      - fix/component-health-resume
+    paths:
+      - .github/workflows/tmp-component-health-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/component-health-resume
+      - name: Patch truthful resumed component health
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          projection_path = Path('apps/client/src/lib/observabilityProjection.ts')
+          projection = projection_path.read_text()
+
+          old = """function componentStatus(event: RunEventDto | null): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {\n  if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };\n  if (event.outcome === 'FAILED' || event.outcome === 'DENIED') {\n    return { status: 'Attention', tone: 'rust', detail: event.summary || event.failure_code || 'Persisted failure evidence.', sequence: event.sequence };\n  }\n"""
+          new = """function componentStatus(\n  event: RunEventDto | null,\n  supersedingRunControl: RunEventDto | null = null,\n): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {\n  if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };\n  if (event.outcome === 'FAILED' || event.outcome === 'DENIED') {\n    if (supersedingRunControl && supersedingRunControl.sequence > event.sequence) {\n      return {\n        status: 'Awaiting evidence',\n        tone: 'teal',\n        detail: `Run control resumed after prior component failure #${event.sequence}; awaiting fresh component evidence.`,\n        sequence: supersedingRunControl.sequence,\n      };\n    }\n    return { status: 'Attention', tone: 'rust', detail: event.summary || event.failure_code || 'Persisted failure evidence.', sequence: event.sequence };\n  }\n"""
+          if projection.count(old) != 1:
+              raise SystemExit(f'componentStatus anchor count={projection.count(old)}')
+          projection = projection.replace(old, new, 1)
+
+          old = """function latestMatching(events: RunEventDto[], predicate: (event: RunEventDto) => boolean): RunEventDto | null {\n  for (let index = events.length - 1; index >= 0; index -= 1) {\n    const event = events[index];\n    if (event && predicate(event)) return event;\n  }\n  return null;\n}\n"""
+          new = old + """\nfunction latestResumeBoundary(events: RunEventDto[]): RunEventDto | null {\n  return latestMatching(events, (event) => {\n    if (event.event_type !== 'RUN_CONTROL') return false;\n    const controlStatus = String(event.metadata.control_status ?? '').toUpperCase();\n    return controlStatus === 'RESUMED' || event.outcome === 'PROGRESSED' || event.outcome === 'REPLAYED';\n  });\n}\n\nfunction referencedComponentStatus(\n  event: RunEventDto | null,\n  detail: string,\n): Pick<ComponentHealthItem, 'status' | 'tone' | 'detail' | 'sequence'> {\n  if (!event) return { status: 'Unavailable', tone: 'neutral', detail: 'No persisted evidence for this component.', sequence: null };\n  return { status: 'Observed', tone: 'teal', detail, sequence: event.sequence };\n}\n"""
+          if projection.count(old) != 1:
+              raise SystemExit(f'latestMatching anchor count={projection.count(old)}')
+          projection = projection.replace(old, new, 1)
+
+          old = """  const worker = latestMatching(events, (event) => event.subsystem === 'WORKER' || Boolean(event.worker_execution_id));\n  const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || Boolean(event.source_lineage_ref));\n  const github = latestMatching(events, (event) => event.subsystem === 'GITHUB');\n  const vercel = latestMatching(events, (event) => event.subsystem === 'VERCEL');\n  const evaluation = latestMatching(events, (event) => event.subsystem === 'EVALUATION' || event.event_type === 'EVALUATION_RESULT');\n\n  return [\n    ...(authoritativeRun ? [authoritativeRun] : []),\n    transportItem,\n    { key: 'worker', label: 'Worker runtime', ...componentStatus(worker) },\n    { key: 'source-lineage', label: 'Source lineage', ...componentStatus(lineage) },\n"""
+          new = """  const resumeBoundary = latestResumeBoundary(events);\n  const worker = latestMatching(events, (event) => event.subsystem === 'WORKER');\n  const workerReference = latestMatching(events, (event) => Boolean(event.worker_execution_id));\n  const lineage = latestMatching(events, (event) => event.subsystem === 'SOURCE_LINEAGE' || event.event_type === 'SOURCE_LINEAGE_ACCEPTED');\n  const lineageReference = latestMatching(events, (event) => Boolean(event.source_lineage_ref));\n  const github = latestMatching(events, (event) => event.subsystem === 'GITHUB');\n  const vercel = latestMatching(events, (event) => event.subsystem === 'VERCEL');\n  const evaluation = latestMatching(events, (event) => event.subsystem === 'EVALUATION' || event.event_type === 'EVALUATION_RESULT');\n\n  const workerStatus = worker\n    ? componentStatus(worker, resumeBoundary)\n    : referencedComponentStatus(workerReference, 'Worker execution identity is present in persisted run evidence; no dedicated worker-health event is available yet.');\n  const lineageStatus = lineage\n    ? componentStatus(lineage, resumeBoundary)\n    : referencedComponentStatus(lineageReference, 'Source lineage is referenced by persisted run evidence; no dedicated lineage-health event is available yet.');\n\n  return [\n    ...(authoritativeRun ? [authoritativeRun] : []),\n    transportItem,\n    { key: 'worker', label: 'Worker runtime', ...workerStatus },\n    { key: 'source-lineage', label: 'Source lineage', ...lineageStatus },\n"""
+          if projection.count(old) != 1:
+              raise SystemExit(f'component health anchor count={projection.count(old)}')
+          projection = projection.replace(old, new, 1)
+          projection_path.write_text(projection)
+
+          test_path = Path('apps/client/scripts/test-observability-projection.cjs')
+          test = test_path.read_text()
+          anchor = """assert.equal(health.find((item) => item.key === 'evaluation').status, 'Unavailable');\n\n"""
+          insertion = anchor + """const resumedEvents = [\n  event(10, { event_type: 'SOURCE_LINEAGE_ACCEPTED', stage: 'IMPLEMENT', outcome: 'SUCCEEDED', subsystem: 'SOURCE_LINEAGE', source_lineage_ref: CANDIDATE, parent_source_lineage_ref: PARENT, summary: 'Candidate lineage persisted.' }),\n  event(11, { event_type: 'WORKER_STATE', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'WORKER', worker_execution_id: 'worker:failed', source_lineage_ref: CANDIDATE, failure_code: 'AGENTIC_CANDIDATE_EXHAUSTED', summary: 'Protected worker stall classification produced FAILED state.' }),\n  event(12, { event_type: 'STAGE_RESULT', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'IMPLEMENTATION', failure_code: 'AUTONOMOUS_IMPLEMENT_FAILED', summary: 'Protected IMPLEMENT attempt recorded as FAILED.' }),\n  event(13, { event_type: 'RUN_CONTROL', stage: 'IMPLEMENT', outcome: 'PROGRESSED', subsystem: 'IMPLEMENTATION', summary: 'Engineering Run control recorded as RESUMED.', metadata: { control_status: 'RESUMED' } }),\n];\nconst resumedRun = { state: 'IMPLEMENT', resume_stage: 'IMPLEMENT', last_failure_code: null };\nconst resumedHealth = componentHealth(resumedEvents, 'LIVE', resumedRun);\nconst resumedWorker = resumedHealth.find((item) => item.key === 'worker');\nconst resumedLineage = resumedHealth.find((item) => item.key === 'source-lineage');\nassert.equal(resumedWorker.status, 'Awaiting evidence');\nassert.equal(resumedWorker.tone, 'teal');\nassert.equal(resumedWorker.sequence, 13);\nassert.equal(resumedWorker.detail.includes('prior component failure #11'), true);\nassert.equal(resumedLineage.status, 'Observed');\nassert.equal(resumedLineage.tone, 'olive');\nassert.equal(resumedLineage.sequence, 10);\nassert.equal(resumedLineage.detail, 'Candidate lineage persisted.');\n\nconst referencedOnlyEvents = [\n  event(20, { event_type: 'STAGE_RESULT', stage: 'IMPLEMENT', outcome: 'FAILED', subsystem: 'IMPLEMENTATION', worker_execution_id: 'worker:referenced', source_lineage_ref: CANDIDATE, failure_code: 'IMPLEMENT_FAILED', summary: 'Implementation failed for a reason outside component health.' }),\n];\nconst referencedOnlyHealth = componentHealth(referencedOnlyEvents, 'LIVE', { state: 'IMPLEMENT', resume_stage: 'IMPLEMENT', last_failure_code: null });\nassert.equal(referencedOnlyHealth.find((item) => item.key === 'worker').status, 'Observed');\nassert.equal(referencedOnlyHealth.find((item) => item.key === 'worker').tone, 'teal');\nassert.equal(referencedOnlyHealth.find((item) => item.key === 'source-lineage').status, 'Observed');\nassert.equal(referencedOnlyHealth.find((item) => item.key === 'source-lineage').tone, 'teal');\n\n"""
+          if test.count(anchor) != 1:
+              raise SystemExit(f'test insertion anchor count={test.count(anchor)}')
+          test = test.replace(anchor, insertion, 1)
+          test_path.write_text(test)
+          PY
+      - name: Validate and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix apps/client run test:state
+          git diff --check
+          git config user.name parallax-ui-fix
+          git config user.email actions@users.noreply.github.com
+          git add apps/client/src/lib/observabilityProjection.ts apps/client/scripts/test-observability-projection.cjs
+          git commit -m "Fix resumed component health projection"
+          git push origin HEAD:fix/component-health-resume
