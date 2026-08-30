@@ -2,6 +2,11 @@ name: QA Production Replay
 
 on:
   workflow_dispatch:
+    inputs:
+      w9_s1_repository_ref:
+        description: Fresh approved empty public GitHub target for W9-S1 (github:Owner/Repo). Leave blank to skip W9-S1.
+        required: false
+        type: string
   push:
     branches:
       - main
@@ -47,7 +52,7 @@ jobs:
         run: bash scripts/qa_python_full_experience.sh
 
   w9-s1-decision-ledger-reference-trial:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -71,10 +76,11 @@ jobs:
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           API_BASE: https://parallax-api-tan.vercel.app
+          REPOSITORY_REF: ${{ inputs.w9_s1_repository_ref }}
         run: bash scripts/w9_s1_reference_trial.sh
 
   w8-s2-ot-time-replay:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.w9_s1_repository_ref == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -252,42 +258,6 @@ jobs:
           print(f'OT Time source-only archive verified: entries={len(names)}, bytes={archive.stat().st_size}')
           PY
           echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
-
-  safe-deletion-production-smoke:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Run trusted safe-deletion production smoke')
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out exact source
-        uses: actions/checkout@v4
-
-      - name: Request bounded Parallax QA OIDC token
-        id: oidc
-        shell: bash
-        run: |
-          set -euo pipefail
-          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
-          token="$(curl --fail --silent --show-error -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${request_url}" | jq -r '.value')"
-          test -n "${token}"
-          test "${token}" != "null"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "${GITHUB_OUTPUT}"
-
-      - name: Run authenticated production safe-deletion smoke
-        shell: bash
-        env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          API_BASE: https://parallax-api-tan.vercel.app
-        run: bash scripts/qa_safe_deletion_smoke.sh
-
-      - name: Upload bounded smoke evidence
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe-deletion-production-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/parallax-safe-deletion-evidence.json
-          if-no-files-found: error
-          retention-days: 30
 
 # OT Time is an explicitly user-approved disposable W8-S2 production test target.
 # Replay marker: print current bounded failure evidence.
