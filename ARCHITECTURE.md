@@ -1,11 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.20
+Version: 3.21
 Status: Authoritative
 
 ## Version relationship
 
-Architecture v3.20 is a bounded protected-execution substrate qualification to v3.19, not a platform rewrite. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
+Architecture v3.21 is a bounded empty-greenfield source-authority extension to v3.20, not a platform rewrite. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
 Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
@@ -79,6 +79,20 @@ Neither public readability nor repository installation coverage grants source mu
 - Vercel delivery still requires its existing explicit readiness and exact-target checks;
 - no path grants production promotion, domain/environment administration, Engineering Run transition authority, or REVIEW completion authority.
 
+## Empty-greenfield lineage and REVIEW-only repository initialization
+
+Architecture v3.21 adds a narrow source-root state for a canonical GitHub repository that is positively proven empty under exact repository authority. A public/source error, 404/403 ambiguity, provider outage, malformed response, or missing credential never creates greenfield authority. The runtime first preserves the existing public/credentialed commit-bearing bootstrap. Only when no durable root exists may a typed authenticated `repository.inspect` distinguish a positively empty canonical repository from ordinary failure.
+
+A greenfield durable root is explicit and unique: `source_kind=greenfield`, no parent, zero files, zero bytes, the canonical empty content digest, and non-null provenance/source-reference digests bound to the canonical repository and default branch. Ordinary repository/template/starter roots remain non-empty. IMPLEMENT must produce a changed non-root lineage containing at least one protected source artifact before protected BUILD/TEST/VERIFY can succeed.
+
+Repository initialization is not PLAN authority. PLAN through VERIFY performs no GitHub mutation merely to make an empty repository usable. Only after accepted source has passed VERIFY and the run reaches REVIEW may Vercel-Preview delivery invoke the separate server-owned `repository.initialize-empty` mutation capability. That capability reuses the already readiness-qualified short-lived exact-repository GitHub credential but is isolated from the ordinary branch/commit/PR capability registry.
+
+GitHub REST cannot create the first ref in an empty repository. The released initializer therefore follows the provider-supported Contents API sequence: create one fixed non-executable `.parallax-greenfield` bootstrap marker with deterministic server-owned actor/message/content and a one-way provenance digest; serially delete that exact returned blob on the canonical default branch; then read back and prove the resulting head tree is empty. Replay is accepted only when the current cleanup head, its single bootstrap parent, both messages/actors, the fixed marker path/content/provenance, empty head tree, parent count, and default ref match exactly. An unrelated head or concurrent change fails closed; no force update occurs.
+
+The temporary marker exists only in immutable initialization history and is absent from the default-branch head before application source publication. Accepted source is then published through the existing bounded Parallax branch -> accepted-lineage commit -> pull request -> Vercel Preview path and remains capped at REVIEW. Source-only delivery never invokes this Vercel-Preview repository initializer and remains independent from application deployment.
+
+Repository installation consent remains an explicit provider/user boundary. The production runtime exposes the bounded `REPOSITORY_AUTHORIZATION_REQUIRED` code and preserves same-run retry, but v3.21 adds no provider-consent endpoint, PAT, reusable Vercel account token, GitHub user token, browser-supplied provider credential, or Preview authority widening. Runtime readiness after external consent remains ordinary Connect token exchange plus exact-one-repository scope verification.
+
 ## Repository-aware protected validation
 
 Protected BUILD/TEST/VERIFY execution is selected from a finite released profile registry. Repository manifests and source files provide bounded compatibility evidence only; they never become executable command authority.
@@ -140,7 +154,7 @@ Vercel Sandbox remains the current isolated execution provider for this contract
 
 W8-S2's deferred Vercel Project-readiness architecture remains authoritative. The original W8-S2 defect was that PLAN incorrectly depended on static Vercel Preview-target registration. v3.16 then exposed and classified a separate credentialed repository-coverage prerequisite.
 
-Architecture v3.17 removed that credential prerequisite for repositories GitHub could prove public, while preserving it for private/inaccessible repositories. Architecture v3.18 removed the repository-specific protected-validation assumption exposed by authenticated OT Time replay. Architecture v3.19 removed the production dependency on GitHub's shared anonymous REST quota for public source bootstrap and prevented public-source throttling from re-entering the Vercel credential path. Architecture v3.20 addresses the next independently exposed boundary: an admitted `.NET` profile may not rely on a Python-qualified common execution image. The required production acceptance remains an authenticated canonical OT Time source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, snapshot, network, and lineage authority.
+Architecture v3.17 removed that credential prerequisite for repositories GitHub could prove public, while preserving it for private/inaccessible repositories. Architecture v3.18 removed the repository-specific protected-validation assumption exposed by authenticated OT Time replay. Architecture v3.19 removed the production dependency on GitHub's shared anonymous REST quota for public source bootstrap and prevented public-source throttling from re-entering the Vercel credential path. Architecture v3.20 addresses the next independently exposed boundary: an admitted `.NET` profile may not rely on a Python-qualified common execution image. Architecture v3.21 addresses the next greenfield boundary: a positively empty canonical repository has no commit-bearing source root and must remain mutation-free until verified REVIEW delivery. The required production acceptance remains an authenticated canonical OT Time source-only replay through REVIEW and exact-lineage handoff, while retaining ordinary tenant, spec, run, profile, snapshot, network, and lineage authority.
 
 ## Prior production verification
 
