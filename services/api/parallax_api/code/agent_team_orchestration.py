@@ -30,6 +30,8 @@ _MAX_DOMAINS = 16
 _MAX_CONTEXT_REFS = 16
 _MAX_GRAPH_DEPTH = 16
 _MAX_FANOUT = 16
+_MAX_SELECTION_PRIORITY = 10_000
+_DEFAULT_SELECTION_PRIORITY = 100
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ACCEPTANCE_ID_RE = re.compile(r"^AC-[0-9]{2,3}$")
@@ -211,6 +213,7 @@ class AdmittedAgent:
     identity: AgentIdentity
     admitted_work_kinds: tuple[str, ...]
     admitted_capabilities: tuple[str, ...] = ()
+    selection_priority: int = _DEFAULT_SELECTION_PRIORITY
 
     def __post_init__(self) -> None:
         if not isinstance(self.identity, AgentIdentity):
@@ -221,6 +224,12 @@ class AdmittedAgent:
             raise OrchestrationError("server admission cannot invent undeclared work kinds")
         if any(item not in self.identity.declared_capabilities for item in capabilities):
             raise OrchestrationError("server admission cannot invent undeclared capabilities")
+        if (
+            not isinstance(self.selection_priority, int)
+            or isinstance(self.selection_priority, bool)
+            or not 0 <= self.selection_priority <= _MAX_SELECTION_PRIORITY
+        ):
+            raise OrchestrationError("agent selection priority is outside protected bounds")
         object.__setattr__(self, "admitted_work_kinds", work)
         object.__setattr__(self, "admitted_capabilities", capabilities)
 
@@ -242,6 +251,7 @@ class AdmittedAgent:
             "identity_digest": self.identity_digest,
             "admitted_work_kinds": list(self.admitted_work_kinds),
             "admitted_capabilities": list(self.admitted_capabilities),
+            "selection_priority": self.selection_priority,
             "server_owned_admission": True,
             "grants_new_authority": False,
             "contains_credentials": False,
@@ -258,7 +268,7 @@ class AdmittedRoster:
             raise OrchestrationError("admitted roster is empty or exceeds protected bound")
         if any(not isinstance(item, AdmittedAgent) for item in entries):
             raise OrchestrationError("admitted roster contains invalid entry")
-        ordered = tuple(sorted(entries, key=lambda item: item.identity_digest))
+        ordered = tuple(sorted(entries, key=lambda item: (item.selection_priority, item.identity_digest)))
         digests = [item.identity_digest for item in ordered]
         if len(set(digests)) != len(digests):
             raise OrchestrationError("admitted roster contains duplicate agent identity")
@@ -336,7 +346,7 @@ class UnitPlan:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "work_unit_id", _token(self.work_unit_id, field="work_unit_id"))
-        eligible = tuple(sorted(_sha256(item, field="eligible_agent_digest") for item in self.eligible_agent_digests))
+        eligible = tuple(_sha256(item, field="eligible_agent_digest") for item in self.eligible_agent_digests)
         if not eligible or len(set(eligible)) != len(eligible):
             raise OrchestrationError("unit plan must contain unique eligible agents")
         object.__setattr__(self, "eligible_agent_digests", eligible)
@@ -364,17 +374,33 @@ class TeamPlan:
             raise OrchestrationError("team plan identity does not match graph/roster")
         if self.identity.acceptance_ids != self.graph.approved_acceptance_ids:
             raise OrchestrationError("team plan acceptance contract mismatch")
-        selected = tuple(sorted(_sha256(item, field="selected_agent_digest") for item in self.selected_agent_digests))
-        if not selected or len(selected) > self.limits.max_team_size or len(set(selected)) != len(selected):
+        selected_input = tuple(_sha256(item, field="selected_agent_digest") for item in self.selected_agent_digests)
+        if (
+            not selected_input
+            or len(selected_input) > self.limits.max_team_size
+            or len(set(selected_input)) != len(selected_input)
+        ):
             raise OrchestrationError("selected team is empty, duplicate, or over limit")
-        roster_ids = {entry.identity_digest for entry in self.roster.entries}
-        if not set(selected) <= roster_ids:
+        roster_order = tuple(entry.identity_digest for entry in self.roster.entries)
+        roster_ids = set(roster_order)
+        selected_set = set(selected_input)
+        if not selected_set <= roster_ids:
             raise OrchestrationError("selected team contains non-admitted agent")
+        selected = tuple(digest for digest in roster_order if digest in selected_set)
         object.__setattr__(self, "selected_agent_digests", selected)
         plans = tuple(sorted(self.unit_plans, key=lambda item: item.work_unit_id))
         if {item.work_unit_id for item in plans} != {item.unit_id for item in self.graph.units}:
             raise OrchestrationError("unit plan coverage does not match work graph")
-        object.__setattr__(self, "unit_plans", plans)
+        canonical_plans: list[UnitPlan] = []
+        for item in plans:
+            eligible_set = set(item.eligible_agent_digests)
+            if len(eligible_set) != len(item.eligible_agent_digests):
+                raise OrchestrationError("unit plan contains duplicate eligible agents")
+            if not eligible_set <= roster_ids:
+                raise OrchestrationError("unit plan contains non-admitted eligible agent")
+            canonical_eligible = tuple(digest for digest in roster_order if digest in eligible_set)
+            canonical_plans.append(UnitPlan(item.work_unit_id, canonical_eligible))
+        object.__setattr__(self, "unit_plans", tuple(canonical_plans))
 
     @property
     def plan_id(self) -> str:
