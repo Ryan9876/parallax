@@ -7,6 +7,7 @@ import { registerRootComponent } from 'expo';
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
 import WebAuthRoot from './src/WebAuthRoot';
 import { ProjectCompatibilityGate } from './src/components/ProjectCompatibilityGate';
+import { canCreateWebGlContext } from './src/web/webGlCapability';
 
 type ParallaxGlobal = typeof globalThis & { __PARALLAX_REDUCED_GRAPHICS__?: boolean };
 
@@ -25,7 +26,18 @@ function register(AppComponent: React.ComponentType) {
   registerRootComponent(Root);
 }
 
+async function registerReducedGraphics() {
+  (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = true;
+  const { default: FallbackApp } = await import('./src/FallbackApp');
+  register(FallbackApp);
+}
+
 async function boot() {
+  if (!canCreateWebGlContext()) {
+    await registerReducedGraphics();
+    return;
+  }
+
   try {
     await LoadSkiaWeb({ locateFile: (file: string) => `/${file}` });
     (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = false;
@@ -33,9 +45,7 @@ async function boot() {
     register(App);
   } catch (error) {
     console.error('Skia failed to initialize; registering functional static fallback.', error);
-    (globalThis as ParallaxGlobal).__PARALLAX_REDUCED_GRAPHICS__ = true;
-    const { default: FallbackApp } = await import('./src/FallbackApp');
-    register(FallbackApp);
+    await registerReducedGraphics();
   }
 }
 
