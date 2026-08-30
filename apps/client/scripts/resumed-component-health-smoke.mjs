@@ -90,6 +90,34 @@ const engineeringRun = {
   ],
 };
 
+const failedEngineeringRun = {
+  ...engineeringRun,
+  state: 'FAILED',
+  resume_stage: 'IMPLEMENT',
+  revision: 3,
+  last_failure_code: 'AUTONOMOUS_IMPLEMENT_FAILED',
+};
+
+const resumedEngineeringRun = {
+  ...engineeringRun,
+  state: 'IMPLEMENT',
+  resume_stage: 'IMPLEMENT',
+  revision: 4,
+  last_failure_code: null,
+};
+
+const continuedEngineeringRun = {
+  ...engineeringRun,
+  state: 'REVIEW',
+  resume_stage: null,
+  revision: 5,
+  last_failure_code: null,
+};
+
+let latestEngineeringRun = engineeringRun;
+let resumeContinuationScenario = false;
+const continuationCalls = [];
+
 function event(sequence, overrides = {}) {
   return {
     id: `10000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`,
@@ -189,8 +217,19 @@ function apiServer() {
     if (pathname === `/v1/conversations/${CONVERSATION_ID}` && request.method === 'GET') return json(response, 200, conversation, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/latest` && request.method === 'GET') return json(response, 200, workSpecification, origin);
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') return json(response, 200, workSpecification, origin);
-    if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, engineeringRun, origin);
+    if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, latestEngineeringRun, origin);
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/resume` && request.method === 'POST') {
+      if (!resumeContinuationScenario) return json(response, 409, { detail: 'resume scenario not active' }, origin);
+      continuationCalls.push('resume');
+      latestEngineeringRun = resumedEngineeringRun;
+      return json(response, 200, { run: resumedEngineeringRun, attempt_id: null, replayed: false }, origin);
+    }
     if (pathname === `/v1/engineering-runs/${RUN_ID}/autonomous` && request.method === 'POST') {
+      if (resumeContinuationScenario) {
+        continuationCalls.push('autonomous');
+        latestEngineeringRun = continuedEngineeringRun;
+        return json(response, 200, { run: continuedEngineeringRun, stop_reason: 'REVIEW_REQUIRED', steps: [] }, origin);
+      }
       return json(response, 200, { run: engineeringRun, stop_reason: 'FAILED', steps: [] }, origin);
     }
     if (pathname === `/v1/engineering-runs/${RUN_ID}/events` && request.method === 'GET') {
@@ -260,6 +299,30 @@ try {
   await health.getByText('Candidate lineage persisted.', { exact: true }).waitFor();
   assert(await health.getByText('Attention', { exact: true }).count() === 0, 'Historical worker failure must not remain current Attention after persisted resume');
 
+  // Reproduce the production failure that occurred after the health-projection
+  // fix: the server persisted FAILED, the operator chose Try again, /resume
+  // returned IMPLEMENT, but the old client stopped there and never called the
+  // autonomous endpoint for the newly resumed revision.
+  resumeContinuationScenario = true;
+  latestEngineeringRun = failedEngineeringRun;
+  continuationCalls.length = 0;
+
+  const recovery = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await recovery.goto('http://127.0.0.1:8774', { waitUntil: 'domcontentloaded' });
+  await recovery.getByRole('tab', { name: 'Progress', exact: true }).click();
+  await recovery.getByRole('button', { name: 'Try again', exact: true }).waitFor({ timeout: 8000 });
+  await recovery.getByRole('button', { name: 'Try again', exact: true }).click();
+  await recovery.getByText('Ready for your review', { exact: true }).waitFor({ timeout: 8000 });
+
+  const deadline = Date.now() + 8000;
+  while (continuationCalls.length < 2 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert(
+    continuationCalls.join(',') === 'resume,autonomous',
+    `Try again must persist RESUMED then immediately continue autonomously; observed ${continuationCalls.join(',') || 'no calls'}`,
+  );
+
   console.log(JSON.stringify({
     observedSequence: [11, 12, 13, 14],
     activitySurfaceMatched: true,
@@ -267,6 +330,9 @@ try {
     sourceLineage: 'Observed',
     historicalFailurePreserved: true,
     staleCurrentAttentionRejected: true,
+    failedResumeAutonomyHandoff: continuationCalls,
+    resumedRevision: resumedEngineeringRun.revision,
+    continuedRevision: continuedEngineeringRun.revision,
   }, null, 2));
 } finally {
   for (const response of streamResponses) response.end();
