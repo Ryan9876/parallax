@@ -19,6 +19,8 @@ from ..tools.providers.public_github_client import (
 )
 from ..tools.registry import ToolCapabilityRegistry
 from .delivery_readiness import _configuration_raw, _provisioning_profile
+from .greenfield_composition import GreenfieldProjectedRepositoryLineageBootstrap
+from .greenfield_github import ACTION_REPOSITORY_INSPECT, GreenfieldGitHubActions, GreenfieldGitHubClient
 from .production_delivery import ProductionDeliveryConfigurationError
 from .production_source_projection import ProjectedRepositoryLineageBootstrap
 from .public_github_archive import PublicGitHubArchiveReadClient
@@ -57,6 +59,7 @@ def _bootstrap_registry(project_id: str) -> tuple[ToolCapabilityRegistry, str]:
                     ToolActionPolicy(ACTION_REPOSITORY_RESOLVE, ToolConsequence.READ),
                     ToolActionPolicy(ACTION_SOURCE_TREE_READ, ToolConsequence.READ),
                     ToolActionPolicy(ACTION_SOURCE_FILE_READ, ToolConsequence.READ),
+                    ToolActionPolicy(ACTION_REPOSITORY_INSPECT, ToolConsequence.READ),
                 ),
             ),
         )
@@ -78,11 +81,10 @@ def production_source_bootstrap(
 ) -> ProjectedRepositoryLineageBootstrap:
     """Compose canonical repository lineage independently from deployment selection.
 
-    PLAN needs exact repository source context, not hosting metadata. Public GitHub
-    repositories resolve through Git smart HTTP and an exact commit-addressed
-    archive, avoiding the shared anonymous REST quota. Only a repository hidden
-    from that public source transport constructs the existing exact-repository
-    credential path for private access.
+    PLAN keeps the existing public-first path for commit-bearing repositories.
+    Only when that path cannot establish a root does the greenfield wrapper use
+    exact-repository authenticated inspection; positive empty proof may create a
+    zero-file durable root, while every ambiguous/provider failure remains closed.
     """
 
     if not isinstance(owner_subject, str) or not owner_subject.strip():
@@ -100,9 +102,6 @@ def production_source_bootstrap(
         )
 
     registry, github_capability_id = _bootstrap_registry(project.id)
-    # ScopedProviderInvocationFactory requires both fixed IDs by contract, but
-    # this registry contains no Vercel capability and bootstrap never requests
-    # a Vercel action. The inert ID cannot authorize anything.
     invocations = ScopedProviderInvocationFactory(
         github_capability_id=github_capability_id,
         vercel_capability_id=f"cap:vercel-inert:{project.id}",
@@ -126,12 +125,15 @@ def production_source_bootstrap(
         LazyAuthenticatedGitHubReadClient(authenticated_client),
     )
     github = GitHubProviderActions(registry, source_client)
+    greenfield = GreenfieldGitHubActions(registry, GreenfieldGitHubClient(authenticated_client()))
     bindings = OwnerScopedProjectBindingResolver(projects, owner_subject=owner_subject.strip())
-    return ProjectedRepositoryLineageBootstrap(
+    return GreenfieldProjectedRepositoryLineageBootstrap(
         allocator=allocator,
         projects=bindings,
         github=github,
         invocations=invocations,
+        greenfield=greenfield,
+        github_capability_id=github_capability_id,
     )
 
 
