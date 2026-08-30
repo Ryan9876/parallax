@@ -137,3 +137,26 @@ def test_newer_refresh_without_success_invalidates_prior_rebind_authority() -> N
             _checkpoint(run, NEW_PLAN),
             existing_plan_ref=f"agentic-plan:{OLD_PLAN}",
         )
+
+
+def test_post_rebind_checkpoint_is_immutable_without_another_complete_refresh() -> None:
+    run = _run()
+    run.attempts = [
+        _attempt(run, number=1, status="PASSED", evidence={"team_plan_id": OLD_PLAN}),
+        _attempt(run, number=2, status="RESUMED", evidence={"plan_refresh_authorized": True}),
+        _attempt(run, number=3, status="PASSED", evidence={"team_plan_id": NEW_PLAN}),
+    ]
+
+    payload = validate_checkpoint(
+        run,
+        _checkpoint(run, NEW_PLAN),
+        existing_plan_ref=f"agentic-plan:{NEW_PLAN}",
+    )
+    assert payload["plan_ref"] == f"agentic-plan:{NEW_PLAN}"
+
+    with pytest.raises(WorkerCheckpointError, match="plan reference cannot change"):
+        validate_checkpoint(
+            run,
+            _checkpoint(run, OTHER_PLAN),
+            existing_plan_ref=f"agentic-plan:{NEW_PLAN}",
+        )
