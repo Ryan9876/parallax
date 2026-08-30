@@ -1,0 +1,48 @@
+name: P2-V0.23.8 Architecture Update
+
+on:
+  push:
+    branches: [fix/agentic-candidate-recovery]
+    paths:
+      - '.github/workflows/p2-v0-23-8-architecture.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/agentic-candidate-recovery
+      - name: Update authoritative architecture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text()
+          text = text.replace('Version: 3.21', 'Version: 3.22', 1)
+          text = text.replace(
+              'Architecture v3.21 is a bounded empty-greenfield source-authority extension to v3.20, not a platform rewrite.',
+              'Architecture v3.22 is a bounded implementation-candidate recovery extension to v3.21, not a platform rewrite. Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation.',
+              1,
+          )
+          marker = '## Repository-aware protected validation\n'
+          section = '''## Bounded implementation-candidate recovery\n\nArchitecture v3.22 distinguishes a **rejected pre-mutation implementation candidate** from worker/process loss. A hosted implementation agent may return syntactically valid model output that fails the server-owned proposal validator or safe candidate-generation contract. That rejection is observation only: it cannot mutate canonical source, accept lineage, write Git, deploy, transition REVIEW, or borrow worker-loss authority.\n\nWhen candidate generation fails before canonical mutation, the live agentic control plane may retry only the same work unit through another agent identity already present in the server-owned admitted roster and listed in that work unit's eligible-agent set. Retry order is deterministic and server-owned. Every alternate receives an incremented assignment generation plus fresh operation, request, task and attempt identity. Model text, browser input and repository contents cannot select the alternate.\n\nCandidate recovery is finite. The existing `max_reassignments_per_work_unit` bound caps alternate attempts beyond the original assignment. A successful alternate still traverses the unchanged exact acceptance-coverage, safe source proposal, disposable candidate validation, independent evaluation, routing, competition and canonical mutation boundaries. Validation is never relaxed merely to obtain progress.\n\nIf all admitted alternatives are rejected, the run fails closed with bounded `CANDIDATE_GENERATION_EXHAUSTED` diagnostic evidence that explicitly records `worker_process_loss=false` and no canonical mutation/lineage authority. Raw provider/model output, secrets and arbitrary exception text are not durable diagnostics. Actual lease expiry, process loss and worker recovery continue to use the pre-existing durable worker recovery state machine and are not reclassified as candidate rejection.\n\n'''
+          if section not in text:
+              if marker not in text:
+                  raise SystemExit('architecture insertion marker missing')
+              text = text.replace(marker, section + marker, 1)
+          path.write_text(text)
+          PY
+      - name: Commit architecture only
+        run: |
+          set -euo pipefail
+          git config user.name "parallax-architecture-updater"
+          git config user.email "actions@users.noreply.github.com"
+          git add ARCHITECTURE.md
+          git diff --cached --quiet && exit 0
+          git commit -m "Record bounded candidate recovery architecture"
+          git push origin HEAD:fix/agentic-candidate-recovery
