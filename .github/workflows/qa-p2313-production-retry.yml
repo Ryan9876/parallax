@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 25
     env:
       API_BASE: https://parallax-api-tan.vercel.app
-      RUN_ID: 2b3cd15f-c5e2-481a-8266-c92c6534b08b
+      RUN_ID: bb848593-d7f0-4d77-84d4-b9b6adb84d98
       COOKIE_JAR: /tmp/parallax.cookies
     steps:
       - name: Request GitHub Actions OIDC token
