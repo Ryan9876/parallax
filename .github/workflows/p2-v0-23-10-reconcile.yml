@@ -1,0 +1,121 @@
+name: P2-V0.23.10 Reconcile
+
+on:
+  push:
+    branches: [ws/hosted-model-escalation-v2]
+    paths:
+      - '.github/workflows/p2-v0-23-10-reconcile.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2-v0-23-10-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ws/hosted-model-escalation-v2
+      - name: Configure git
+        run: |
+          git config user.name parallax-workstream
+          git config user.email actions@users.noreply.github.com
+          git fetch origin ws/hosted-model-escalation-order
+      - name: Apply validated routing implementation
+        run: git cherry-pick db35e3a622e637520ad9433d0a521533472f814c
+      - name: Reconcile specification and authoritative records
+        run: |
+          git show origin/ws/hosted-model-escalation-order:specs/P2-V0.23.9.md > specs/P2-V0.23.10.md
+          python - <<'PY'
+          from pathlib import Path
+
+          spec_path = Path('specs/P2-V0.23.10.md')
+          spec = spec_path.read_text()
+          spec = spec.replace('Spec ID: P2-V0.23.9', 'Spec ID: P2-V0.23.10')
+          spec = spec.replace('Date: 2026-08-29', 'Date: 2026-08-30')
+          spec = spec.replace('Exact starting baseline: `d2d909665b5673ebea537e6a0ffa3d8372449e85`', 'Exact starting baseline: `9eef7a96bdf5822ea0e2a1d9491cad33c811ac18`')
+          spec = spec.replace('Worker branch: `ws/hosted-model-escalation-order`', 'Worker branch: `ws/hosted-model-escalation-v2`')
+          spec = spec.replace('specs/P2-V0.23.9.md', 'specs/P2-V0.23.10.md')
+          spec_path.write_text(spec)
+
+          arch_path = Path('ARCHITECTURE.md')
+          arch = arch_path.read_text()
+          arch = arch.replace('Version: 3.23', 'Version: 3.24', 1)
+          old_rel = ('Architecture v3.23 is a bounded validator-guided alternate-candidate repair extension to v3.22, not a platform rewrite. '
+                     'Architecture v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and Architecture v3.21 remains the authoritative empty-greenfield source-authority foundation. '
+                     'The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.')
+          new_rel = ('Architecture v3.24 adds explicit server-owned hosted implementation-model escalation to v3.23 without changing the validator-guided alternate-candidate repair contract. '
+                     'Architecture v3.23 remains the authoritative validator-guided repair foundation, v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and v3.21 remains the authoritative empty-greenfield source-authority foundation. '
+                     'The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.')
+          if old_rel not in arch:
+              raise SystemExit('architecture version relationship anchor changed')
+          arch = arch.replace(old_rel, new_rel, 1)
+          section = '''## Server-owned hosted model escalation\n\nArchitecture v3.24 separates implementation-agent identity from model-selection priority. `AgentIdentity.digest` remains a cryptographic identity/integrity value only; lexical SHA-256 order has no economic or capability meaning and cannot select which hosted model runs first.\n\nThe admitted roster carries bounded server-owned `selection_priority` metadata. Roster canonicalization orders agents by `(selection_priority, identity_digest)`, so equivalent priority values retain deterministic digest tie-breaking while explicit priority controls selection. Priority is serialized into admitted-roster evidence and therefore changes the roster digest and orchestration plan identity when policy changes. Browser input, repository content, model output, and provider responses cannot supply or alter this value.\n\nThe released hosted implementation order is `openai/gpt-5.6-luna` first, `openai/gpt-5.6-terra` second, and `openai/gpt-5.6-sol` last. The smallest-capable-team rule remains authoritative: a serial equal-capability implementation unit selects Luna; two genuinely parallel independent equal-capability units may select Luna and Terra; Sol is retained as the final bounded alternate rather than being selected because its identity digest happens to sort first.\n\n`UnitPlan` and `TeamPlan` canonicalize selected and eligible identities against the priority-ordered admitted roster. Scheduling therefore consumes one stable priority sequence, and P2-V0.23.8 candidate-rejection recovery naturally escalates through that same sequence without a separate retry-order authority. P2-V0.23.9 validator-guided alternate-candidate repair remains unchanged and consumes the same already-admitted alternate sequence. Capability eligibility, concurrency and reassignment bounds, protected proposal validation, independent evaluation, safe canonical mutation, source lineage, Git/deployment authority, worker-loss recovery, and the REVIEW ceiling are unchanged.\n\nThe ordinary non-agentic `ModelRouter` retains its existing hosted `Luna -> Terra -> Sol` sequence. Architecture v3.24 changes only agent-team selection semantics that previously allowed deterministic identity-digest ordering to override that intended escalation policy.\n\n'''
+          anchor = '## Bounded implementation-candidate recovery\n'
+          if '## Server-owned hosted model escalation\n' not in arch:
+              if anchor not in arch:
+                  raise SystemExit('architecture insertion anchor changed')
+              arch = arch.replace(anchor, section + anchor, 1)
+          arch_path.write_text(arch)
+
+          current_path = Path('CURRENT-STATE.md')
+          current = current_path.read_text()
+          status_old = 'P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED'
+          status_new = 'P2-V0.23.9 VALIDATOR-GUIDED CANDIDATE REPAIR DEPLOYMENT-VERIFIED + NORMAL-PATH PRODUCTION-ACCEPTED / P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING / P2-V0.23.8 BOUNDED CANDIDATE RECOVERY DEPLOYMENT-VERIFIED'
+          if status_old not in current:
+              raise SystemExit('current-state status anchor changed')
+          current = current.replace(status_old, status_new, 1)
+          insert_anchor = '## Production components\n'
+          current_section = '''## P2-V0.23.10 — Hosted model escalation ordering — IMPLEMENTED / FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING\n\nWorkstream: #453. Governing specification: `P2-V0.23.10`. Architecture: `ARCHITECTURE.md` v3.24.\n\nProduction evidence showed autonomous IMPLEMENT could invoke `openai/gpt-5.6-sol -> openai/gpt-5.6-terra -> openai/gpt-5.6-luna` even though the canonical hosted escalation policy is `Luna -> Terra -> Sol`. The cause was deterministic SHA-256 identity sorting inside agent-team orchestration, which unintentionally made an integrity identifier a routing priority.\n\nThe implementation adds bounded server-owned selection priority to admitted-agent evidence and canonicalizes roster, selected-team and unit-eligibility order from that policy. Hosted implementation priorities are Luna `0`, Terra `1`, Sol `2`; equal priorities retain identity-digest tie determinism. Candidate-rejection recovery and the existing validator-guided repair path consume the same canonical admitted sequence. Capability admission, proposal validation, candidate validation, source mutation, lineage, Git/deployment and REVIEW authority are unchanged.\n\nFocused orchestration, candidate-recovery and runtime-activation regression plus authentic DSPy compilation are required on the reconciled current-main branch before release. This section does **not** claim deployment. The production API remains the v3.23 runtime recorded below until exact-head release gates, merge, READY deployment evidence and representative production autonomous runtime evidence prove Luna-first behavior.\n\n'''
+          if '## P2-V0.23.10 — Hosted model escalation ordering' not in current:
+              if insert_anchor not in current:
+                  raise SystemExit('current-state insertion anchor changed')
+              current = current.replace(insert_anchor, current_section + insert_anchor, 1)
+          current_path.write_text(current)
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate reconciled specification structure
+        run: python scripts/validate_spec.py specs/P2-V0.23.10.md
+      - name: Install local DSPy development LM
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+      - name: Compile and verify authentic DSPy evidence
+        env:
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: ''
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.23.10.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.10.md
+      - name: Focused routing and recovery regression
+        run: |
+          pytest -q \
+            services/api/tests/test_agent_team_orchestration.py \
+            services/api/tests/test_agentic_candidate_recovery.py \
+            services/api/tests/test_agentic_runtime_activation.py
+      - name: Commit reconciled release candidate
+        run: |
+          rm .github/workflows/p2-v0-23-10-reconcile.yml
+          git add -A
+          git commit -m 'Reconcile hosted model escalation on current main'
+          git push origin HEAD:ws/hosted-model-escalation-v2
