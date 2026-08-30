@@ -113,7 +113,15 @@ class GreenfieldGitHubClient:
         head = self._delegate._get_ref(repository_ref, default_branch)
         return GreenfieldRepositoryInspection(repository_ref, default_branch, head)
 
+    @staticmethod
+    def _verify_actor(payload: dict[str, Any]) -> None:
+        for field in ("author", "committer"):
+            actor = _dict(payload.get(field))
+            if any(actor.get(key) != value for key, value in _ACTOR.items()):
+                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
     def _commit(self, repository_ref: str, revision: str) -> dict[str, Any]:
+        require_source_revision(revision, field="revision")
         response = self._delegate._send(
             "GET",
             repository_ref,
@@ -143,6 +151,7 @@ class GreenfieldGitHubClient:
         provenance_digest: str,
     ) -> GreenfieldBaselineResult:
         cleanup = self._commit(repository_ref, baseline_revision)
+        self._verify_actor(cleanup)
         if cleanup.get("message") != _CLEANUP_MESSAGE:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         parents = _list(cleanup.get("parents"))
@@ -153,6 +162,7 @@ class GreenfieldGitHubClient:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
 
         bootstrap = self._commit(repository_ref, bootstrap_revision)
+        self._verify_actor(bootstrap)
         if bootstrap.get("message") != _BOOTSTRAP_MESSAGE or _list(bootstrap.get("parents")):
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         entries = self._tree(repository_ref, bootstrap_revision)

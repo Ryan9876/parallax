@@ -11,6 +11,10 @@ from ..auth import AccessPrincipal, access_principal
 from ..code.autonomy import AutonomyCoordinator
 from ..code.bootstrap_observability import record_bootstrap_failure
 from ..code.domain import WorkflowStage
+from ..code.greenfield_composition import (
+    REPOSITORY_AUTHORIZATION_REQUIRED,
+    is_repository_authorization_required,
+)
 from ..code.production_delivery import ProductionDeliveryConfigurationError
 from ..code.production_delivery_lazy import production_source_delivery_lazy
 from ..code.run_events import (
@@ -170,6 +174,14 @@ def invoke(call):
         record_bootstrap_failure(exc, default_stage="delivery-composition")
         raise HTTPException(503, str(exc)) from exc
     except (RuntimeCompositionError, RunEventPersistenceError) as exc:
+        if isinstance(exc, RuntimeCompositionError) and is_repository_authorization_required(exc):
+            raise HTTPException(
+                503,
+                detail={
+                    "message": "Repository authorization is required before Parallax can continue.",
+                    "code": REPOSITORY_AUTHORIZATION_REQUIRED,
+                },
+            ) from exc
         raise HTTPException(503, str(exc)) from exc
     except (RunTransitionError, WorkerRecoveryError, RunEventScopeError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc

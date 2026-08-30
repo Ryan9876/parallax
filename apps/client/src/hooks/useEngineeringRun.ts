@@ -1,6 +1,6 @@
 import React from 'react';
 import { api, type EngineeringRunDto } from '../lib/api';
-import { runEngineeringAutonomy } from '../lib/autonomyApi';
+import { EngineeringAutonomyError, runEngineeringAutonomy } from '../lib/autonomyApi';
 import {
   clearEngineeringRunFailure,
   publishEngineeringRunFailure,
@@ -25,13 +25,14 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     clearEngineeringRunFailure(conversationId);
   }, [conversationId]);
 
-  const recordFailure = React.useCallback((message: string, runId?: string | null) => {
+  const recordFailure = React.useCallback((message: string, runId?: string | null, code?: string | null) => {
     setError(message);
     if (conversationId && runId) {
       publishEngineeringRunFailure({
         conversationId,
         runId,
         message,
+        code: code ?? null,
       });
     }
   }, [conversationId]);
@@ -64,6 +65,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       recordFailure(
         caught instanceof Error ? caught.message : 'Autonomous Code run failed after activation.',
         activated.id,
+        caught instanceof EngineeringAutonomyError ? caught.code : null,
       );
       return activated;
     }
@@ -91,6 +93,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
           recordFailure(
             caught instanceof Error ? caught.message : 'Autonomous Code run continuation failed.',
             latest.id,
+            caught instanceof EngineeringAutonomyError ? caught.code : null,
           );
         } finally {
           setBusy(false);
@@ -161,6 +164,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       recordFailure(
         caught instanceof Error ? caught.message : 'Autonomous Code run failed.',
         run.id,
+        caught instanceof EngineeringAutonomyError ? caught.code : null,
       );
     } finally { setBusy(false); }
   }, [applyAutonomyResult, busy, clearFailure, recordFailure, run]);
