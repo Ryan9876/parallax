@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- The authoritative Engineering Run resume transition remains owned by `EngineeringRunService.resume`. - The worker re-arm authorization decision uses an immutable scalar snapshot of the pre-resume run state. - Re-arm remains permitted only when the request began from `FAILED` and the successful resume result is no longer `FAILED`. - `WorkerRecoveryService.prepare_human_resume` and the existing `FAILED -> RECOVERING -> REASSIGNED` worker path remain unchanged. - Ordinary `/autonomous`, reconnect, page refresh and repeated acquisition still cannot restart a terminal worker by themselves. - The route correction creates no new model, source, repository, provider, deployment or REVIEW authority. - A deliberately identity-aliased route regression is required so this same-session ORM behavior cannot escape again."
+  ],
+  "work_items": [
+    "- The `/resume` route captures the Engineering Run state as an immutable scalar before invoking `EngineeringRunService.resume`."
+  ],
+  "validations": [
+    "- The `/resume` route captures the Engineering Run state as an immutable scalar before invoking `EngineeringRunService.resume`.",
+    "AC-01: validate protected requirement \u2014 The `/resume` route captures the Engineering Run state as an immutable scalar before invoking `EngineeringRunService.resume`.",
+    "AC-02: validate protected requirement \u2014 When the object returned by the pre-read is the same object mutated by `resume`, a request that entered from `FAILED` still invokes `prepare_human_resume` after a successful transition to an active stage.",
+    "AC-03: validate protected requirement \u2014 If the request begins from any state other than `FAILED`, the route does not invoke terminal-worker re-arm solely because the post-resume run is active.",
+    "AC-04: validate protected requirement \u2014 If the resume result remains `FAILED`, terminal-worker re-arm is not invoked even when the pre-resume scalar state was `FAILED`.",
+    "AC-05: validate protected requirement \u2014 Eligible recovery still uses the existing v3.25 unleased `FAILED -> RECOVERING` preparation followed by the existing protected `RECOVERING -> REASSIGNED` lease-generation path.",
+    "AC-06: validate protected requirement \u2014 Ordinary `/autonomous` calls, acquisition attempts, reconnects and page refreshes cannot re-arm a terminal worker without the explicit successful FAILED-run resume boundary.",
+    "AC-07: validate protected requirement \u2014 The correction does not rewrite or delete prior Engineering Run attempts/events, worker checkpoint evidence, source lineage, last-known-good lineage, current step or lease-generation history.",
+    "AC-08: validate protected requirement \u2014 Candidate bounds, validator-guided repair, hosted model ordering, source mutation, Git/provider delivery, deployment and REVIEW boundaries remain unchanged.",
+    "AC-09: validate protected requirement \u2014 A focused route regression deliberately mutates the same pre-read run object during `resume` and proves the recovery preparation still executes from the snapshotted scalar state.",
+    "AC-10: validate protected requirement \u2014 Focused route/worker tests, full API regression, Bounded Autonomy, client/browser/Skia, protected promotion and DSPy release gates pass. After exact-source production deployment, one explicit retry of the affected production run persists worker recovery evidence after `RUN_CONTROL / RESUMED` and progresses beyond the prior terminal-worker conflict."
+  ],
+  "risks": [
+    "- The `/resume` route captures the Engineering Run state as an immutable scalar before invoking `EngineeringRunService.resume`."
+  ],
+  "spec_id": "P2-V0.23.12",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Pre-resume FAILED state is snapshotted",
+      "protected_requirement": "The `/resume` route captures the Engineering Run state as an immutable scalar before invoking `EngineeringRunService.resume`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Identity-map alias mutation cannot suppress re-arm",
+      "protected_requirement": "When the object returned by the pre-read is the same object mutated by `resume`, a request that entered from `FAILED` still invokes `prepare_human_resume` after a successful transition to an active stage."
+    },
+    {
+      "id": "AC-03",
+      "title": "Non-failed resume does not gain terminal-worker authority",
+      "protected_requirement": "If the request begins from any state other than `FAILED`, the route does not invoke terminal-worker re-arm solely because the post-resume run is active."
+    },
+    {
+      "id": "AC-04",
+      "title": "Failed postcondition remains fail-closed",
+      "protected_requirement": "If the resume result remains `FAILED`, terminal-worker re-arm is not invoked even when the pre-resume scalar state was `FAILED`."
+    },
+    {
+      "id": "AC-05",
+      "title": "Worker recovery contract remains unchanged",
+      "protected_requirement": "Eligible recovery still uses the existing v3.25 unleased `FAILED -> RECOVERING` preparation followed by the existing protected `RECOVERING -> REASSIGNED` lease-generation path."
+    },
+    {
+      "id": "AC-06",
+      "title": "Automatic restart remains prohibited",
+      "protected_requirement": "Ordinary `/autonomous` calls, acquisition attempts, reconnects and page refreshes cannot re-arm a terminal worker without the explicit successful FAILED-run resume boundary."
+    },
+    {
+      "id": "AC-07",
+      "title": "Historical evidence is preserved",
+      "protected_requirement": "The correction does not rewrite or delete prior Engineering Run attempts/events, worker checkpoint evidence, source lineage, last-known-good lineage, current step or lease-generation history."
+    },
+    {
+      "id": "AC-08",
+      "title": "Authority ceilings remain unchanged",
+      "protected_requirement": "Candidate bounds, validator-guided repair, hosted model ordering, source mutation, Git/provider delivery, deployment and REVIEW boundaries remain unchanged."
+    },
+    {
+      "id": "AC-09",
+      "title": "Deterministic regression covers the escaped production behavior",
+      "protected_requirement": "A focused route regression deliberately mutates the same pre-read run object during `resume` and proves the recovery preparation still executes from the snapshotted scalar state."
+    },
+    {
+      "id": "AC-10",
+      "title": "Release and production proof",
+      "protected_requirement": "Focused route/worker tests, full API regression, Bounded Autonomy, client/browser/Skia, protected promotion and DSPy release gates pass. After exact-source production deployment, one explicit retry of the affected production run persists worker recovery evidence after `RUN_CONTROL / RESUMED` and progresses beyond the prior terminal-worker conflict."
+    }
+  ],
+  "critique": [
+    "The route correction creates no new model, source, repository, provider, deployment or REVIEW authority. A deliberately identity-aliased route regression is required so this same-session ORM behavior cannot escape again."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
