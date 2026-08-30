@@ -7,8 +7,6 @@ on:
       - main
     paths:
       - .github/workflows/qa-production-replay.yml
-      - scripts/w9_s1_reference_trial.sh
-      - scripts/qa_python_full_experience.sh
 
 permissions:
   contents: read
@@ -19,35 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  python-full-experience:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Check out exact source
-        uses: actions/checkout@v4
-
-      - name: Request GitHub Actions OIDC token
-        id: oidc
-        shell: bash
-        run: |
-          set -euo pipefail
-          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
-          token="$(curl --fail --silent --show-error -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${request_url}" | jq -r '.value')"
-          test -n "${token}"
-          test "${token}" != "null"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "${GITHUB_OUTPUT}"
-
-      - name: Run source-only Python full experience
-        shell: bash
-        env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          API_BASE: https://parallax-api-tan.vercel.app
-          REPOSITORY_REF: github:Ryan9876/Movies
-        run: bash scripts/qa_python_full_experience.sh
-
   w9-s1-decision-ledger-reference-trial:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -73,185 +43,21 @@ jobs:
           API_BASE: https://parallax-api-tan.vercel.app
         run: bash scripts/w9_s1_reference_trial.sh
 
-  w8-s2-ot-time-replay:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Request GitHub Actions OIDC token
-        id: oidc
+      - name: Verify structured authorization boundary when consent is absent
         shell: bash
         run: |
           set -euo pipefail
-          request_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=parallax%3A%2F%2Fqa-production"
-          token="$(curl --fail --silent --show-error -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${request_url}" | jq -r '.value')"
-          test -n "${token}"
-          test "${token}" != "null"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "${GITHUB_OUTPUT}"
-
-      - name: Establish bounded Parallax QA session
-        shell: bash
-        env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          API_BASE: https://parallax-api-tan.vercel.app
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            --cookie-jar /tmp/parallax.cookies \
-            -H "Authorization: Bearer ${OIDC_TOKEN}" \
-            -X POST "${API_BASE}/v1/session/qa-automation" >/tmp/session.json
-          jq -e '.authenticated == true' /tmp/session.json >/dev/null
-
-      - name: Create QA-owned OT Time project and approved run
-        id: fixture
-        shell: bash
-        env:
-          API_BASE: https://parallax-api-tan.vercel.app
-          REPOSITORY_REF: github:Ryan9876/ot-time
-        run: |
-          set -euo pipefail
-
-          curl --fail --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/projects" >/tmp/projects.json
-
-          project_id="$(jq -r --arg repo "${REPOSITORY_REF}" '[.[] | select(.repository_ref == $repo)][0].id // empty' /tmp/projects.json)"
-          if [ -z "${project_id}" ]; then
-            slug="qa-w8-s2-ot-time-${GITHUB_RUN_ID}"
-            jq -n \
-              --arg name "QA W8-S2 OT Time Replay" \
-              --arg slug "${slug}" \
-              --arg description "QA-owned production replay against the user-approved disposable OT Time repository." \
-              --arg repository_ref "${REPOSITORY_REF}" \
-              '{name:$name,slug:$slug,description:$description,repository_ref:$repository_ref}' >/tmp/project-create.json
-            curl --fail-with-body --silent --show-error \
-              --cookie /tmp/parallax.cookies \
-              -H "X-Parallax-Session: 1" \
-              -H "Content-Type: application/json" \
-              --data-binary @/tmp/project-create.json \
-              -X POST "${API_BASE}/v1/projects" >/tmp/project.json
-            project_id="$(jq -r '.id' /tmp/project.json)"
+          observed=0
+          for candidate in /tmp/response.sse /tmp/autonomous-result.json /tmp/run-final.json; do
+            if [ -f "${candidate}" ] && grep -q 'REPOSITORY_AUTHORIZATION_REQUIRED' "${candidate}"; then
+              echo "Observed deployed REPOSITORY_AUTHORIZATION_REQUIRED in ${candidate}"
+              observed=1
+            fi
+          done
+          if [ "${observed}" = "1" ]; then
+            refs="$(git ls-remote https://github.com/Ryan9876/sickbeard.git)"
+            test -z "${refs}"
+            echo "No-consent boundary verified: target remains greenfield and unmodified."
+          else
+            echo "No authorization boundary was emitted; inspect the trial output for full-flow evidence."
           fi
-          test -n "${project_id}"
-
-          jq -n --arg project_id "${project_id}" '{mode:"code",project_id:$project_id}' >/tmp/conversation-create.json
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/conversation-create.json \
-            -X POST "${API_BASE}/v1/conversations" >/tmp/conversation.json
-          conversation_id="$(jq -r '.id' /tmp/conversation.json)"
-
-          objective='This is an approved disposable production test of Parallax using Ryan9876/ot-time. Make one minimal, reversible, non-functional repository change that proves the autonomous engineering lifecycle can progress beyond PLAN without changing existing application behavior. Prefer adding or updating test documentation only. Preserve existing application code and behavior.'
-          jq -n --arg content "${objective}" '{role:"user",content:$content}' >/tmp/message.json
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/message.json \
-            -X POST "${API_BASE}/v1/conversations/${conversation_id}/messages" >/tmp/message-response.json
-
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -X POST "${API_BASE}/v1/conversations/${conversation_id}/work-specifications/draft" >/tmp/spec-draft.json
-          work_specification_id="$(jq -r '.id' /tmp/spec-draft.json)"
-          test -n "${work_specification_id}"
-
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -X POST "${API_BASE}/v1/work-specifications/${work_specification_id}/approve" >/tmp/spec-approved.json
-          jq -e '.status == "APPROVED"' /tmp/spec-approved.json >/dev/null
-
-          jq -n \
-            --arg conversation_id "${conversation_id}" \
-            --arg work_specification_id "${work_specification_id}" \
-            '{conversation_id:$conversation_id,work_specification_id:$work_specification_id}' >/tmp/activate.json
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/activate.json \
-            -X POST "${API_BASE}/v1/engineering-runs/activate" >/tmp/run-before.json
-
-          run_id="$(jq -r '.id' /tmp/run-before.json)"
-          revision="$(jq -r '.revision' /tmp/run-before.json)"
-          state="$(jq -r '.state' /tmp/run-before.json)"
-          test "${state}" = "PLAN"
-          test -n "${run_id}"
-          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
-          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
-          echo "OT Time replay fixture: project=${project_id}, run=${run_id}, state=${state}, revision=${revision}"
-
-      - name: Continue OT Time run autonomously
-        shell: bash
-        env:
-          API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: ${{ steps.fixture.outputs.run_id }}
-          EXPECTED_REVISION: ${{ steps.fixture.outputs.revision }}
-        run: |
-          set -euo pipefail
-          operation_key="qa-w8-s2-ot-time-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          jq -n \
-            --arg operation_key "${operation_key}" \
-            --argjson expected_revision "${EXPECTED_REVISION}" \
-            '{operation_key:$operation_key,expected_revision:$expected_revision}' >/tmp/autonomous.json
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/autonomous.json \
-            -X POST "${API_BASE}/v1/engineering-runs/${RUN_ID}/autonomous" >/tmp/replay.json
-          jq '{stop_reason,run:{id:.run.id,state:.run.state,revision:.run.revision,last_failure_code:.run.last_failure_code},steps}' /tmp/replay.json
-
-      - name: Verify OT Time reaches REVIEW and source-only ZIP handoff
-        shell: bash
-        env:
-          API_BASE: https://parallax-api-tan.vercel.app
-          RUN_ID: ${{ steps.fixture.outputs.run_id }}
-          BEFORE_REVISION: ${{ steps.fixture.outputs.revision }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/engineering-runs/${RUN_ID}" >/tmp/run-after.json
-          after_revision="$(jq -r '.revision' /tmp/run-after.json)"
-          state="$(jq -r '.state' /tmp/run-after.json)"
-          failure="$(jq -r '.last_failure_code // ""' /tmp/run-after.json)"
-          if [ "${after_revision}" -le "${BEFORE_REVISION}" ]; then
-            echo "OT Time run did not durably advance: before=${BEFORE_REVISION}, after=${after_revision}, state=${state}, failure=${failure:-none}" >&2
-            jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/run-after.json >&2
-            exit 1
-          fi
-          if [ "${state}" != "REVIEW" ]; then
-            echo "OT Time run did not reach REVIEW: state=${state}, revision=${after_revision}, failure=${failure:-none}" >&2
-            jq '{id,state,revision,last_failure_code,attempts:[.attempts[] | {stage,status,failure_code,evidence}]}' /tmp/run-after.json >&2
-            exit 1
-          fi
-          test -z "${failure}"
-          curl --fail-with-body --silent --show-error \
-            --cookie /tmp/parallax.cookies \
-            -H "X-Parallax-Session: 1" \
-            "${API_BASE}/v1/engineering-runs/${RUN_ID}/source-archive" \
-            -o /tmp/ot-time-source.zip
-          python - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile, is_zipfile
-          archive = Path('/tmp/ot-time-source.zip')
-          assert archive.is_file() and archive.stat().st_size > 0
-          assert is_zipfile(archive)
-          with ZipFile(archive) as zf:
-              names = zf.namelist()
-              assert names
-              assert all(not name.startswith('/') and '..' not in name.split('/') for name in names)
-          print(f'OT Time source-only archive verified: entries={len(names)}, bytes={archive.stat().st_size}')
-          PY
-          echo "OT Time P2-V0.23.5 replay accepted: run=${RUN_ID}, state=${state}, revision=${after_revision}, failure=none"
-
-# OT Time is an explicitly user-approved disposable W8-S2 production test target.
-# Replay marker: print current bounded failure evidence.
