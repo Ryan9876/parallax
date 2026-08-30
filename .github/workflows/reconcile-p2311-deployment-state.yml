@@ -1,0 +1,67 @@
+name: Reconcile P2-V0.23.11 deployment state
+on:
+  push:
+    branches: [docs/p2311-deployment-verification]
+    paths: [.github/workflows/reconcile-p2311-deployment-state.yml]
+permissions:
+  contents: write
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update authoritative current state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('CURRENT-STATE.md')
+          text = p.read_text()
+
+          old = 'P2-V0.23.10 HOSTED MODEL ESCALATION IMPLEMENTED + FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING'
+          new = 'P2-V0.23.10 HOSTED MODEL ESCALATION PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE LUNA-FIRST PRODUCTION ACCEPTANCE PENDING'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          old = 'FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED**'
+          new = 'FAILED-RUN RESUME AUTONOMY HANDOFF CLIENT CORRECTION DEPLOYMENT-VERIFIED / P2-V0.23.11 HUMAN-RESUME TERMINAL-WORKER RE-ARM PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING EXPLICIT RETRY**'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          old = '## P2-V0.23.10 — Hosted model escalation ordering — IMPLEMENTED / FOCUSED-VALIDATED / RELEASE GATES + DEPLOYMENT PENDING'
+          new = '## P2-V0.23.10 — Hosted model escalation ordering — PRODUCTION-DEPLOYMENT-VERIFIED / REPRESENTATIVE PRODUCTION ACCEPTANCE PENDING'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          old = ('Focused orchestration, candidate-recovery and runtime-activation regression plus authentic DSPy compilation are required on the reconciled current-main branch before release. This section does **not** claim deployment. The production API remains the v3.23 runtime recorded below until exact-head release gates, merge, READY deployment evidence and representative production autonomous runtime evidence prove Luna-first behavior.')
+          new = ('The P2-V0.23.10 implementation is now present in the exact production API source recorded below. Its focused orchestration, candidate-recovery and runtime-activation regressions plus full protected release gates passed before the later P2-V0.23.11 release, and the shared exact production deployment is READY. This is deployment verification only for the ordering change: representative production autonomous evidence proving Luna-first hosted implementation selection is still pending and must not be inferred from deployment alone.')
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          old = '- source: `f0706d489b26ff715891f75c8d2723fb0f734c3b`;\n- production deployment: `dpl_Dz9dNegGMSdY1GoZdzD2tThQbATm`;'
+          new = '- source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;\n- production deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          old = '- architecture: `ARCHITECTURE.md` v3.23.'
+          new = '- architecture: `ARCHITECTURE.md` v3.25.'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+
+          marker = '## Failed-run resume autonomy handoff — DEPLOYMENT-VERIFIED'
+          assert text.count(marker) == 1, text.count(marker)
+          section = '''## P2-V0.23.11 — Human-resume terminal-worker re-arm — PRODUCTION-DEPLOYMENT-VERIFIED / BEHAVIORAL ACCEPTANCE PENDING\n\nWorkstream: #470. Release PR: #472. Governing specification: `P2-V0.23.11`. Architecture: `ARCHITECTURE.md` v3.25.\n\nProduction evidence on Engineering Run `2b3cd15f-c5e2-481a-8266-c92c6534b08b` showed that the already-deployed client correctly performed `resume -> autonomous`, but autonomous continuation stopped before hosted candidate generation because the prior durable worker remained terminal `FAILED`. The correction adds one narrow server-owned recovery transition: only a successful explicit Engineering Run resume that began from run state `FAILED` may move the matching unleased terminal worker from `FAILED` to `RECOVERING`. It preserves worker identity, checkpoint/source-lineage/current-step evidence and lease-generation history, resets only worker-local anti-loop counters/fingerprints and current terminal markers, and reuses the existing protected `RECOVERING -> REASSIGNED` path for the fresh mutation lease generation. Ordinary autonomous calls and reconnects still cannot restart a terminal worker.\n\nDeployment evidence:\n\n- release PR: #472;\n- application merge / deployed API source: `d3a75f6c0da1317ad50898d71e3d61b64acdb961`;\n- production API deployment: `dpl_4jkfnW81nkocKwMbNNKu42mcjw1p`;\n- deployment target/state: production / `READY`;\n- canonical production alias: `parallax-api-tan.vercel.app`;\n- Workstream Spec Validation workflow `33295368023`: SUCCESS;\n- Bounded Autonomy workflow `33295368017`: SUCCESS;\n- Parallax P2 CI workflow `33295368018`: SUCCESS, including API/contracts, client/browser/Skia, protected promotion and DSPy release compilation;\n- production build provider preflight: PASS;\n- exact-repository delivery permission preflight: PASS;\n- production `/health`: HTTP 200;\n- production `/ready`: HTTP 200 with database/providers ready and one provider target;\n- post-release runtime-error scan: no runtime errors in the checked production window.\n\nThis release is deployment-verified but not yet behaviorally production-accepted. The representative failed Engineering Run still requires one explicit operator retry so the new human-authorized recovery boundary can be exercised. Production acceptance requires evidence that the resumed run obtains a new worker generation and progresses to hosted implementation dispatch instead of stopping at the prior terminal-worker conflict.\n\n'''
+          text = text.replace(marker, section + marker)
+
+          p.write_text(text)
+          PY
+      - name: Commit authoritative record
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CURRENT-STATE.md
+          git commit -m "Record P2-V0.23.11 production deployment verification"
+          git push origin HEAD:docs/p2311-deployment-verification
