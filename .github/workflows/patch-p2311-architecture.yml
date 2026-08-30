@@ -1,0 +1,43 @@
+name: Reconcile P2-V0.23.11 architecture
+on:
+  push:
+    branches: [fix/human-resume-worker-rearm]
+    paths: [.github/workflows/patch-p2311-architecture.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record Architecture v3.25
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text()
+          text = text.replace('Version: 3.24', 'Version: 3.25', 1)
+          old = 'Architecture v3.24 adds explicit server-owned hosted implementation-model escalation to v3.23 without changing the validator-guided alternate-candidate repair contract. Architecture v3.23 remains the authoritative validator-guided repair foundation, v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and v3.21 remains the authoritative empty-greenfield source-authority foundation.'
+          new = 'Architecture v3.25 adds explicit human-authorized terminal-worker re-arm after a successful failed-run resume to v3.24 without changing hosted model escalation, candidate-recovery, or validator-guided repair bounds. Architecture v3.24 remains the authoritative hosted implementation-model escalation foundation, v3.23 remains the authoritative validator-guided repair foundation, v3.22 remains the authoritative bounded implementation-candidate recovery foundation, and v3.21 remains the authoritative empty-greenfield source-authority foundation.'
+          if old not in text:
+              raise SystemExit('version relationship anchor not found')
+          text = text.replace(old, new, 1)
+          anchor = '## Server-owned hosted model escalation\n'
+          section = '''## Human-authorized terminal-worker re-arm\n\nArchitecture v3.25 distinguishes an explicit human recovery decision from automatic worker restart. A durable worker execution that has reached terminal `FAILED` remains fail-closed for ordinary acquisition, client reconnect, page refresh, or a direct autonomous-execution request. Terminal state is not silently converted into another attempt.\n\nWhen the authenticated Engineering Run state machine successfully resumes a run that was authoritatively `FAILED`, that persisted resume boundary may prepare the same run's unleased terminal worker for one new bounded generation. Preparation is a compare-and-swap transition from `FAILED` to `RECOVERING`; it preserves worker identity, checkpoint payload and revision, current step, accepted and last-known-good source-lineage references, and lease-generation history. It resets only worker-local retry/no-progress/oscillation counters and progress fingerprints, clears the prior terminal stall/blocker markers from current worker state, and records `REASSIGN` as the next protected recovery action. Historical Engineering Run attempts, events, failures, checkpoints, and lineage evidence remain immutable observation.\n\nThe preparation step does not issue a mutation lease. The existing protected `RECOVERING -> REASSIGNED` path remains the sole path that increments worker lease generation and grants the fresh bounded mutation lease. Replayed resume preparation is idempotent once the worker is no longer `FAILED`, so concurrent or repeated requests cannot manufacture multiple generations. `PAUSED`, `HUMAN_REQUIRED`, `READY_FOR_INTEGRATION`, and `SUCCEEDED` worker boundaries are not widened by this rule.\n\nCandidate generation within the newly authorized worker generation remains subject to the existing finite admitted-agent sequence, `max_reassignments_per_work_unit`, validator-guided repair, protected proposal and candidate validation, source-lineage acceptance, Git/provider/deployment authority, and the REVIEW ceiling. A later terminal failure requires another explicit human resume; v3.25 introduces no automatic cross-attempt retry loop.\n\n'''
+          if anchor not in text:
+              raise SystemExit('hosted model section anchor not found')
+          text = text.replace(anchor, section + anchor, 1)
+          path.write_text(text)
+          PY
+      - name: Commit architecture and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/patch-p2311-architecture.yml
+          git add ARCHITECTURE.md
+          git commit -m "Record Architecture v3.25 human-resume worker recovery"
+          git push origin HEAD:fix/human-resume-worker-rearm
