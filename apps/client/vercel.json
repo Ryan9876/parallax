@@ -3,6 +3,17 @@
   "buildCommand": "npm run export:web",
   "outputDirectory": "dist",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
   "routes": [
     {
       "src": "/p2-api/(.*)",
