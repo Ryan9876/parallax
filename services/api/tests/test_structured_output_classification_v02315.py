@@ -109,6 +109,7 @@ def test_dspy_program_wraps_pydantic_decode_failure_without_raw_output():
     assert "synthetic" not in str(captured.value)
     assert "proposal_json" not in str(captured.value)
     assert "acceptance_ids_covered" not in str(captured.value)
+    assert captured.value.__cause__ is None
 
 
 def test_output_validation_falls_through_to_next_hosted_model():
