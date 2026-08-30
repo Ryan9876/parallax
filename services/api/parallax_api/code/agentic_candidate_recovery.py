@@ -86,6 +86,20 @@ def candidate_generation_failure_kind(exc: ImplementationGenerationFailure) -> s
     return None
 
 
+def validator_guided_candidate_request(
+    request: ImplementationGenerationRequest,
+    failure_kind: str | None,
+) -> ImplementationGenerationRequest:
+    if failure_kind != RoutingFailureKind.VALIDATION_EXHAUSTED.value:
+        return request
+    if VALIDATOR_REPAIR_GUIDANCE in request.constraints:
+        return request
+    return replace(
+        request,
+        constraints=(*request.constraints, VALIDATOR_REPAIR_GUIDANCE),
+    )
+
+
 def candidate_recovery_assignment(
     plan: TeamPlan,
     current: AssignmentEvidence,
@@ -196,7 +210,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                     assignment = scheduled_assignment
                     attempted_agents: list[str] = []
                     rejection_count = 0
-                    repair_guidance: str | None = None
+                    previous_failure_kind: str | None = None
 
                     while True:
                         agent_digest = assignment.agent_identity_digest or ""
@@ -226,11 +240,10 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                             unit.acceptance_ids,
                             alternative_round=alternative_round,
                         )
-                        if repair_guidance is not None:
-                            subrequest = replace(
-                                subrequest,
-                                constraints=(*subrequest.constraints, repair_guidance),
-                            )
+                        subrequest = validator_guided_candidate_request(
+                            subrequest,
+                            previous_failure_kind,
+                        )
                         adapter = self._adapter(agent_digest)
                         try:
                             result, generation = adapter.generate(
@@ -282,11 +295,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                         }
                                     },
                                 )
-                            repair_guidance = (
-                                VALIDATOR_REPAIR_GUIDANCE
-                                if failure_kind == RoutingFailureKind.VALIDATION_EXHAUSTED.value
-                                else None
-                            )
+                            previous_failure_kind = failure_kind
                             assignment = replacement
                             generation_by_work_unit[unit.unit_id] = replacement.generation
                             continue
@@ -415,4 +424,5 @@ __all__ = [
     "build_resilient_live_agentic_runtime_composition",
     "candidate_generation_failure_kind",
     "candidate_recovery_assignment",
+    "validator_guided_candidate_request",
 ]
