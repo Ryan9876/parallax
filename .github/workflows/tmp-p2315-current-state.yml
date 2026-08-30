@@ -1,0 +1,94 @@
+name: Temporary P2-V0.23.15 current-state reconcile
+
+on:
+  push:
+    branches:
+      - docs/p2315-production-acceptance
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/p2315-production-acceptance
+      - name: Reconcile authoritative current state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+
+          status = (
+              'Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE '
+              'PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / '
+              'P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER '
+              'PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION '
+              'PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**'
+          )
+          text, count = re.subn(r'^Status: \*\*.*\*\*$', status, text, count=1, flags=re.MULTILINE)
+          assert count == 1, 'top-level Status line not found'
+
+          heading = '## P2-V0.23.15 — Structured-output validation classification — PRODUCTION-ACCEPTED'
+          assert heading not in text, 'P2-V0.23.15 section already present'
+          marker = '## Production components'
+          assert marker in text, 'Production components marker missing'
+          section = r'''## P2-V0.23.15 — Structured-output validation classification — PRODUCTION-ACCEPTED
+
+Workstream: #488. Release PR: #491. Governing specification: `P2-V0.23.15`. Architecture: `ARCHITECTURE.md` v3.28.
+
+The production replay that accepted P2-V0.23.14 also exposed a telemetry/control-classification defect at the hosted implementation boundary. Luna completed its provider call successfully, but protected `ImplementationProposal` JSON/schema decoding raised a Pydantic validation failure; the generic router exception boundary then mislabeled that provider-successful model-output failure as `provider_failed`. P2-V0.23.15 adds one bounded server-owned `ModelOutputValidationError` emitted only by protected proposal decoding and records that attempt as `validation_failed` before the generic provider-failure boundary. Transport, configuration, rate-limit and unrelated exceptions remain `provider_failed`; all-validation exhaustion remains `VALIDATION_EXHAUSTED`; all-rate-limit exhaustion remains `RATE_LIMITED`; mixed provider/validation outcomes remain conservatively `PROVIDER_EXHAUSTED`.
+
+The fixed implementation proposal prompt now states the exact JSON keys already enforced by the protected schema, but parsing remains strict and fail-closed. No Markdown stripping, JSON repair, prose extraction, permissive fallback, same-model retry, source-mutation authority, candidate-validation relaxation, worker-ceiling change, Git/deployment authority, or REVIEW authority was added. The typed output-validation exception is raised without retaining the original Pydantic exception as its cause, and durable routing diagnostics still omit raw model output and provider payloads.
+
+Release and deployment evidence:
+
+- exact green PR head: `71f5bbab36ce1efb5595ff0972c06186fd575c16`;
+- release merge / deployed application source: `04b1893e3a520202a77614fd1ff4ab00dac0ab1c`;
+- production deployment: `dpl_EngoShekvZLYDC3mfdyzDwP8rUpx`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- exact-head Workstream Spec Validation `33340266792`: SUCCESS;
+- exact-head Bounded Autonomy `33340266798`: SUCCESS;
+- exact-head Parallax P2 CI `33340266789`: SUCCESS, including API/contracts, client/browser/Skia, protected promotion and DSPy release compilation;
+- post-merge Workstream Spec Validation `33340420874`: SUCCESS;
+- post-merge Parallax P2 CI `33340420982`: SUCCESS;
+- production build provider, delivery-permission, projected-source, Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot and run-event-schema preflights: PASS;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production runtime-error scan after deployment: no runtime errors in the checked 30-minute window.
+
+Authenticated production acceptance was repeated twice against the current disposable OT Time source under the exact deployment above. Engineering Run `4221c919-ad70-46fe-886e-b1c6231444db` reached REVIEW revision 6 with PLAN, IMPLEMENT, BUILD, TEST and VERIFY all PASSED and returned a validated 32-entry, 74,757-byte source-only ZIP. A second independent replay, Engineering Run `b9db6eb1-7621-446c-a6c6-7cfdffeed78d`, also reached REVIEW revision 6 with every protected stage PASSED and returned a validated 32-entry, 74,739-byte source-only ZIP.
+
+Both production runs proved the canonical hosted route begins with `openai/gpt-5.6-luna`. In each run Luna completed provider calls and the routing layer recorded the rejected attempt as `validation_failed`, followed by bounded Terra fallback; no `provider_failed / ValidationError` misclassification appeared and the full engineering lifecycle still completed. Production telemetry intentionally does not persist a subtype that distinguishes typed structured-decode rejection from the ordinary protected validator's `False` result, so the exact typed decode branch is established by deterministic protected release tests rather than by manufacturing invalid production model output. The production evidence establishes that provider-successful Luna rejection now remains inside validation classification without regressing normal fallback or lifecycle completion.
+
+'''
+          text = text.replace(marker, section + marker, 1)
+
+          api_start = text.index('### API')
+          api_end = text.index('\n## ', api_start)
+          api = text[api_start:api_end]
+          api, c1 = re.subn(r'- source: `[^`]+`;', '- source: `04b1893e3a520202a77614fd1ff4ab00dac0ab1c`;', api, count=1)
+          api, c2 = re.subn(r'- production deployment: `[^`]+`;', '- production deployment: `dpl_EngoShekvZLYDC3mfdyzDwP8rUpx`;', api, count=1)
+          api, c3 = re.subn(r'- architecture: `ARCHITECTURE\.md` v[^.\n]+(?:\.[^.\n]+)*\.', '- architecture: `ARCHITECTURE.md` v3.28.', api, count=1)
+          assert c1 == c2 == c3 == 1, f'API current-truth replacements failed: {c1}, {c2}, {c3}'
+          text = text[:api_start] + api + text[api_end:]
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit authoritative record and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git config user.name "parallax-record-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/tmp-p2315-current-state.yml
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git commit -m "Record P2-V0.23.15 production acceptance"
+          git push origin HEAD:docs/p2315-production-acceptance
