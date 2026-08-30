@@ -1,0 +1,162 @@
+name: P2-V0.23.7 Integration Patch
+
+on:
+  push:
+    branches: [work/w9-s1-repository-authorization]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2-v0-23-7-integration
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/w9-s1-repository-authorization
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply deterministic integration patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected integration seam missing: {path}")
+              target.write_text(text.replace(old, new, 1))
+
+          route = 'services/api/parallax_api/routes/engineering_runs.py'
+          replace(
+              route,
+              'from ..code.domain import WorkflowStage\n',
+              'from ..code.domain import WorkflowStage\nfrom ..code.greenfield_composition import (\n    REPOSITORY_AUTHORIZATION_REQUIRED,\n    is_repository_authorization_required,\n)\n',
+          )
+          replace(
+              route,
+              '    except (RuntimeCompositionError, RunEventPersistenceError) as exc:\n        raise HTTPException(503, str(exc)) from exc\n',
+              '    except (RuntimeCompositionError, RunEventPersistenceError) as exc:\n        if isinstance(exc, RuntimeCompositionError) and is_repository_authorization_required(exc):\n            raise HTTPException(\n                503,\n                detail={\n                    "message": "Repository authorization is required before Parallax can continue.",\n                    "code": REPOSITORY_AUTHORIZATION_REQUIRED,\n                },\n            ) from exc\n        raise HTTPException(503, str(exc)) from exc\n',
+          )
+
+          autonomy = 'apps/client/src/lib/autonomyApi.ts'
+          replace(
+              autonomy,
+              'export type EngineeringAutonomyResultDto = {\n  run: EngineeringRunDto;\n  stop_reason: string;\n  steps: EngineeringAutonomyStepDto[];\n};\n',
+              'export type EngineeringAutonomyResultDto = {\n  run: EngineeringRunDto;\n  stop_reason: string;\n  steps: EngineeringAutonomyStepDto[];\n};\n\nexport class EngineeringAutonomyError extends Error {\n  readonly code: string | null;\n\n  constructor(message: string, code: string | null = null) {\n    super(message);\n    this.name = \'EngineeringAutonomyError\';\n    this.code = code;\n  }\n}\n',
+          )
+          replace(
+              autonomy,
+              "    try {\n      const payload = await response.json() as { detail?: string };\n      if (typeof payload.detail === 'string' && payload.detail.trim()) detail = payload.detail;\n    } catch {\n      // Keep the status fallback when the API did not return JSON.\n    }\n    throw new Error(detail);\n",
+              "    let code: string | null = null;\n    try {\n      const payload = await response.json() as { detail?: unknown };\n      if (typeof payload.detail === 'string' && payload.detail.trim()) {\n        detail = payload.detail;\n      } else if (payload.detail && typeof payload.detail === 'object') {\n        const structured = payload.detail as { message?: unknown; code?: unknown };\n        if (typeof structured.message === 'string' && structured.message.trim()) detail = structured.message;\n        if (typeof structured.code === 'string' && /^[A-Z0-9_]{1,96}$/.test(structured.code)) code = structured.code;\n      }\n    } catch {\n      // Keep the bounded status fallback when the API did not return JSON.\n    }\n    throw new EngineeringAutonomyError(detail, code);\n",
+          )
+
+          events = 'apps/client/src/lib/engineeringRunEvents.ts'
+          replace(
+              events,
+              '  message: string;\n};\n',
+              '  message: string;\n  code?: string | null;\n};\n',
+          )
+
+          hook = 'apps/client/src/hooks/useEngineeringRun.ts'
+          replace(
+              hook,
+              "import { runEngineeringAutonomy } from '../lib/autonomyApi';\n",
+              "import { EngineeringAutonomyError, runEngineeringAutonomy } from '../lib/autonomyApi';\n",
+          )
+          replace(
+              hook,
+              '  const recordFailure = React.useCallback((message: string, runId?: string | null) => {\n',
+              '  const recordFailure = React.useCallback((message: string, runId?: string | null, code?: string | null) => {\n',
+          )
+          replace(
+              hook,
+              '        message,\n      });\n',
+              '        message,\n        code: code ?? null,\n      });\n',
+          )
+          # Autonomous failures are the only current surface with a structured provider code.
+          hook_text = Path(hook).read_text()
+          hook_text = hook_text.replace(
+              "caught instanceof Error ? caught.message : 'Autonomous Code run failed after activation.',\n        activated.id,\n",
+              "caught instanceof Error ? caught.message : 'Autonomous Code run failed after activation.',\n        activated.id,\n        caught instanceof EngineeringAutonomyError ? caught.code : null,\n",
+          )
+          hook_text = hook_text.replace(
+              "caught instanceof Error ? caught.message : 'Autonomous Code run continuation failed.',\n            latest.id,\n",
+              "caught instanceof Error ? caught.message : 'Autonomous Code run continuation failed.',\n            latest.id,\n            caught instanceof EngineeringAutonomyError ? caught.code : null,\n",
+          )
+          hook_text = hook_text.replace(
+              "caught instanceof Error ? caught.message : 'Autonomous Code run failed.',\n        run.id,\n",
+              "caught instanceof Error ? caught.message : 'Autonomous Code run failed.',\n        run.id,\n        caught instanceof EngineeringAutonomyError ? caught.code : null,\n",
+          )
+          Path(hook).write_text(hook_text)
+
+          status = 'apps/client/src/components/EngineeringRunStatus.tsx'
+          replace(
+              status,
+              '  const requestError = plainRunError(effectiveError);\n',
+              "  const requestError = storedFailure?.code === 'REPOSITORY_AUTHORIZATION_REQUIRED'\n    ? 'This repository needs one-time provider permission before Parallax can continue. Grant access to this exact repository in your connected GitHub provider, then choose Try again. Your current run is preserved.'\n    : plainRunError(effectiveError);\n",
+          )
+
+          github = 'services/api/parallax_api/code/greenfield_github.py'
+          replace(
+              github,
+              '    def _commit(self, repository_ref: str, revision: str) -> dict[str, Any]:\n        response = self._delegate._send(\n',
+              '    @staticmethod\n    def _verify_actor(payload: dict[str, Any]) -> None:\n        for field in ("author", "committer"):\n            actor = _dict(payload.get(field))\n            if any(actor.get(key) != value for key, value in _ACTOR.items()):\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")\n\n    def _commit(self, repository_ref: str, revision: str) -> dict[str, Any]:\n        require_source_revision(revision, field="revision")\n        response = self._delegate._send(\n',
+          )
+          replace(
+              github,
+              '        cleanup = self._commit(repository_ref, baseline_revision)\n        if cleanup.get("message") != _CLEANUP_MESSAGE:\n',
+              '        cleanup = self._commit(repository_ref, baseline_revision)\n        self._verify_actor(cleanup)\n        if cleanup.get("message") != _CLEANUP_MESSAGE:\n',
+          )
+          replace(
+              github,
+              '        bootstrap = self._commit(repository_ref, bootstrap_revision)\n        if bootstrap.get("message") != _BOOTSTRAP_MESSAGE or _list(bootstrap.get("parents")):\n',
+              '        bootstrap = self._commit(repository_ref, bootstrap_revision)\n        self._verify_actor(bootstrap)\n        if bootstrap.get("message") != _BOOTSTRAP_MESSAGE or _list(bootstrap.get("parents")):\n',
+          )
+
+          test_route = Path('services/api/tests/test_greenfield_recovery_contract.py')
+          test_route.write_text('''from fastapi import HTTPException\nimport pytest\n\nfrom parallax_api.code.greenfield_composition import RepositoryAuthorizationRequiredError\nfrom parallax_api.code.runtime_composition import RuntimeCompositionError\nfrom parallax_api.routes.engineering_runs import invoke\n\n\ndef _authorization_failure():\n    try:\n        raise RepositoryAuthorizationRequiredError("exact repository consent required")\n    except RepositoryAuthorizationRequiredError as cause:\n        raise RuntimeCompositionError("repository-backed source bootstrap failed") from cause\n\n\ndef test_exact_repository_authorization_failure_is_structured_and_retry_safe() -> None:\n    with pytest.raises(HTTPException) as captured:\n        invoke(_authorization_failure)\n    assert captured.value.status_code == 503\n    assert captured.value.detail == {\n        "message": "Repository authorization is required before Parallax can continue.",\n        "code": "REPOSITORY_AUTHORIZATION_REQUIRED",\n    }\n\n\ndef test_generic_runtime_failure_remains_generic() -> None:\n    with pytest.raises(HTTPException) as captured:\n        invoke(lambda: (_ for _ in ()).throw(RuntimeCompositionError("generic failure")))\n    assert captured.value.status_code == 503\n    assert captured.value.detail == "generic failure"\n''')
+          PY
+      - name: Patch greenfield provider fixtures for exact actor readback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('services/api/tests/test_greenfield_github.py')
+          text = path.read_text()
+          actor = '"author": {"name": "Parallax App Builder", "email": "parallax-app-builder@users.noreply.github.com", "date": "2000-01-01T00:00:00Z"}, "committer": {"name": "Parallax App Builder", "email": "parallax-app-builder@users.noreply.github.com", "date": "2000-01-01T00:00:00Z"}'
+          text = text.replace('{"message": "Finalize Parallax empty greenfield baseline", "parents": [{"sha": BOOTSTRAP}]}', '{"message": "Finalize Parallax empty greenfield baseline", "parents": [{"sha": BOOTSTRAP}], ' + actor + '}')
+          text = text.replace('{"message": "Initialize Parallax greenfield baseline", "parents": []}', '{"message": "Initialize Parallax greenfield baseline", "parents": [], ' + actor + '}')
+          path.write_text(text)
+          PY
+      - name: Install API dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate protected spec
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.7.md
+      - name: Run focused API integration tests
+        run: >-
+          pytest -q
+          services/api/tests/test_greenfield_lineage.py
+          services/api/tests/test_greenfield_github.py
+          services/api/tests/test_greenfield_recovery_contract.py
+          services/api/tests/test_code_workspace_lineage.py
+          services/api/tests/test_code_workspace_allocator.py
+      - name: Typecheck client
+        run: |
+          cd apps/client
+          npm ci
+          npm run typecheck
+      - name: Commit integrated slice
+        run: |
+          git config user.name 'parallax-integration-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add services/api apps/client
+          git diff --cached --quiet && exit 0
+          git commit -m 'Integrate greenfield recovery across runtime and client'
+          git push origin HEAD:work/w9-s1-repository-authorization
