@@ -479,16 +479,21 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
         {retryableFailure ? <Text style={styles.activityCopy}>Parallax stopped safely. Your saved work is still here, and you can retry this step.</Text> : run?.last_failure_code ? <Text style={styles.activityCopy}>Something needs attention before Parallax can continue.</Text> : null}
         {plainError(effectiveError) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{plainError(effectiveError)}</Text> : null}
         {retryableFailure && run ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Try again"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            onPress={() => requestEngineeringRunRetry(run.conversation_id)}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              onPress={() => requestEngineeringRunRetry(run.conversation_id)}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>{busy ? 'Trying again…' : 'Try again'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open technical build details" onPress={onOpenDetails} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Open detailed view</Text>
+            </TouchableOpacity>
+          </>
         ) : !specification && canDraft ? (
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Create build plan" disabled={busy} onPress={onCaptureSpecification} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>{busy ? 'Creating plan…' : 'Create build plan'}</Text>
