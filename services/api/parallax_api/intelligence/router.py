@@ -89,7 +89,26 @@ class ModelRouter(Generic[T]):
             provider_kind = provider_kind_for_model(model)
             started = perf_counter()
             try:
-                value = await attempt(model)
+                try:
+                    value = await attempt(model)
+                except ModelOutputValidationError:
+                    duration = int((perf_counter() - started) * 1000)
+                    records.append(
+                        AttemptRecord(
+                            model=model,
+                            status="validation_failed",
+                            duration_ms=duration,
+                            provider_kind=provider_kind,
+                        )
+                    )
+                    logger.warning(
+                        "parallax_model_route output_validation_failed model=%s provider=%s duration_ms=%s",
+                        model,
+                        provider_kind,
+                        duration,
+                    )
+                    continue
+
                 duration = int((perf_counter() - started) * 1000)
                 if not validate(value):
                     records.append(
@@ -116,22 +135,6 @@ class ModelRouter(Generic[T]):
                     )
                 )
                 return RouteResult(value=value, model=model, attempts=tuple(records))
-            except ModelOutputValidationError:
-                duration = int((perf_counter() - started) * 1000)
-                records.append(
-                    AttemptRecord(
-                        model=model,
-                        status="validation_failed",
-                        duration_ms=duration,
-                        provider_kind=provider_kind,
-                    )
-                )
-                logger.warning(
-                    "parallax_model_route output_validation_failed model=%s provider=%s duration_ms=%s",
-                    model,
-                    provider_kind,
-                    duration,
-                )
             except Exception as exc:  # provider boundary intentionally sanitized here
                 duration = int((perf_counter() - started) * 1000)
                 error_class = type(exc).__name__
