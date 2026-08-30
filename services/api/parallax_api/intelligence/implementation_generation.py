@@ -181,10 +181,13 @@ class DspyImplementationGenerationProgram:
             )
         try:
             return ImplementationProposal.model_validate_json(str(prediction.proposal_json))
-        except ValidationError as exc:
+        except ValidationError:
+            # Do not retain the Pydantic exception as an explicit cause because
+            # its in-memory details may include rejected model output. The typed
+            # boundary intentionally carries only fixed server-owned text.
             raise ModelOutputValidationError(
                 "protected implementation proposal failed structured-output validation"
-            ) from exc
+            ) from None
 
 
 @dataclass(frozen=True, slots=True)
