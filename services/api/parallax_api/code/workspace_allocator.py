@@ -50,6 +50,20 @@ class ProjectWorkspaceAllocator:
     ) -> None:
         if not isinstance(lineage_store, SourceLineageStore):
             raise TypeError("an explicit durable SourceLineageStore is required")
+        # Production historically constructs the base store directly. Upgrade
+        # only that exact base type to the additive greenfield-aware store while
+        # preserving injected test/custom subclasses and all ordinary semantics.
+        if type(lineage_store) is SourceLineageStore:
+            from .greenfield_lineage import GreenfieldSourceLineageStore
+
+            lineage_store = GreenfieldSourceLineageStore(
+                lineage_store.object_store,
+                lineage_store.metadata_store,
+                max_files=lineage_store.max_files,
+                max_file_bytes=lineage_store.max_file_bytes,
+                max_total_bytes=lineage_store.max_total_bytes,
+                max_source_ref_bytes=lineage_store.max_source_ref_bytes,
+            )
         root = Path(protected_root)
         root.mkdir(parents=True, exist_ok=True)
         if root.is_symlink():
