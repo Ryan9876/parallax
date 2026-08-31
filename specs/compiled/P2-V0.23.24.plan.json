@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- The final repair request is cache-distinct: For the same Work Specification/source context, the final repair request differs from the prior ordinary validator-guided request because the\u2026"
+  ],
+  "work_items": [
+    "- The one final repair opportunity introduced by P2-V0.23.23 is a fresh model-generation request rather than a possible replay of an earlier validator-rejected cached prediction."
+  ],
+  "validations": [
+    "- The IMPLEMENT request attempted Luna, Terra and Sol under the existing admitted-agent order. Luna returned a proposal rejected by protected validation after about 66.4 seconds; Terra returned a proposal rejected by protected validation after about 35.8 seconds; Sol reached the 60-second hosted-model timeout.",
+    "AC-01: validate protected requirement \u2014 Focused regression encodes that a distinct-agent validator-guided request and a final repair can target the same admitted model while requiring different request identities.",
+    "AC-02: validate protected requirement \u2014 For the same Work Specification/source context, the final repair request differs from the prior ordinary validator-guided request because the final-repair-only constraint is present.",
+    "AC-03: validate protected requirement \u2014 Different authoritative run revision or repair generation inputs produce different bounded final-repair context tokens and contract payloads; identical inputs are deterministic.",
+    "AC-04: validate protected requirement \u2014 Initial and distinct-agent validator-guided requests do not receive the final-repair-only constraint. Existing `VALIDATOR_REPAIR_GUIDANCE` behavior remains unchanged.",
+    "AC-05: validate protected requirement \u2014 Exactly one final repair remains possible per work unit. Provider failure or validation failure on that repair cannot create another repair assignment.",
+    "AC-06: validate protected requirement \u2014 The token/constraint grants no source, lineage, Git, deployment, lifecycle, credential, network or REVIEW authority. Protected proposal/candidate validation remains authoritative.",
+    "AC-07: validate protected requirement \u2014 A final repair dispatch produces only fixed event name, repair generation and bounded context token; sensitive/raw material is absent.",
+    "AC-08: validate protected requirement \u2014 Focused recovery tests, full API regression, Bounded Autonomy, client checks, protected promotion evaluation, protected spec/plan validation and required DSPy validation pass on the exact PR head.",
+    "AC-09: validate protected requirement \u2014 After merge, the exact application source reaches READY production deployment and `/health` and `/ready` return HTTP 200 with database/providers ready.",
+    "AC-10: validate protected requirement \u2014 An authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent bounded production workload reaches the final validator-repair path and production logs show the bounded final-repair dispatch followed by an actual hosted model completion/transport attempt rather than the prior ~7 ms cached replay. If protected validation still rejects the fresh proposal, that result is accepted as truthful evidence for the next diagnosis; this release must not widen the retry budget to force success."
+  ],
+  "risks": [
+    "- The IMPLEMENT request attempted Luna, Terra and Sol under the existing admitted-agent order. Luna returned a proposal rejected by protected validation after about 66.4 seconds; Terra returned a proposal rejected by protected validation after about 35.8 seconds; Sol reached the 60-second hosted-model timeout."
+  ],
+  "spec_id": "P2-V0.23.24",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production root cause is represented accurately",
+      "protected_requirement": "Focused regression encodes that a distinct-agent validator-guided request and a final repair can target the same admitted model while requiring different request identities."
+    },
+    {
+      "id": "AC-02",
+      "title": "Final repair request is cache-distinct",
+      "protected_requirement": "For the same Work Specification/source context, the final repair request differs from the prior ordinary validator-guided request because the final-repair-only constraint is present."
+    },
+    {
+      "id": "AC-03",
+      "title": "Retry context changes request identity",
+      "protected_requirement": "Different authoritative run revision or repair generation inputs produce different bounded final-repair context tokens and contract payloads; identical inputs are deterministic."
+    },
+    {
+      "id": "AC-04",
+      "title": "Ordinary retry behavior is unchanged",
+      "protected_requirement": "Initial and distinct-agent validator-guided requests do not receive the final-repair-only constraint. Existing `VALIDATOR_REPAIR_GUIDANCE` behavior remains unchanged."
+    },
+    {
+      "id": "AC-05",
+      "title": "One-repair ceiling is unchanged",
+      "protected_requirement": "Exactly one final repair remains possible per work unit. Provider failure or validation failure on that repair cannot create another repair assignment."
+    },
+    {
+      "id": "AC-06",
+      "title": "Authority remains unchanged",
+      "protected_requirement": "The token/constraint grants no source, lineage, Git, deployment, lifecycle, credential, network or REVIEW authority. Protected proposal/candidate validation remains authoritative."
+    },
+    {
+      "id": "AC-07",
+      "title": "Operational evidence is bounded",
+      "protected_requirement": "A final repair dispatch produces only fixed event name, repair generation and bounded context token; sensitive/raw material is absent."
+    },
+    {
+      "id": "AC-08",
+      "title": "Regression gates pass",
+      "protected_requirement": "Focused recovery tests, full API regression, Bounded Autonomy, client checks, protected promotion evaluation, protected spec/plan validation and required DSPy validation pass on the exact PR head."
+    },
+    {
+      "id": "AC-09",
+      "title": "Exact deployment is healthy",
+      "protected_requirement": "After merge, the exact application source reaches READY production deployment and `/health` and `/ready` return HTTP 200 with database/providers ready."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production final repair is genuinely fresh",
+      "protected_requirement": "An authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent bounded production workload reaches the final validator-repair path and production logs show the bounded final-repair dispatch followed by an actual hosted model completion/transport attempt rather than the prior ~7 ms cached replay. If protected validation still rejects the fresh proposal, that result is accepted as truthful evidence for the next diagnosis; this release must not widen the retry budget to force success."
+    }
+  ],
+  "critique": [
+    "The implementation of the one final validator-repair opportunity introduced by P2-V0.23.23 is a fresh model-generation request rather than a possible replay of an earlier validator-rejected cached prediction. The IMPLEMENT request attempted Luna, Terra, and Sol under the existing admitted-agent order. Luna returned a proposal rejected by protected validation after about 66.4 seconds, Terra returned a proposal rejected by protected validation after about 35.8 seconds, and Sol reached the 60-second hosted-model timeout. The final repair correctly selected the most recent validator-rejected admitted agent, Terra, but the repair request contained the same Work Specification, source context, and static `VALIDATOR_REPAIR_GUIDANCE` unchanged. The final-repair-only constraint includes a bounded deterministic context token derived solely from server-owned run revision, work-unit identity, assignment generation, and the token exists to make request identity cache-distinct and observable; it grants no authority and contains no source text, rejected output, provider payload, credential, environment value, or filesystem path."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
