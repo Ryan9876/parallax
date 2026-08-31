@@ -1,0 +1,75 @@
+name: P2-V0.23.24 Focused Implementation
+
+on:
+  push:
+    branches: [fix/p2324-fresh-validator-repair]
+    paths:
+      - '.github/workflows/implement-p2324.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2324-focused-implementation
+  cancel-in-progress: true
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2324-fresh-validator-repair
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+
+      - name: Apply bounded final-repair freshness implementation
+        env:
+          PATCH_SCRIPT_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpzb3VyY2VfcGF0aCA9IFBhdGgoInNlcnZpY2VzL2FwaS9wYXJhbGxheF9hcGkvY29kZS9hZ2VudGljX2NhbmRpZGF0ZV9yZWNvdmVyeS5weSIpCnRleHQgPSBzb3VyY2VfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkID0gJ2Zyb20gZGF0YWNsYXNzZXMgaW1wb3J0IGRhdGFjbGFzcywgcmVwbGFjZVxuZnJvbSB0eXBpbmcgaW1wb3J0IENhbGxhYmxlXG4nCm5ldyA9ICdmcm9tIGRhdGFjbGFzc2VzIGltcG9ydCBkYXRhY2xhc3MsIHJlcGxhY2VcbmZyb20gaGFzaGxpYiBpbXBvcnQgc2hhMjU2XG5pbXBvcnQganNvblxuaW1wb3J0IGxvZ2dpbmdcbmZyb20gdHlwaW5nIGltcG9ydCBDYWxsYWJsZVxuJwphc3NlcnQgb2xkIGluIHRleHQsIG9sZFs6MTIwXQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKb2xkID0gJ0NBTkRJREFURV9SRUNPVkVSWV9WRVJTSU9OID0gImNhbmRpZGF0ZS1yZWNvdmVyeS12MC4yMy4yMyJcbkNBTkRJREFURV9HRU5FUkFUSU9OX0VYSEFVU1RFRAA9ICJDQU5ESURBVEVfR0VORVJBVElPTl9FWEhBVVNURUQiXG5DQU5ESURBVEVfVkFMSURBVElPTl9SRVBBRVIgPSAiQ0FORElEQVRFX1ZBTElEQVRJT05fUkVQQUlSIlxuTUFYX1ZBTElEQVRPUl9SRVBBSVJfUkVUUklFU19QRVJfV09SS19VTklUID0gMVxuX0NBTkRJREFURV9FWEhBVVNURURfQkxPQ0tFUiA9ICJBR0VOVElDX0NBTkRJREFURV9FWEhBVVNURUQiXG5WQUxJREFUT1JfUkVQQUlSX0dVSURBTkNFID0gKFxuJwpuZXcgPSAnQ0FORElEQVRFX1JFQ09WRVJZX1ZFUlNJT04gPSAiY2FuZGlkYXRlLXJlY292ZXJ5LXYwLjIzLjI0IlxuQ0FORElEQVRFX0dFTkVSQVRJT05fRVhBVVNURUQgPSAiQ0FORElEQVRFX0dFTkVSQVRJT05fRVhBVVNURUQiXG5DQU5ESURBVEVfVkFMSURBVElPTl9SRVBBRVIgPSAiQ0FORElEQVRFX1ZBTElEQVRJT05fUkVQQUlSIlxuTUFYX1ZBTElEQVRPUl9SRVBBSVJfUkVUUklFU19QRVJfV09SS19VTklUID0gMVxuX0NBTkRJREFURV9FWEhBVVNURURfQkxPQ0tFUiA9ICJBR0VOVElDX0NBTkRJREFURV9FWEhBVVNURUQiXG5fRklOQUxfVkFMSURBVE9SX1JFUEFJUl9DT05URVhUX0RPTUFJTiA9ICJwYXJhbGxheC1maW5hbC12YWxpZGF0b3ItcmVwYWlyLWNvbnRleHQtdjEiXG5fRklOQUxfVkFMSURBVE9SX1JFUEFJUl9DT05URVhUX1RPS0VOX0hFWCA9IDI0XG5sb2dnZXIgPSBsb2dnaW5nLmdldExvZ2dlcihfX25hbWVfXylcblZBTElEQVRPUl9SRVBBSVJfR1VJREFOQ0UgPSAoXG4nCmFzc2VydCBvbGQgaW4gdGV4dCwgb2xkWzoxMjBdCnRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpCgpvbGQgPSAnKVxuX0JPVU5ERURfUk9VVElOR19GQUlMVVJFUyA9IGZyb3plbnNldChpdGVtLnZhbHVlIGZvciBpdGVtIGluIFJvdXRpbmdGYWlsdXJlS2luZClcbicKbmV3ID0gJylcbkZJTkFMX1ZBTElEQVRPUl9SRVBBSVJfR1VJREFOQ0UgPSAoXG4gICAgIlRoaXMgaXMgdGhlIHNpbmdsZSBmaW5hbCB2YWxpZGF0b3ItcmVwYWlyIGdlbmVyYXRpb24gZm9yIHRoaXMgd29yayB1bml0LiAiXG4gICAgIlJlLWRlcml2ZSBhIGZyZXNoIHByb3Bvc2FsIGZyb20gdGhlIHN1cHBsaWVkIHByb3RlY3RlZCBzb3VyY2UgY29udGV4dCBpbnN0ZWFkIG9mIHJldXNpbmcgb3IgcmVwZWF0aW5nIGFueSBwcmlvciByZXNwb25zZS4gIlxuICAgICJSZS1jaGVjayBldmVyeSB0YXJnZXQgcGF0aCwgYmFzZSBTSEEtMjU2LCB1bmlmaWVkIGRpZmYgaGVhZGVyLCBodW5rIGNvb3JkaW5hdGUgYW5kIGNvdW50LCBhbmQgZXZlcnkgcmVtb3ZlZC9jb250ZXh0IGxpbmUgIlxuICAgICJhZ2FpbnN0IHRoZSBzdXBwbGllZCBzb3VyY2UgYmVmb3JlIHJldHVybmluZyB0aGUgcHJvcG9zYWwuIlxuKVxuX0JPVU5ERURfUk9VVElOR19GQUlMVVJFUyA9IGZyb3plbnNldChpdGVtLnZhbHVlIGZvciBpdGVtIGluIFJvdXRpbmdGYWlsdXJlS2luZClcbicKYXNzZXJ0IG9sZCBpbiB0ZXh0LCBvbGRbOjEyMF0KdGV4dCA9IHRleHQucmVwbGFjZShvbGQsIG5ldygpIGlmIEZhbHNlIGVsc2BuZXcsIDEpCg==
+        run: |
+          python - <<'PY'
+          import base64, os
+          payload = base64.b64decode(os.environ['PATCH_SCRIPT_B64'])
+          compile(payload, 'p2324_patch.py', 'exec')
+          exec(payload, {'__name__': '__main__'})
+          PY
+
+      - name: Compile and run focused regressions
+        run: |
+          set -euo pipefail
+          python -m compileall -q services/api/parallax_api
+          pytest -q \
+            services/api/tests/test_candidate_repair_guidance_v0239.py \
+            services/api/tests/test_agentic_candidate_recovery.py \
+            services/api/tests/test_final_validator_repair_freshness_v02324.py
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.24.md
+          git diff --check
+
+      - name: Prove protected authority surfaces are untouched
+        run: |
+          set -euo pipefail
+          git diff --quiet e0f9088d1d1c80a8df355b45a933c486f9e8aac4 -- \
+            services/api/parallax_api/intelligence/dspy_programs.py \
+            services/api/parallax_api/code/implementation_runtime.py \
+            services/api/parallax_api/code/model_patch_canonicalization.py
+          test "$(grep -c '^MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT = 1$' services/api/parallax_api/code/agentic_candidate_recovery.py)" = '1'
+
+      - name: Commit validated implementation and remove temporary workflows
+        run: |
+          set -euo pipefail
+          git config user.name "Parallax Release Worker"
+          git config user.email "parallax-release-worker@users.noreply.github.com"
+          git rm .github/workflows/prepare-p2324.yml .github/workflows/implement-p2324.yml
+          git add ARCHITECTURE.md \
+            services/api/parallax_api/code/agentic_candidate_recovery.py \
+            services/api/tests/test_final_validator_repair_freshness_v02324.py
+          git diff --cached --check
+          git commit -m "P2-V0.23.24 — make final validator repair generation fresh"
+          git push origin HEAD:fix/p2324-fresh-validator-repair
