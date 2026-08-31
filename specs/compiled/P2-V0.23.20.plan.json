@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "Positive repository identity remains mandatory before empty classification: the authenticated repository metadata response must be successful, structured, and match the exact canonical owner/repository plus a valid default branch."
+  ],
+  "work_items": [
+    "Close the provider-compatibility defect exposed by the canonical W9-S1 Decision Ledger acceptance attempt against the explicitly approved fresh repository `Ryan9876/parallax-qa1` without weakening positive empty-repository proof."
+  ],
+  "validations": [
+    "The production attempt used deployed API source `ea00a943d4bc5f00f0f5416881d482c0f799be63`, positively verified the target as empty before execution, created the canonical Project / Work Specification / Engineering Run, and then stopped before mutation during source bootstrap. GitHub's real REST behavior for `GET /repos/Ryan9876/parallax-qa1/git/ref/heads/main` on the empty repository is HTTP 409 with exact message `Git Repository is empty.`. The existing protected greenfield inspector delegates that ref read to the ordinary GitHub ref helper, which accepts 404 as no head but treats 409 as conflict. The surrounding greenfield fallback then conservatively\u2026",
+    "AC-01: validate protected requirement \u2014 After exact repository metadata verification, an HTTP 409 response from the canonical default-branch ref endpoint with JSON `{\"message\":\"Git Repository is empty.\"}` yields `head_revision=None` and positive `is_empty=true`.",
+    "AC-02: validate protected requirement \u2014 The existing HTTP 404 default-ref response still yields `head_revision=None` only inside positive greenfield inspection.",
+    "AC-03: validate protected requirement \u2014 A 409 with any other message or invalid/missing JSON is not normalized to empty and remains a provider failure.",
+    "AC-04: validate protected requirement \u2014 `GitHubRestProviderClient._get_ref()` is not relaxed; ordinary branch/source paths continue to treat non-404 conflicts according to existing strict behavior.",
+    "AC-05: validate protected requirement \u2014 Missing repository metadata, wrong `full_name`, invalid/missing default branch, authorization failure, or provider error cannot create a greenfield root.",
+    "AC-06: validate protected requirement \u2014 The corrected inspection and greenfield root bootstrap perform no GitHub mutation. Repository initialization remains isolated to verified REVIEW delivery.",
+    "AC-07: validate protected requirement \u2014 Zero-file root, non-empty implementation, accepted lineage, deterministic REST-compatible baseline, exact branch/PR/Preview binding, and REVIEW ceiling remain unchanged.",
+    "AC-08: validate protected requirement \u2014 Focused greenfield tests plus the full API regression suite keep commit-bearing source bootstrap and existing GitHub provider behavior green.",
+    "AC-09: validate protected requirement \u2014 The exact release head passes spec validation, committed DSPy plan validation, API/contracts, Bounded Autonomy, protected promotion and all other applicable release gates before merge; main promotion performs fresh DSPy SpecCritic/SpecCompiler compilation and verification.",
+    "AC-10: validate protected requirement \u2014 After merge and an exact-source production deployment reaches READY, the frozen Decision Ledger benchmark reuses the approved still-empty `Ryan9876/parallax-qa1` target with `vercel-preview` delivery and must proceed through protected PLAN / IMPLEMENT / BUILD / TEST / VERIFY, REVIEW-only empty baseline initialization, bounded branch/commit/PR, Vercel Preview creation/read-back, and stop at REVIEW. If any new boundary fails, preserve it as evidence and do not weaken the gate."
+  ],
+  "risks": [
+    "The existing zero-file `greenfield` lineage contract, non-empty accepted implementation requirement, REVIEW-only `repository.initialize-empty` action\u2026"
+  ],
+  "spec_id": "P2-V0.23.20",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Real GitHub empty-ref response is accepted narrowly",
+      "protected_requirement": "After exact repository metadata verification, an HTTP 409 response from the canonical default-branch ref endpoint with JSON `{\"message\":\"Git Repository is empty.\"}` yields `head_revision=None` and positive `is_empty=true`."
+    },
+    {
+      "id": "AC-02",
+      "title": "Existing 404 no-head behavior remains equivalent",
+      "protected_requirement": "The existing HTTP 404 default-ref response still yields `head_revision=None` only inside positive greenfield inspection."
+    },
+    {
+      "id": "AC-03",
+      "title": "Arbitrary 409 remains rejected",
+      "protected_requirement": "A 409 with any other message or invalid/missing JSON is not normalized to empty and remains a provider failure."
+    },
+    {
+      "id": "AC-04",
+      "title": "Shared Git ref semantics remain unchanged",
+      "protected_requirement": "`GitHubRestProviderClient._get_ref()` is not relaxed; ordinary branch/source paths continue to treat non-404 conflicts according to existing strict behavior."
+    },
+    {
+      "id": "AC-05",
+      "title": "Repository identity remains positive and exact",
+      "protected_requirement": "Missing repository metadata, wrong `full_name`, invalid/missing default branch, authorization failure, or provider error cannot create a greenfield root."
+    },
+    {
+      "id": "AC-06",
+      "title": "No pre-REVIEW mutation",
+      "protected_requirement": "The corrected inspection and greenfield root bootstrap perform no GitHub mutation. Repository initialization remains isolated to verified REVIEW delivery."
+    },
+    {
+      "id": "AC-07",
+      "title": "Greenfield authority remains bounded",
+      "protected_requirement": "Zero-file root, non-empty implementation, accepted lineage, deterministic REST-compatible baseline, exact branch/PR/Preview binding, and REVIEW ceiling remain unchanged."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing repository paths do not regress",
+      "protected_requirement": "Focused greenfield tests plus the full API regression suite keep commit-bearing source bootstrap and existing GitHub provider behavior green."
+    },
+    {
+      "id": "AC-09",
+      "title": "Governed release gates remain green",
+      "protected_requirement": "The exact release head passes spec validation, committed DSPy plan validation, API/contracts, Bounded Autonomy, protected promotion and all other applicable release gates before merge; main promotion performs fresh DSPy SpecCritic/SpecCompiler compilation and verification."
+    },
+    {
+      "id": "AC-10",
+      "title": "Canonical W9-S1 acceptance is retried only after exact deployment",
+      "protected_requirement": "After merge and an exact-source production deployment reaches READY, the frozen Decision Ledger benchmark reuses the approved still-empty `Ryan9876/parallax-qa1` target with `vercel-preview` delivery and must proceed through protected PLAN / IMPLEMENT / BUILD / TEST / VERIFY, REVIEW-only empty baseline initialization, bounded branch/commit/PR, Vercel Preview creation/read-back, and stop at REVIEW. If any new boundary fails, preserve it as evidence and do not weaken the gate."
+    }
+  ],
+  "critique": [
+    "The canonical W9-S1 Decision Ledger acceptance attempt against the explicitly approved fresh repository `Ryan9876/parallax-qa1` is not empty. The production attempt used deployed API source `ea00a943d4bc5f00f0f5416881d482c0f799be63`, positively verified the target as empty before execution, created the canonical Project / Work Specification / Engineering Run, and then stopped before mutation during source bootstrap. GitHub's real REST behavior for `GET /repos/Ryan9876/parallax-qa1/git/ref/heads/main` on the empty repository is HTTP 409 with exact message `Git Repository is empty.`. The existing protected greenfield inspector delegates that ref read to the ordinary GitHub ref helper, which accepts 404 as no head but treats 409 as conflict. The surrounding greenfield fallback then conservatively\u2026\n\n## Fixed decisions\n- Positive repository identity remains mandatory before empty classification: the authenticated repository metadata response must be successful, structured, and match the exact canonical owner/repository plus a valid default branch.\n- Only the greenfield inspection adapter may normalize an absent head for this compatibility case.\n- Within greenfield inspection, HTTP 404 for the exact default-branch ref continues to mean no head.\n- Within greenfield inspection, HTTP 409 means no head only when the response is valid JSON object evidence whose exact `message` is `Git Repository is empty.`.\n- Any other HTTP 409, 422, malformed response, missing/altered message, authorization failure, rate limit, timeout, provider outage, repository mismatch, or ambiguous response remains fail-closed.\n- The exact 409 compatibility rule is read-only.\n- It creates no source, Git"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

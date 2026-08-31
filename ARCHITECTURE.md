@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.31
+Version: 3.32
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.32 makes real GitHub empty-repository ref semantics compatible with the already-governed greenfield boundary. Only after authenticated repository metadata positively proves the exact canonical repository identity and default branch may the greenfield inspector treat GitHub HTTP 409 with exact JSON message `Git Repository is empty.` as no default-branch head. Existing HTTP 404 no-head behavior remains equivalent inside that boundary; malformed responses and every other 409/422 remain fail-closed. The shared Git ref helper is unchanged, no pre-REVIEW mutation is added, and v3.21 zero-file lineage, non-empty implementation, deterministic REVIEW-only repository initialization, exact branch/PR/Preview delivery, and the human REVIEW ceiling remain authoritative. Architecture v3.31 remains the dedicated production-QA trust contraction.
 
 Architecture v3.31 completes the staged production-QA trust cutover after the dedicated `Ryan9876/parallax-qa` repository path was behaviorally proven in production. Standing GitHub Actions QA authorization now contains only the exact dedicated `(repository, repository_id, workflow_ref)` tuple; the two migration-only `Ryan9876/parallax` workflow identities and their standing workflow files are retired. Issuer, audience, main ref, GitHub-hosted runner, admitted event set, bounded run-id validation, QA-principal mapping, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and the REVIEW ceiling are unchanged. Architecture v3.30 remains the exact model patch-intent canonicalization boundary.
 
