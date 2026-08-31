@@ -1,0 +1,91 @@
+name: P2-V0.23.18 State Reconciliation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/p2-v0-23-18-state-reconcile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile-current-state:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          marker = '## P2-V0.23.17 / P2-V0.23.18 — Dedicated QA identity and exact model patch intent — PRODUCTION-ACCEPTED'
+          if marker not in text:
+              status_old = ' / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**'
+              status_new = ' / P2-V0.23.17 DEDICATED QA IDENTITY PRODUCTION-BEHAVIOR-ACCEPTED / P2-V0.23.18 EXACT MODEL PATCH INTENT PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**'
+              if status_old not in text:
+                  raise SystemExit('expected status anchor missing')
+              text = text.replace(status_old, status_new, 1)
+
+              anchor = '## CI/CD development pipeline optimization — MAIN-VERIFIED\n'
+              if anchor not in text:
+                  raise SystemExit('current-state insertion anchor missing')
+
+              section = '''## P2-V0.23.17 / P2-V0.23.18 — Dedicated QA identity and exact model patch intent — PRODUCTION-ACCEPTED
+
+P2-V0.23.17 / Architecture v3.29 moved standing production-QA identity to the dedicated `Ryan9876/parallax-qa` repository and bound authorization to one exact server-owned `(repository, repository_id, workflow_ref)` tuple. The migration-admission release still temporarily retains the two legacy application-repository QA tuples; dedicated-repository behavior is now proven, so removing those legacy tuples and workflows is the next trust-contraction release rather than an unverified cutover assumption.
+
+Dedicated-QA acceptance evidence:
+
+- P2-V0.23.17 deployed API source: `d455c087c1d048e486ddc837b19610cbaee357cb`;
+- production deployment: `dpl_8zDiAM2Y9WJJYy8nKStCJLDUBanb`, target production, state `READY`;
+- exact dedicated repository: `Ryan9876/parallax-qa`, stable repository ID `1351817336`;
+- dedicated production replay run `33344449887`: SUCCESS;
+- both `python-source-only` and `ot-time-source-only` jobs authenticated through the dedicated GitHub Actions OIDC identity and completed successfully;
+- the QA workflow was restored to manual-only execution after acceptance rather than leaving a standing push trigger.
+
+P2-V0.23.18 / Architecture v3.30 adds a server-owned exact patch-intent canonicalization boundary only for protected model-generated IMPLEMENT proposals. The generic `SafeImplementationEngine` remains strict by default. Exact current-source context/deletion anchors may repair mechanical unified-diff metadata and, only after exact proof, replace an incorrect model-supplied base digest with the server-derived current digest. Pure insertions remain coordinate-bound; ambiguous, unsafe, secret-sensitive, oversized, malformed, fuzzy/semantic, shell/Git/network, source-lineage, deployment and REVIEW authority paths remain fail-closed.
+
+Release and deployment evidence:
+
+- workstream: #501; release PR: #502; governing specification: `P2-V0.23.18`;
+- exact green PR head: `8fbcb6ff320289f0d13e9a56f10201768a32199c`;
+- release merge / deployed API source: `8e9efa4afec667b644a6a94063a463d72d10cd58`;
+- production deployment: `dpl_2zTNwf1m59cZmNRAWqWXdZ1pw9tw`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- post-merge Workstream Spec Validation `33348830525`: SUCCESS;
+- post-merge Parallax P2 CI `33348830492`: SUCCESS;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production runtime-error scan on the exact deployment found no error/fatal entries in the checked 30-minute window.
+
+Production acceptance used a bounded source-only existing-file workload against `Ryan9876/ot-time`, specifically requiring a minimal README-only edit rather than the simpler new-file QA path. Dedicated QA production replay `33349444286` completed successfully. Engineering Run `a3a6f6bc-b341-4cb4-98b8-dbc3219ed49b` advanced from PLAN revision 1 to REVIEW revision 6 with no failure; IMPLEMENT attempt `8a0d38f1-7dfe-49a0-92b5-1a85456be9b0` passed through `safe-source-implementation-v1`, followed by BUILD, TEST and VERIFY all PASSED. The authenticated accepted-source ZIP contained 31 safe relative entries and 74,567 bytes, included the requested README marker, and did not create the prior `PARALLAX_QA.md` fixture. Source publication and application deployment remained false.
+
+This production replay proves the non-trivial existing-file safe-source boundary now crosses IMPLEMENT and completes the protected lifecycle to REVIEW under the exact P2-V0.23.18 deployment. The original user-owned failed Engineering Runs `2b3cd15f-c5e2-481a-8266-c92c6534b08b` and `fe4ea283-8d82-4a38-9fa6-a555ca0e3a4b` remain immutable incident evidence and were not reassigned to the bounded QA principal merely to manufacture acceptance. Exact canonicalization branches remain independently covered by the protected deterministic release tests.
+
+'''
+              text = text.replace(anchor, section + anchor, 1)
+              path.write_text(text)
+          PY
+
+      - name: Commit authoritative state record
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- CURRENT-STATE.md; then
+            echo 'CURRENT-STATE.md already reconciled'
+            exit 0
+          fi
+          git config user.name 'parallax-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git commit -m 'Record P2-V0.23.17 and P2-V0.23.18 production acceptance'
+          git push origin HEAD:main
