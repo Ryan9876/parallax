@@ -1,0 +1,48 @@
+name: Temporary P2-V0.23.27 focused implementation
+
+on:
+  push:
+    branches:
+      - fix/p2327-incremental-implement-convergence
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2327-incremental-implement-convergence
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Apply P2-V0.23.27 runtime patch
+        run: python scripts/tmp_p2327_apply.py
+      - name: Compile protected runtime
+        run: python -m compileall -q services/api/parallax_api
+      - name: Run focused existing regressions
+        run: |
+          python -m pytest \
+            services/api/tests/test_agentic_candidate_recovery.py \
+            services/api/tests/test_candidate_repair_guidance_v0239.py \
+            services/api/tests/test_implementation_proposal_preflight.py \
+            services/api/tests/test_agentic_runtime_activation.py -q
+      - name: Verify governed specification evidence
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.27.md
+      - name: Commit implementation and remove temporary transport
+        run: |
+          rm scripts/tmp_p2327_apply.py .github/workflows/tmp-p2327-implement.yml
+          git config user.name "Parallax Runtime Implementer"
+          git config user.email "parallax-runtime@users.noreply.github.com"
+          git add services/api/parallax_api/code/implementation_runtime.py services/api/parallax_api/code/agentic_candidate_recovery.py scripts/tmp_p2327_apply.py .github/workflows/tmp-p2327-implement.yml
+          git diff --cached --check
+          git commit -m "P2-V0.23.27 — implement incremental candidate convergence"
+          git push origin HEAD:fix/p2327-incremental-implement-convergence
