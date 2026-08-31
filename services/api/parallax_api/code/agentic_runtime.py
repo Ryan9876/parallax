@@ -106,7 +106,7 @@ from .sandbox_execution import (
     _sanitized_provider_error,
 )
 from .service import EngineeringRunService
-from .validation_toolchains import select_validation_profile
+from .validation_toolchains import ValidationProfile, select_validation_profile
 from .workspace_lineage import ProjectRunIdentity
 
 
@@ -282,6 +282,8 @@ def _candidate_admission_failure_kind(exc: Exception) -> str:
         return "PATCH_ERROR"
     if isinstance(exc, OSError):
         return "OS_BOUNDARY_ERROR"
+    if isinstance(exc, ExecutionPolicyError):
+        return "VALIDATION_PROFILE_ERROR"
     if isinstance(exc, AgenticRuntimeError):
         return "AGENTIC_CONTRACT_ERROR"
     return "VALUE_CONTRACT_ERROR"
@@ -328,6 +330,7 @@ class CandidateValidationExecutor(Protocol):
         workspace_root: Path,
         *,
         operation_key: str,
+        validation_profile: ValidationProfile,
     ) -> CandidateValidationResult: ...
 
 
@@ -441,8 +444,11 @@ class VercelCandidateValidationExecutor:
         workspace_root: Path,
         *,
         operation_key: str,
+        validation_profile: ValidationProfile,
     ) -> CandidateValidationResult:
-        profile = select_validation_profile(workspace_root)
+        if not isinstance(validation_profile, ValidationProfile):
+            raise AgenticRuntimeError("authoritative validation profile is required")
+        profile = validation_profile
         files = self._source_files(workspace_root)
         content_digest = self._content_digest(files)
         total_bytes = sum(len(content) for _, content in files)
@@ -1229,6 +1235,7 @@ class AgenticControlPlane:
         operation_key: str,
         candidate_id: str,
     ) -> CandidateValidationResult:
+        validation_profile = select_validation_profile(base_workspace)
         with tempfile.TemporaryDirectory(prefix=f"parallax-{candidate_id}-") as temporary:
             target = Path(temporary) / "candidate"
             self._copy_candidate_workspace(base_workspace, target)
@@ -1242,6 +1249,7 @@ class AgenticControlPlane:
             return self.candidate_validator.validate_candidate(
                 target,
                 operation_key=f"{operation_key[:110]}:{candidate_id}",
+                validation_profile=validation_profile,
             )
 
     @staticmethod
