@@ -2,7 +2,38 @@
 
 Date: 2026-08-31
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**
+
+## P2-V0.23.25 — safe nested source creation and ambiguous transport reconciliation — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
+
+Workstream: #514. Release PR: #515. Governing specification: `P2-V0.23.25`. Architecture: `ARCHITECTURE.md` v3.36.
+
+P2-V0.23.25 removes two blockers exposed by authenticated Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc`. First, validated new text-file patches may now carry bounded missing-parent intent inside the workspace: preparation remains side-effect-free, commit creates only the recorded safe parent segments after containment/type/symlink rechecks, rollback removes only recorded directories that remain empty, and file-target ancestry conflicts fail before mutation. Existing traversal, secret, extension, size, stale-base, canonicalization, source-lineage, Git/deployment, lifecycle, and human REVIEW controls remain authoritative. Second, when an autonomy POST fails only as a response-less transport exception, the client performs one read-only latest-run reconciliation and accepts recovered progress only for the same Engineering Run at a strictly newer authoritative revision; otherwise it preserves the error and does not send a duplicate POST from an uncertain revision.
+
+Validated release and deployment evidence:
+
+- spec-first preparation run `33383836394`: SUCCESS, including SpecCritic + SpecCompiler and committed protected DSPy plan;
+- focused implementation run `33384739256`: SUCCESS after a TypeScript narrowing correction; nested-source safety/canonicalization, client type/state tests, and protected authority-surface checks passed;
+- full API regression alignment run `33386954353`: SUCCESS; the superseded legacy missing-parent assertion was updated to the governed commit-time creation contract and the temporary workflow removed;
+- exact green PR head: `3a03664ec3a060cee0859d3e0d0a7c3c61773336`;
+- PR Parallax P2 CI `33387321232`: SUCCESS;
+- PR Workstream Spec Validation `33387321262`: SUCCESS;
+- PR Client Visual Validation `33387321240`: SUCCESS;
+- PR Bounded Autonomy `33387321274`: SUCCESS;
+- squash merge / exact application source: `3d53599c4659162cfe45bbc4809f3f329d0abb73`;
+- post-merge Workstream Spec Validation `33387562760`: SUCCESS, including changed-spec protected plan evidence;
+- post-merge Parallax P2 CI `33387562779`: SUCCESS, including full API regression, client checks, protected promotion evaluation, and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and plan verification;
+- production client deployment `dpl_HA9KJ1kqy9xUKdQsi8of2zGDiEP4`: target production, state `READY`, exact application source;
+- production API deployment `dpl_264xsb2C1yyaYb2aBFFVYzfj5t6G`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production build preflights passed, including lineage composition (672 files / 6,913,615 bytes), agentic runtime, projected bootstrap, execution snapshots, and run-event schema guard;
+- exact API deployment warning/error/fatal runtime scan immediately after readiness was clean;
+- temporary P2-V0.23.25 regression-alignment workflow is absent from `main`.
+
+Deployment verification is complete, but workstream #514 remains open because its completion condition explicitly requires authenticated evidence on the same real build path. The next acceptance is a user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or an equivalent real path) proving implementation progresses beyond the former missing-parent `unsafe_target` rejection. If a response-less mobile transport interruption occurs during that run, the new client reconciliation behavior should also be observed against authoritative revision advance rather than manufactured synthetically.
+
+No additional model retry budget, hosted-model timeout, hidden transport retry, provider/model roster, credential authority, recursive filesystem authority, source writer, Git/deployment authority, lifecycle-transition authority, automatic REVIEW completion, or queue redesign was added.
 
 ## P2-V0.23.24 — fresh final validator repair generation — PRODUCTION-BEHAVIOR-VERIFIED
 
