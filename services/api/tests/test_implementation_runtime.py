@@ -330,17 +330,16 @@ def test_acceptance_mismatch_fails_before_mutation_even_with_injected_generator(
 
 
 @pytest.mark.parametrize(
-    ("path", "digest", "after"),
+    ("path", "after"),
     [
-        ("../escape.py", None, "value = 2\n"),
-        ("app.py", "0" * 64, "value = 2\n"),
-        ("app.py", None, "api_key = abcdefghijklmnopqrstuvwx\n"),
+        ("../escape.py", "value = 2\n"),
+        ("app.py", "api_key = abcdefghijklmnopqrstuvwx\n"),
     ],
 )
-def test_wave1_safety_rejects_unsafe_stale_or_secret_proposals_without_durable_success(
-    tmp_path: Path, path: str, digest: str | None, after: str
+def test_wave1_safety_rejects_unsafe_or_secret_proposals_without_durable_success(
+    tmp_path: Path, path: str, after: str
 ):
-    session, service, conversations, work_specs = service_for(tmp_path, f"negative-{abs(hash((path, digest, after)))}.db")
+    session, service, conversations, work_specs = service_for(tmp_path, f"negative-{abs(hash((path, after)))}.db")
     workspace = tmp_path / f"negative-{abs(hash((path, after)))}"
     workspace.mkdir()
     target = workspace / "app.py"
@@ -350,10 +349,72 @@ def test_wave1_safety_rejects_unsafe_stale_or_secret_proposals_without_durable_s
         runtime, _, lineage = runtime_for(
             service,
             workspace,
-            source_proposal(path, "value = 1\n", after, digest=digest),
+            source_proposal(path, "value = 1\n", after),
         )
         with pytest.raises(ImplementationMutationError):
             runtime.execute(run_id=run.id, operation_key="implement:unsafe", expected_revision=run.revision)
+        assert target.read_text(encoding="utf-8") == "value = 1\n"
+        assert lineage.accept_calls == 0
+        assert service.get(run.id).state == "IMPLEMENT"
+    finally:
+        session.close()
+
+
+def test_protected_model_runtime_rebinds_stale_digest_after_exact_source_anchor(tmp_path: Path):
+    session, service, conversations, work_specs = service_for(tmp_path, "model-stale-rebind.db")
+    workspace = tmp_path / "model-stale-rebind-workspace"
+    workspace.mkdir()
+    target = workspace / "app.py"
+    target.write_text("value = 1\n", encoding="utf-8")
+    try:
+        run = advance_plan(service, activated_run(service, conversations, work_specs))
+        runtime, _, lineage = runtime_for(
+            service,
+            workspace,
+            source_proposal("app.py", "value = 1\n", "value = 2\n", digest="0" * 64),
+        )
+        result = runtime.execute(
+            run_id=run.id,
+            operation_key="implement:model-stale-rebind",
+            expected_revision=run.revision,
+        )
+        assert result.operation.run.state == "BUILD"
+        assert target.read_text(encoding="utf-8") == "value = 2\n"
+        assert lineage.accept_calls == 1
+    finally:
+        session.close()
+
+
+def test_protected_model_runtime_rejects_stale_digest_for_unanchored_insertion(tmp_path: Path):
+    session, service, conversations, work_specs = service_for(tmp_path, "model-stale-unanchored.db")
+    workspace = tmp_path / "model-stale-unanchored-workspace"
+    workspace.mkdir()
+    target = workspace / "app.py"
+    target.write_text("value = 1\n", encoding="utf-8")
+    proposal = ImplementationProposal(
+        acceptance_ids_covered=["AC-01", "AC-02"],
+        patches=[
+            GeneratedSourcePatch(
+                path="app.py",
+                expected_base_sha256="0" * 64,
+                unified_diff=(
+                    "--- a/app.py\n"
+                    "+++ b/app.py\n"
+                    "@@ -1,0 +1,1 @@\n"
+                    "+inserted\n"
+                ),
+            )
+        ],
+    )
+    try:
+        run = advance_plan(service, activated_run(service, conversations, work_specs))
+        runtime, _, lineage = runtime_for(service, workspace, proposal)
+        with pytest.raises(ImplementationMutationError):
+            runtime.execute(
+                run_id=run.id,
+                operation_key="implement:model-stale-unanchored",
+                expected_revision=run.revision,
+            )
         assert target.read_text(encoding="utf-8") == "value = 1\n"
         assert lineage.accept_calls == 0
         assert service.get(run.id).state == "IMPLEMENT"
