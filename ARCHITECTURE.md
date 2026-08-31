@@ -1,9 +1,13 @@
 # Parallax 2.0 Architecture
 
-Version: 3.32
+Version: 3.33
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.33 makes ordinary production autonomous engineering request-bounded without changing canonical lifecycle authority. Each `/autonomous` HTTP invocation may execute at most one protected PLAN, IMPLEMENT, BUILD, TEST, or VERIFY transition; the client may request the next transition only from the newly returned canonical Engineering Run revision and is itself bounded to eight consecutive continuations. After a request consumes its step budget, the server reclassifies the resulting authoritative state before returning, so a VERIFY transition that reaches REVIEW still returns the existing `REVIEW_REQUIRED` boundary and preserves verified source-delivery behavior. Revision checks, idempotent operation keys, durable worker checkpoints, accepted source lineage, protected BUILD/TEST/VERIFY, delivery authority, and the human REVIEW ceiling remain server-owned.
+
+Architecture v3.33 also strengthens hosted implementation generation at the existing non-authoritative model boundary. The DSPy implementation signature uses typed acceptance-ID and patch fields under the JSON structured adapter instead of JSON encoded inside a free string. The same closed `ImplementationProposal` schema, exact ordered acceptance ownership, strict patch canonicalization/verifier, disposable candidate validation, independent evaluation, and single canonical source writer remain authoritative after decoding. Production OpenAI models routed through Vercel AI Gateway receive a fixed 60-second call timeout and zero hidden transport retries; explicit bounded candidate recovery across admitted model identities remains the governed retry mechanism. Provider/transport failure is not converted to validation success, rejected raw model output is not persisted, and no queue, provider capability, credential, Git authority, deployment authority, or REVIEW-completion authority is added. Architecture v3.32 remains the exact GitHub empty-repository ref compatibility boundary.
 
 Architecture v3.32 makes real GitHub empty-repository ref semantics compatible with the already-governed greenfield boundary. Only after authenticated repository metadata positively proves the exact canonical repository identity and default branch may the greenfield inspector treat GitHub HTTP 409 with exact JSON message `Git Repository is empty.` as no default-branch head. Existing HTTP 404 no-head behavior remains equivalent inside that boundary; malformed responses and every other 409/422 remain fail-closed. The shared Git ref helper is unchanged, no pre-REVIEW mutation is added, and v3.21 zero-file lineage, non-empty implementation, deterministic REVIEW-only repository initialization, exact branch/PR/Preview delivery, and the human REVIEW ceiling remain authoritative. Architecture v3.31 remains the dedicated production-QA trust contraction.
 
