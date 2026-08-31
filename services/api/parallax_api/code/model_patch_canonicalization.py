@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 import logging
 from pathlib import Path
 import re
 
 from .patching import (
+    EMPTY_SHA256,
     PatchConflictError,
     PatchError,
     PatchFormatError,
@@ -31,39 +33,53 @@ class _IntentRecord:
     no_newline: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class _CanonicalizedIntent:
+    unified_diff: str
+    authoritative_base_sha256: str
+    may_rebind_base: bool
+
+
 class CanonicalizingTextPatchEngine(TextPatchEngine):
     """Recover exact model edit intent before the ordinary strict patch verifier.
 
     The first path is always the inherited strict parser. Canonicalization is
-    attempted only for unified-diff format/position failures. It never repairs
-    stale source digests, unsafe targets, secret-sensitive content, unsupported
-    targets, limits, or filesystem safety. A recovered diff is submitted back
-    through ``TextPatchEngine.prepare`` before it can be accepted.
+    attempted only for unified-diff format/position or stale model-base failures.
+    It never relaxes target, secret, extension, filesystem, or size safety. A
+    stale model digest may be rebound to the server-owned current digest only
+    when every existing-file hunk consumes exact source text (or the target is a
+    new file). A recovered diff is submitted back through ``TextPatchEngine``
+    before it can be accepted.
     """
 
     def prepare(self, workspace_root: str | Path, patch: SourcePatch) -> PreparedPatch:
         try:
             return super().prepare(workspace_root, patch)
-        except StaleBaseError:
-            logger.warning("parallax_model_patch_prepare rejected reason=stale_base")
-            raise
         except UnsafeTargetError:
             logger.warning("parallax_model_patch_prepare rejected reason=unsafe_target")
             raise
         except PatchLimitError:
             logger.warning("parallax_model_patch_prepare rejected reason=limit")
             raise
-        except (PatchFormatError, PatchConflictError) as strict_error:
+        except (StaleBaseError, PatchFormatError, PatchConflictError) as strict_error:
             try:
-                canonical = self._canonicalize_unified_diff(
+                intent = self._canonicalize_unified_diff(
                     workspace_root=workspace_root,
                     path=patch.path,
                     diff=patch.unified_diff,
                 )
+                if isinstance(strict_error, StaleBaseError) and not intent.may_rebind_base:
+                    logger.warning("parallax_model_patch_prepare rejected reason=unanchored_stale_base")
+                    raise strict_error
+                expected_base_sha256 = (
+                    intent.authoritative_base_sha256
+                    if intent.may_rebind_base
+                    else patch.expected_base_sha256
+                )
                 recovered = SourcePatch(
                     path=patch.path,
-                    expected_base_sha256=patch.expected_base_sha256,
-                    unified_diff=canonical,
+                    expected_base_sha256=expected_base_sha256,
+                    unified_diff=intent.unified_diff,
                 )
                 prepared = super().prepare(workspace_root, recovered)
             except StaleBaseError:
@@ -85,8 +101,9 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
                 logger.warning("parallax_model_patch_prepare rejected reason=canonicalization_patch")
                 raise
             logger.info(
-                "parallax_model_patch_prepare canonicalized strict_failure=%s",
+                "parallax_model_patch_prepare canonicalized strict_failure=%s base_rebound=%s",
                 type(strict_error).__name__,
+                expected_base_sha256 != patch.expected_base_sha256,
             )
             return prepared
 
@@ -96,7 +113,7 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
         workspace_root: str | Path,
         path: str,
         diff: str,
-    ) -> str:
+    ) -> _CanonicalizedIntent:
         normalized = self.normalize_path(path)
         root, target = self._safe_target(workspace_root, normalized)
         del root
@@ -108,9 +125,11 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
             if len(before_bytes) > self.max_file_bytes:
                 raise PatchLimitError("source file exceeds the configured file-size limit")
             before = self._decode_source(before_bytes)
+            authoritative_base_sha256 = sha256(before_bytes).hexdigest()
             creating = False
         else:
             before = ""
+            authoritative_base_sha256 = EMPTY_SHA256
             creating = True
 
         lines = self._strip_git_prologue(diff.splitlines(keepends=True), normalized, creating=creating)
@@ -136,6 +155,7 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
         source_cursor = 0
         output_length = 0
         hunk_count = 0
+        every_existing_hunk_anchored = True
 
         while index < len(lines):
             header = lines[index].rstrip("\r\n")
@@ -183,6 +203,7 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
                     raise PatchFormatError("new-file recovery requires one addition-only hunk")
                 match_index = 0
             elif old_seen == 0:
+                every_existing_hunk_anchored = False
                 # Without source-consuming records there is no exact text anchor.
                 # The model-declared old position therefore remains authoritative
                 # for placement, but not for hunk counts or new-file coordinates.
@@ -221,7 +242,11 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
 
         if hunk_count == 0:
             raise PatchFormatError("model patch intent contains no hunks")
-        return "".join(canonical)
+        return _CanonicalizedIntent(
+            unified_diff="".join(canonical),
+            authoritative_base_sha256=authoritative_base_sha256,
+            may_rebind_base=creating or every_existing_hunk_anchored,
+        )
 
     @staticmethod
     def _intent_header_path(line: str, *, prefix: str) -> str:
@@ -258,14 +283,25 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
         if header != ["diff", "--git", f"a/{path}", f"b/{path}"]:
             raise PatchFormatError("git-style model patch prologue does not match the declared target")
         index = 1
-        if index < len(lines) and lines[index].startswith("index "):
-            index += 1
-        if index < len(lines) and lines[index].startswith("new file mode "):
-            if not creating or lines[index].rstrip("\r\n") != "new file mode 100644":
-                raise PatchFormatError("unsupported model patch file-mode intent")
-            index += 1
-        if index < len(lines) and lines[index].startswith("deleted file mode "):
-            raise PatchFormatError("file deletion is not canonicalizable")
+        saw_index = False
+        saw_new_file_mode = False
+        while index < len(lines) and not lines[index].startswith("--- "):
+            raw = lines[index].rstrip("\r\n")
+            if raw.startswith("index "):
+                if saw_index or not raw.strip() == raw or any(ord(ch) < 32 for ch in raw):
+                    raise PatchFormatError("model patch index metadata is malformed")
+                saw_index = True
+                index += 1
+                continue
+            if raw.startswith("new file mode "):
+                if saw_new_file_mode or not creating or raw != "new file mode 100644":
+                    raise PatchFormatError("unsupported model patch file-mode intent")
+                saw_new_file_mode = True
+                index += 1
+                continue
+            if raw.startswith(("deleted file mode ", "old mode ", "new mode ", "rename from ", "rename to ")):
+                raise PatchFormatError("file deletion, rename, or mode change is not canonicalizable")
+            raise PatchFormatError("unsupported git-style model patch metadata")
         return lines[index:]
 
 
