@@ -1,0 +1,104 @@
+{
+  "architecture_decisions": [
+    "ImplementationProposal"
+  ],
+  "work_items": [
+    "GeneratedSourcePatch"
+  ],
+  "validations": [
+    "CanonicalizingTextPatchEngine",
+    "AC-01: validate protected requirement \u2014 Given selected source `src/app.py` with protected SHA/content, a typed intent for `src/app.py` produces a canonical `GeneratedSourcePatch` using the exact protected SHA and a strict diff that applies to the protected content.",
+    "AC-02: validate protected requirement \u2014 Given no selected source entry for `prototypes/fml-data-readiness/index.html`, a non-empty typed intent produces a canonical new-file patch with `EMPTY_SHA256`, `/dev/null` old header and exact target new header. The unchanged P2-V0.23.25 safe engine can validate/apply it when the target truly does not exist.",
+    "AC-03: validate protected requirement \u2014 The DSPy typed output schema for live implementation generation contains path/content intent and does not require or accept model-supplied `expected_base_sha256` or `unified_diff` fields.",
+    "AC-04: validate protected requirement \u2014 `ImplementationGeneration.proposal` remains the existing `ImplementationProposal`, and `ProtectedImplementationRuntime` / agentic candidate validation require no alternate mutation path.",
+    "AC-05: validate protected requirement \u2014 Duplicate target paths and after-content identical to authoritative before-content are rejected as protected output validation failures before candidate admission.",
+    "AC-06: validate protected requirement \u2014 If a path absent from selected context actually exists in the workspace, the generated empty-base proposal is rejected by the unchanged safe proposal validator. No source mutation occurs.",
+    "AC-07: validate protected requirement \u2014 Focused fixtures cover ordinary trailing-newline text, text without a trailing newline, empty existing text to non-empty content, and stable identical renderer output. Every supported fixture round-trips through the strict patch engine with exact expected after-content.",
+    "AC-08: validate protected requirement \u2014 Traversal, absolute paths, secret-sensitive target/content, unsupported extension, binary/NUL content, symlink and hierarchy-conflict cases remain rejected by existing protected boundaries.",
+    "AC-09: validate protected requirement \u2014 Malformed typed file-intent output is classified `validation_failed`; provider timeout/rate/transport behavior remains separately classified.",
+    "AC-10: validate protected requirement \u2014 Repair guidance no longer asks models to repair diff mechanics. The existing one final validator repair per work unit, cache-distinct final context token and admitted agent rules remain unchanged.",
+    "AC-11: validate protected requirement \u2014 Focused tests, full API regression, client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation and required DSPy compilation/verification pass on the exact reviewed head.",
+    "AC-12: validate protected requirement \u2014 After merge, the exact application source reaches READY production deployment. `/health` and `/ready` are HTTP 200 with database/providers ready, and required production preflights remain green.",
+    "AC-13: validate protected requirement \u2014 An authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent real work must no longer fail because the model cannot produce mechanically valid unified diffs. Success is progression into BUILD or a later bounded failure whose evidence is unrelated to model-owned diff syntax."
+  ],
+  "risks": [
+    "No canonical downstream contracts, no safe engine rejects collisions, no unsafe paths, no unsupported targets, no symlinks, no secrets, no hierarchy conflicts, no other violations."
+  ],
+  "spec_id": "P2-V0.23.26",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Existing-file content intent binds authoritative source",
+      "protected_requirement": "Given selected source `src/app.py` with protected SHA/content, a typed intent for `src/app.py` produces a canonical `GeneratedSourcePatch` using the exact protected SHA and a strict diff that applies to the protected content."
+    },
+    {
+      "id": "AC-02",
+      "title": "New nested-file content intent uses empty base",
+      "protected_requirement": "Given no selected source entry for `prototypes/fml-data-readiness/index.html`, a non-empty typed intent produces a canonical new-file patch with `EMPTY_SHA256`, `/dev/null` old header and exact target new header. The unchanged P2-V0.23.25 safe engine can validate/apply it when the target truly does not exist."
+    },
+    {
+      "id": "AC-03",
+      "title": "Model does not own patch mechanics",
+      "protected_requirement": "The DSPy typed output schema for live implementation generation contains path/content intent and does not require or accept model-supplied `expected_base_sha256` or `unified_diff` fields."
+    },
+    {
+      "id": "AC-04",
+      "title": "Canonical downstream contract is preserved",
+      "protected_requirement": "`ImplementationGeneration.proposal` remains the existing `ImplementationProposal`, and `ProtectedImplementationRuntime` / agentic candidate validation require no alternate mutation path."
+    },
+    {
+      "id": "AC-05",
+      "title": "No-op and duplicate edits fail closed",
+      "protected_requirement": "Duplicate target paths and after-content identical to authoritative before-content are rejected as protected output validation failures before candidate admission."
+    },
+    {
+      "id": "AC-06",
+      "title": "New-file collision remains fail-closed",
+      "protected_requirement": "If a path absent from selected context actually exists in the workspace, the generated empty-base proposal is rejected by the unchanged safe proposal validator. No source mutation occurs."
+    },
+    {
+      "id": "AC-07",
+      "title": "Newline and deterministic rendering are proven",
+      "protected_requirement": "Focused fixtures cover ordinary trailing-newline text, text without a trailing newline, empty existing text to non-empty content, and stable identical renderer output. Every supported fixture round-trips through the strict patch engine with exact expected after-content."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing safety rules remain authoritative",
+      "protected_requirement": "Traversal, absolute paths, secret-sensitive target/content, unsupported extension, binary/NUL content, symlink and hierarchy-conflict cases remain rejected by existing protected boundaries."
+    },
+    {
+      "id": "AC-09",
+      "title": "Structured-output failure classification remains truthful",
+      "protected_requirement": "Malformed typed file-intent output is classified `validation_failed`; provider timeout/rate/transport behavior remains separately classified."
+    },
+    {
+      "id": "AC-10",
+      "title": "Validator repair is semantic and finite",
+      "protected_requirement": "Repair guidance no longer asks models to repair diff mechanics. The existing one final validator repair per work unit, cache-distinct final context token and admitted agent rules remain unchanged."
+    },
+    {
+      "id": "AC-11",
+      "title": "Protected release gates pass",
+      "protected_requirement": "Focused tests, full API regression, client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation and required DSPy compilation/verification pass on the exact reviewed head."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "After merge, the exact application source reaches READY production deployment. `/health` and `/ready` are HTTP 200 with database/providers ready, and required production preflights remain green."
+    },
+    {
+      "id": "AC-13",
+      "title": "Real build progresses beyond patch mechanics",
+      "protected_requirement": "An authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent real work must no longer fail because the model cannot produce mechanically valid unified diffs. Success is progression into BUILD or a later bounded failure whose evidence is unrelated to model-owned diff syntax."
+    }
+  ],
+  "critique": [
+    "No material implementation risk or omission identified."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
