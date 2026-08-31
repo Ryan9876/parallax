@@ -267,3 +267,16 @@ def test_final_validator_repair_fails_closed_for_non_admitted_identity():
             validator_rejected_agent_digests=(_digest("not-admitted"),),
             repair_count=0,
         )
+
+
+def test_validator_repair_tracking_is_scoped_inside_each_scheduled_work_unit():
+    import inspect
+    from parallax_api.code.agentic_candidate_recovery import ResilientLiveAgenticControlPlane
+
+    source = inspect.getsource(ResilientLiveAgenticControlPlane._proposal_for_plan)
+    unit_scope = source.index("for scheduled_assignment in ready:")
+    rejected_scope = source.index("validator_rejected_agent_digests: list[str] = []")
+    repair_scope = source.index("validator_repair_count = 0")
+    loop_scope = source.index("while True:")
+    assert unit_scope < rejected_scope < loop_scope
+    assert unit_scope < repair_scope < loop_scope

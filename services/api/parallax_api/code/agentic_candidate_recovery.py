@@ -239,8 +239,6 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
         seen_paths: set[str] = set()
         last_unit_id = plan.graph.units[0].unit_id
         rejections: list[CandidateRejection] = []
-        validator_rejected_agent_digests: list[str] = []
-        validator_repair_count = 0
 
         try:
             while len(completed) < len(plan.graph.units):
@@ -261,6 +259,8 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                     assignment = scheduled_assignment
                     attempted_agents: list[str] = []
                     rejection_count = 0
+                    validator_rejected_agent_digests: list[str] = []
+                    validator_repair_count = 0
                     previous_failure_kind: str | None = None
 
                     while True:
