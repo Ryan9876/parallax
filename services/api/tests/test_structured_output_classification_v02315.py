@@ -11,6 +11,7 @@ from parallax_api.code.source_context import SourceContextFile, SourceContextSna
 from parallax_api.intelligence.implementation_generation import (
     AcceptanceRequirement,
     DspyImplementationGenerationProgram,
+    GeneratedFileContent,
     GeneratedSourcePatch,
     IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT,
     ImplementationGenerationCoordinator,
@@ -102,7 +103,7 @@ class _MalformedPredictionProgram:
     def __call__(self, **_kwargs):
         return SimpleNamespace(
             acceptance_ids_covered="AC-01",
-            patches=[],
+            files=[],
         )
 
 
@@ -111,10 +112,9 @@ class _TypedPredictionProgram:
         self.request = request
 
     def __call__(self, **_kwargs):
-        proposal = _proposal(self.request)
         return SimpleNamespace(
-            acceptance_ids_covered=proposal.acceptance_ids_covered,
-            patches=[item.model_dump() for item in proposal.patches],
+            acceptance_ids_covered=["AC-01"],
+            files=[GeneratedFileContent(path="app.py", content="new\n").model_dump()],
         )
 
 
@@ -280,11 +280,12 @@ def test_typed_output_validation_is_only_admitted_from_attempt_boundary():
     assert failure.attempts[0].error == "ModelOutputValidationError"
 
 
-def test_prompt_contract_names_exact_strict_json_shape_without_parser_relaxation():
+def test_prompt_contract_names_exact_typed_content_shape_without_patch_mechanics():
     assert "acceptance_ids_covered" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
-    assert "patches" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
+    assert "files" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
     assert "path" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
-    assert "expected_base_sha256" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
-    assert "unified_diff" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
+    assert "content" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
+    assert "expected_base_sha256" not in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
+    assert "unified_diff" not in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
     assert "Do not wrap" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
     assert "code fences" in IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
