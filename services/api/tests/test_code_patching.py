@@ -58,7 +58,8 @@ def test_existing_text_patch_is_bounded_and_emits_deterministic_evidence(tmp_pat
     assert prepared.evidence == evidence_before_commit
 
 
-def test_new_text_file_can_be_created_only_under_existing_safe_parent(tmp_path):
+def test_new_text_file_can_create_bounded_missing_safe_parent_at_commit(tmp_path):
+    # Preparation remains mutation-free; a missing safe parent is created only at commit.
     (tmp_path / "src").mkdir()
     after = "def ready():\n    return True\n"
     patch_text = unified("src/ready.py", "", after, creating=True)
@@ -74,8 +75,11 @@ def test_new_text_file_can_be_created_only_under_existing_safe_parent(tmp_path):
     assert (tmp_path / "src" / "ready.py").read_text(encoding="utf-8") == after
 
     missing_parent_patch = unified("missing/new.py", "", "x = 1\n", creating=True)
-    with pytest.raises(UnsafeTargetError):
-        engine.prepare(tmp_path, SourcePatch("missing/new.py", EMPTY_SHA256, missing_parent_patch))
+    missing = engine.prepare(tmp_path, SourcePatch("missing/new.py", EMPTY_SHA256, missing_parent_patch))
+    assert missing.existed is False
+    assert not (tmp_path / "missing").exists()
+    engine.commit(tmp_path, missing)
+    assert (tmp_path / "missing" / "new.py").read_text(encoding="utf-8") == "x = 1\n"
 
 
 @pytest.mark.parametrize(

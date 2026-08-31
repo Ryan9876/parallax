@@ -10,6 +10,7 @@ import {
   automaticAutonomyOperationKey,
   autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
+  isAuthoritativeAutonomyAdvance,
   MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } from '../state/engineeringRunContinuation';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
@@ -44,7 +45,37 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     let currentOperationKey = operationKey;
 
     for (let completedRequests = 1; completedRequests <= MAX_AUTONOMY_REQUESTS_PER_CONTINUATION; completedRequests += 1) {
-      const result = await runEngineeringAutonomy(current, currentOperationKey);
+      let result;
+      try {
+        result = await runEngineeringAutonomy(current, currentOperationKey);
+      } catch (caught) {
+        // An HTTP/API failure is authoritative server truth. Only a transport
+        // exception without a response is ambiguous enough for read-only
+        // reconciliation against the latest canonical Engineering Run.
+        if (caught instanceof EngineeringAutonomyError || !conversationId) throw caught;
+
+        let reconciled: EngineeringRunDto | null = null;
+        try {
+          reconciled = await api.latestEngineeringRun(conversationId);
+        } catch {
+          throw caught;
+        }
+        if (!reconciled || !isAuthoritativeAutonomyAdvance(current, reconciled)) throw caught;
+
+        const recovered: EngineeringRunView = { ...reconciled, autonomy_stop_reason: null };
+        setRun(recovered);
+        clearFailure();
+        if (!canContinueEngineeringRunAutonomously(reconciled)) return recovered;
+        if (completedRequests >= MAX_AUTONOMY_REQUESTS_PER_CONTINUATION) {
+          throw new EngineeringAutonomyError(
+            'Parallax recovered server progress but reached the protected continuation limit. Try again to continue.',
+            'AUTONOMY_CONTINUATION_LIMIT',
+          );
+        }
+        current = reconciled;
+        currentOperationKey = automaticAutonomyOperationKey(current);
+        continue;
+      }
       const next: EngineeringRunView = { ...result.run, autonomy_stop_reason: result.stop_reason };
       setRun(next);
       clearFailure();
@@ -70,7 +101,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       'Parallax paused automatic continuation at its protected request limit. Try again to continue.',
       'AUTONOMY_CONTINUATION_LIMIT',
     );
-  }, [clearFailure]);
+  }, [clearFailure, conversationId]);
 
   const continueAutomatically = React.useCallback(async (candidate: EngineeringRunDto) => {
     if (!canContinueEngineeringRunAutonomously(candidate)) return candidate;

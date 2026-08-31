@@ -16,6 +16,16 @@ export function canContinueEngineeringRunAutonomously(run: EngineeringRunContinu
   return run.binding_status === 'APPROVED_SPEC_BOUND' && autonomousStates.has(run.state);
 }
 
+export function isAuthoritativeAutonomyAdvance(
+  requested: EngineeringRunContinuationIdentity,
+  latest: EngineeringRunContinuationIdentity | null | undefined,
+): boolean {
+  if (!latest || latest.id !== requested.id) return false;
+  if (!Number.isInteger(requested.revision) || requested.revision < 0) return false;
+  if (!Number.isInteger(latest.revision) || latest.revision < 0) return false;
+  return latest.revision > requested.revision;
+}
+
 export function automaticAutonomyOperationKey(run: EngineeringRunContinuationIdentity): string {
   if (!run.id.trim()) throw new Error('Engineering Run id is required for automatic autonomy.');
   if (!Number.isInteger(run.revision) || run.revision < 0) throw new Error('Engineering Run revision is invalid for automatic autonomy.');

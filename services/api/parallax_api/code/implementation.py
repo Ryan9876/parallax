@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .patching import PatchError, PreparedPatch, SourcePatch, TextPatchEngine
 
@@ -23,6 +23,10 @@ class ImplementationLimitError(ImplementationError):
 
 
 class DuplicateTargetError(ImplementationError):
+    pass
+
+
+class TargetHierarchyConflictError(ImplementationError):
     pass
 
 
@@ -76,6 +80,15 @@ class SafeImplementationEngine:
         normalized_paths = [self.patch_engine.normalize_path(patch.path) for patch in patches]
         if len(set(normalized_paths)) != len(normalized_paths):
             raise DuplicateTargetError("implementation request contains duplicate target paths")
+        normalized_parts = [(path, PurePosixPath(path).parts) for path in normalized_paths]
+        for path, parts in normalized_parts:
+            for other_path, other_parts in normalized_parts:
+                if path == other_path or len(parts) >= len(other_parts):
+                    continue
+                if other_parts[: len(parts)] == parts:
+                    raise TargetHierarchyConflictError(
+                        "implementation request contains conflicting target hierarchy"
+                    )
 
         # Preparation is intentionally side-effect free: every target, digest,
         # diff, secret check and aggregate limit is validated before mutation.

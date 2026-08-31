@@ -4,6 +4,7 @@ const {
   automaticAutonomyOperationKey,
   autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
+  isAuthoritativeAutonomyAdvance,
   MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } = require('../.tmp-state/engineeringRunContinuation.js');
 
@@ -50,6 +51,43 @@ assert.throws(
 );
 
 assert.equal(MAX_AUTONOMY_REQUESTS_PER_CONTINUATION, 8);
+assert.equal(
+  isAuthoritativeAutonomyAdvance(
+    { ...base, state: 'IMPLEMENT' },
+    { ...base, revision: 8, state: 'BUILD' },
+  ),
+  true,
+  'same-run newer revision is authoritative recovered progress',
+);
+assert.equal(
+  isAuthoritativeAutonomyAdvance(
+    { ...base, state: 'IMPLEMENT' },
+    { ...base, revision: 7, state: 'IMPLEMENT' },
+  ),
+  false,
+  'unchanged revision is not proof that an ambiguous request completed',
+);
+assert.equal(
+  isAuthoritativeAutonomyAdvance(
+    { ...base, state: 'IMPLEMENT' },
+    { ...base, revision: 6, state: 'PLAN' },
+  ),
+  false,
+  'older revision is never recovered progress',
+);
+assert.equal(
+  isAuthoritativeAutonomyAdvance(
+    { ...base, state: 'IMPLEMENT' },
+    { ...base, id: '55555555-5555-4555-8555-555555555555', revision: 8, state: 'BUILD' },
+  ),
+  false,
+  'a different run cannot reconcile an ambiguous request',
+);
+assert.equal(
+  isAuthoritativeAutonomyAdvance({ ...base, state: 'IMPLEMENT' }, null),
+  false,
+  'missing canonical state is not proof of progress',
+);
 assert.equal(
   autonomyContinuationDisposition({ ...base, state: 'IMPLEMENT' }, 'MAX_STEPS_REACHED', 1),
   'CONTINUE',
