@@ -134,6 +134,7 @@ def test_pure_insertion_outside_source_is_rejected(tmp_path):
 def test_new_file_git_prologue_and_bad_counts_are_canonicalized(tmp_path):
     diff = """diff --git a/PARALLAX_QA.md b/PARALLAX_QA.md
 new file mode 100644
+index 0000000..1234567
 --- /dev/null
 +++ b/PARALLAX_QA.md
 @@ -5,9 +44,20 @@
@@ -154,7 +155,7 @@ new file mode 100644
     assert canonical.startswith("--- /dev/null\n+++ b/PARALLAX_QA.md\n@@ -0,0 +1,2 @@\n")
 
 
-def test_stale_expected_base_digest_is_never_rebound(tmp_path):
+def test_stale_model_base_is_rebound_only_after_exact_source_anchor(tmp_path):
     before = "alpha\nbeta\n"
     target = tmp_path / "sample.txt"
     target.write_text(before, encoding="utf-8")
@@ -163,6 +164,25 @@ def test_stale_expected_base_digest_is_never_rebound(tmp_path):
 @@ -99,7 +40,7 @@
 -alpha
 +ALPHA
+"""
+
+    result = SafeImplementationEngine().apply(
+        tmp_path,
+        _request("sample.txt", before, diff, digest="0" * 64),
+    )
+
+    assert target.read_text(encoding="utf-8") == "ALPHA\nbeta\n"
+    assert result["patches"][0]["before_sha256"] == _digest(before)
+
+
+def test_stale_model_base_with_unanchored_insertion_remains_rejected(tmp_path):
+    before = "alpha\nbeta\n"
+    target = tmp_path / "sample.txt"
+    target.write_text(before, encoding="utf-8")
+    diff = """--- a/sample.txt
++++ b/sample.txt
+@@ -1,0 +1,9 @@
++inserted
 """
 
     with pytest.raises(StaleBaseError):
