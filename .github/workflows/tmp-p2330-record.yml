@@ -1,0 +1,98 @@
+name: P2-V0.23.30 Current-State Reconciliation
+
+on:
+  push:
+    branches:
+      - record/p2330-deployment-verification
+    paths:
+      - .github/workflows/tmp-p2330-record.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: record/p2330-deployment-verification
+          fetch-depth: 0
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          old_tail = ' / P2-V0.23.29 COHERENT IMPLEMENT SOURCE UNIT PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING**'
+          new_tail = ' / P2-V0.23.29 COHERENT IMPLEMENT SOURCE UNIT PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED / P2-V0.23.30 SOURCE-ANCHORED CANDIDATE VALIDATION PROFILE PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING**'
+          if old_tail not in text:
+              raise SystemExit('expected P2-V0.23.29 status tail not found')
+          text = text.replace(old_tail, new_tail, 1)
+
+          marker = '## P2-V0.23.29 — coherent IMPLEMENT source unit and candidate-assembly contraction — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING'
+          if marker not in text:
+              raise SystemExit('expected P2-V0.23.29 section marker not found')
+
+          lines = [
+              '## P2-V0.23.30 — source-anchored candidate validation profile — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING',
+              '',
+              'Workstream: #536. Release PR: #537. Governing specification: `P2-V0.23.30`. Architecture: `ARCHITECTURE.md` v3.41.',
+              '',
+              'P2-V0.23.30 contracts disposable candidate-validation authority to the immutable `ValidationProfile` selected from the authoritative accepted/base workspace before any non-authoritative candidate mutation. Candidate source bytes still determine what is transferred into the disposable sandbox and what BUILD/TEST/VERIFY evaluates, but candidate edits to manifests, project files, Python markers, validation tests or other source-shape markers can no longer switch or invalidate the protected validation ecosystem, command set, dependency-preparation policy or execution-snapshot family for that attempt. A validation ecosystem/profile transition requires a separately governed capability rather than model-authored source. `ValidationProfileError` / `ExecutionPolicyError` candidate-admission failures now map only to fixed sanitized `VALIDATION_PROFILE_ERROR` evidence without exception text. SafeImplementationEngine, deny-all validation networking, dependency preparation, immutable source lineage, independent evaluation, Git/deployment/lifecycle authority, Luna/Terra/Sol routing, hosted timeout, retry ceilings and the human REVIEW boundary remain unchanged.',
+              '',
+              'Validated release and deployment evidence:',
+              '',
+              '- protected DSPy spec preparation run `33441277401`: SUCCESS;',
+              '- corrected focused implementation run `33441815830`: SUCCESS;',
+              '- exact green PR head: `632398afbcb9f9e28a6f87bcb6c359dbd0e26918`;',
+              '- PR Bounded Autonomy Pilot `33441973989`: SUCCESS;',
+              '- PR Workstream Spec Validation `33441973980`: SUCCESS;',
+              '- PR Parallax P2 CI `33441974505`: SUCCESS;',
+              '- squash merge / exact application source: `9768f6a3cc2d9e8c7af41523a03f1b4f528d5926`;',
+              '- post-merge Workstream Spec Validation `33442203063`: SUCCESS, including changed-spec protected plan evidence;',
+              '- post-merge Parallax P2 CI `33442203117`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;',
+              '- production API deployment `dpl_Gygn6JBjVdPhbSkLvSKvuXrh7SGm`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;',
+              '- production build preflights passed provider registration/private Blob, exact delivery permission, projected source (687 lineage-eligible files / 7,137,038 UTF-8 bytes), private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution snapshots and Engineering Run event schema guard;',
+              '- production `/health`: HTTP 200;',
+              '- production `/ready`: HTTP 200 with database/providers ready and one provider target;',
+              '- exact API deployment warning/error/fatal runtime scan after readiness was clean.',
+              '',
+              'Deployment verification is complete. Workstream #536 remains open only for final authenticated real-path acceptance through the normal signed-in product path. Acceptance requires Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact work) to enter disposable BUILD/TEST/VERIFY under the accepted-source pinned profile, or to expose a still-later bounded blocker with server-owned diagnostics. This evidence must not be manufactured by bypassing user authentication or session ownership.',
+              '',
+              'No broader validation ecosystem admission, provider/model/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, direct model filesystem authority, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion or queue redesign was added.',
+              '',
+          ]
+          section = '\n'.join(lines) + '\n'
+          text = text.replace(marker, section + '## P2-V0.23.29 — coherent IMPLEMENT source unit and candidate-assembly contraction — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED', 1)
+
+          pattern = re.compile(
+              r'Deployment verification is complete\. Workstream #533 remains open only for final authenticated real-path acceptance through the normal signed-in product path\. Acceptance requires Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` \(or equivalent exact work\) to enter disposable BUILD/TEST/VERIFY under the coherent source unit, or to expose a still-later bounded blocker without recurring the same post-generation/pre-sandbox multi-work-unit assembly pattern\. This evidence must not be manufactured by bypassing user authentication or session ownership\.'
+          )
+          replacement = ('Authenticated real-path acceptance for P2-V0.23.29 is complete under the workstream’s explicit later-bounded-blocker alternative. On exact production deployment `dpl_9Csq52Q1ihkenrw3UZW8ZfRrLdka`, the signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` resumed successfully; source-lineage reads succeeded; Luna completed and Terra completed; the coherent proposal advanced into server-owned candidate admission; and runtime emitted `candidate=candidate-primary phase=DISPOSABLE_CANDIDATE_VALIDATION failure_kind=VALUE_CONTRACT_ERROR` before any disposable BUILD/TEST/VERIFY sandbox. This is materially later than the superseded post-generation/pre-sandbox multi-work-unit assembly pattern and satisfies #533’s completion alternative by exposing a later bounded validation-profile authority blocker. Workstream #533 is closed completed; successor #536 / P2-V0.23.30 owns the accepted-source profile-pinning correction.')
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one P2-V0.23.29 acceptance paragraph, replaced {count}')
+
+          path.write_text(text)
+          PY
+      - name: Verify authoritative reconciliation
+        shell: bash
+        run: |
+          grep -F 'P2-V0.23.30 SOURCE-ANCHORED CANDIDATE VALIDATION PROFILE PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING' CURRENT-STATE.md
+          grep -F '## P2-V0.23.30 — source-anchored candidate validation profile — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING' CURRENT-STATE.md
+          grep -F '## P2-V0.23.29 — coherent IMPLEMENT source unit and candidate-assembly contraction — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED' CURRENT-STATE.md
+          grep -F 'Workstream #533 is closed completed' CURRENT-STATE.md
+      - name: Commit reconciliation and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'Parallax Record Reconciler'
+          git config user.email 'parallax-records@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git rm .github/workflows/tmp-p2330-record.yml
+          git commit -m 'P2-V0.23.30 — record deployment-verified current state'
+          git push origin HEAD:record/p2330-deployment-verification
