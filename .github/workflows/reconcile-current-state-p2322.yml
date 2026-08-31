@@ -23,6 +23,6 @@ jobs:
           git rm .github/workflows/reconcile-current-state-p2322.yml
           git config user.name "Parallax Release Worker"
           git config user.email "parallax-release-worker@users.noreply.github.com"
-          git add CURRENT-STATE.md .github/workflows/reconcile-current-state-p2322.yml
+          git add CURRENT-STATE.md
           git commit -m "P2-V0.23.22 — record production-verified current state"
           git push
