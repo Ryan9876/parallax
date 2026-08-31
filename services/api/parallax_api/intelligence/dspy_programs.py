@@ -17,6 +17,8 @@ _GATEWAY_CREDENTIAL_ENV = (
     "VERCEL_AI_GATEWAY_API_KEY",
 )
 _GATEWAY_MODEL_PREFIX = "vercel_ai_gateway/"
+_HOSTED_MODEL_TIMEOUT_SECONDS = 60
+_HOSTED_MODEL_NUM_RETRIES = 0
 _REQUEST_GATEWAY_CREDENTIAL: ContextVar[str | None] = ContextVar(
     "parallax_request_gateway_credential",
     default=None,
@@ -146,6 +148,9 @@ def build_lm(model: str):
             if gateway_key is not None and model.startswith("openai/"):
                 kwargs["api_base"] = _GATEWAY_API_BASE
                 kwargs["api_key"] = gateway_key
+                if _production_runtime():
+                    kwargs["timeout"] = _HOSTED_MODEL_TIMEOUT_SECONDS
+                    kwargs["num_retries"] = _HOSTED_MODEL_NUM_RETRIES
                 logger.info("parallax_model_transport transport=vercel_ai_gateway model=%s", model)
 
     if model_type:

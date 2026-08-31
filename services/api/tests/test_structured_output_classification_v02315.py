@@ -86,20 +86,42 @@ class _SuccessProgram:
 
 
 class _FakeDspy:
-    def context(self, **_kwargs):
+    def __init__(self):
+        self.adapter = object()
+        self.context_kwargs: list[dict[str, object]] = []
+
+    def JSONAdapter(self):  # noqa: N802 - mirrors DSPy API
+        return self.adapter
+
+    def context(self, **kwargs):
+        self.context_kwargs.append(kwargs)
         return nullcontext()
 
 
 class _MalformedPredictionProgram:
     def __call__(self, **_kwargs):
         return SimpleNamespace(
-            proposal_json='{"acceptance_ids_covered":"AC-01","patches":[]}'
+            acceptance_ids_covered="AC-01",
+            patches=[],
+        )
+
+
+class _TypedPredictionProgram:
+    def __init__(self, request: ImplementationGenerationRequest):
+        self.request = request
+
+    def __call__(self, **_kwargs):
+        proposal = _proposal(self.request)
+        return SimpleNamespace(
+            acceptance_ids_covered=proposal.acceptance_ids_covered,
+            patches=[item.model_dump() for item in proposal.patches],
         )
 
 
 def test_dspy_program_wraps_pydantic_decode_failure_without_raw_output():
     program = DspyImplementationGenerationProgram.__new__(DspyImplementationGenerationProgram)
-    program._dspy = _FakeDspy()
+    fake_dspy = _FakeDspy()
+    program._dspy = fake_dspy
     program._lm = object()
     program._program = _MalformedPredictionProgram()
 
@@ -107,9 +129,23 @@ def test_dspy_program_wraps_pydantic_decode_failure_without_raw_output():
         program.run(request=_request())
 
     assert "synthetic" not in str(captured.value)
-    assert "proposal_json" not in str(captured.value)
     assert "acceptance_ids_covered" not in str(captured.value)
     assert captured.value.__cause__ is None
+    assert fake_dspy.context_kwargs[-1]["adapter"] is fake_dspy.adapter
+
+
+def test_dspy_program_uses_typed_json_adapter_output():
+    request = _request()
+    program = DspyImplementationGenerationProgram.__new__(DspyImplementationGenerationProgram)
+    fake_dspy = _FakeDspy()
+    program._dspy = fake_dspy
+    program._lm = object()
+    program._program = _TypedPredictionProgram(request)
+
+    proposal = program.run(request=request)
+
+    assert proposal == _proposal(request)
+    assert fake_dspy.context_kwargs[-1]["adapter"] is fake_dspy.adapter
 
 
 def test_output_validation_falls_through_to_next_hosted_model():

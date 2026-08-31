@@ -403,9 +403,11 @@ class AutonomyCoordinator:
                 steps=tuple(steps),
             )
 
+        run = self.service.get(run_id)
+        terminal_reason = self._stop_reason(WorkflowStage(run.state))
         return AutonomyResult(
-            run=self.service.get(run_id),
-            stop_reason=AutonomyStopReason.MAX_STEPS_REACHED,
+            run=run,
+            stop_reason=terminal_reason or AutonomyStopReason.MAX_STEPS_REACHED,
             steps=tuple(steps),
         )
 

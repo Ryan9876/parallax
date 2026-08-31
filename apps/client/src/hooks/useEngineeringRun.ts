@@ -8,7 +8,9 @@ import {
 } from '../lib/engineeringRunEvents';
 import {
   automaticAutonomyOperationKey,
+  autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
+  MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } from '../state/engineeringRunContinuation';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
 
@@ -38,11 +40,36 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
   }, [conversationId]);
 
   const applyAutonomyResult = React.useCallback(async (candidate: EngineeringRunDto, operationKey: string) => {
-    const result = await runEngineeringAutonomy(candidate, operationKey);
-    const next: EngineeringRunView = { ...result.run, autonomy_stop_reason: result.stop_reason };
-    setRun(next);
-    clearFailure();
-    return next;
+    let current = candidate;
+    let currentOperationKey = operationKey;
+
+    for (let completedRequests = 1; completedRequests <= MAX_AUTONOMY_REQUESTS_PER_CONTINUATION; completedRequests += 1) {
+      const result = await runEngineeringAutonomy(current, currentOperationKey);
+      const next: EngineeringRunView = { ...result.run, autonomy_stop_reason: result.stop_reason };
+      setRun(next);
+      clearFailure();
+
+      const disposition = autonomyContinuationDisposition(
+        result.run,
+        result.stop_reason,
+        completedRequests,
+      );
+      if (disposition === 'STOP') return next;
+      if (disposition === 'LIMIT_REACHED') {
+        throw new EngineeringAutonomyError(
+          'Parallax paused automatic continuation after eight protected steps. Try again to continue.',
+          'AUTONOMY_CONTINUATION_LIMIT',
+        );
+      }
+
+      current = result.run;
+      currentOperationKey = automaticAutonomyOperationKey(current);
+    }
+
+    throw new EngineeringAutonomyError(
+      'Parallax paused automatic continuation at its protected request limit. Try again to continue.',
+      'AUTONOMY_CONTINUATION_LIMIT',
+    );
   }, [clearFailure]);
 
   const continueAutomatically = React.useCallback(async (candidate: EngineeringRunDto) => {
@@ -85,9 +112,9 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
         if (!canContinueEngineeringRunAutonomously(latest)) return;
         setBusy(true);
         try {
-          // One bounded continuation attempt per refresh. The deterministic
-          // key makes StrictMode/reconnect replay safe and prevents duplicate
-          // protected execution for the same server revision.
+          // Continue through finite one-stage requests. Every handoff is
+          // bound to the newly returned server revision, so StrictMode/reconnect
+          // replay cannot duplicate a protected stage transition.
           await continueAutomatically(latest);
         } catch (caught) {
           recordFailure(

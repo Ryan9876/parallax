@@ -142,7 +142,7 @@ class ImplementationGenerationProgram(Protocol):
 
 
 class DspyImplementationGenerationProgram:
-    version = "implementation-generation-v0.23.15"
+    version = "implementation-generation-v0.23.22"
 
     def __init__(self, model: str):
         try:
@@ -165,7 +165,12 @@ class DspyImplementationGenerationProgram:
 
             work_specification_json: str = dspy.InputField(desc="immutable approved Work Specification contract")
             source_context_json: str = dspy.InputField(desc="bounded source files with path, digest, size, text and strict safe-patch rule")
-            proposal_json: str = dspy.OutputField(desc=IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT)
+            acceptance_ids_covered: list[str] = dspy.OutputField(
+                desc="exact supplied acceptance IDs in the same order"
+            )
+            patches: list[GeneratedSourcePatch] = dspy.OutputField(
+                desc=IMPLEMENTATION_PROPOSAL_OUTPUT_CONTRACT
+            )
 
         self._dspy = dspy
         self._lm = build_lm(model)
@@ -174,17 +179,31 @@ class DspyImplementationGenerationProgram:
     def run(self, *, request: ImplementationGenerationRequest) -> ImplementationProposal:
         contract_json = json.dumps(request.contract_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         source_json = json.dumps(request.source_prompt_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        with self._dspy.context(lm=self._lm):
-            prediction = self._program(
-                work_specification_json=contract_json,
-                source_context_json=source_json,
-            )
         try:
-            return ImplementationProposal.model_validate_json(str(prediction.proposal_json))
-        except ValidationError:
-            # Do not retain the Pydantic exception as an explicit cause because
-            # its in-memory details may include rejected model output. The typed
-            # boundary intentionally carries only fixed server-owned text.
+            with self._dspy.context(lm=self._lm, adapter=self._dspy.JSONAdapter()):
+                prediction = self._program(
+                    work_specification_json=contract_json,
+                    source_context_json=source_json,
+                )
+        except Exception as exc:
+            # DSPy raises AdapterParseError when a provider response cannot be
+            # decoded into the declared typed output. Keep provider/transport
+            # exceptions distinct so routing classification remains truthful.
+            if type(exc).__name__ == "AdapterParseError":
+                raise ModelOutputValidationError(
+                    "protected implementation proposal failed structured-output validation"
+                ) from None
+            raise
+        try:
+            return ImplementationProposal.model_validate(
+                {
+                    "acceptance_ids_covered": prediction.acceptance_ids_covered,
+                    "patches": prediction.patches,
+                }
+            )
+        except (ValidationError, TypeError, ValueError):
+            # Rejected typed data may contain model output. Do not retain the
+            # Pydantic exception or raw prediction across this boundary.
             raise ModelOutputValidationError(
                 "protected implementation proposal failed structured-output validation"
             ) from None

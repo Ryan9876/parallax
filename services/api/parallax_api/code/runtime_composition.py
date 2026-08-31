@@ -362,6 +362,7 @@ class EngineeringRuntimeComposition:
         *,
         lineage_executor: LineageAwareAutonomousExecutor | None = None,
         source_delivery: SourceDeliveryComposition | None = None,
+        max_steps: int = 8,
     ) -> None:
         self.service = service
         self.allocator = allocator
@@ -382,6 +383,7 @@ class EngineeringRuntimeComposition:
             legacy_executor,
             implementation_runtime=self.implementation_runtime,
             lineage_executor=lineage_executor,
+            max_steps=max_steps,
         )
 
     @staticmethod

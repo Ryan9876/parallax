@@ -394,6 +394,7 @@ def build_resilient_live_agentic_runtime_composition(
     candidate_validator: CandidateValidationExecutor | None = None,
     adapters: tuple[HostedImplementationAgent, ...] | None = None,
     candidate_objects: ImmutableObjectStore | None = None,
+    max_steps: int = 8,
 ) -> EngineeringRuntimeComposition:
     composition = EngineeringRuntimeComposition(
         service,
@@ -401,6 +402,7 @@ def build_resilient_live_agentic_runtime_composition(
         legacy_executor,
         lineage_executor=lineage_executor,
         source_delivery=source_delivery,
+        max_steps=max_steps,
     )
     control = ResilientLiveAgenticControlPlane(
         service,
