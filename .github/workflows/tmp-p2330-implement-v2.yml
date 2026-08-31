@@ -1,0 +1,85 @@
+name: P2-V0.23.30 Focused Implementation v2
+
+on:
+  push:
+    branches:
+      - fix/p2330-source-anchored-validation-profile
+    paths:
+      - .github/workflows/tmp-p2330-implement-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2330-source-anchored-validation-profile
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply corrected governed implementation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/tmp-p2330-implement.yml').read_text()
+          source = source.replace('lines[index - 1:index + 1] = [', 'lines[index:index + 1] = [')
+          start_marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY\n      - name: Install API development dependencies"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          script_lines = source[start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in script_lines)
+          exec(compile(script, '<p2330-governed-implementation>', 'exec'))
+          PY
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Compile changed Python sources
+        run: python -m compileall -q services/api/parallax_api/code services/api/tests/test_source_anchored_candidate_validation_profile_v02330.py
+      - name: Run focused source-anchored profile regressions
+        run: |
+          pytest -q \
+            services/api/tests/test_source_anchored_candidate_validation_profile_v02330.py \
+            services/api/tests/test_execution_snapshot_profiles.py \
+            services/api/tests/test_candidate_dependency_preparation_failure.py \
+            services/api/tests/test_agentic_runtime_activation.py \
+            services/api/tests/test_runtime_composition.py
+      - name: Advance durable architecture after focused validation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text()
+          if 'Version: 3.40' not in text:
+              raise SystemExit('expected architecture v3.40 baseline')
+          text = text.replace('Version: 3.40', 'Version: 3.41', 1)
+          marker = '## Version relationship\n\n'
+          if marker not in text:
+              raise SystemExit('version relationship marker missing')
+          paragraph = ('Architecture v3.41 pins disposable candidate validation authority to the immutable validation profile selected from the accepted-source/base workspace before any non-authoritative candidate mutation. Candidate edits still determine the source bytes transferred to the disposable sandbox and therefore what BUILD/TEST/VERIFY evaluates, but source-shape marker edits can no longer switch or invalidate the protected validation ecosystem, command set, dependency-preparation policy, or execution-snapshot family for that attempt. A validation ecosystem/profile transition requires a separately governed capability rather than model-authored source. ValidationProfileError/ExecutionPolicyError admission failures use only the fixed sanitized `VALIDATION_PROFILE_ERROR` classification without exception text. SafeImplementationEngine, deny-all validation networking, dependency preparation, source lineage, independent evaluation, Git/deployment/lifecycle authority, Luna/Terra/Sol routing, hosted timeout, retry ceilings, and the human REVIEW boundary are unchanged. Architecture v3.40 remains the coherent single-unit IMPLEMENT source-authoring foundation.\n\n')
+          text = text.replace(marker, marker + paragraph, 1)
+          path.write_text(text)
+          PY
+          grep -F 'Version: 3.41' ARCHITECTURE.md
+          grep -F 'Architecture v3.41 pins disposable candidate validation authority' ARCHITECTURE.md
+      - name: Validate governed specification after implementation
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.30.md
+      - name: Commit validated implementation and remove temporary workflows
+        shell: bash
+        run: |
+          git config user.name 'Parallax Runtime Implementer'
+          git config user.email 'parallax-runtime@users.noreply.github.com'
+          git add services/api/parallax_api/code/agentic_runtime.py \
+            services/api/tests/test_execution_snapshot_profiles.py \
+            services/api/tests/test_candidate_dependency_preparation_failure.py \
+            services/api/tests/test_source_anchored_candidate_validation_profile_v02330.py \
+            ARCHITECTURE.md
+          git rm .github/workflows/tmp-p2330-implement.yml .github/workflows/tmp-p2330-implement-v2.yml
+          git commit -m 'P2-V0.23.30 — pin candidate validation to accepted-source profile'
+          git push origin HEAD:fix/p2330-source-anchored-validation-profile
