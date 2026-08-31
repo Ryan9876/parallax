@@ -22,11 +22,11 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
+          import base64
           from pathlib import Path
 
           path = Path('CURRENT-STATE.md')
           text = path.read_text()
-
           marker = '## P2-V0.23.17 / P2-V0.23.18 — Dedicated QA identity and exact model patch intent — PRODUCTION-ACCEPTED'
           if marker not in text:
               status_old = ' / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**'
@@ -34,44 +34,11 @@ jobs:
               if status_old not in text:
                   raise SystemExit('expected status anchor missing')
               text = text.replace(status_old, status_new, 1)
-
               anchor = '## CI/CD development pipeline optimization — MAIN-VERIFIED\n'
               if anchor not in text:
                   raise SystemExit('current-state insertion anchor missing')
-
-              section = '''## P2-V0.23.17 / P2-V0.23.18 — Dedicated QA identity and exact model patch intent — PRODUCTION-ACCEPTED
-
-P2-V0.23.17 / Architecture v3.29 moved standing production-QA identity to the dedicated `Ryan9876/parallax-qa` repository and bound authorization to one exact server-owned `(repository, repository_id, workflow_ref)` tuple. The migration-admission release still temporarily retains the two legacy application-repository QA tuples; dedicated-repository behavior is now proven, so removing those legacy tuples and workflows is the next trust-contraction release rather than an unverified cutover assumption.
-
-Dedicated-QA acceptance evidence:
-
-- P2-V0.23.17 deployed API source: `d455c087c1d048e486ddc837b19610cbaee357cb`;
-- production deployment: `dpl_8zDiAM2Y9WJJYy8nKStCJLDUBanb`, target production, state `READY`;
-- exact dedicated repository: `Ryan9876/parallax-qa`, stable repository ID `1351817336`;
-- dedicated production replay run `33344449887`: SUCCESS;
-- both `python-source-only` and `ot-time-source-only` jobs authenticated through the dedicated GitHub Actions OIDC identity and completed successfully;
-- the QA workflow was restored to manual-only execution after acceptance rather than leaving a standing push trigger.
-
-P2-V0.23.18 / Architecture v3.30 adds a server-owned exact patch-intent canonicalization boundary only for protected model-generated IMPLEMENT proposals. The generic `SafeImplementationEngine` remains strict by default. Exact current-source context/deletion anchors may repair mechanical unified-diff metadata and, only after exact proof, replace an incorrect model-supplied base digest with the server-derived current digest. Pure insertions remain coordinate-bound; ambiguous, unsafe, secret-sensitive, oversized, malformed, fuzzy/semantic, shell/Git/network, source-lineage, deployment and REVIEW authority paths remain fail-closed.
-
-Release and deployment evidence:
-
-- workstream: #501; release PR: #502; governing specification: `P2-V0.23.18`;
-- exact green PR head: `8fbcb6ff320289f0d13e9a56f10201768a32199c`;
-- release merge / deployed API source: `8e9efa4afec667b644a6a94063a463d72d10cd58`;
-- production deployment: `dpl_2zTNwf1m59cZmNRAWqWXdZ1pw9tw`, target production, state `READY`;
-- canonical production alias: `parallax-api-tan.vercel.app`;
-- post-merge Workstream Spec Validation `33348830525`: SUCCESS;
-- post-merge Parallax P2 CI `33348830492`: SUCCESS;
-- production `/health`: HTTP 200;
-- production `/ready`: HTTP 200 with database/providers ready and one provider target;
-- production runtime-error scan on the exact deployment found no error/fatal entries in the checked 30-minute window.
-
-Production acceptance used a bounded source-only existing-file workload against `Ryan9876/ot-time`, specifically requiring a minimal README-only edit rather than the simpler new-file QA path. Dedicated QA production replay `33349444286` completed successfully. Engineering Run `a3a6f6bc-b341-4cb4-98b8-dbc3219ed49b` advanced from PLAN revision 1 to REVIEW revision 6 with no failure; IMPLEMENT attempt `8a0d38f1-7dfe-49a0-92b5-1a85456be9b0` passed through `safe-source-implementation-v1`, followed by BUILD, TEST and VERIFY all PASSED. The authenticated accepted-source ZIP contained 31 safe relative entries and 74,567 bytes, included the requested README marker, and did not create the prior `PARALLAX_QA.md` fixture. Source publication and application deployment remained false.
-
-This production replay proves the non-trivial existing-file safe-source boundary now crosses IMPLEMENT and completes the protected lifecycle to REVIEW under the exact P2-V0.23.18 deployment. The original user-owned failed Engineering Runs `2b3cd15f-c5e2-481a-8266-c92c6534b08b` and `fe4ea283-8d82-4a38-9fa6-a555ca0e3a4b` remain immutable incident evidence and were not reassigned to the bounded QA principal merely to manufacture acceptance. Exact canonicalization branches remain independently covered by the protected deterministic release tests.
-
-'''
+              encoded = 'IyMgUDItVjAuMjMuMTcgLyBQMi1WMC4yMy4xOCDigJQgRGVkaWNhdGVkIFFBIGlkZW50aXR5IGFuZCBleGFjdCBtb2RlbCBwYXRjaCBpbnRlbnQg4oCUIFBST0RVQ1RJT04tQUNDRVBURUQKClAyLVYwLjIzLjE3IC8gQXJjaGl0ZWN0dXJlIHYzLjI5IG1vdmVkIHN0YW5kaW5nIHByb2R1Y3Rpb24tUUEgaWRlbnRpdHkgdG8gdGhlIGRlZGljYXRlZCBgUnlhbjk4NzYvcGFyYWxsYXgtcWFgIHJlcG9zaXRvcnkgYW5kIGJvdW5kIGF1dGhvcml6YXRpb24gdG8gb25lIGV4YWN0IHNlcnZlci1vd25lZCBgKHJlcG9zaXRvcnksIHJlcG9zaXRvcnlfaWQsIHdvcmtmbG93X3JlZilgIHR1cGxlLiBUaGUgbWlncmF0aW9uLWFkbWlzc2lvbiByZWxlYXNlIHN0aWxsIHRlbXBvcmFyaWx5IHJldGFpbnMgdGhlIHR3byBsZWdhY3kgYXBwbGljYXRpb24tcmVwb3NpdG9yeSBRQSB0dXBsZXM7IGRlZGljYXRlZC1yZXBvc2l0b3J5IGJlaGF2aW9yIGlzIG5vdyBwcm92ZW4sIHNvIHJlbW92aW5nIHRob3NlIGxlZ2FjeSB0dXBsZXMgYW5kIHdvcmtmbG93cyBpcyB0aGUgbmV4dCB0cnVzdC1jb250cmFjdGlvbiByZWxlYXNlIHJhdGhlciB0aGFuIGFuIHVudmVyaWZpZWQgY3V0b3ZlciBhc3N1bXB0aW9uLgoKRGVkaWNhdGVkLVFBIGFjY2VwdGFuY2UgZXZpZGVuY2U6CgotIFAyLVYwLjIzLjE3IGRlcGxveWVkIEFQSSBzb3VyY2U6IGBkNDU1YzA4N2MxZDA0OGU0ODZkZGM4MzdiMTk2MTBjYmFlZTM1N2NiYDsKLSBwcm9kdWN0aW9uIGRlcGxveW1lbnQ6IGBkcGxfOHpEaUFNMlk5V0pKWXk4bktTdENKTERVQmFuYmAsIHRhcmdldCBwcm9kdWN0aW9uLCBzdGF0ZSBgUkVBRFlgOwotIGV4YWN0IGRlZGljYXRlZCByZXBvc2l0b3J5OiBgUnlhbjk4NzYvcGFyYWxsYXgtcWFgLCBzdGFibGUgcmVwb3NpdG9yeSBJRCBgMTM1MTgxNzMzNmA7Ci0gZGVkaWNhdGVkIHByb2R1Y3Rpb24gcmVwbGF5IHJ1biBgMzMzNDQ0NDk4ODdgOiBTVUNDRVNTOwotIGJvdGggYHB5dGhvbi1zb3VyY2Utb25seWAgYW5kIGBvdC10aW1lLXNvdXJjZS1vbmx5YCBqb2JzIGF1dGhlbnRpY2F0ZWQgdGhyb3VnaCB0aGUgZGVkaWNhdGVkIEdpdEh1YiBBY3Rpb25zIE9JREMgaWRlbnRpdHkgYW5kIGNvbXBsZXRlZCBzdWNjZXNzZnVsbHk7Ci0gdGhlIFFBIHdvcmtmbG93IHdhcyByZXN0b3JlZCB0byBtYW51YWwtb25seSBleGVjdXRpb24gYWZ0ZXIgYWNjZXB0YW5jZSByYXRoZXIgdGhhbiBsZWF2aW5nIGEgc3RhbmRpbmcgcHVzaCB0cmlnZ2VyLgoKUDItVjAuMjMuMTggLyBBcmNoaXRlY3R1cmUgdjMuMzAgYWRkcyBhIHNlcnZlci1vd25lZCBleGFjdCBwYXRjaC1pbnRlbnQgY2Fub25pY2FsaXphdGlvbiBib3VuZGFyeSBvbmx5IGZvciBwcm90ZWN0ZWQgbW9kZWwtZ2VuZXJhdGVkIElNUExFTUVOVCBwcm9wb3NhbHMuIFRoZSBnZW5lcmljIGBTYWZlSW1wbGVtZW50YXRpb25FbmdpbmVgIHJlbWFpbnMgc3RyaWN0IGJ5IGRlZmF1bHQuIEV4YWN0IGN1cnJlbnQtc291cmNlIGNvbnRleHQvZGVsZXRpb24gYW5jaG9ycyBtYXkgcmVwYWlyIG1lY2hhbmljYWwgdW5pZmllZC1kaWZmIG1ldGFkYXRhIGFuZCwgb25seSBhZnRlciBleGFjdCBwcm9vZiwgcmVwbGFjZSBhbiBpbmNvcnJlY3QgbW9kZWwtc3VwcGxpZWQgYmFzZSBkaWdlc3Qgd2l0aCB0aGUgc2VydmVyLWRlcml2ZWQgY3VycmVudCBkaWdlc3QuIFB1cmUgaW5zZXJ0aW9ucyByZW1haW4gY29vcmRpbmF0ZS1ib3VuZDsgYW1iaWd1b3VzLCB1bnNhZmUsIHNlY3JldC1zZW5zaXRpdmUsIG92ZXJzaXplZCwgbWFsZm9ybWVkLCBmdXp6eS9zZW1hbnRpYywgc2hlbGwvR2l0L25ldHdvcmssIHNvdXJjZS1saW5lYWdlLCBkZXBsb3ltZW50IGFuZCBSRVZJRVcgYXV0aG9yaXR5IHBhdGhzIHJlbWFpbiBmYWlsLWNsb3NlZC4KClJlbGVhc2UgYW5kIGRlcGxveW1lbnQgZXZpZGVuY2U6CgotIHdvcmtzdHJlYW06ICM1MDE7IHJlbGVhc2UgUFI6ICM1MDI7IGdvdmVybmluZyBzcGVjaWZpY2F0aW9uOiBgUDItVjAuMjMuMThgOwotIGV4YWN0IGdyZWVuIFBSIGhlYWQ6IGA4ZmJjYjZmZjMyMDI4OWYwZDEzZTlhNTZmMTAyMDE3NjhhMzIxOTljYDsKLSByZWxlYXNlIG1lcmdlIC8gZGVwbG95ZWQgQVBJIHNvdXJjZTogYDhlOWVmYTRhZmVjNjY3YjY0NGE2YTk0MDYzYTQ2M2Q3MmQxMGNkNThgOwotIHByb2R1Y3Rpb24gZGVwbG95bWVudDogYGRwbF8yelROd2YxbTU5Y1ptTlJBV3FXWGRaMXB3OXR3YCwgdGFyZ2V0IHByb2R1Y3Rpb24sIHN0YXRlIGBSRUFEWWA7Ci0gY2Fub25pY2FsIHByb2R1Y3Rpb24gYWxpYXM6IGBwYXJhbGxheC1hcGktdGFuLnZlcmNlbC5hcHBgOwotIHBvc3QtbWVyZ2UgV29ya3N0cmVhbSBTcGVjIFZhbGlkYXRpb24gYDMzMzQ4ODMwNTI1YDogU1VDQ0VTUzsKLSBwb3N0LW1lcmdlIFBhcmFsbGF4IFAyIENJIGAzMzM0ODgzMDQ5MmA6IFNVQ0NFU1M7Ci0gcHJvZHVjdGlvbiBgL2hlYWx0aGA6IEhUVFAgMjAwOwotIHByb2R1Y3Rpb24gYC9yZWFkeWA6IEhUVFAgMjAwIHdpdGggZGF0YWJhc2UvcHJvdmlkZXJzIHJlYWR5IGFuZCBvbmUgcHJvdmlkZXIgdGFyZ2V0OwotIHByb2R1Y3Rpb24gcnVudGltZS1lcnJvciBzY2FuIG9uIHRoZSBleGFjdCBkZXBsb3ltZW50IGZvdW5kIG5vIGVycm9yL2ZhdGFsIGVudHJpZXMgaW4gdGhlIGNoZWNrZWQgMzAtbWludXRlIHdpbmRvdy4KClByb2R1Y3Rpb24gYWNjZXB0YW5jZSB1c2VkIGEgYm91bmRlZCBzb3VyY2Utb25seSBleGlzdGluZy1maWxlIHdvcmtsb2FkIGFnYWluc3QgYFJ5YW45ODc2L290LXRpbWVgLCBzcGVjaWZpY2FsbHkgcmVxdWlyaW5nIGEgbWluaW1hbCBSRUFETUUtb25seSBlZGl0IHJhdGhlciB0aGFuIHRoZSBzaW1wbGVyIG5ldy1maWxlIFFBIHBhdGguIERlZGljYXRlZCBRQSBwcm9kdWN0aW9uIHJlcGxheSBgMzMzNDk0NDQyODZgIGNvbXBsZXRlZCBzdWNjZXNzZnVsbHkuIEVuZ2luZWVyaW5nIFJ1biBgYTNhNmY2YmMtYjM0MS00Y2I0LTk4YjgtZGJjMzIxOWVkNDliYCBhZHZhbmNlZCBmcm9tIFBMQU4gcmV2aXNpb24gMSB0byBSRVZJRVcgcmV2aXNpb24gNiB3aXRoIG5vIGZhaWx1cmU7IElNUExFTUVOVCBhdHRlbXB0IGA4YTBkMzhmMS03ZGZlLTQ5YTAtOTJiNS0xYTg1NDU2YmU5YjBgIHBhc3NlZCB0aHJvdWdoIGBzYWZlLXNvdXJjZS1pbXBsZW1lbnRhdGlvbi12MWAsIGZvbGxvd2VkIGJ5IEJVSUxELCBURVNUIGFuZCBWRVJJRlkgYWxsIFBBU1NFRC4gVGhlIGF1dGhlbnRpY2F0ZWQgYWNjZXB0ZWQtc291cmNlIFpJUCBjb250YWluZWQgMzEgc2FmZSByZWxhdGl2ZSBlbnRyaWVzIGFuZCA3NCw1NjcgYnl0ZXMsIGluY2x1ZGVkIHRoZSByZXF1ZXN0ZWQgUkVBRE1FIG1hcmtlciwgYW5kIGRpZCBub3QgY3JlYXRlIHRoZSBwcmlvciBgUEFSQUxMQVhfUUEubWRgIGZpeHR1cmUuIFNvdXJjZSBwdWJsaWNhdGlvbiBhbmQgYXBwbGljYXRpb24gZGVwbG95bWVudCByZW1haW5lZCBmYWxzZS4KClRoaXMgcHJvZHVjdGlvbiByZXBsYXkgcHJvdmVzIHRoZSBub24tdHJpdmlhbCBleGlzdGluZy1maWxlIHNhZmUtc291cmNlIGJvdW5kYXJ5IG5vdyBjcm9zc2VzIElNUExFTUVOVCBhbmQgY29tcGxldGVzIHRoZSBwcm90ZWN0ZWQgbGlmZWN5Y2xlIHRvIFJFVklFVyB1bmRlciB0aGUgZXhhY3QgUDItVjAuMjMuMTggZGVwbG95bWVudC4gVGhlIG9yaWdpbmFsIHVzZXItb3duZWQgZmFpbGVkIEVuZ2luZWVyaW5nIFJ1bnMgYDJiM2NkMTVmLWM1ZTItNDgxYS04MjY2LWM5MmM2NTM0YjA4YmAgYW5kIGBmZTRlYTI4My04ZDgyLTRhMzgtOWZhNi1hNTU1Y2EwZTNhNGJgIHJlbWFpbiBpbW11dGFibGUgaW5jaWRlbnQgZXZpZGVuY2UgYW5kIHdlcmUgbm90IHJlYXNzaWduZWQgdG8gdGhlIGJvdW5kZWQgUUEgcHJpbmNpcGFsIG1lcmVseSB0byBtYW51ZmFjdHVyZSBhY2NlcHRhbmNlLiBFeGFjdCBjYW5vbmljYWxpemF0aW9uIGJyYW5jaGVzIHJlbWFpbiBpbmRlcGVuZGVudGx5IGNvdmVyZWQgYnkgdGhlIHByb3RlY3RlZCBkZXRlcm1pbmlzdGljIHJlbGVhc2UgdGVzdHMuCgo='
+              section = base64.b64decode(encoded).decode('utf-8')
               text = text.replace(anchor, section + anchor, 1)
               path.write_text(text)
           PY
