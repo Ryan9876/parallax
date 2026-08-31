@@ -1,8 +1,37 @@
 # Parallax 2.0 Current State
 
-Date: 2026-08-30
+Date: 2026-08-31
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED**
+
+## P2-V0.23.22 — request-bounded autonomous builds — PRODUCTION-VERIFIED
+
+Workstream: #508. Release PR: #509. Governing specification: `P2-V0.23.22`. Architecture: `ARCHITECTURE.md` v3.33.
+
+P2-V0.23.22 removes the production 300-second autonomous-build failure mode exposed by Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc`. Production `/autonomous` now performs at most one protected lifecycle transition per HTTP request. The client continues only from the newly returned authoritative revision, uses a deterministic revision-bound operation key, stops at terminal or human boundaries, and enforces an eight-request hard ceiling. VERIFY -> REVIEW remains correctly classified as `REVIEW_REQUIRED`. Implementation generation now uses typed DSPy output fields under explicit JSON adaptation, while the strict server-owned implementation proposal validator remains authoritative. Hosted Vercel AI Gateway calls use a 60-second request timeout with zero hidden transport retries; explicit admitted candidate recovery remains the governed retry path.
+
+Release and production evidence:
+
+- exact green PR head: `261c38f0b7ebe27b1058c5c16d727520cb7202ec`;
+- squash-merged application source: `e51793cceddb640f122f458554c7082c70b585fb`;
+- production API deployment: `dpl_BgZQVz3S2QeTTP7uxcE6ARuVHPUD`, target production, state `READY`, canonical alias `parallax-api-tan.vercel.app`;
+- production client deployment: `dpl_AYNh9LqhPm8qFrXfnqRJeXwsTeYA`, target production, state `READY`, exact same application source;
+- post-merge Parallax P2 CI `33361126044`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- post-merge Workstream Spec Validation `33361126056`: SUCCESS;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production provider, exact delivery permission, projected source, private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution-snapshot and run-event schema preflights all passed;
+- dedicated production replay `33361676731`: SUCCESS;
+- Python job `99394089315`: Engineering Run `75380966-77d7-4db0-a31c-6500f313563c` advanced across five bounded HTTP 200 requests: PLAN -> IMPLEMENT (9s), IMPLEMENT -> BUILD (21s), BUILD -> TEST (10s), TEST -> VERIFY (11s), VERIFY -> REVIEW (13s); final state REVIEW; authenticated source-only ZIP 7 entries / 1,418 bytes;
+- OT Time/.NET job `99394089261`: Engineering Run `11657ce8-9463-4a21-b458-694412c21981` advanced across five bounded HTTP 200 requests: PLAN -> IMPLEMENT (10s), IMPLEMENT -> BUILD (47s), BUILD -> TEST (24s), TEST -> VERIFY (30s), VERIFY -> REVIEW (32s); final state REVIEW; authenticated source-only ZIP 32 entries / 74,823 bytes;
+- longest observed production autonomy request was 47 seconds, far below the former 300-second function boundary;
+- runtime scans across acceptance found no HTTP 504 and no `FUNCTION_INVOCATION_TIMEOUT`; all ten accepted `/autonomous` requests were HTTP 200;
+- both source-only acceptance paths recorded `source_publication=false` and `app_deployment=false`.
+
+The dedicated QA scripts now exercise the same revision-bound, maximum-eight-request continuation contract as the product client. An initial replay correctly proved PLAN -> IMPLEMENT but exposed a QA-only assertion that treated the response `steps` evidence array as a lifecycle-transition count; that harness assertion was removed without changing product runtime behavior. QA Harness CI then passed. The temporary push trigger used to initiate the final production replay was restored immediately; standing `Ryan9876/parallax-qa/.github/workflows/production-replay.yml` is manual-only with canonical blob SHA `cfb41caffd5e16531b28d55f65eb730cb8fcc082` at QA main commit `695759cd11ab38b30fb4cf0a1968c8b340f231d1`.
+
+No new queue, credential, source writer, Git mutation authority, deployment authority, lifecycle authority, or REVIEW completion authority was added. Canonical source lineage, durable worker recovery, strict patch validation/canonicalization, disposable BUILD/TEST/VERIFY, protected evaluation, delivery policy and the human REVIEW ceiling remain authoritative.
+
 
 ## CI/CD development pipeline optimization — MAIN-VERIFIED
 
