@@ -23,47 +23,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Patch authoritative architecture
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('ARCHITECTURE.md')
-          text = path.read_text(encoding='utf-8')
-          if 'Version: 3.29' not in text:
-              if 'Version: 3.28' not in text:
-                  raise SystemExit('Architecture version anchor missing')
-              text = text.replace('Version: 3.28', 'Version: 3.29', 1)
-
-          version_anchor = '## Version relationship\n\n'
-          version_note = (
-              'Architecture v3.29 moves standing production-QA execution identity to a dedicated repository trust boundary. '
-              'GitHub Actions OIDC authorization is now an exact server-owned `(repository, workflow_ref)` pair, preventing a trusted repository from substituting another workflow and preventing an exact workflow path from being replayed from another repository. '
-              'The migration admission release temporarily retains the two existing exact application-repository QA pairs until the dedicated `Ryan9876/parallax-qa` production replay is behaviorally proven; the bounded QA principal, issuer, audience, main ref, hosted-runner requirement, allowed events, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and REVIEW ceiling are unchanged.'
-          )
-          if version_note not in text:
-              if version_anchor not in text:
-                  raise SystemExit('Architecture version relationship anchor missing')
-              text = text.replace(version_anchor, version_anchor + version_note + '\n\n', 1)
-
-          section_anchor = '## Source authority is independent from deployment authority\n'
-          section = '''## Dedicated production-QA repository trust boundary
-
-Architecture v3.29 treats a GitHub Actions QA identity as one exact repository/workflow pair. Production authorization never accepts a repository and workflow independently: both signed OIDC claims must match the same server-owned allowlist entry. Standing dedicated QA is `Ryan9876/parallax-qa` with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`.
-
-The remaining identity guards stay conjunctive and fail-closed: issuer `https://token.actions.githubusercontent.com`, audience `parallax://qa-production`, ref `refs/heads/main`, GitHub-hosted runner, admitted `workflow_dispatch` or `push` event, and a bounded non-empty GitHub run ID. Actor identity alone never grants access. No prefix, glob, substring, branch-only, event-only, or repository-only match creates QA authority.
-
-The dedicated workflow authenticates only to the existing bounded QA principal. It cannot inherit normal-user ownership or create source-publication, Git mutation, deployment, production-promotion, lifecycle-transition, or REVIEW-completion authority beyond the product APIs already available to that bounded QA account. Routine standing acceptance is source-only Python plus OT Time/.NET replay to REVIEW and authenticated ZIP handoff. W9-S1 greenfield initialization is not standing QA trust and requires a separately reviewed exact workflow when a fresh approved target exists.
-
-Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.
-
-'''
-          if '## Dedicated production-QA repository trust boundary' not in text:
-              if section_anchor not in text:
-                  raise SystemExit('Architecture section insertion anchor missing')
-              text = text.replace(section_anchor, section + section_anchor, 1)
-
-          path.write_text(text, encoding='utf-8')
-          PY
+        run: python -c "import base64; exec(base64.b64decode('CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKcGF0aCA9IFBhdGgoIkFSQ0hJVEVDVFVSRS5tZCIpCnRleHQgPSBwYXRoLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQoKaWYgIlZlcnNpb246IDMuMjkiIG5vdCBpbiB0ZXh0OgogICAgaWYgIlZlcnNpb246IDMuMjgiIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoIkFyY2hpdGVjdHVyZSB2ZXJzaW9uIGFuY2hvciBtaXNzaW5nIikKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2UoIlZlcnNpb246IDMuMjgiLCAiVmVyc2lvbjogMy4yOSIsIDEpCgp2ZXJzaW9uX2FuY2hvciA9ICIjIyBWZXJzaW9uIHJlbGF0aW9uc2hpcFxuXG4iCnZlcnNpb25fbm90ZSA9ICgKICAgICJBcmNoaXRlY3R1cmUgdjMuMjkgbW92ZXMgc3RhbmRpbmcgcHJvZHVjdGlvbi1RQSBleGVjdXRpb24gaWRlbnRpdHkgdG8gYSBkZWRpY2F0ZWQgcmVwb3NpdG9yeSB0cnVzdCBib3VuZGFyeS4gIgogICAgIkdpdEh1YiBBY3Rpb25zIE9JREMgYXV0aG9yaXphdGlvbiBpcyBub3cgYW4gZXhhY3Qgc2VydmVyLW93bmVkIGAocmVwb3NpdG9yeSwgd29ya2Zsb3dfcmVmKWAgcGFpciwgcHJldmVudGluZyBhIHRydXN0ZWQgcmVwb3NpdG9yeSBmcm9tIHN1YnN0aXR1dGluZyBhbm90aGVyIHdvcmtmbG93IGFuZCBwcmV2ZW50aW5nIGFuIGV4YWN0IHdvcmtmbG93IHBhdGggZnJvbSBiZWluZyByZXBsYXllZCBmcm9tIGFub3RoZXIgcmVwb3NpdG9yeS4gIgogICAgIlRoZSBtaWdyYXRpb24gYWRtaXNzaW9uIHJlbGVhc2UgdGVtcG9yYXJpbHkgcmV0YWlucyB0aGUgdHdvIGV4aXN0aW5nIGV4YWN0IGFwcGxpY2F0aW9uLXJlcG9zaXRvcnkgUUEgcGFpcnMgdW50aWwgdGhlIGRlZGljYXRlZCBgUnlhbjk4NzYvcGFyYWxsYXgtcWFgIHByb2R1Y3Rpb24gcmVwbGF5IGlzIGJlaGF2aW9yYWxseSBwcm92ZW47IHRoZSBib3VuZGVkIFFBIHByaW5jaXBhbCwgaXNzdWVyLCBhdWRpZW5jZSwgbWFpbiByZWYsIGhvc3RlZC1ydW5uZXIgcmVxdWlyZW1lbnQsIGFsbG93ZWQgZXZlbnRzLCBQcm9qZWN0IC8gV29yayBTcGVjaWZpY2F0aW9uIC8gRW5naW5lZXJpbmcgUnVuIGF1dGhvcml0eSwgc291cmNlIGxpbmVhZ2UsIG1vZGVsIHJvdXRpbmcsIEdpdC9kZXBsb3ltZW50IGF1dGhvcml0eSwgYW5kIFJFVklFVyBjZWlsaW5nIGFyZSB1bmNoYW5nZWQuIgopCmlmIHZlcnNpb25fbm90ZSBub3QgaW4gdGV4dDoKICAgIGlmIHZlcnNpb25fYW5jaG9yIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoIkFyY2hpdGVjdHVyZSB2ZXJzaW9uIHJlbGF0aW9uc2hpcCBhbmNob3IgbWlzc2luZyIpCiAgICB0ZXh0ID0gdGV4dC5yZXBsYWNlKHZlcnNpb25fYW5jaG9yLCB2ZXJzaW9uX2FuY2hvciArIHZlcnNpb25fbm90ZSArICJcblxuIiwgMSkKCnNlY3Rpb25fYW5jaG9yID0gIiMjIFNvdXJjZSBhdXRob3JpdHkgaXMgaW5kZXBlbmRlbnQgZnJvbSBkZXBsb3ltZW50IGF1dGhvcml0eVxuIgpzZWN0aW9uID0gIiIiIyMgRGVkaWNhdGVkIHByb2R1Y3Rpb24tUUEgcmVwb3NpdG9yeSB0cnVzdCBib3VuZGFyeQoKQXJjaGl0ZWN0dXJlIHYzLjI5IHRyZWF0cyBhIEdpdEh1YiBBY3Rpb25zIFFBIGlkZW50aXR5IGFzIG9uZSBleGFjdCByZXBvc2l0b3J5L3dvcmtmbG93IHBhaXIuIFByb2R1Y3Rpb24gYXV0aG9yaXphdGlvbiBuZXZlciBhY2NlcHRzIGEgcmVwb3NpdG9yeSBhbmQgd29ya2Zsb3cgaW5kZXBlbmRlbnRseTogYm90aCBzaWduZWQgT0lEQyBjbGFpbXMgbXVzdCBtYXRjaCB0aGUgc2FtZSBzZXJ2ZXItb3duZWQgYWxsb3dsaXN0IGVudHJ5LiBTdGFuZGluZyBkZWRpY2F0ZWQgUUEgaXMgYFJ5YW45ODc2L3BhcmFsbGF4LXFhYCB3aXRoIGV4YWN0IHdvcmtmbG93IGBSeWFuOTg3Ni9wYXJhbGxheC1xYS8uZ2l0aHViL3dvcmtmbG93cy9wcm9kdWN0aW9uLXJlcGxheS55bWxAcmVmcy9oZWFkcy9tYWluYC4KClRoZSByZW1haW5pbmcgaWRlbnRpdHkgZ3VhcmRzIHN0YXkgY29uanVuY3RpdmUgYW5kIGZhaWwtY2xvc2VkOiBpc3N1ZXIgYGh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb21gLCBhdWRpZW5jZSBgcGFyYWxsYXg6Ly9xYS1wcm9kdWN0aW9uYCwgcmVmIGByZWZzL2hlYWRzL21haW5gLCBHaXRIdWItaG9zdGVkIHJ1bm5lciwgYWRtaXR0ZWQgYHdvcmtmbG93X2Rpc3BhdGNoYCBvciBgcHVzaGAgZXZlbnQsIGFuZCBhIGJvdW5kZWQgbm9uLWVtcHR5IEdpdEh1YiBydW4gSUQuIEFjdG9yIGlkZW50aXR5IGFsb25lIG5ldmVyIGdyYW50cyBhY2Nlc3MuIE5vIHByZWZpeCwgZ2xvYiwgc3Vic3RyaW5nLCBicmFuY2gtb25seSwgZXZlbnQtb25seSwgb3IgcmVwb3NpdG9yeS1vbmx5IG1hdGNoIGNyZWF0ZXMgUUEgYXV0aG9yaXR5LgoKVGhlIGRlZGljYXRlZCB3b3JrZmxvdyBhdXRoZW50aWNhdGVzIG9ubHkgdG8gdGhlIGV4aXN0aW5nIGJvdW5kZWQgUUEgcHJpbmNpcGFsLiBJdCBjYW5ub3QgaW5oZXJpdCBub3JtYWwtdXNlciBvd25lcnNoaXAgb3IgY3JlYXRlIHNvdXJjZS1wdWJsaWNhdGlvbiwgR2l0IG11dGF0aW9uLCBkZXBsb3ltZW50LCBwcm9kdWN0aW9uLXByb21vdGlvbiwgbGlmZWN5Y2xlLXRyYW5zaXRpb24sIG9yIFJFVklFVy1jb21wbGV0aW9uIGF1dGhvcml0eSBiZXlvbmQgdGhlIHByb2R1Y3QgQVBJcyBhbHJlYWR5IGF2YWlsYWJsZSB0byB0aGF0IGJvdW5kZWQgUUEgYWNjb3VudC4gUm91dGluZSBzdGFuZGluZyBhY2NlcHRhbmNlIGlzIHNvdXJjZS1vbmx5IFB5dGhvbiBwbHVzIE9UIFRpbWUvLk5FVCByZXBsYXkgdG8gUkVWSUVXIGFuZCBhdXRoZW50aWNhdGVkIFpJUCBoYW5kb2ZmLiBXOS1TMSBncmVlbmZpZWxkIGluaXRpYWxpemF0aW9uIGlzIG5vdCBzdGFuZGluZyBRQSB0cnVzdCBhbmQgcmVxdWlyZXMgYSBzZXBhcmF0ZWx5IHJldmlld2VkIGV4YWN0IHdvcmtmbG93IHdoZW4gYSBmcmVzaCBhcHByb3ZlZCB0YXJnZXQgZXhpc3RzLgoKQ3V0b3ZlciBpcyBpbnRlbnRpb25hbGx5IHN0YWdlZC4gRHVyaW5nIFAyLVYwLjIzLjE3IG9ubHksIHRoZSB0d28gcHJpb3IgZXhhY3QgYFJ5YW45ODc2L3BhcmFsbGF4YCB3b3JrZmxvdyBwYWlycyByZW1haW4gYWRtaXR0ZWQgYWxvbmdzaWRlIHRoZSBuZXcgZGVkaWNhdGVkIHBhaXIgc28gdGhlIG5ldyBwYXRoIGNhbiBiZSBwcm9kdWN0aW9uLXByb3ZlbiB3aXRob3V0IGRlc3Ryb3lpbmcgcm9sbGJhY2suIEFmdGVyIHN1Y2Nlc3NmdWwgZGVkaWNhdGVkLXJlcG9zaXRvcnkgcmVwbGF5LCBhIGZvbGxvdy11cCB0cnVzdC1jb250cmFjdGlvbiByZWxlYXNlIHJlbW92ZXMgdGhlIG9sZCBwYWlycyBhbmQgd29ya2Zsb3cgZmlsZXMuIFRlbXBvcmFyeSBkdWFsIHRydXN0IGlzIG1pZ3JhdGlvbiBldmlkZW5jZSwgbm90IGEgcGVybWFuZW50IGV4cGFuc2lvbiB0YXJnZXQuCgoiIiIKaWYgIiMjIERlZGljYXRlZCBwcm9kdWN0aW9uLVFBIHJlcG9zaXRvcnkgdHJ1c3QgYm91bmRhcnkiIG5vdCBpbiB0ZXh0OgogICAgaWYgc2VjdGlvbl9hbmNob3Igbm90IGluIHRleHQ6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgiQXJjaGl0ZWN0dXJlIHNlY3Rpb24gaW5zZXJ0aW9uIGFuY2hvciBtaXNzaW5nIikKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2Uoc2VjdGlvbl9hbmNob3IsIHNlY3Rpb24gKyBzZWN0aW9uX2FuY2hvciwgMSkKCnBhdGgud3JpdGVfdGV4dCh0ZXh0LCBlbmNvZGluZz0idXRmLTgiKQo='))"
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
       - name: Install local DSPy development LM
@@ -80,8 +40,8 @@ Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `R
         env:
           DSPY_MODEL: ollama_chat/qwen2.5:0.5b
           DSPY_API_BASE: http://127.0.0.1:11434
-          DSPY_API_KEY: ''
-          DSPY_LOCAL_DEVELOPMENT: '1'
+          DSPY_API_KEY: ""
+          DSPY_LOCAL_DEVELOPMENT: "1"
         run: |
           python scripts/compile_spec.py specs/P2-V0.23.17.md
           python scripts/validate_spec.py --require-dspy specs/P2-V0.23.17.md
@@ -91,8 +51,8 @@ Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `R
           git config user.email "actions@users.noreply.github.com"
           git add ARCHITECTURE.md specs/compiled/P2-V0.23.17.plan.json
           if git diff --cached --quiet; then
-            echo 'Prepared evidence already present'
+            echo "Prepared evidence already present"
             exit 0
           fi
-          git commit -m 'Prepare P2-V0.23.17 architecture and DSPy plan'
+          git commit -m "Prepare P2-V0.23.17 architecture and DSPy plan"
           git push origin HEAD:security/p2317-admit-parallax-qa
