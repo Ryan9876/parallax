@@ -16,6 +16,7 @@ def _claims(**overrides):
         "iat": 1_900_000_000,
         "nbf": 1_900_000_000,
         "repository": identity.QA_AUTOMATION_REPOSITORY,
+        "repository_id": identity.QA_AUTOMATION_REPOSITORY_ID,
         "ref": identity.QA_AUTOMATION_REF,
         "workflow_ref": identity.QA_AUTOMATION_WORKFLOW_REF,
         "event_name": "workflow_dispatch",
@@ -48,6 +49,7 @@ def test_accepts_exact_dedicated_qa_manual_workflow(monkeypatch):
     result = identity.verify_github_actions_identity(TOKEN)
 
     assert result.repository == "Ryan9876/parallax-qa"
+    assert result.repository_id == "1351817336"
     assert result.workflow_ref == identity.QA_AUTOMATION_WORKFLOW_REF
     assert result.run_id == "12345"
 
@@ -58,6 +60,7 @@ def test_accepts_exact_dedicated_qa_main_push_workflow(monkeypatch):
     result = identity.verify_github_actions_identity(TOKEN)
 
     assert result.repository == identity.QA_AUTOMATION_REPOSITORY
+    assert result.repository_id == identity.QA_AUTOMATION_REPOSITORY_ID
     assert result.workflow_ref == identity.QA_AUTOMATION_WORKFLOW_REF
 
 
@@ -65,6 +68,7 @@ def test_temporarily_accepts_legacy_application_qa_workflow(monkeypatch):
     _install_valid_decode(
         monkeypatch,
         repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
+        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
         workflow_ref=identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF,
         event_name="push",
     )
@@ -72,6 +76,7 @@ def test_temporarily_accepts_legacy_application_qa_workflow(monkeypatch):
     result = identity.verify_github_actions_identity(TOKEN)
 
     assert result.repository == identity.LEGACY_QA_AUTOMATION_REPOSITORY
+    assert result.repository_id == identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID
     assert result.workflow_ref == identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF
 
 
@@ -79,6 +84,7 @@ def test_temporarily_accepts_legacy_w8_s2_workflow(monkeypatch):
     _install_valid_decode(
         monkeypatch,
         repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
+        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
         workflow_ref=identity.W8_S2_QA_AUTOMATION_WORKFLOW_REF,
         event_name="push",
     )
@@ -86,32 +92,60 @@ def test_temporarily_accepts_legacy_w8_s2_workflow(monkeypatch):
     result = identity.verify_github_actions_identity(TOKEN)
 
     assert result.repository == identity.LEGACY_QA_AUTOMATION_REPOSITORY
+    assert result.repository_id == identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID
     assert result.workflow_ref == identity.W8_S2_QA_AUTOMATION_WORKFLOW_REF
 
 
 @pytest.mark.parametrize(
-    ("repository", "workflow_ref"),
+    ("repository", "repository_id", "workflow_ref"),
     [
         (
-            "Ryan9876/parallax-qa",
-            "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main",
+            identity.QA_AUTOMATION_REPOSITORY,
+            identity.QA_AUTOMATION_REPOSITORY_ID,
+            identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF,
         ),
         (
-            "Ryan9876/parallax",
-            "Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main",
+            identity.LEGACY_QA_AUTOMATION_REPOSITORY,
+            identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
+            identity.QA_AUTOMATION_WORKFLOW_REF,
         ),
         (
             "attacker/repo",
-            "Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main",
+            identity.QA_AUTOMATION_REPOSITORY_ID,
+            identity.QA_AUTOMATION_WORKFLOW_REF,
+        ),
+        (
+            identity.QA_AUTOMATION_REPOSITORY,
+            "9999999999",
+            identity.QA_AUTOMATION_WORKFLOW_REF,
+        ),
+        (
+            "attacker/recreated-parallax-qa",
+            identity.QA_AUTOMATION_REPOSITORY_ID,
+            identity.QA_AUTOMATION_WORKFLOW_REF,
         ),
     ],
 )
-def test_rejects_repository_workflow_cross_pair(monkeypatch, repository, workflow_ref):
+def test_rejects_repository_identity_cross_pair(
+    monkeypatch,
+    repository,
+    repository_id,
+    workflow_ref,
+):
     _install_valid_decode(
         monkeypatch,
         repository=repository,
+        repository_id=repository_id,
         workflow_ref=workflow_ref,
     )
+
+    with pytest.raises(identity.GitHubActionsIdentityError):
+        identity.verify_github_actions_identity(TOKEN)
+
+
+@pytest.mark.parametrize("repository_id", ["", " ", None])
+def test_rejects_missing_repository_id(monkeypatch, repository_id):
+    _install_valid_decode(monkeypatch, repository_id=repository_id)
 
     with pytest.raises(identity.GitHubActionsIdentityError):
         identity.verify_github_actions_identity(TOKEN)
@@ -121,6 +155,7 @@ def test_rejects_retired_p2314_production_retry_workflow(monkeypatch):
     _install_valid_decode(
         monkeypatch,
         repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
+        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
         workflow_ref=(
             "Ryan9876/parallax/.github/workflows/"
             "qa-p2313-production-retry.yml@refs/heads/main"
