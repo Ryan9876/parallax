@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "The two-phase production-QA repository cutover has been completed."
+  ],
+  "work_items": [
+    "The two-phase production-QA repository cutover has been completed."
+  ],
+  "validations": [
+    "The two-phase production-QA repository cutover has been completed.",
+    "AC-01: validate protected requirement \u2014 A valid signed GitHub Actions identity for `Ryan9876/parallax-qa`, repository ID `1351817336`, exact production replay workflow, main ref, GitHub-hosted runner, admitted event, correct audience, and bounded run ID authenticates to the existing QA principal.",
+    "AC-02: validate protected requirement \u2014 A token for `Ryan9876/parallax`, repository ID `1340272514`, and `qa-production-replay.yml@refs/heads/main` is rejected after contraction even when all other signed claim guards are valid.",
+    "AC-03: validate protected requirement \u2014 A token for `Ryan9876/parallax`, repository ID `1340272514`, and `w8-s2-qa-replay.yml@refs/heads/main` is rejected after contraction even when all other signed claim guards are valid.",
+    "AC-04: validate protected requirement \u2014 The server-owned trusted workflow identity set contains only the dedicated `parallax-qa` tuple and continues to reject repository-name/ID/workflow cross-pair substitutions.",
+    "AC-05: validate protected requirement \u2014 The two retired application-repository workflow files are absent from the release tree; reusable non-authoritative harness scripts may remain.",
+    "AC-06: validate protected requirement \u2014 Wrong audience, signature or standard claims, ref, runner environment, event, workflow, repository identity, repository ID, or missing/bounded-invalid run ID remains rejected.",
+    "AC-07: validate protected requirement \u2014 Successful dedicated QA authentication still maps only to the existing bounded QA principal and does not add source publication, Git mutation, deployment, promotion, lifecycle-transition, or REVIEW-completion authority.",
+    "AC-08: validate protected requirement \u2014 `ARCHITECTURE.md` v3.31 records that staged dual trust is complete and only the exact dedicated repository tuple remains standing production-QA trust.",
+    "AC-09: validate protected requirement \u2014 Exact-head API/contracts, focused QA identity tests, Bounded Autonomy, protected promotion, Workstream Spec Validation, and committed DSPy plan validation pass before merge; promotion-boundary DSPy compilation remains required on main.",
+    "AC-10: validate protected requirement \u2014 After exact-source deployment is READY, the dedicated `Ryan9876/parallax-qa` production replay authenticates successfully and both routine source-only jobs reach REVIEW with verified authenticated source handoff. The retired application workflows are not reintroduced merely for production testing."
+  ],
+  "risks": [
+    "No material risk and mitigation is required."
+  ],
+  "spec_id": "P2-V0.23.19",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Dedicated QA identity remains accepted",
+      "protected_requirement": "A valid signed GitHub Actions identity for `Ryan9876/parallax-qa`, repository ID `1351817336`, exact production replay workflow, main ref, GitHub-hosted runner, admitted event, correct audience, and bounded run ID authenticates to the existing QA principal."
+    },
+    {
+      "id": "AC-02",
+      "title": "Legacy QA production replay identity is rejected",
+      "protected_requirement": "A token for `Ryan9876/parallax`, repository ID `1340272514`, and `qa-production-replay.yml@refs/heads/main` is rejected after contraction even when all other signed claim guards are valid."
+    },
+    {
+      "id": "AC-03",
+      "title": "Legacy W8-S2 identity is rejected",
+      "protected_requirement": "A token for `Ryan9876/parallax`, repository ID `1340272514`, and `w8-s2-qa-replay.yml@refs/heads/main` is rejected after contraction even when all other signed claim guards are valid."
+    },
+    {
+      "id": "AC-04",
+      "title": "Standing trust set contains one exact tuple",
+      "protected_requirement": "The server-owned trusted workflow identity set contains only the dedicated `parallax-qa` tuple and continues to reject repository-name/ID/workflow cross-pair substitutions."
+    },
+    {
+      "id": "AC-05",
+      "title": "Application-repository standing QA workflows are removed",
+      "protected_requirement": "The two retired application-repository workflow files are absent from the release tree; reusable non-authoritative harness scripts may remain."
+    },
+    {
+      "id": "AC-06",
+      "title": "Existing claim guards remain fail-closed",
+      "protected_requirement": "Wrong audience, signature or standard claims, ref, runner environment, event, workflow, repository identity, repository ID, or missing/bounded-invalid run ID remains rejected."
+    },
+    {
+      "id": "AC-07",
+      "title": "QA authority is unchanged",
+      "protected_requirement": "Successful dedicated QA authentication still maps only to the existing bounded QA principal and does not add source publication, Git mutation, deployment, promotion, lifecycle-transition, or REVIEW-completion authority."
+    },
+    {
+      "id": "AC-08",
+      "title": "Architecture records completed cutover",
+      "protected_requirement": "`ARCHITECTURE.md` v3.31 records that staged dual trust is complete and only the exact dedicated repository tuple remains standing production-QA trust."
+    },
+    {
+      "id": "AC-09",
+      "title": "Protected release gates remain green",
+      "protected_requirement": "Exact-head API/contracts, focused QA identity tests, Bounded Autonomy, protected promotion, Workstream Spec Validation, and committed DSPy plan validation pass before merge; promotion-boundary DSPy compilation remains required on main."
+    },
+    {
+      "id": "AC-10",
+      "title": "Contracted production trust is behaviorally proven",
+      "protected_requirement": "After exact-source deployment is READY, the dedicated `Ryan9876/parallax-qa` production replay authenticates successfully and both routine source-only jobs reach REVIEW with verified authenticated source handoff. The retired application workflows are not reintroduced merely for production testing."
+    }
+  ],
+  "critique": [
+    "Ryan9876/parallax-qa workflow tuples are retired and must fail authentication after this release."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
