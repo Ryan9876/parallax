@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import logging
 
 from ..models import EngineeringRun
 from ..tools.providers import (
@@ -36,6 +37,9 @@ from .workspace_lineage import LineageIdentityError, LineageNotFoundError, Proje
 
 
 REPOSITORY_AUTHORIZATION_REQUIRED = "REPOSITORY_AUTHORIZATION_REQUIRED"
+_UNCLASSIFIED_PROVIDER_FAILURE = "UNCLASSIFIED_PROVIDER_FAILURE"
+
+logger = logging.getLogger(__name__)
 
 
 class RepositoryAuthorizationRequiredError(RuntimeError):
@@ -55,6 +59,17 @@ def _provider_result_code(error: BaseException) -> str | None:
         next_error = current.__cause__ or current.__context__
         current = next_error if isinstance(next_error, BaseException) else None
     return None
+
+
+def _log_greenfield_repository_inspection_failure(error: BaseException) -> str:
+    """Emit only server-owned event text plus a protected normalized result code."""
+
+    result_code = _provider_result_code(error) or _UNCLASSIFIED_PROVIDER_FAILURE
+    logger.warning(
+        "greenfield_repository_inspection_failed result_code=%s",
+        result_code,
+    )
+    return result_code
 
 
 def is_repository_authorization_required(error: BaseException) -> bool:
@@ -117,6 +132,7 @@ class GreenfieldProjectedRepositoryLineageBootstrap(ProjectedRepositoryLineageBo
                     ),
                 ).value
             except Exception as inspection_error:
+                _log_greenfield_repository_inspection_failure(inspection_error)
                 if is_repository_authorization_required(inspection_error):
                     raise RepositoryAuthorizationRequiredError(
                         "Repository authorization is required before Parallax can continue."
