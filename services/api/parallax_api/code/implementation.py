@@ -5,6 +5,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
+from .model_patch_canonicalization import CanonicalizingTextPatchEngine
 from .patching import PatchError, PreparedPatch, SourcePatch, TextPatchEngine
 
 
@@ -51,7 +52,7 @@ class SafeImplementationEngine:
     ) -> None:
         if min(max_patches, max_total_source_bytes, max_total_patch_bytes, max_total_result_bytes) <= 0:
             raise ValueError("implementation limits must be positive")
-        self.patch_engine = patch_engine or TextPatchEngine()
+        self.patch_engine = patch_engine or CanonicalizingTextPatchEngine()
         self.max_patches = max_patches
         self.max_total_source_bytes = max_total_source_bytes
         self.max_total_patch_bytes = max_total_patch_bytes
