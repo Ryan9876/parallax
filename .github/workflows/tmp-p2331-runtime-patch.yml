@@ -1,0 +1,445 @@
+name: P2-V0.23.31 Runtime Patch
+
+on:
+  push:
+    branches:
+      - release/p2-v0.23.31
+    paths:
+      - .github/workflows/tmp-p2331-runtime-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/p2-v0.23.31
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Patch protected runtime
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/api/parallax_api/code/agentic_runtime.py')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one replacement, found {count}: {old[:100]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'from .validation_toolchains import ValidationProfile, select_validation_profile\n',
+              'from .validation_toolchains import (\n'
+              '    ExecutionContract,\n'
+              '    ValidationProfile,\n'
+              '    ValidationProfileError,\n'
+              '    ValidationProfileReason,\n'
+              '    bind_execution_contract,\n'
+              '    resolve_execution_contract,\n'
+              ')\n',
+          )
+          replace_once(
+              'AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.7"\nAGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.7"\n',
+              'AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.8"\nAGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.8"\n',
+          )
+
+          old_diag = '''def _candidate_admission_failure_diagnostic(
+              candidate_id: str,
+              phase: str,
+              exc: Exception,
+          ) -> dict[str, object]:
+              if phase not in _CANDIDATE_ADMISSION_PHASES:
+                  raise AgenticRuntimeError("candidate admission diagnostic phase is not server-owned")
+              return {
+                  "candidate_id": candidate_id,
+                  "phase": phase,
+                  "failure_kind": _candidate_admission_failure_kind(exc),
+                  "candidate_is_canonical_lineage": False,
+                  "accepts_source_lineage": False,
+                  "source_lineage_accepted": False,
+                  "engineering_run_transitioned": False,
+                  "review_completed": False,
+                  "production_deployed": False,
+              }
+          '''
+          new_diag = '''def _candidate_admission_failure_diagnostic(
+              candidate_id: str,
+              phase: str,
+              exc: Exception,
+          ) -> dict[str, object]:
+              if phase not in _CANDIDATE_ADMISSION_PHASES:
+                  raise AgenticRuntimeError("candidate admission diagnostic phase is not server-owned")
+              diagnostic: dict[str, object] = {
+                  "candidate_id": candidate_id,
+                  "phase": phase,
+                  "failure_kind": _candidate_admission_failure_kind(exc),
+                  "candidate_is_canonical_lineage": False,
+                  "accepts_source_lineage": False,
+                  "source_lineage_accepted": False,
+                  "engineering_run_transitioned": False,
+                  "review_completed": False,
+                  "production_deployed": False,
+              }
+              if isinstance(exc, ValidationProfileError):
+                  diagnostic["reason_code"] = exc.code.value
+              elif isinstance(exc, ExecutionPolicyError):
+                  diagnostic["reason_code"] = ValidationProfileReason.EXECUTION_CONTRACT_DRIFT.value
+              return diagnostic
+          '''
+          replace_once(old_diag, new_diag)
+
+          transfer_anchor = '''    @staticmethod
+              def _transfer_source(instance: object, files: tuple[tuple[str, bytes], ...]) -> None:
+                  filesystem = getattr(instance, "fs", None)
+                  if filesystem is None:
+                      raise AgenticRuntimeError("sandbox filesystem API is unavailable")
+                  filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
+                  with filesystem.batch(cwd=_SANDBOX_SOURCE_ROOT) as batch:
+                      for path, content in files:
+                          batch.write_bytes(path, content)
+
+              def validate_candidate(
+          '''
+          transfer_new = '''    @staticmethod
+              def _transfer_source(instance: object, files: tuple[tuple[str, bytes], ...]) -> None:
+                  filesystem = getattr(instance, "fs", None)
+                  if filesystem is None:
+                      raise AgenticRuntimeError("sandbox filesystem API is unavailable")
+                  filesystem.mkdir("sandbox", cwd="/vercel", recursive=True)
+                  with filesystem.batch(cwd=_SANDBOX_SOURCE_ROOT) as batch:
+                      for path, content in files:
+                          batch.write_bytes(path, content)
+
+              @staticmethod
+              def _transfer_server_validator(instance: object, profile: ValidationProfile) -> None:
+                  if profile.ecosystem != "static-web":
+                      return
+                  source = Path(__file__).with_name("static_web_validator.py")
+                  if source.is_symlink() or not source.is_file():
+                      raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE)
+                  filesystem = getattr(instance, "fs", None)
+                  if filesystem is None:
+                      raise AgenticRuntimeError("sandbox filesystem API is unavailable")
+                  filesystem.mkdir("parallax-validator", cwd="/vercel", recursive=True)
+                  with filesystem.batch(cwd="/vercel/parallax-validator") as batch:
+                      batch.write_bytes("static_web_validator.py", source.read_bytes())
+
+              def validate_candidate(
+          '''
+          replace_once(transfer_anchor, transfer_new)
+          replace_once(
+              '                self._transfer_source(instance, files)\n                try:\n',
+              '                self._transfer_source(instance, files)\n                self._transfer_server_validator(instance, profile)\n                try:\n',
+          )
+
+          lineage_anchor = '''    def _team_plan(
+          '''
+          lineage_insert = '''    def _execution_contract_for_plan(self, run: EngineeringRun, lineage) -> ExecutionContract:
+              if not run.project_id:
+                  raise AgenticRuntimeError("execution contract requires Project-bound run")
+              identity = ProjectRunIdentity(project_id=run.project_id, run_id=run.id)
+              workspace = None
+              try:
+                  workspace = self.allocator.resolve(identity, lineage.lineage_id)
+                  if workspace.identity != identity:
+                      raise AgenticRuntimeError("execution contract workspace identity mismatch")
+                  if workspace.lineage.lineage_id != lineage.lineage_id:
+                      raise AgenticRuntimeError("execution contract source lineage mismatch")
+                  if workspace.lineage.content_digest != lineage.content_digest:
+                      raise AgenticRuntimeError("execution contract source content mismatch")
+                  return bind_execution_contract(workspace.path)
+              finally:
+                  if workspace is not None:
+                      self.allocator.cleanup(workspace)
+
+              def _team_plan(
+          '''
+          replace_once(lineage_anchor, lineage_insert)
+
+          replace_once(
+              '''        lineage = self._lineage(run)
+                  plan = self._team_plan(
+          ''',
+              '''        lineage = self._lineage(run)
+                  execution_contract = self._execution_contract_for_plan(run, lineage)
+                  plan = self._team_plan(
+          ''',
+          )
+          replace_once(
+              '''            "base_source_content_digest": lineage.content_digest,
+                  "orchestration_policy_digest": self._policy_digest,
+          ''',
+              '''            "base_source_content_digest": lineage.content_digest,
+                  "execution_contract_id": execution_contract.contract_id.value,
+                  "execution_contract_digest": execution_contract.digest,
+                  "execution_contract_target": execution_contract.target,
+                  "execution_contract_binding_reason": execution_contract.binding_reason.value,
+                  "validation_profile_id": execution_contract.validation_profile.profile_id.value,
+                  "validation_profile_digest": execution_contract.validation_profile.digest,
+                  "orchestration_policy_digest": self._policy_digest,
+          ''',
+          )
+
+          old_verify = '''    def _verify_plan_evidence(
+              self,
+              *,
+              run: EngineeringRun,
+              base_source_lineage_ref: str,
+              source_content_digest: str,
+          ) -> TeamPlan:
+              acceptance = self._acceptance(run, self.service)
+              plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
+              evidence = self._plan_attempt(run)
+              expected = {
+                  "project_id": run.project_id,
+                  "run_id": run.id,
+                  "work_specification_id": run.work_specification_id,
+                  "work_specification_revision": run.work_specification_revision,
+                  "work_specification_digest": run.work_specification_digest,
+                  "base_source_lineage_ref": base_source_lineage_ref,
+                  "base_source_content_digest": source_content_digest,
+                  "orchestration_policy_digest": self._policy_digest,
+                  "work_graph_digest": plan.graph.digest,
+                  "roster_digest": plan.roster.digest,
+                  "orchestration_identity_digest": plan.identity.digest,
+                  "team_plan_id": plan.plan_id,
+                  "selected_agent_digests": list(plan.selected_agent_digests),
+                  "routing_policy_digest": self.routing_policy.digest,
+                  "competition_policy_digest": self.competition_policy.digest,
+              }
+              for key, value in expected.items():
+                  if evidence.get(key) != value:
+                      raise AgenticRuntimeError(f"persisted agentic PLAN evidence drifted at {key}")
+              return plan
+          '''
+          new_verify = '''    def _verify_plan_evidence(
+              self,
+              *,
+              run: EngineeringRun,
+              base_source_lineage_ref: str,
+              source_content_digest: str,
+          ) -> tuple[TeamPlan, ExecutionContract]:
+              acceptance = self._acceptance(run, self.service)
+              plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
+              evidence = self._plan_attempt(run)
+              contract_id = evidence.get("execution_contract_id")
+              binding_reason = evidence.get("execution_contract_binding_reason")
+              target = evidence.get("execution_contract_target")
+              if not isinstance(contract_id, str) or not isinstance(binding_reason, str):
+                  raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+              if target is not None and not isinstance(target, str):
+                  raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+              contract = resolve_execution_contract(
+                  contract_id,
+                  binding_reason=binding_reason,
+                  target=target,
+              )
+              expected = {
+                  "project_id": run.project_id,
+                  "run_id": run.id,
+                  "work_specification_id": run.work_specification_id,
+                  "work_specification_revision": run.work_specification_revision,
+                  "work_specification_digest": run.work_specification_digest,
+                  "base_source_lineage_ref": base_source_lineage_ref,
+                  "base_source_content_digest": source_content_digest,
+                  "execution_contract_id": contract.contract_id.value,
+                  "execution_contract_digest": contract.digest,
+                  "execution_contract_target": contract.target,
+                  "execution_contract_binding_reason": contract.binding_reason.value,
+                  "validation_profile_id": contract.validation_profile.profile_id.value,
+                  "validation_profile_digest": contract.validation_profile.digest,
+                  "orchestration_policy_digest": self._policy_digest,
+                  "work_graph_digest": plan.graph.digest,
+                  "roster_digest": plan.roster.digest,
+                  "orchestration_identity_digest": plan.identity.digest,
+                  "team_plan_id": plan.plan_id,
+                  "selected_agent_digests": list(plan.selected_agent_digests),
+                  "routing_policy_digest": self.routing_policy.digest,
+                  "competition_policy_digest": self.competition_policy.digest,
+              }
+              for key, value in expected.items():
+                  if evidence.get(key) != value:
+                      raise ValidationProfileError(
+                          ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                          f"persisted agentic PLAN evidence drifted at {key}",
+                      )
+              return plan, contract
+          '''
+          replace_once(old_verify, new_verify)
+
+          request_anchor = '''    def _adapter(self, digest: str) -> HostedImplementationAgent:
+          '''
+          request_insert = '''    @staticmethod
+              def _request_for_execution_contract(
+                  request: ImplementationGenerationRequest,
+                  contract: ExecutionContract,
+              ) -> ImplementationGenerationRequest:
+                  if contract.contract_id.value != "static-web-v1":
+                      return request
+                  return ImplementationGenerationRequest(
+                      work_specification_id=request.work_specification_id,
+                      work_specification_revision=request.work_specification_revision,
+                      work_specification_digest=request.work_specification_digest,
+                      title=request.title,
+                      objective=request.objective,
+                      constraints=(
+                          *request.constraints,
+                          "Produce a self-contained static web app with a root index.html and local HTML, CSS, and JavaScript assets. Do not rely on package scripts, package managers, bundlers, framework build steps, or network fetches.",
+                      ),
+                      acceptance=request.acceptance,
+                      source_context=request.source_context,
+                  )
+
+              def _adapter(self, digest: str) -> HostedImplementationAgent:
+          '''
+          replace_once(request_anchor, request_insert)
+
+          old_candidate = '''    def _candidate_validation(
+              self,
+              base_workspace: Path,
+              proposal: ImplementationProposal,
+              *,
+              operation_key: str,
+              candidate_id: str,
+          ) -> CandidateValidationResult:
+              validation_profile = select_validation_profile(base_workspace)
+              with tempfile.TemporaryDirectory(prefix=f"parallax-{candidate_id}-") as temporary:
+          '''
+          new_candidate = '''    def _candidate_validation(
+              self,
+              base_workspace: Path,
+              proposal: ImplementationProposal,
+              *,
+              operation_key: str,
+              candidate_id: str,
+              validation_profile: ValidationProfile,
+          ) -> CandidateValidationResult:
+              if not isinstance(validation_profile, ValidationProfile):
+                  raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+              with tempfile.TemporaryDirectory(prefix=f"parallax-{candidate_id}-") as temporary:
+          '''
+          replace_once(old_candidate, new_candidate)
+
+          replace_once(
+              '''        base_workspace: Path,
+                  proposal_validator: Callable[[ImplementationProposal], bool],
+          ''',
+              '''        base_workspace: Path,
+                  validation_profile: ValidationProfile,
+                  proposal_validator: Callable[[ImplementationProposal], bool],
+          ''',
+          )
+          replace_once(
+              '''                operation_key=operation_key,
+                      candidate_id=candidate_id,
+                  )
+          ''',
+              '''                operation_key=operation_key,
+                      candidate_id=candidate_id,
+                      validation_profile=validation_profile,
+                  )
+          ''',
+          )
+
+          replace_once(
+              '''            primary_plan = self._verify_plan_evidence(
+                      run=run,
+                      base_source_lineage_ref=base_source_lineage_ref,
+                      source_content_digest=lineage.content_digest,
+                  )
+                  primary, routing_context = self._make_candidate(
+          ''',
+              '''            primary_plan, execution_contract = self._verify_plan_evidence(
+                      run=run,
+                      base_source_lineage_ref=base_source_lineage_ref,
+                      source_content_digest=lineage.content_digest,
+                  )
+                  execution_request = self._request_for_execution_contract(request, execution_contract)
+                  primary, routing_context = self._make_candidate(
+          ''',
+          )
+          replace_once(
+              '''                request=request,
+                      base_workspace=workspace_root,
+                      proposal_validator=proposal_validator,
+          ''',
+              '''                request=execution_request,
+                      base_workspace=workspace_root,
+                      validation_profile=execution_contract.validation_profile,
+                      proposal_validator=proposal_validator,
+          ''',
+          )
+          replace_once(
+              '''                        request=request,
+                              base_workspace=workspace_root,
+                              proposal_validator=proposal_validator,
+          ''',
+              '''                        request=execution_request,
+                              base_workspace=workspace_root,
+                              validation_profile=execution_contract.validation_profile,
+                              proposal_validator=proposal_validator,
+          ''',
+          )
+
+          replace_once(
+              '''                    "team_plan_id": primary_plan.plan_id,
+                      "candidate_digests": [item.validation.content_digest for item in candidates],
+          ''',
+              '''                    "team_plan_id": primary_plan.plan_id,
+                      "execution_contract_id": execution_contract.contract_id.value,
+                      "execution_contract_digest": execution_contract.digest,
+                      "candidate_digests": [item.validation.content_digest for item in candidates],
+          ''',
+          )
+          replace_once(
+              '''                "team_plan_id": primary_plan.plan_id,
+                  "orchestration_identity_digest": primary_plan.identity.digest,
+          ''',
+              '''                "team_plan_id": primary_plan.plan_id,
+                  "execution_contract_id": execution_contract.contract_id.value,
+                  "execution_contract_digest": execution_contract.digest,
+                  "execution_contract_binding_reason": execution_contract.binding_reason.value,
+                  "validation_profile_id": execution_contract.validation_profile.profile_id.value,
+                  "validation_profile_digest": execution_contract.validation_profile.digest,
+                  "orchestration_identity_digest": primary_plan.identity.digest,
+          ''',
+          )
+          replace_once(
+              '''                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s",
+                      diagnostic.get("candidate_id"),
+                      diagnostic.get("phase"),
+                      diagnostic.get("failure_kind"),
+                  )
+          ''',
+              '''                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s reason_code=%s",
+                      diagnostic.get("candidate_id"),
+                      diagnostic.get("phase"),
+                      diagnostic.get("failure_kind"),
+                      diagnostic.get("reason_code"),
+                  )
+          ''',
+          )
+
+          path.write_text(text)
+          PY
+      - name: Compile patched runtime
+        run: python -m compileall -q services/api/parallax_api/code/agentic_runtime.py services/api/parallax_api/code/validation_toolchains.py services/api/parallax_api/code/static_web_validator.py
+      - name: Commit runtime patch and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'Parallax Runtime Patcher'
+          git config user.email 'parallax-runtime@users.noreply.github.com'
+          git add services/api/parallax_api/code/agentic_runtime.py
+          git rm .github/workflows/tmp-p2331-runtime-patch.yml
+          git commit -m 'P2-V0.23.31 — bind execution contract before IMPLEMENT'
+          git push origin HEAD:release/p2-v0.23.31
