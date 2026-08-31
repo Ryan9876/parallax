@@ -38,7 +38,7 @@ from .service import EngineeringRunService
 from .worker_recovery import WorkerLifecycleState, WorkerStallEvidence, WorkerRecoveryError
 
 
-CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.24"
+CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.26"
 CANDIDATE_GENERATION_EXHAUSTED = "CANDIDATE_GENERATION_EXHAUSTED"
 CANDIDATE_VALIDATION_REPAIR = "CANDIDATE_VALIDATION_REPAIR"
 MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT = 1
@@ -47,19 +47,19 @@ _FINAL_VALIDATOR_REPAIR_CONTEXT_DOMAIN = "parallax-final-validator-repair-contex
 _FINAL_VALIDATOR_REPAIR_CONTEXT_TOKEN_HEX = 24
 logger = logging.getLogger(__name__)
 VALIDATOR_REPAIR_GUIDANCE = (
-    "The previous admitted candidate produced a parsed proposal but the server-owned safe proposal validator rejected it. "
-    "Repair the proposal without changing the approved objective or acceptance criteria. Use only the supplied protected "
-    "source context. For every existing target, copy the exact path and lowercase SHA-256 from source context; for a new "
-    "file, bind to the SHA-256 of empty content. Emit one patch per target. Every unified diff must be strict single-file "
-    "form with headers exactly matching the declared path (`--- a/path` and `+++ b/path`, or `--- /dev/null` for a new "
-    "file), exact hunk coordinates and counts, and removed/context lines copied exactly from the supplied source text. "
-    "Do not emit multi-file diffs, duplicate targets, unsupported or binary-prone paths, secret material, or no-op patches."
+    "The previous admitted candidate produced typed file-content intent but the server-owned safe proposal validator "
+    "rejected the resulting canonical proposal. Repair the semantic intent without changing the approved objective or "
+    "acceptance criteria. Use only the supplied protected source context. Re-check exact existing target paths, safe new "
+    "target paths, complete desired UTF-8 file contents, acceptance coverage, and prohibited or secret-sensitive targets. "
+    "The protected server owns source-digest binding and canonical patch rendering after generation; return file contents, "
+    "not patch syntax or source digests. Do not emit duplicate targets, unsupported or binary-prone paths, secret material, "
+    "or no-op edits."
 )
 FINAL_VALIDATOR_REPAIR_GUIDANCE = (
-    "This is the single final validator-repair generation for this work unit. "
-    "Re-derive a fresh proposal from the supplied protected source context instead of reusing or repeating any prior response. "
-    "Re-check every target path, base SHA-256, unified diff header, hunk coordinate and count, and every removed/context line "
-    "against the supplied source before returning the proposal."
+    "This is the single final validator-repair generation for this work unit. Re-derive a fresh semantic file-content "
+    "proposal from the supplied protected source context instead of reusing or repeating any prior response. Re-check "
+    "every target path, complete desired file content, source-context compatibility, and acceptance ID before returning "
+    "the proposal. Patch mechanics remain protected server-owned behavior."
 )
 _BOUNDED_ROUTING_FAILURES = frozenset(item.value for item in RoutingFailureKind)
 

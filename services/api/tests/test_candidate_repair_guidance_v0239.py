@@ -17,7 +17,7 @@ from parallax_api.intelligence.implementation_generation import (
     ImplementationGenerationFailure,
     ImplementationGenerationRequest,
     ImplementationProposal,
-    STRICT_SAFE_PATCH_RULE,
+    SERVER_CANONICAL_CONTENT_RULE,
 )
 from parallax_api.intelligence.router import ModelRouter, RoutingFailureKind
 
@@ -125,11 +125,12 @@ def test_validator_guidance_is_validation_only_bounded_and_idempotent():
     assert guided is not request
     assert guided.constraints[:-1] == request.constraints
     assert guided.constraints[-1] == VALIDATOR_REPAIR_GUIDANCE
-    assert "exact path" in VALIDATOR_REPAIR_GUIDANCE
-    assert "lowercase SHA-256" in VALIDATOR_REPAIR_GUIDANCE
-    assert "strict single-file" in VALIDATOR_REPAIR_GUIDANCE
-    assert "exact hunk coordinates and counts" in VALIDATOR_REPAIR_GUIDANCE
+    assert "exact existing target paths" in VALIDATOR_REPAIR_GUIDANCE
+    assert "complete desired UTF-8 file contents" in VALIDATOR_REPAIR_GUIDANCE
+    assert "source-digest binding" in VALIDATOR_REPAIR_GUIDANCE
+    assert "canonical patch rendering" in VALIDATOR_REPAIR_GUIDANCE
     assert "secret material" in VALIDATOR_REPAIR_GUIDANCE
+    assert "hunk coordinates" not in VALIDATOR_REPAIR_GUIDANCE
 
     guided_again = validator_guided_candidate_request(
         guided,
@@ -144,10 +145,11 @@ def test_validator_guidance_is_validation_only_bounded_and_idempotent():
     assert provider_failure is request
 
 
-def test_initial_source_payload_also_carries_strict_safe_patch_contract():
+def test_initial_source_payload_carries_server_canonical_content_contract():
     payload = _request().source_prompt_payload()
-    assert payload["strict_safe_patch_rule"] == STRICT_SAFE_PATCH_RULE
-    assert "exact path" in STRICT_SAFE_PATCH_RULE
-    assert "SHA-256" in STRICT_SAFE_PATCH_RULE
-    assert "strict single-file" in STRICT_SAFE_PATCH_RULE
-    assert "hunk coordinates" in STRICT_SAFE_PATCH_RULE
+    assert payload["server_canonical_content_rule"] == SERVER_CANONICAL_CONTENT_RULE
+    assert "exact repository-relative" in SERVER_CANONICAL_CONTENT_RULE
+    assert "complete desired content" in SERVER_CANONICAL_CONTENT_RULE
+    assert "server owns source SHA-256 binding" in SERVER_CANONICAL_CONTENT_RULE
+    assert "unified-diff rendering" in SERVER_CANONICAL_CONTENT_RULE
+    assert "patch syntax" in SERVER_CANONICAL_CONTENT_RULE
