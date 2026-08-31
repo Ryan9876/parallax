@@ -1,15 +1,27 @@
 # Parallax 2.0 Architecture
 
-Version: 3.28
+Version: 3.29
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.29 moves standing production-QA execution identity to a dedicated repository trust boundary. GitHub Actions OIDC authorization is now an exact server-owned `(repository, workflow_ref)` pair, preventing a trusted repository from substituting another workflow and preventing an exact workflow path from being replayed from another repository. The migration admission release temporarily retains the two existing exact application-repository QA pairs until the dedicated `Ryan9876/parallax-qa` production replay is behaviorally proven; the bounded QA principal, issuer, audience, main ref, hosted-runner requirement, allowed events, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and REVIEW ceiling are unchanged.
 
 Architecture v3.28 makes hosted model-routing failure semantics truthful at the provider/output boundary: a provider-successful implementation proposal that fails strict server-owned JSON/schema decoding is validation failure, while transport, configuration, rate-limit and unrelated attempt exceptions remain provider failure. The implementation proposal prompt states the exact already-enforced JSON keys more explicitly, but parsing remains strict and fail-closed. Architecture v3.27 remains the recovered-worker PLAN-rebinding foundation, v3.26 remains the failed-IMPLEMENT PLAN-refresh foundation, v3.25 remains the terminal-worker re-arm foundation, v3.24 remains the hosted model escalation foundation, v3.23 remains the validator-guided repair foundation, v3.22 remains bounded implementation-candidate recovery, and v3.21 remains empty-greenfield source authority. The complete v3.19 architecture is incorporated by reference. Every v3.19 durable contract not explicitly changed below remains authoritative, including source/deployment separation, canonical Project / Work Specification / Engineering Run authority, immutable accepted source lineage, single-writer canonical mutation, durable worker recovery, Project-scoped tool/provider authority, protected evaluation, logical workspace deletion/retention, Preview/REVIEW ceilings, governed release evidence, W8-S2 deferred Vercel Project readiness, W9 benchmark admission, governed skill intake, explicit GitHub installation coverage, exact-one-repository runtime credential scope, quota-independent public source bootstrap, repository-aware protected validation, and bounded dependency PREPARE.
 
 Architecture v3.19 removed GitHub's shared anonymous REST quota from the normal public-source bootstrap path. Public source authority remains established through GitHub's unauthenticated Git smart-HTTP advertisement and an exact commit-addressed source archive. Public-source throttling or provider failure does not silently construct a deployment-provider credential path.
 
 This revision replaces the assumption that every admitted validation ecosystem can use one common execution snapshot. Snapshot selection is now finite, server-owned, and bound to the deterministic validation profile selected from exact source. The established Python path retains the common snapshot; the reserved Node profile identity maps to that same common snapshot without changing generic Node's existing fail-closed source admission; admitted `.NET` requires a dedicated prequalified source-free snapshot and never falls back to the common image.
+
+## Dedicated production-QA repository trust boundary
+
+Architecture v3.29 treats a GitHub Actions QA identity as one exact repository/workflow pair. Production authorization never accepts a repository and workflow independently: both signed OIDC claims must match the same server-owned allowlist entry. Standing dedicated QA is `Ryan9876/parallax-qa` with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`.
+
+The remaining identity guards stay conjunctive and fail-closed: issuer `https://token.actions.githubusercontent.com`, audience `parallax://qa-production`, ref `refs/heads/main`, GitHub-hosted runner, admitted `workflow_dispatch` or `push` event, and a bounded non-empty GitHub run ID. Actor identity alone never grants access. No prefix, glob, substring, branch-only, event-only, or repository-only match creates QA authority.
+
+The dedicated workflow authenticates only to the existing bounded QA principal. It cannot inherit normal-user ownership or create source-publication, Git mutation, deployment, production-promotion, lifecycle-transition, or REVIEW-completion authority beyond the product APIs already available to that bounded QA account. Routine standing acceptance is source-only Python plus OT Time/.NET replay to REVIEW and authenticated ZIP handoff. W9-S1 greenfield initialization is not standing QA trust and requires a separately reviewed exact workflow when a fresh approved target exists.
+
+Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.
 
 ## Source authority is independent from deployment authority
 
