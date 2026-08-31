@@ -1,0 +1,55 @@
+name: P2-V0.23.25 Current State Reconciliation
+
+on:
+  push:
+    branches:
+      - record/p2325-deployment-verification
+    paths:
+      - .github/workflows/reconcile-current-state-p2325.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: record/p2325-deployment-verification
+      - name: Reconcile authoritative current state
+        shell: bash
+        env:
+          SECTION_B64: IyMgUDItVjAuMjMuMjUg4oCUIHNhZmUgbmVzdGVkIHNvdXJjZSBjcmVhdGlvbiBhbmQgYW1iaWd1b3VzIHRyYW5zcG9ydCByZWNvbmNpbGlhdGlvbiDigJQgUFJPRFVDVElPTi1ERVBMT1lNRU5ULVZFUklGSUVEIC8gUkVBTC1QQVRIIEJFSEFWSU9SIEFDQ0VQVEFOQ0UgUEVORElORwoKV29ya3N0cmVhbTogIzUxNC4gUmVsZWFzZSBQUjogIzUxNS4gR292ZXJuaW5nIHNwZWNpZmljYXRpb246IGBQMi1WMC4yMy4yNWAuIEFyY2hpdGVjdHVyZTogYEFSQ0hJVEVDVFVSRS5tZGAgdjMuMzYuCgpQMi1WMC4yMy4yNSByZW1vdmVzIHR3byBibG9ja2VycyBleHBvc2VkIGJ5IGF1dGhlbnRpY2F0ZWQgRW5naW5lZXJpbmcgUnVuIGAzYTFiYTY2YS01NjQ5LTQyYjYtODFlZS05MTY4NGZlMDZiYmNgLiBGaXJzdCwgdmFsaWRhdGVkIG5ldyB0ZXh0LWZpbGUgcGF0Y2hlcyBtYXkgbm93IGNhcnJ5IGJvdW5kZWQgbWlzc2luZy1wYXJlbnQgaW50ZW50IGluc2lkZSB0aGUgd29ya3NwYWNlOiBwcmVwYXJhdGlvbiByZW1haW5zIHNpZGUtZWZmZWN0LWZyZWUsIGNvbW1pdCBjcmVhdGVzIG9ubHkgdGhlIHJlY29yZGVkIHNhZmUgcGFyZW50IHNlZ21lbnRzIGFmdGVyIGNvbnRhaW5tZW50L3R5cGUvc3ltbGluayByZWNoZWNrcywgcm9sbGJhY2sgcmVtb3ZlcyBvbmx5IHJlY29yZGVkIGRpcmVjdG9yaWVzIHRoYXQgcmVtYWluIGVtcHR5LCBhbmQgZmlsZS10YXJnZXQgYW5jZXN0cnkgY29uZmxpY3RzIGZhaWwgYmVmb3JlIG11dGF0aW9uLiBFeGlzdGluZyB0cmF2ZXJzYWwsIHNlY3JldCwgZXh0ZW5zaW9uLCBzaXplLCBzdGFsZS1iYXNlLCBjYW5vbmljYWxpemF0aW9uLCBzb3VyY2UtbGluZWFnZSwgR2l0L2RlcGxveW1lbnQsIGxpZmVjeWNsZSwgYW5kIGh1bWFuIFJFVklFVyBjb250cm9scyByZW1haW4gYXV0aG9yaXRhdGl2ZS4gU2Vjb25kLCB3aGVuIGFuIGF1dG9ub215IFBPU1QgZmFpbHMgb25seSBhcyBhIHJlc3BvbnNlLWxlc3MgdHJhbnNwb3J0IGV4Y2VwdGlvbiwgdGhlIGNsaWVudCBwZXJmb3JtcyBvbmUgcmVhZC1vbmx5IGxhdGVzdC1ydW4gcmVjb25jaWxpYXRpb24gYW5kIGFjY2VwdHMgcmVjb3ZlcmVkIHByb2dyZXNzIG9ubHkgZm9yIHRoZSBzYW1lIEVuZ2luZWVyaW5nIFJ1biBhdCBhIHN0cmljdGx5IG5ld2VyIGF1dGhvcml0YXRpdmUgcmV2aXNpb247IG90aGVyd2lzZSBpdCBwcmVzZXJ2ZXMgdGhlIGVycm9yIGFuZCBkb2VzIG5vdCBzZW5kIGEgZHVwbGljYXRlIFBPU1QgZnJvbSBhbiB1bmNlcnRhaW4gcmV2aXNpb24uCgpWYWxpZGF0ZWQgcmVsZWFzZSBhbmQgZGVwbG95bWVudCBldmlkZW5jZToKCi0gc3BlYy1maXJzdCBwcmVwYXJhdGlvbiBydW4gYDMzMzgzODM2Mzk0YDogU1VDQ0VTUywgaW5jbHVkaW5nIFNwZWNDcml0aWMgKyBTcGVjQ29tcGlsZXIgYW5kIGNvbW1pdHRlZCBwcm90ZWN0ZWQgRFNQeSBwbGFuOwotIGZvY3VzZWQgaW1wbGVtZW50YXRpb24gcnVuIGAzMzM4NDczOTI1NmA6IFNVQ0NFU1MgYWZ0ZXIgYSBUeXBlU2NyaXB0IG5hcnJvd2luZyBjb3JyZWN0aW9uOyBuZXN0ZWQtc291cmNlIHNhZmV0eS9jYW5vbmljYWxpemF0aW9uLCBjbGllbnQgdHlwZS9zdGF0ZSB0ZXN0cywgYW5kIHByb3RlY3RlZCBhdXRob3JpdHktc3VyZmFjZSBjaGVja3MgcGFzc2VkOwotIGZ1bGwgQVBJIHJlZ3Jlc3Npb24gYWxpZ25tZW50IHJ1biBgMzMzODY5NTQzNTNgOiBTVUNDRVNTOyB0aGUgc3VwZXJzZWRlZCBsZWdhY3kgbWlzc2luZy1wYXJlbnQgYXNzZXJ0aW9uIHdhcyB1cGRhdGVkIHRvIHRoZSBnb3Zlcm5lZCBjb21taXQtdGltZSBjcmVhdGlvbiBjb250cmFjdCBhbmQgdGhlIHRlbXBvcmFyeSB3b3JrZmxvdyByZW1vdmVkOwotIGV4YWN0IGdyZWVuIFBSIGhlYWQ6IGAzYTAzNjY0ZWMzYTA2MGNlZTA4NTlkM2UwZDBhN2MzYzYxNzczMzM2YDsKLSBQUiBQYXJhbGxheCBQMiBDSSBgMzMzODczMjEyMzJgOiBTVUNDRVNTOwotIFBSIFdvcmtzdHJlYW0gU3BlYyBWYWxpZGF0aW9uIGAzMzM4NzMyMTI2MmA6IFNVQ0NFU1M7Ci0gUFIgQ2xpZW50IFZpc3VhbCBWYWxpZGF0aW9uIGAzMzM4NzMyMTI0MGA6IFNVQ0NFU1M7Ci0gUFIgQm91bmRlZCBBdXRvbm9teSBgMzMzODczMjEyNzRgOiBTVUNDRVNTOwotIHNxdWFzaCBtZXJnZSAvIGV4YWN0IGFwcGxpY2F0aW9uIHNvdXJjZTogYDNkNTM1OTljNDY1OTE2MmNmZTQ1YmJjNDgwOWYzZjMyOWQwYWJiNzNgOwotIHBvc3QtbWVyZ2UgV29ya3N0cmVhbSBTcGVjIFZhbGlkYXRpb24gYDMzMzg3NTYyNzYwYDogU1VDQ0VTUywgaW5jbHVkaW5nIGNoYW5nZWQtc3BlYyBwcm90ZWN0ZWQgcGxhbiBldmlkZW5jZTsKLSBwb3N0LW1lcmdlIFBhcmFsbGF4IFAyIENJIGAzMzM4NzU2Mjc3OWA6IFNVQ0NFU1MsIGluY2x1ZGluZyBmdWxsIEFQSSByZWdyZXNzaW9uLCBjbGllbnQgY2hlY2tzLCBwcm90ZWN0ZWQgcHJvbW90aW9uIGV2YWx1YXRpb24sIGFuZCBmcmVzaCBwcm9tb3Rpb24tYm91bmRhcnkgRFNQeSBTcGVjQ3JpdGljL1NwZWNDb21waWxlciBjb21waWxhdGlvbiBhbmQgcGxhbiB2ZXJpZmljYXRpb247Ci0gcHJvZHVjdGlvbiBjbGllbnQgZGVwbG95bWVudCBgZHBsX0hBOUtKMWtxeTl4VUtkUXNpOG9mMnpHRGlFUDRgOiB0YXJnZXQgcHJvZHVjdGlvbiwgc3RhdGUgYFJFQURZYCwgZXhhY3QgYXBwbGljYXRpb24gc291cmNlOwotIHByb2R1Y3Rpb24gQVBJIGRlcGxveW1lbnQgYGRwbF8yNjR4c2IyQzF5eWFZYjJhQkZGVll6Zmo1dDZHYDogdGFyZ2V0IHByb2R1Y3Rpb24sIHN0YXRlIGBSRUFEWWAsIGV4YWN0IGFwcGxpY2F0aW9uIHNvdXJjZSwgY2Fub25pY2FsIGFsaWFzIGBwYXJhbGxheC1hcGktdGFuLnZlcmNlbC5hcHBgOwotIHByb2R1Y3Rpb24gYC9oZWFsdGhgOiBIVFRQIDIwMDsKLSBwcm9kdWN0aW9uIGAvcmVhZHlgOiBIVFRQIDIwMCB3aXRoIGRhdGFiYXNlL3Byb3ZpZGVycyByZWFkeSBhbmQgb25lIHByb3ZpZGVyIHRhcmdldDsKLSBwcm9kdWN0aW9uIGJ1aWxkIHByZWZsaWdodHMgcGFzc2VkLCBpbmNsdWRpbmcgbGluZWFnZSBjb21wb3NpdGlvbiAoNjcyIGZpbGVzIC8gNiw5MTMsNjE1IGJ5dGVzKSwgYWdlbnRpYyBydW50aW1lLCBwcm9qZWN0ZWQgYm9vdHN0cmFwLCBleGVjdXRpb24gc25hcHNob3RzLCBhbmQgcnVuLWV2ZW50IHNjaGVtYSBndWFyZDsKLSBleGFjdCBBUEkgZGVwbG95bWVudCB3YXJuaW5nL2Vycm9yL2ZhdGFsIHJ1bnRpbWUgc2NhbiBpbW1lZGlhdGVseSBhZnRlciByZWFkaW5lc3Mgd2FzIGNsZWFuOwotIHRlbXBvcmFyeSBQMi1WMC4yMy4yNSByZWdyZXNzaW9uLWFsaWdubWVudCB3b3JrZmxvdyBpcyBhYnNlbnQgZnJvbSBgbWFpbmAuCgpEZXBsb3ltZW50IHZlcmlmaWNhdGlvbiBpcyBjb21wbGV0ZSwgYnV0IHdvcmtzdHJlYW0gIzUxNCByZW1haW5zIG9wZW4gYmVjYXVzZSBpdHMgY29tcGxldGlvbiBjb25kaXRpb24gZXhwbGljaXRseSByZXF1aXJlcyBhdXRoZW50aWNhdGVkIGV2aWRlbmNlIG9uIHRoZSBzYW1lIHJlYWwgYnVpbGQgcGF0aC4gVGhlIG5leHQgYWNjZXB0YW5jZSBpcyBhIHVzZXItYXV0aGVudGljYXRlZCByZXRyeSBvZiBFbmdpbmVlcmluZyBSdW4gYDNhMWJhNjZhLTU2NDktNDJiNi04MWVlLTkxNjg0ZmUwNmJiY2AgKG9yIGFuIGVxdWl2YWxlbnQgcmVhbCBwYXRoKSBwcm92aW5nIGltcGxlbWVudGF0aW9uIHByb2dyZXNzZXMgYmV5b25kIHRoZSBmb3JtZXIgbWlzc2luZy1wYXJlbnQgYHVuc2FmZV90YXJnZXRgIHJlamVjdGlvbi4gSWYgYSByZXNwb25zZS1sZXNzIG1vYmlsZSB0cmFuc3BvcnQgaW50ZXJydXB0aW9uIG9jY3VycyBkdXJpbmcgdGhhdCBydW4sIHRoZSBuZXcgY2xpZW50IHJlY29uY2lsaWF0aW9uIGJlaGF2aW9yIHNob3VsZCBhbHNvIGJlIG9ic2VydmVkIGFnYWluc3QgYXV0aG9yaXRhdGl2ZSByZXZpc2lvbiBhZHZhbmNlIHJhdGhlciB0aGFuIG1hbnVmYWN0dXJlZCBzeW50aGV0aWNhbGx5LgoKTm8gYWRkaXRpb25hbCBtb2RlbCByZXRyeSBidWRnZXQsIGhvc3RlZC1tb2RlbCB0aW1lb3V0LCBoaWRkZW4gdHJhbnNwb3J0IHJldHJ5LCBwcm92aWRlci9tb2RlbCByb3N0ZXIsIGNyZWRlbnRpYWwgYXV0aG9yaXR5LCByZWN1cnNpdmUgZmlsZXN5c3RlbSBhdXRob3JpdHksIHNvdXJjZSB3cml0ZXIsIEdpdC9kZXBsb3ltZW50IGF1dGhvcml0eSwgbGlmZWN5Y2xlLXRyYW5zaXRpb24gYXV0aG9yaXR5LCBhdXRvbWF0aWMgUkVWSUVXIGNvbXBsZXRpb24sIG9yIHF1ZXVlIHJlZGVzaWduIHdhcyBhZGRlZC4KCg==
+        run: |
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          p = Path('CURRENT-STATE.md')
+          text = p.read_text()
+          status_old = 'P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED**'
+          status_new = status_old[:-2] + ' / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**'
+          if status_old not in text:
+              raise SystemExit('expected status tail not found')
+          text = text.replace(status_old, status_new, 1)
+          marker = '## P2-V0.23.24 — fresh final validator repair generation — PRODUCTION-BEHAVIOR-VERIFIED\n'
+          if marker not in text:
+              raise SystemExit('P2-V0.23.24 insertion marker not found')
+          section = base64.b64decode(os.environ['SECTION_B64']).decode('utf-8')
+          text = text.replace(marker, section + marker, 1)
+          p.write_text(text)
+          PY
+      - name: Validate record scope
+        run: |
+          git diff --check
+          git diff -- CURRENT-STATE.md
+          test "$(git status --short | awk '$2 != "CURRENT-STATE.md" && $2 != ".github/workflows/reconcile-current-state-p2325.yml" {count++} END {print count+0}')" -eq 0
+      - name: Commit record and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/reconcile-current-state-p2325.yml
+          git config user.name 'Parallax Record Reconciler'
+          git config user.email 'parallax-records@users.noreply.github.com'
+          git add CURRENT-STATE.md .github/workflows/reconcile-current-state-p2325.yml
+          git commit -m 'P2-V0.23.25 — record deployment-verified current state'
+          git push origin HEAD:record/p2325-deployment-verification
