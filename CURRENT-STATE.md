@@ -2,7 +2,33 @@
 
 Date: 2026-08-31
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING**
+
+## P2-V0.23.24 — fresh final validator repair generation — DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING
+
+Workstream: #512. Release PR: #513. Governing specification: `P2-V0.23.24`. Architecture: `ARCHITECTURE.md` v3.35.
+
+P2-V0.23.24 corrects the authenticated production failure discovered after P2-V0.23.23. The prior final validator-repair assignment was selected correctly, but its Terra request was identical to an earlier validator-guided request, allowing DSPy in-process caching to replay the already-rejected proposal in about 7 ms rather than performing the intended fresh hosted generation. The final `CANDIDATE_VALIDATION_REPAIR` request now receives the existing safe validator guidance plus a final-repair-only server-owned constraint containing a bounded deterministic context token derived from authoritative run revision, work-unit identity, and repair generation. That changes only request/cache identity; it carries no rejected output or source material and grants no new authority.
+
+Validated release and deployment evidence:
+
+- exact reviewed PR head: `7c3dc0864f834c9ee58715e087ff5cbfd38646f0`;
+- spec-first preparation run `33367240179`: SUCCESS and committed protected DSPy plan;
+- focused implementation gate `33368039034`: SUCCESS;
+- PR Parallax P2 CI `33368162041`: SUCCESS;
+- PR Bounded Autonomy `33368162065`: SUCCESS;
+- PR Workstream Spec Validation `33368162106`: SUCCESS;
+- squash merge / exact application source: `6295948d1f8230e769ba67a81b4a0f5ee61f9433`;
+- post-merge Workstream Spec Validation `33382027091`: SUCCESS;
+- post-merge Parallax P2 CI `33382027044`: SUCCESS, including full API regression, client checks, protected promotion evaluation, and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- production API deployment: `dpl_Am5D5JkShtNHnXYuFcDBfnrYK7i2`, target production, state `READY`, canonical alias `parallax-api-tan.vercel.app`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- one-repair ceiling remains exactly one per work unit; global DSPy caching, 60-second hosted-model timeout, zero hidden transport retries, model/provider roster, safe patch validation/canonicalization, source-lineage authority, Git/deployment authority, lifecycle authority, and human REVIEW ceiling are unchanged.
+
+Production behavior acceptance remains pending because the affected user-owned Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` requires an authenticated user-session resume. Acceptance requires runtime evidence that `parallax_final_validator_repair_dispatch` is followed by a genuine hosted model generation rather than the prior cache replay. If that fresh proposal still fails protected validation, the next action is diagnosis rather than widening the retry budget.
+
+No database migration, new queue, model/provider/credential, source writer, Git mutation authority, deployment authority, lifecycle-transition authority, automatic REVIEW completion, or additional retry budget was added.
 
 ## P2-V0.23.23 — bounded validator repair — DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING
 
