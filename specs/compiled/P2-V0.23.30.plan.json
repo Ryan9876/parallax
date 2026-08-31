@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "Disposable candidate validation will use the validation profile selected from the authoritative accepted-source workspace before candidate mutation."
+  ],
+  "work_items": [
+    "Engineering Run 3a1ba66a-5649-42b6-81ee-91684fe06bbc"
+  ],
+  "validations": [
+    "Candidate validation path currently copies the authoritative workspace, safely applies the non-authoritative proposal, then asks the authoritative accepted/base workspace for the validation profile. The resulting immutable `ValidationProfile` is passed explicitly into disposable candidate validation.",
+    "AC-01: validate protected requirement \u2014 The workstream records the exact deployment, successful resume/source reads, Luna/Terra completion and `DISPOSABLE_CANDIDATE_VALIDATION / VALUE_CONTRACT_ERROR` diagnostic.",
+    "AC-02: validate protected requirement \u2014 Production candidate validation selects the profile from `base_workspace` before applying candidate edits.",
+    "AC-03: validate protected requirement \u2014 The Vercel candidate validator uses the supplied immutable profile instead of calling `select_validation_profile()` on candidate-mutated source.",
+    "AC-04: validate protected requirement \u2014 A candidate that adds/removes profile marker files does not change the selected profile ID, commands, dependency policy or execution-snapshot family.",
+    "AC-05: validate protected requirement \u2014 The candidate content digest/files/bytes and actual BUILD/TEST/VERIFY operate on the mutated disposable candidate, not the base workspace.",
+    "AC-06: validate protected requirement \u2014 If accepted source has no admitted profile, candidate validation fails before candidate mutation/sandbox execution.",
+    "AC-07: validate protected requirement \u2014 Profile/policy exceptions map to fixed `VALIDATION_PROFILE_ERROR`; raw exception text is absent from durable and operational diagnostics.",
+    "AC-08: validate protected requirement \u2014 SafeImplementationEngine, source lineage, evaluation, Git/deployment/lifecycle, human REVIEW, model roster, timeout, hidden retry, candidate recovery and final repair ceilings are unchanged.",
+    "AC-09: validate protected requirement \u2014 Focused tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation and required DSPy compile/verify are green on the exact reviewed head.",
+    "AC-10: validate protected requirement \u2014 The exact merged application source reaches READY on the production API; `/health` and `/ready` return HTTP 200 and runtime verification is clean.",
+    "AC-11: validate protected requirement \u2014 A signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work enters disposable BUILD/TEST/VERIFY under the accepted-source pinned profile, or exposes a later bounded blocker with server-owned diagnostics."
+  ],
+  "risks": [
+    "No disposable BUILD/TEST/VERIFY sandbox followed that admission failure. The candidate validation path currently copies the authoritative workspace, safely applies the non-authoritative proposal, then asks the authoritative accepted/base workspace for the validation profile. The resulting immutable `ValidationProfile` is passed explicitly into disposable candidate validation."
+  ],
+  "spec_id": "P2-V0.23.30",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Authenticated P2-V0.23.29 evidence is recorded",
+      "protected_requirement": "The workstream records the exact deployment, successful resume/source reads, Luna/Terra completion and `DISPOSABLE_CANDIDATE_VALIDATION / VALUE_CONTRACT_ERROR` diagnostic."
+    },
+    {
+      "id": "AC-02",
+      "title": "Profile selected from accepted source",
+      "protected_requirement": "Production candidate validation selects the profile from `base_workspace` before applying candidate edits."
+    },
+    {
+      "id": "AC-03",
+      "title": "Explicit profile is used by disposable validation",
+      "protected_requirement": "The Vercel candidate validator uses the supplied immutable profile instead of calling `select_validation_profile()` on candidate-mutated source."
+    },
+    {
+      "id": "AC-04",
+      "title": "Candidate cannot switch ecosystem",
+      "protected_requirement": "A candidate that adds/removes profile marker files does not change the selected profile ID, commands, dependency policy or execution-snapshot family."
+    },
+    {
+      "id": "AC-05",
+      "title": "Candidate content is still validated",
+      "protected_requirement": "The candidate content digest/files/bytes and actual BUILD/TEST/VERIFY operate on the mutated disposable candidate, not the base workspace."
+    },
+    {
+      "id": "AC-06",
+      "title": "Authoritative profile failure remains fail-closed",
+      "protected_requirement": "If accepted source has no admitted profile, candidate validation fails before candidate mutation/sandbox execution."
+    },
+    {
+      "id": "AC-07",
+      "title": "Sanitized profile classification",
+      "protected_requirement": "Profile/policy exceptions map to fixed `VALIDATION_PROFILE_ERROR`; raw exception text is absent from durable and operational diagnostics."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing authority ceilings unchanged",
+      "protected_requirement": "SafeImplementationEngine, source lineage, evaluation, Git/deployment/lifecycle, human REVIEW, model roster, timeout, hidden retry, candidate recovery and final repair ceilings are unchanged."
+    },
+    {
+      "id": "AC-09",
+      "title": "Protected gates pass",
+      "protected_requirement": "Focused tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation and required DSPy compile/verify are green on the exact reviewed head."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "The exact merged application source reaches READY on the production API; `/health` and `/ready` return HTTP 200 and runtime verification is clean."
+    },
+    {
+      "id": "AC-11",
+      "title": "Authenticated real-path acceptance",
+      "protected_requirement": "A signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work enters disposable BUILD/TEST/VERIFY under the accepted-source pinned profile, or exposes a later bounded blocker with server-owned diagnostics."
+    }
+  ],
+  "critique": [
+    "candidate-mutated-source-authoritative-profile-selection"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
