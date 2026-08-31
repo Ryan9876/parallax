@@ -28,27 +28,32 @@ jobs:
         run: pip install -e 'services/api[dev]'
       - name: Validate specification contract
         run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.28.md
-      - name: Require provider-backed DSPy preparation
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Install local DSPy release LM
         run: |
-          test -n "$OPENAI_API_KEY"
-          echo 'DSPY_MODEL=openai/gpt-5.6-sol' >> "$GITHUB_ENV"
-      - name: Compile with SpecCritic and SpecCompiler
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+      - name: Compile and verify protected DSPy plan
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py specs/P2-V0.23.28.md
-      - name: Verify committed-plan contract
-        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.28.md
-      - name: Commit protected DSPy plan
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: ''
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.23.28.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.28.md
+      - name: Commit protected plan and remove temporary workflow
         run: |
           set -euo pipefail
+          rm .github/workflows/p2328-spec-prep.yml
           git config user.name 'Parallax Spec Compiler'
           git config user.email 'parallax-spec@users.noreply.github.com'
-          git add specs/compiled/P2-V0.23.28.plan.json
-          if git diff --cached --quiet; then
-            echo 'Compiled plan already matches.'
-            exit 0
-          fi
+          git add specs/compiled/P2-V0.23.28.plan.json .github/workflows/p2328-spec-prep.yml
+          git diff --cached --check
           git commit -m 'P2-V0.23.28 — commit protected DSPy plan'
           git push origin HEAD:fix/p2328-cross-work-unit-convergence
