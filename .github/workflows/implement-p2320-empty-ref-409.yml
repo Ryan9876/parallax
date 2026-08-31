@@ -1,0 +1,77 @@
+name: Implement P2-V0.23.20 Empty Ref Compatibility
+
+on:
+  push:
+    branches:
+      - fix/p2320-empty-ref-409
+    paths:
+      - .github/workflows/implement-p2320-empty-ref-409.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2320-empty-ref-409
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+
+      - name: Apply narrow provider compatibility correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('services/api/parallax_api/code/greenfield_github.py')
+          text = source.read_text(encoding='utf-8')
+          old_import = 'from hashlib import sha256\nfrom typing import Any\n'
+          new_import = 'from hashlib import sha256\nfrom typing import Any\nfrom urllib.parse import quote\n'
+          assert text.count(old_import) == 1
+          text = text.replace(old_import, new_import, 1)
+
+          anchor = '''    def __init__(self, delegate: GitHubRestProviderClient) -> None:\n        if not isinstance(delegate, GitHubRestProviderClient):\n            raise TypeError("greenfield GitHub operations require the protected REST client")\n        self._delegate = delegate\n\n'''
+          helper = '''    def _default_head(self, repository_ref: str, default_branch: str) -> str | None:\n        """Read the exact default ref while recognizing GitHub's empty-repo signal."""\n\n        path = (\n            f"{self._delegate._repo_path(repository_ref)}/git/ref/heads/"\n            f"{quote(default_branch, safe='/')}"\n        )\n        response = self._delegate._send("GET", repository_ref, path)\n        if response.status_code == 404:\n            return None\n        if response.status_code == 409:\n            payload = self._delegate._json(response)\n            if isinstance(payload, dict) and payload.get("message") == "Git Repository is empty.":\n                return None\n        self._delegate._raise_status(response)\n        payload = _dict(self._delegate._json(response))\n        object_payload = _dict(payload.get("object"))\n        return _text(object_payload.get("sha"))\n\n'''
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + helper, 1)
+          old_call = 'self._delegate._get_ref(repository_ref, default_branch)'
+          assert text.count(old_call) == 2
+          text = text.replace(old_call, 'self._default_head(repository_ref, default_branch)')
+          source.write_text(text, encoding='utf-8')
+
+          tests = Path('services/api/tests/test_greenfield_github.py')
+          test_text = tests.read_text(encoding='utf-8')
+          insertion_anchor = '\n\ndef test_initializer_creates_marker_deletes_it_and_verifies_empty_head() -> None:\n'
+          addition = '''\n\ndef test_real_github_empty_ref_409_is_narrowly_normalized() -> None:\n    def empty_409(request: httpx.Request) -> httpx.Response:\n        if request.url.path == "/repos/Ryan9876/empty-target":\n            return _repo()\n        if request.url.path.endswith("/git/ref/heads/main"):\n            return httpx.Response(409, json={"message": "Git Repository is empty."})\n        raise AssertionError(request.url)\n\n    result = _client(empty_409).inspect_repository(REPOSITORY)\n    assert result.is_empty is True\n    assert result.head_revision is None\n\n    def unrelated_409(request: httpx.Request) -> httpx.Response:\n        if request.url.path == "/repos/Ryan9876/empty-target":\n            return _repo()\n        if request.url.path.endswith("/git/ref/heads/main"):\n            return httpx.Response(409, json={"message": "Reference conflict"})\n        raise AssertionError(request.url)\n\n    with pytest.raises(ProviderClientError, match="PROVIDER_CONFLICT"):\n        _client(unrelated_409).inspect_repository(REPOSITORY)\n\n    def malformed_409(request: httpx.Request) -> httpx.Response:\n        if request.url.path == "/repos/Ryan9876/empty-target":\n            return _repo()\n        if request.url.path.endswith("/git/ref/heads/main"):\n            return httpx.Response(409, text="not-json")\n        raise AssertionError(request.url)\n\n    with pytest.raises(ProviderClientError, match="PROVIDER_INVALID_RESPONSE"):\n        _client(malformed_409).inspect_repository(REPOSITORY)\n'''
+          assert test_text.count(insertion_anchor) == 1
+          test_text = test_text.replace(insertion_anchor, addition + insertion_anchor, 1)
+          tests.write_text(test_text, encoding='utf-8')
+          PY
+
+      - name: Run focused greenfield regression
+        run: pytest -q services/api/tests/test_greenfield_github.py services/api/tests/test_greenfield_recovery_contract.py
+
+      - name: Compile protected Python sources
+        run: python -m compileall -q services/api/parallax_api
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          git config user.name "parallax-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add services/api/parallax_api/code/greenfield_github.py services/api/tests/test_greenfield_github.py
+          git diff --cached --check
+          git commit -m 'P2-V0.23.20: accept exact GitHub empty-repository ref response'
+          git push origin HEAD:fix/p2320-empty-ref-409
