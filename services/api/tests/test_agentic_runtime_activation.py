@@ -297,10 +297,10 @@ def test_live_plan_uses_ordinary_plan_transition_and_smallest_adequate_team(tmp_
         session.close()
 
 
-def test_live_plan_selects_bounded_multi_agent_team_only_for_independent_domains(tmp_path):
+def test_live_plan_uses_one_coherent_source_unit_for_multi_domain_acceptance(tmp_path):
     session, service, _, run, allocator, _, _ = create_runtime_fixture(
         tmp_path,
-        "multi-agent",
+        "coherent-implementation",
         [
             "Update the client button layout.",
             "Update the server API endpoint.",
@@ -308,19 +308,18 @@ def test_live_plan_selects_bounded_multi_agent_team_only_for_independent_domains
     )
     try:
         control = live_control(service, allocator)
-        evidence = control.plan(run=run, operation_key="w6-r1:plan-multi")
+        evidence = control.plan(run=run, operation_key="p2329:plan-coherent")
 
-        assert evidence["selected_agent_count"] == 2
+        assert evidence["selected_agent_count"] == 1
         units = evidence["work_units"]
-        assert {tuple(item["coordination_domains"]) for item in units} == {
-            ("client",),
-            ("server",),
-        }
+        assert len(units) == 1
+        assert units[0]["unit_id"] == "implementation"
+        assert units[0]["acceptance_ids"] == ["AC-01", "AC-02"]
+        assert units[0]["coordination_domains"] == ["source"]
         assert evidence["operator_selected_agents"] is False
         assert control.competition_policy.minimum_expected_quality_gain == 1.0
     finally:
         session.close()
-
 
 def test_selected_candidate_still_uses_existing_safe_mutation_lineage_and_later_stages(tmp_path):
     session, service, project, run, allocator, identity, base = create_runtime_fixture(
