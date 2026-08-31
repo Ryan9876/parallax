@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "The new standing QA repository is exactly `Ryan9876/parallax-qa`, GitHub repository ID `1351817336`. The new standing workflow is exactly `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The legacy application repository is exactly `Ryan9876/parallax`, GitHub repository ID `1340272514`. The new workflow may exercise only the same QA session endpoint and same bounded QA principal as the existing workflows."
+  ],
+  "work_items": [
+    "The new QA repository and workflow identity are moved to the dedicated `Ryan9876/parallax-qa` repository."
+  ],
+  "validations": [
+    "The new QA repository and workflow identity are successfully moved to the dedicated `Ryan9876/parallax-qa` repository.",
+    "AC-01: validate protected requirement \u2014 A valid GitHub Actions OIDC token whose claims identify repository `Ryan9876/parallax-qa`, repository ID `1351817336`, ref `refs/heads/main`, workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`, GitHub-hosted runner, admitted event, and correct audience is accepted.",
+    "AC-02: validate protected requirement \u2014 A token using the `parallax-qa` repository with an old `Ryan9876/parallax` workflow reference, the application repository with the new `parallax-qa` workflow reference, the correct owner/name with the wrong repository ID, or the correct repository ID with the wrong owner/name is rejected.",
+    "AC-03: validate protected requirement \u2014 During this admission release only, the two existing exact main-branch application-repository QA workflow identities continue to authenticate only when their repository claim is `Ryan9876/parallax` and repository ID claim is `1340272514`, so rollback and migration validation remain available without name-reuse trust.",
+    "AC-04: validate protected requirement \u2014 Wrong ref, self-hosted runner, unadmitted event name, wrong audience, invalid signature/standard claims, missing run id, missing or malformed repository ID, untrusted repository, or untrusted workflow tuple is rejected.",
+    "AC-05: validate protected requirement \u2014 Successful new-repository OIDC authentication maps to the existing bounded QA session/principal and does not create new Project, Engineering Run, source-lineage, model-routing, Git/deployment, or REVIEW authority.",
+    "AC-06: validate protected requirement \u2014 The standing `parallax-qa` workflow contains routine Python and OT Time source-only acceptance only; it does not include standing W9-S1 greenfield initialization authority.",
+    "AC-07: validate protected requirement \u2014 After deployment, the exact `parallax-qa` workflow authenticates against production and both routine jobs reach `REVIEW` with no failure and validate authenticated source-only ZIP handoff before old workflow trust is removed.",
+    "AC-08: validate protected requirement \u2014 The verifier uses no repository prefix, workflow prefix, glob, substring, actor-only, branch-only, event-only, owner/name-only, or repository-ID-only acceptance rule.",
+    "AC-09: validate protected requirement \u2014 `ARCHITECTURE.md` records exact repository-name/repository-ID/workflow authorization and the dedicated QA repository boundary as v3.29.",
+    "AC-10: validate protected requirement \u2014 Exact-head API/contracts, client/browser/Skia, Bounded Autonomy, protected promotion, Workstream Spec Validation, and DSPy release compilation pass before merge."
+  ],
+  "risks": [
+    "No material risk and mitigation is required."
+  ],
+  "spec_id": "P2-V0.23.17",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact dedicated QA identity is admitted",
+      "protected_requirement": "A valid GitHub Actions OIDC token whose claims identify repository `Ryan9876/parallax-qa`, repository ID `1351817336`, ref `refs/heads/main`, workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`, GitHub-hosted runner, admitted event, and correct audience is accepted."
+    },
+    {
+      "id": "AC-02",
+      "title": "Repository name, stable ID, and workflow are bound together",
+      "protected_requirement": "A token using the `parallax-qa` repository with an old `Ryan9876/parallax` workflow reference, the application repository with the new `parallax-qa` workflow reference, the correct owner/name with the wrong repository ID, or the correct repository ID with the wrong owner/name is rejected."
+    },
+    {
+      "id": "AC-03",
+      "title": "Existing migration identities remain temporarily valid",
+      "protected_requirement": "During this admission release only, the two existing exact main-branch application-repository QA workflow identities continue to authenticate only when their repository claim is `Ryan9876/parallax` and repository ID claim is `1340272514`, so rollback and migration validation remain available without name-reuse trust."
+    },
+    {
+      "id": "AC-04",
+      "title": "Existing claim guards remain fail-closed",
+      "protected_requirement": "Wrong ref, self-hosted runner, unadmitted event name, wrong audience, invalid signature/standard claims, missing run id, missing or malformed repository ID, untrusted repository, or untrusted workflow tuple is rejected."
+    },
+    {
+      "id": "AC-05",
+      "title": "QA principal authority is unchanged",
+      "protected_requirement": "Successful new-repository OIDC authentication maps to the existing bounded QA session/principal and does not create new Project, Engineering Run, source-lineage, model-routing, Git/deployment, or REVIEW authority."
+    },
+    {
+      "id": "AC-06",
+      "title": "Dedicated QA repository routine replay is bounded",
+      "protected_requirement": "The standing `parallax-qa` workflow contains routine Python and OT Time source-only acceptance only; it does not include standing W9-S1 greenfield initialization authority."
+    },
+    {
+      "id": "AC-07",
+      "title": "Production cutover is behaviorally proven before contraction",
+      "protected_requirement": "After deployment, the exact `parallax-qa` workflow authenticates against production and both routine jobs reach `REVIEW` with no failure and validate authenticated source-only ZIP handoff before old workflow trust is removed."
+    },
+    {
+      "id": "AC-08",
+      "title": "No wildcard or name-only trust",
+      "protected_requirement": "The verifier uses no repository prefix, workflow prefix, glob, substring, actor-only, branch-only, event-only, owner/name-only, or repository-ID-only acceptance rule."
+    },
+    {
+      "id": "AC-09",
+      "title": "Architecture records the durable trust topology",
+      "protected_requirement": "`ARCHITECTURE.md` records exact repository-name/repository-ID/workflow authorization and the dedicated QA repository boundary as v3.29."
+    },
+    {
+      "id": "AC-10",
+      "title": "Release gates remain green",
+      "protected_requirement": "Exact-head API/contracts, client/browser/Skia, Bounded Autonomy, protected promotion, Workstream Spec Validation, and DSPy release compilation pass before merge."
+    }
+  ],
+  "critique": [
+    "The new standing workflow is exactly `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
