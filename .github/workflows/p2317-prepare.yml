@@ -1,0 +1,98 @@
+name: Prepare P2-V0.23.17
+
+on:
+  push:
+    branches:
+      - security/p2317-admit-parallax-qa
+    paths:
+      - .github/workflows/p2317-prepare.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/p2317-admit-parallax-qa
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Patch authoritative architecture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          if 'Version: 3.29' not in text:
+              if 'Version: 3.28' not in text:
+                  raise SystemExit('Architecture version anchor missing')
+              text = text.replace('Version: 3.28', 'Version: 3.29', 1)
+
+          version_anchor = '## Version relationship\n\n'
+          version_note = (
+              'Architecture v3.29 moves standing production-QA execution identity to a dedicated repository trust boundary. '
+              'GitHub Actions OIDC authorization is now an exact server-owned `(repository, workflow_ref)` pair, preventing a trusted repository from substituting another workflow and preventing an exact workflow path from being replayed from another repository. '
+              'The migration admission release temporarily retains the two existing exact application-repository QA pairs until the dedicated `Ryan9876/parallax-qa` production replay is behaviorally proven; the bounded QA principal, issuer, audience, main ref, hosted-runner requirement, allowed events, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and REVIEW ceiling are unchanged.'
+          )
+          if version_note not in text:
+              if version_anchor not in text:
+                  raise SystemExit('Architecture version relationship anchor missing')
+              text = text.replace(version_anchor, version_anchor + version_note + '\n\n', 1)
+
+          section_anchor = '## Source authority is independent from deployment authority\n'
+          section = '''## Dedicated production-QA repository trust boundary
+
+Architecture v3.29 treats a GitHub Actions QA identity as one exact repository/workflow pair. Production authorization never accepts a repository and workflow independently: both signed OIDC claims must match the same server-owned allowlist entry. Standing dedicated QA is `Ryan9876/parallax-qa` with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`.
+
+The remaining identity guards stay conjunctive and fail-closed: issuer `https://token.actions.githubusercontent.com`, audience `parallax://qa-production`, ref `refs/heads/main`, GitHub-hosted runner, admitted `workflow_dispatch` or `push` event, and a bounded non-empty GitHub run ID. Actor identity alone never grants access. No prefix, glob, substring, branch-only, event-only, or repository-only match creates QA authority.
+
+The dedicated workflow authenticates only to the existing bounded QA principal. It cannot inherit normal-user ownership or create source-publication, Git mutation, deployment, production-promotion, lifecycle-transition, or REVIEW-completion authority beyond the product APIs already available to that bounded QA account. Routine standing acceptance is source-only Python plus OT Time/.NET replay to REVIEW and authenticated ZIP handoff. W9-S1 greenfield initialization is not standing QA trust and requires a separately reviewed exact workflow when a fresh approved target exists.
+
+Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.
+
+'''
+          if '## Dedicated production-QA repository trust boundary' not in text:
+              if section_anchor not in text:
+                  raise SystemExit('Architecture section insertion anchor missing')
+              text = text.replace(section_anchor, section + section_anchor, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Install local DSPy development LM
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+      - name: Compile and validate P2-V0.23.17
+        env:
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: ''
+          DSPY_LOCAL_DEVELOPMENT: '1'
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.23.17.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.17.md
+      - name: Commit prepared evidence
+        run: |
+          git config user.name "parallax-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add ARCHITECTURE.md specs/compiled/P2-V0.23.17.plan.json
+          if git diff --cached --quiet; then
+            echo 'Prepared evidence already present'
+            exit 0
+          fi
+          git commit -m 'Prepare P2-V0.23.17 architecture and DSPy plan'
+          git push origin HEAD:security/p2317-admit-parallax-qa
