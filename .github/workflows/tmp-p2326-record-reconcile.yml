@@ -16,61 +16,11 @@ jobs:
         with:
           ref: record/p2326-deployment-verification
           fetch-depth: 0
-
-      - name: Reconcile CURRENT-STATE and remove temporary workflow
-        shell: bash
+      - name: Reconcile authoritative current state
+        env:
+          RECORD_SCRIPT_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgiQ1VSUkVOVC1TVEFURS5tZCIpCnRleHQgPSBwYXRoLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQoKb2xkX3N0YXR1cyA9ICIgLyBQMi1WMC4yMy4yNSBTQUZFIE5FU1RFRCBTT1VSQ0UgQ1JFQVRJT04gKyBUUkFOU1BPUlQgUkVDT05DSUxJQVRJT04gUFJPRFVDVElPTi1ERVBMT1lNRU5ULVZFUklGSUVEIC8gUkVBTC1QQVRIIEJFSEFWSU9SIEFDQ0VQVEFOQ0UgUEVORElORyoqIgpuZXdfc3RhdHVzID0gIiAvIFAyLVYwLjIzLjI1IFNBRkUgTkVTVEVEIFNPVVJDRSBDUkVBVElPTiArIFRSQU5TUE9SVCBSRUNPTkNJTElBVElPTiBQUk9EVUNUSU9OLURFUExPWU1FTlQtVkVSSUZJRUQgLyBSRUFMLVBBVEggQkVIQVZJT1IgQUNDRVBUQU5DRSBQRU5ESU5HIC8gUDItVjAuMjMuMjYgU0VSVkVSLUNBTk9OSUNBTElaRUQgSU1QTEVNRU5UQVRJT04gQ09OVEVOVCBFRElUUyBQUk9EVUNUSU9OLURFUExPWU1FTlQtVkVSSUZJRUQgLyBSRUFMLVBBVEggQkVIQVZJT1IgQUNDRVBUQU5DRSBQRU5ESU5HKioiCmlmIG5ld19zdGF0dXMgbm90IGluIHRleHQ6CiAgICBpZiBvbGRfc3RhdHVzIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoImV4cGVjdGVkIGN1cnJlbnQtc3RhdGUgc3RhdHVzIHN1ZmZpeCBub3QgZm91bmQiKQogICAgdGV4dCA9IHRleHQucmVwbGFjZShvbGRfc3RhdHVzLCBuZXdfc3RhdHVzLCAxKQoKbWFya2VyID0gIiMjIFAyLVYwLjIzLjI1IOKAlCBzYWZlIG5lc3RlZCBzb3VyY2UgY3JlYXRpb24gYW5kIGFtYmlndW91cyB0cmFuc3BvcnQgcmVjb25jaWxpYXRpb24g4oCUIFBST0RVQ1RJT04tREVQTE9ZTUVOVC1WRVJJRklFRCAvIFJFQUwtUEFUSCBCRUhBVklPUiBBQ0NFUFRBTkNFIFBFTkRJTkdcbiIKaGVhZGluZyA9ICIjIyBQMi1WMC4yMy4yNiDigJQgc2VydmVyLWNhbm9uaWNhbGl6ZWQgaW1wbGVtZW50YXRpb24gY29udGVudCBlZGl0cyDigJQgUFJPRFVDVElPTi1ERVBMT1lNRU5ULVZFUklGSUVEIC8gUkVBTC1QQVRIIEJFSEFWSU9SIEFDQ0VQVEFOQ0UgUEVORElOR1xuIgppZiBoZWFkaW5nIG5vdCBpbiB0ZXh0OgogICAgaWYgbWFya2VyIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoIlAyLVYwLjIzLjI1IGluc2VydGlvbiBtYXJrZXIgbm90IGZvdW5kIikKICAgIHNlY3Rpb24gPSAiIiIjIyBQMi1WMC4yMy4yNiDigJQgc2VydmVyLWNhbm9uaWNhbGl6ZWQgaW1wbGVtZW50YXRpb24gY29udGVudCBlZGl0cyDigJQgUFJPRFVDVElPTi1ERVBMT1lNRU5ULVZFUklGSUVEIC8gUkVBTC1QQVRIIEJFSEFWSU9SIEFDQ0VQVEFOQ0UgUEVORElORwoKV29ya3N0cmVhbTogIzUxOS4gUmVsZWFzZSBQUjogIzUyNS4gR292ZXJuaW5nIHNwZWNpZmljYXRpb246IGBQMi1WMC4yMy4yNmAuIEFyY2hpdGVjdHVyZTogYEFSQ0hJVEVDVFVSRS5tZGAgdjMuMzcuCgpQMi1WMC4yMy4yNiByZW1vdmVzIG1vZGVsLW93bmVkIHVuaWZpZWQtZGlmZiBtZWNoYW5pY3MgZnJvbSBob3N0ZWQgSU1QTEVNRU5UIGdlbmVyYXRpb24gd2hpbGUgcHJlc2VydmluZyB0aGUgZXhpc3RpbmcgY2Fub25pY2FsIHNhZmUtcGF0Y2ggYW5kIHNvdXJjZS1saW5lYWdlIGF1dGhvcml0eS4gSG9zdGVkIERTUHkgZ2VuZXJhdGlvbiBub3cgcmV0dXJucyBleGFjdCBhY2NlcHRhbmNlIGNvdmVyYWdlIHBsdXMgYm91bmRlZCB0eXBlZCBge3BhdGgsIGNvbnRlbnR9YCBmaWxlIGludGVudC4gVGhlIHByb3RlY3RlZCBzZXJ2ZXIgYmluZHMgZXhpc3RpbmcgdGFyZ2V0cyB0byBhdXRob3JpdGF0aXZlIHNvdXJjZSBTSEEvY29udGVudCwgY2xhc3NpZmllcyBhYnNlbnQgc2VsZWN0ZWQgcGF0aHMgb25seSBhcyBlbXB0eS1iYXNlIG5ldy1maWxlIGludGVudCwgZGV0ZXJtaW5pc3RpY2FsbHkgcmVuZGVycyBzdHJpY3Qgc2luZ2xlLWZpbGUgdW5pZmllZCBkaWZmcyBpbmNsdWRpbmcgbm8tZmluYWwtbmV3bGluZSBtYXJrZXJzLCBhbmQgdGhlbiBjb25zdHJ1Y3RzIHRoZSB1bmNoYW5nZWQgZG93bnN0cmVhbSBgSW1wbGVtZW50YXRpb25Qcm9wb3NhbGAuIER1cGxpY2F0ZSBhbmQgbm8tb3AgY29udGVudCBpbnRlbnRzIGZhaWwgYmVmb3JlIGNhbmRpZGF0ZSBhZG1pc3Npb24uIEV4aXN0aW5nIHBhdGgsIHNlY3JldCwgc3ltbGluaywgZXh0ZW5zaW9uLCBzaXplLCBoaWVyYXJjaHksIHN0YWxlLXNvdXJjZSwgY29sbGlzaW9uLCBzb3VyY2UtbGluZWFnZSwgZGlzcG9zYWJsZSBCVUlMRC9URVNUL1ZFUklGWSwgZGVsaXZlcnksIGxpZmVjeWNsZSwgR2l0L2RlcGxveW1lbnQsIGFuZCBodW1hbiBSRVZJRVcgY29udHJvbHMgcmVtYWluIGF1dGhvcml0YXRpdmUuCgpWYWxpZGF0ZWQgcmVsZWFzZSBhbmQgZGVwbG95bWVudCBldmlkZW5jZToKCi0gc3BlYy1maXJzdCBwcmVwYXJhdGlvbiBydW4gYDMzMzkxNDUxODEyYDogU1VDQ0VTUywgaW5jbHVkaW5nIHByb3RlY3RlZCBEU1B5IFNwZWNDcml0aWMvU3BlY0NvbXBpbGVyIHBsYW4gZ2VuZXJhdGlvbiBhbmQgdmVyaWZpY2F0aW9uOwotIGZvY3VzZWQgaW1wbGVtZW50YXRpb24gcnVuIGAzMzM5MjA2MDk3MGA6IFNVQ0NFU1M7Ci0gZXhhY3QgZ3JlZW4gUFIgaGVhZDogYDgxNTY4MzJjNTEzNzNmNzQzYTBhZmFiMmFhNjlmMzNlMDIyYzYwYzlgOwotIFBSIEJvdW5kZWQgQXV0b25vbXkgUGlsb3QgYDMzMzkyNTExMTcwYDogU1VDQ0VTUzsKLSBQUiBXb3Jrc3RyZWFtIFNwZWMgVmFsaWRhdGlvbiBgMzMzOTI1MTExMjdgOiBTVUNDRVNTOwotIFBSIFBhcmFsbGF4IFAyIENJIGAzMzM5MjUxMTE2N2A6IFNVQ0NFU1M7Ci0gc3F1YXNoIG1lcmdlIC8gZXhhY3QgYXBwbGljYXRpb24gc291cmNlOiBgMTVhMDJjZGVhYzRmMzZiMWNhNjcwMWJjY2M0ZDIwOWI3NDdlOGRjYWA7Ci0gcG9zdC1tZXJnZSBXb3Jrc3RyZWFtIFNwZWMgVmFsaWRhdGlvbiBgMzMzOTI3NDI4NjlgOiBTVUNDRVNTOwotIHBvc3QtbWVyZ2UgUGFyYWxsYXggUDIgQ0kgYDMzMzkyNzQyOTI2YDogU1VDQ0VTUzsKLSBwcm9kdWN0aW9uIEFQSSBkZXBsb3ltZW50IGBkcGxfR3pmcXBBUzVTZXgxc1pOU2ZYSEtuaEVvc0pwaGA6IHRhcmdldCBwcm9kdWN0aW9uLCBzdGF0ZSBgUkVBRFlgLCBleGFjdCBhcHBsaWNhdGlvbiBzb3VyY2UsIGNhbm9uaWNhbCBhbGlhcyBgcGFyYWxsYXgtYXBpLXRhbi52ZXJjZWwuYXBwYDsKLSBwcm9kdWN0aW9uIGNsaWVudCBkZXBsb3ltZW50IGZvciB0aGUgc2FtZSBiYWNrZW5kLW9ubHkgc291cmNlIHdhcyBpbnRlbnRpb25hbGx5IGlnbm9yZWQvc2tpcHBlZCBieSBWZXJjZWwsIHNvIHRoZSBwcmlvciBSRUFEWSBjbGllbnQgcmVtYWlucyBhdXRob3JpdGF0aXZlOwotIHByb2R1Y3Rpb24gYC9oZWFsdGhgOiBIVFRQIDIwMDsKLSBwcm9kdWN0aW9uIGAvcmVhZHlgOiBIVFRQIDIwMCB3aXRoIGRhdGFiYXNlL3Byb3ZpZGVycyByZWFkeSBhbmQgb25lIHByb3ZpZGVyIHRhcmdldDsKLSBleGFjdCBBUEkgZGVwbG95bWVudCB3YXJuaW5nL2Vycm9yL2ZhdGFsIHJ1bnRpbWUgc2NhbiBhZnRlciByZWFkaW5lc3Mgd2FzIGNsZWFuLCBhbmQgcHJvamVjdCBydW50aW1lLWVycm9yIGFnZ3JlZ2F0aW9uIGZvdW5kIG5vIGVycm9ycyBpbiB0aGUgc2VsZWN0ZWQgdmVyaWZpY2F0aW9uIHdpbmRvdy4KCkRlcGxveW1lbnQgdmVyaWZpY2F0aW9uIGlzIGNvbXBsZXRlLCBidXQgd29ya3N0cmVhbSAjNTE5IHJlbWFpbnMgb3BlbiBiZWNhdXNlIGl0cyBjb21wbGV0aW9uIGNvbmRpdGlvbiByZXF1aXJlcyBhdXRoZW50aWNhdGVkIGJlaGF2aW9yIG9uIHRoZSByZWFsIEVuZ2luZWVyaW5nIFJ1biBwYXRoLiBUaGUgbmV4dCBhY2NlcHRhbmNlIGlzIGEgdXNlci1hdXRoZW50aWNhdGVkIHJldHJ5IG9mIEVuZ2luZWVyaW5nIFJ1biBgM2ExYmE2NmEtNTY0OS00MmI2LTgxZWUtOTE2ODRmZTA2YmJjYCAob3IgZXF1aXZhbGVudCBleGFjdCB3b3JrKSBwcm92aW5nIElNUExFTUVOVCBwcm9ncmVzc2VzIHRocm91Z2ggdGhlIG5ldyBzZXJ2ZXItY2Fub25pY2FsaXplZCBjb250ZW50IGJvdW5kYXJ5IGludG8gQlVJTEQsIG9yIGV4cG9zaW5nIGEgbGF0ZXIgYm91bmRlZCBibG9ja2VyIHdpdGhvdXQgcmVpbnRyb2R1Y2luZyBtb2RlbC1vd25lZCBkaWZmIHN5bnRheC4gVGhhdCBldmlkZW5jZSBtdXN0IG5vdCBiZSBtYW51ZmFjdHVyZWQgYnkgYnlwYXNzaW5nIHVzZXIgYXV0aGVudGljYXRpb24gb3Igc2Vzc2lvbiBvd25lcnNoaXAuCgpObyBtb2RlbC9wcm92aWRlci9jcmVkZW50aWFsIGFkZGl0aW9uLCByZXRyeS1idWRnZXQgaW5jcmVhc2UsIHRpbWVvdXQgaW5jcmVhc2UsIGhpZGRlbiB0cmFuc3BvcnQgcmV0cnksIGFyYml0cmFyeSByZWN1cnNpdmUgZmlsZXN5c3RlbSBhdXRob3JpdHksIEdpdC9kZXBsb3ltZW50IGF1dGhvcml0eSBleHBhbnNpb24sIGxpZmVjeWNsZS10cmFuc2l0aW9uIGF1dGhvcml0eSBleHBhbnNpb24sIGF1dG9tYXRpYyBSRVZJRVcgY29tcGxldGlvbiwgb3IgcXVldWUgcmVkZXNpZ24gd2FzIGFkZGVkLgoKIiIiCiAgICB0ZXh0ID0gdGV4dC5yZXBsYWNlKG1hcmtlciwgc2VjdGlvbiArIG1hcmtlciwgMSkKCnBhdGgud3JpdGVfdGV4dCh0ZXh0LCBlbmNvZGluZz0idXRmLTgiKQo=
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('CURRENT-STATE.md')
-          text = path.read_text(encoding='utf-8')
-
-          old_status = ' / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**'
-          new_status = ' / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.26 SERVER-CANONICALIZED IMPLEMENTATION CONTENT EDITS PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**'
-          if new_status not in text:
-              if old_status not in text:
-                  raise SystemExit('expected current-state status suffix not found')
-              text = text.replace(old_status, new_status, 1)
-
-          marker = '## P2-V0.23.25 — safe nested source creation and ambiguous transport reconciliation — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING\n'
-          heading = '## P2-V0.23.26 — server-canonicalized implementation content edits — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING\n'
-          if heading not in text:
-              if marker not in text:
-                  raise SystemExit('P2-V0.23.25 insertion marker not found')
-              section = '''## P2-V0.23.26 — server-canonicalized implementation content edits — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
-
-Workstream: #519. Release PR: #525. Governing specification: `P2-V0.23.26`. Architecture: `ARCHITECTURE.md` v3.37.
-
-P2-V0.23.26 removes model-owned unified-diff mechanics from hosted IMPLEMENT generation while preserving the existing canonical safe-patch and source-lineage authority. Hosted DSPy generation now returns exact acceptance coverage plus bounded typed `{path, content}` file intent. The protected server binds existing targets to authoritative source SHA/content, classifies absent selected paths only as empty-base new-file intent, deterministically renders strict single-file unified diffs including no-final-newline markers, and then constructs the unchanged downstream `ImplementationProposal`. Duplicate and no-op content intents fail before candidate admission. Existing path, secret, symlink, extension, size, hierarchy, stale-source, collision, source-lineage, disposable BUILD/TEST/VERIFY, delivery, lifecycle, Git/deployment, and human REVIEW controls remain authoritative.
-
-Validated release and deployment evidence:
-
-- spec-first preparation run `33391451812`: SUCCESS, including protected DSPy SpecCritic/SpecCompiler plan generation and verification;
-- focused implementation run `33392060970`: SUCCESS;
-- exact green PR head: `8156832c51373f743a0afab2aa69f33e022c60c9`;
-- PR Bounded Autonomy Pilot `33392511170`: SUCCESS;
-- PR Workstream Spec Validation `33392511127`: SUCCESS;
-- PR Parallax P2 CI `33392511167`: SUCCESS;
-- squash merge / exact application source: `15a02cdeac4f36b1ca6701bccc4d209b747e8dca`;
-- post-merge Workstream Spec Validation `33392742869`: SUCCESS;
-- post-merge Parallax P2 CI `33392742926`: SUCCESS;
-- production API deployment `dpl_GzfqpAS5Sex1sZNSfXHKnhEosJph`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;
-- production client deployment for the same backend-only source was intentionally ignored/skipped by Vercel, so the prior READY client remains authoritative;
-- production `/health`: HTTP 200;
-- production `/ready`: HTTP 200 with database/providers ready and one provider target;
-- exact API deployment warning/error/fatal runtime scan after readiness was clean, and project runtime-error aggregation found no errors in the selected verification window.
-
-Deployment verification is complete, but workstream #519 remains open because its completion condition requires authenticated behavior on the real Engineering Run path. The next acceptance is a user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact work) proving IMPLEMENT progresses through the new server-canonicalized content boundary into BUILD, or exposing a later bounded blocker without reintroducing model-owned diff syntax. That evidence must not be manufactured by bypassing user authentication or session ownership.
-
-No model/provider/credential addition, retry-budget increase, timeout increase, hidden transport retry, arbitrary recursive filesystem authority, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion, or queue redesign was added.
-
-'''
-              text = text.replace(marker, section + marker, 1)
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
+          python -c 'import os,base64; exec(base64.b64decode(os.environ["RECORD_SCRIPT_B64"]))'
           rm .github/workflows/tmp-p2326-record-reconcile.yml
           git config user.name "Parallax Record Reconciler"
           git config user.email "parallax-records@users.noreply.github.com"
