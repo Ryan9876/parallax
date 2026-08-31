@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
 
 ## CI/CD development pipeline optimization — MAIN-VERIFIED
 
@@ -81,6 +81,18 @@ Release and production evidence:
 - the temporary QA push trigger used only to initiate the accepted replay was removed immediately afterward; `Ryan9876/parallax-qa` main is restored to manual-only production replay at commit `7ec51807bcd68c8a411f36c41dcb7b0bc941838c`.
 
 This release contracts authentication surface only. Normal user authentication, the bounded QA principal, Project / Work Specification / Engineering Run authority, accepted source lineage, hosted-model routing, worker recovery, Git/deployment authority and the human REVIEW ceiling are unchanged. Rollback restores only the previously deployment-verified exact tuples; wildcard or partial-claim trust remains prohibited.
+
+## P2-V0.23.20 — exact GitHub empty-repository ref compatibility — PRODUCTION-DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE STILL OPEN
+
+Workstream: #442. Release PR: #506. Governing specification: `P2-V0.23.20`. Architecture: `ARCHITECTURE.md` v3.32.
+
+P2-V0.23.20 corrects the authenticated greenfield inspection boundary for GitHub's exact empty-repository default-ref response: HTTP 409 with message `Git Repository is empty.` is accepted as no head only after canonical repository identity/default-branch verification. Existing HTTP 404 no-head behavior remains equivalent; malformed or unrelated 409 responses, ordinary shared Git-ref conflicts, 422 responses and other provider failures remain fail-closed. The shared GitHub ref reader is unchanged and no pre-REVIEW mutation authority was added.
+
+Release evidence: exact merge/deployed API source `bfc2373d690113a592a52ca8a12fc6b5343d481d`; production deployment `dpl_AUapYhiyoD2G16t8uH4AzR5hqKQv` is READY on `parallax-api-tan.vercel.app`; post-merge Workstream Spec Validation `33353572435` and Parallax P2 CI `33353572439` succeeded, including full API regression, protected promotion and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification; `/health` and `/ready` both returned HTTP 200 with database/providers ready.
+
+The fresh user-approved canonical target `Ryan9876/parallax-qa1` (repository ID `1351932371`) was positively verified truly empty before both bounded attempts and remains empty afterward. Corrected dedicated-QA replay `33353749430` / job `99371868349` used exact deployed source `bfc2373d690113a592a52ca8a12fc6b5343d481d`; Project `ba697355-424c-4d86-8b89-3cf23455a6f5`, Work Specification `7f8effdf-be77-4a2d-8967-8780cf41fe73`, Engineering Run `dd81cacd-932c-4414-9dae-c906beee24a9`. The run stopped safely at PLAN with `AUTONOMOUS_REQUEST_FAILED_HTTP_503`, zero out-of-band source edits and runtime provider-repository failure `PROVIDER_INVALID_RESPONSE`. No repository initialization, branch, PR or Preview mutation occurred.
+
+Therefore the compatibility release itself is production-deployment-verified, but #442 / AC-27 full canonical greenfield acceptance remains open. Positive exact GitHub App / Vercel Connect coverage for `Ryan9876/parallax-qa1` must be established through the existing provider/user authorization boundary before another frozen Decision Ledger retry; provider/source failure alone must not be reinterpreted as greenfield.
 
 ## Current production truth
 
@@ -684,3 +696,5 @@ S2 remains non-executing capability intake. External observations are quarantine
 `PROJECT-CONSTITUTION.md` was not changed because the release preserves existing least-privilege, explicit-authority, fail-closed validation and evidence-preservation principles rather than introducing a new constitutional rule.
 
 Latest authoritative reconciliation: P2-V0.23.19 is production-verified on exact API source `ea00a943d4bc5f00f0f5416881d482c0f799be63` / deployment `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`. Post-merge Workstream Spec Validation `33350390486` and Parallax P2 CI `33350390524` passed, including fresh promotion-boundary DSPy compilation and verification. Dedicated `parallax-qa` replay `33350555555` then passed both routine jobs under the contracted one-tuple trust set: Python run `1b3c3413-2854-4af9-9625-d6d1838d0357` and OT Time run `beadb914-1ab5-45b2-ba72-50b31efe1f16` both reached REVIEW with verified authenticated source-only ZIP handoff. `ARCHITECTURE.md` is authoritative at v3.31. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles. Issues #501 and #499 are complete; #442 canonical greenfield acceptance remains open.
+
+Latest authoritative reconciliation: P2-V0.23.20 is production-deployment-verified on exact API source `bfc2373d690113a592a52ca8a12fc6b5343d481d` / deployment `dpl_AUapYhiyoD2G16t8uH4AzR5hqKQv`; Architecture is authoritative at v3.32. The fresh approved `Ryan9876/parallax-qa1` target remains truly empty after bounded replay `33353749430`; #442 remains open because positive exact GitHub App / Vercel Connect repository coverage has not yet been established through the protected inspection path. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because P2-V0.23.20 changes neither durable visual-system rules nor constitutional authority principles.
