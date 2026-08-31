@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import shutil
@@ -122,6 +123,7 @@ _MODEL_ORDER = (
 )
 _MODEL_SELECTION_PRIORITY = {model: priority for priority, model in enumerate(_MODEL_ORDER)}
 _DEFAULT_AGENT_SELECTION_PRIORITY = 100
+logger = logging.getLogger(__name__)
 
 
 class AgenticRuntimeError(ValueError):
@@ -811,7 +813,7 @@ class AgenticControlPlane:
             {
                 "version": AGENTIC_RUNTIME_VERSION,
                 "team_selection": "smallest-capable-team:server-priority-v1",
-                "decomposition": "clear-independent-domains-only",
+                "decomposition": "coherent-implementation-unit-v1",
                 "competition": self.competition_policy.digest,
                 "routing": self.routing_policy.digest,
             }
@@ -912,46 +914,20 @@ class AgenticControlPlane:
             "source:accepted-base",
             source_digest,
         )
-        classified = [(item, self._domain(item["text"])) for item in acceptance]
-        domains = {domain for _, domain in classified if domain is not None}
-        can_split = (
-            len(domains) >= 2
-            and all(domain is not None for _, domain in classified)
-            and len(acceptance) >= 2
-        )
-        if not can_split:
-            return WorkGraph(
-                approved_acceptance_ids=tuple(item["id"] for item in acceptance),
-                units=(
-                    WorkUnit(
-                        unit_id="implementation",
-                        work_kind="implementation",
-                        acceptance_ids=tuple(item["id"] for item in acceptance),
-                        required_capabilities=("bounded-source-evidence",),
-                        coordination_domains=("source",),
-                        requires_canonical_mutation=False,
-                        context_refs=(source_ref,),
-                    ),
-                ),
-            )
-
-        units = []
-        for domain in sorted(domains):
-            ids = tuple(item["id"] for item, item_domain in classified if item_domain == domain)
-            units.append(
+        acceptance_ids = tuple(item["id"] for item in acceptance)
+        return WorkGraph(
+            approved_acceptance_ids=acceptance_ids,
+            units=(
                 WorkUnit(
-                    unit_id=f"implementation-{domain}",
+                    unit_id="implementation",
                     work_kind="implementation",
-                    acceptance_ids=ids,
+                    acceptance_ids=acceptance_ids,
                     required_capabilities=("bounded-source-evidence",),
-                    coordination_domains=(domain,),
+                    coordination_domains=("source",),
                     requires_canonical_mutation=False,
                     context_refs=(source_ref,),
-                )
-            )
-        return WorkGraph(
-            approved_acceptance_ids=tuple(item["id"] for item in acceptance),
-            units=tuple(units),
+                ),
+            ),
         )
 
     def _lineage(self, run: EngineeringRun):
@@ -1873,17 +1849,31 @@ class AgenticControlPlane:
         except ImplementationGenerationFailure:
             raise
         except CandidateValidationFailure as exc:
+            diagnostic = dict(exc.diagnostic_evidence)
+            logger.warning(
+                "parallax_candidate_validation_failed candidate=%s stage=%s timed_out=%s",
+                diagnostic.get("candidate_id"),
+                diagnostic.get("failed_stage"),
+                diagnostic.get("timed_out") is True,
+            )
             raise ImplementationGenerationFailure(
                 "agentic runtime rejected a protected implementation candidate",
                 diagnostic_evidence={
-                    "candidate_validation_failure": dict(exc.diagnostic_evidence),
+                    "candidate_validation_failure": diagnostic,
                 },
             ) from exc
         except CandidateAdmissionFailure as exc:
+            diagnostic = dict(exc.diagnostic_evidence)
+            logger.warning(
+                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s",
+                diagnostic.get("candidate_id"),
+                diagnostic.get("phase"),
+                diagnostic.get("failure_kind"),
+            )
             raise ImplementationGenerationFailure(
                 "agentic runtime failed during bounded candidate admission",
                 diagnostic_evidence={
-                    "candidate_admission_failure": dict(exc.diagnostic_evidence),
+                    "candidate_admission_failure": diagnostic,
                 },
             ) from exc
         except (AgenticRuntimeError, ValueError, ImplementationError, PatchError, OSError) as exc:
