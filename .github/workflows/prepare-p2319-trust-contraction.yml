@@ -1,0 +1,124 @@
+name: Prepare P2-V0.23.19 Trust Contraction
+
+on:
+  push:
+    branches:
+      - fix/p2319-contract-dedicated-qa-trust
+    paths:
+      - specs/P2-V0.23.19.md
+      - .github/workflows/prepare-p2319-trust-contraction.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-p2319-trust-contraction
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2319-contract-dedicated-qa-trust
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+
+      - name: Validate specification contract
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.19.md
+
+      - id: model
+        name: Select provider-backed or local DSPy model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${OPENAI_API_KEY:-}" ]; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "$GITHUB_ENV"
+          else
+            echo "provider=false" >> "$GITHUB_OUTPUT"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "$GITHUB_ENV"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
+            echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install local DSPy development LM
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+
+      - name: Compile and verify exact DSPy plan
+        timeout-minutes: 8
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/compile_spec.py specs/P2-V0.23.19.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.19.md
+
+      - name: Advance architecture to completed dedicated QA cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+
+          assert text.count('Version: 3.30') == 1
+          text = text.replace('Version: 3.30', 'Version: 3.31', 1)
+
+          version_anchor = '## Version relationship\n\nArchitecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier.'
+          version_replacement = '## Version relationship\n\nArchitecture v3.31 completes the staged production-QA trust cutover after the dedicated `Ryan9876/parallax-qa` repository path was behaviorally proven in production. Standing GitHub Actions QA authorization now contains only the exact dedicated `(repository, repository_id, workflow_ref)` tuple; the two migration-only `Ryan9876/parallax` workflow identities and their standing workflow files are retired. Issuer, audience, main ref, GitHub-hosted runner, admitted event set, bounded run-id validation, QA-principal mapping, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and the REVIEW ceiling are unchanged. Architecture v3.30 remains the exact model patch-intent canonicalization boundary.\n\nArchitecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier.'
+          assert text.count(version_anchor) == 1
+          text = text.replace(version_anchor, version_replacement, 1)
+
+          old_boundary = 'Architecture v3.29 treats a GitHub Actions QA identity as one exact repository-name/repository-ID/workflow tuple. Production authorization never accepts those claims independently: all three signed OIDC claims must match the same server-owned allowlist entry. Standing dedicated QA is repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The temporarily retained application-repository identities are repository `Ryan9876/parallax`, stable GitHub repository ID `1340272514`, plus their exact already-admitted workflow references.'
+          new_boundary = 'Architecture v3.31 completes the dedicated production-QA repository boundary first admitted by v3.29. Production authorization still treats a GitHub Actions QA identity as one exact repository-name/repository-ID/workflow tuple and never accepts those claims independently. Standing QA trust is now only repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The former `Ryan9876/parallax` migration identities are retired and no longer appear in the server-owned trusted identity set.'
+          assert text.count(old_boundary) == 1
+          text = text.replace(old_boundary, new_boundary, 1)
+
+          old_cutover = 'Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.'
+          new_cutover = 'The staged cutover is complete. P2-V0.23.17 admitted the dedicated tuple while temporarily retaining the two application-repository pairs for rollback safety; dedicated production replay subsequently proved both routine source-only paths through REVIEW and authenticated source handoff. P2-V0.23.19 therefore removes the two old allowlist pairs and their standing application-repository workflow files. Rollback may restore only those exact prior tuples if the dedicated path regresses; wildcard, prefix, name-only, ID-only, actor-only, or workflow-only trust remains prohibited.'
+          assert text.count(old_cutover) == 1
+          text = text.replace(old_cutover, new_cutover, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run focused QA identity regression
+        run: pytest -q services/api/tests/test_qa_automation_identity.py
+
+      - name: Commit generated evidence and architecture
+        run: |
+          set -euo pipefail
+          git config user.name "parallax-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add ARCHITECTURE.md specs/compiled/P2-V0.23.19.plan.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'Architecture and DSPy evidence already current'
+            exit 0
+          fi
+          git commit -m 'Finalize P2-V0.23.19 architecture and DSPy plan'
+          git push origin HEAD:fix/p2319-contract-dedicated-qa-trust
