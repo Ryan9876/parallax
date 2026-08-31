@@ -177,6 +177,7 @@ class IncrementalProposalAccumulator:
         proposal: ImplementationProposal,
         *,
         reserved_paths: tuple[str, ...] = (),
+        prefix_patches: tuple[GeneratedSourcePatch, ...] = (),
     ) -> IncrementalConvergenceResult:
         accepted, rejections = classify_incremental_proposal(
             proposal,
@@ -208,6 +209,26 @@ class IncrementalProposalAccumulator:
                 made_progress=False,
                 converged=False,
             )
+
+        if prefix_patches:
+            plan_prefix = ImplementationProposal(
+                acceptance_ids_covered=list(self.acceptance_ids),
+                patches=[*prefix_patches, *self._retained.values(), *accepted],
+            )
+            prefix_reason = self.proposal_preflight_reason(plan_prefix)
+            if prefix_reason is not None:
+                prefix_rejections = (
+                    *rejections,
+                    IncrementalPatchRejection(None, prefix_reason),
+                )
+                return IncrementalConvergenceResult(
+                    proposal=None,
+                    rejections=tuple(prefix_rejections),
+                    retained_patch_count=len(self._retained),
+                    rejected_patch_count=len(prefix_rejections),
+                    made_progress=False,
+                    converged=False,
+                )
 
         for patch in accepted:
             self._retained[patch.path] = patch
@@ -713,6 +734,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                             convergence = accumulator.evaluate(
                                 generation.proposal,
                                 reserved_paths=tuple(sorted(seen_paths)),
+                                prefix_patches=tuple(patches),
                             )
                             if not convergence.converged:
                                 last_incremental_rejections = convergence.rejections
