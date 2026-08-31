@@ -1,0 +1,54 @@
+name: P2-V0.23.28 Spec Preparation
+
+on:
+  push:
+    branches: [fix/p2328-cross-work-unit-convergence]
+    paths:
+      - 'specs/P2-V0.23.28.md'
+      - '.github/workflows/p2328-spec-prep.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2328-cross-work-unit-convergence
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate specification contract
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.28.md
+      - name: Require provider-backed DSPy preparation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          test -n "$OPENAI_API_KEY"
+          echo 'DSPY_MODEL=openai/gpt-5.6-sol' >> "$GITHUB_ENV"
+      - name: Compile with SpecCritic and SpecCompiler
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py specs/P2-V0.23.28.md
+      - name: Verify committed-plan contract
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.28.md
+      - name: Commit protected DSPy plan
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Spec Compiler'
+          git config user.email 'parallax-spec@users.noreply.github.com'
+          git add specs/compiled/P2-V0.23.28.plan.json
+          if git diff --cached --quiet; then
+            echo 'Compiled plan already matches.'
+            exit 0
+          fi
+          git commit -m 'P2-V0.23.28 — commit protected DSPy plan'
+          git push origin HEAD:fix/p2328-cross-work-unit-convergence
