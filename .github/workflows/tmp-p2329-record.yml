@@ -1,0 +1,104 @@
+name: P2-V0.23.29 Current-State Reconciliation
+
+on:
+  push:
+    branches:
+      - record/p2329-deployment-verification
+    paths:
+      - .github/workflows/tmp-p2329-record.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: record/p2329-deployment-verification
+          fetch-depth: 0
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+
+          old_tail = ' / P2-V0.23.28 PLAN-PREFIX IMPLEMENT CONVERGENCE PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING**'
+          new_tail = ' / P2-V0.23.28 PLAN-PREFIX IMPLEMENT CONVERGENCE PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED / P2-V0.23.29 COHERENT IMPLEMENT SOURCE UNIT PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING**'
+          if old_tail not in text:
+              raise SystemExit('expected P2-V0.23.28 status tail not found')
+          text = text.replace(old_tail, new_tail, 1)
+
+          marker = '## P2-V0.23.28 — plan-prefix IMPLEMENT convergence and durable failure diagnostics — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING'
+          if marker not in text:
+              raise SystemExit('expected P2-V0.23.28 section marker not found')
+
+          section = '''## P2-V0.23.29 — coherent IMPLEMENT source unit and candidate-assembly contraction — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING
+
+Workstream: #533. Release PR: #534. Governing specification: `P2-V0.23.29`. Architecture: `ARCHITECTURE.md` v3.40.
+
+P2-V0.23.29 contracts ordinary production IMPLEMENT source authoring from heuristic acceptance-keyword client/server/data co-authoring to one coherent implementation work unit spanning the exact approved acceptance contract. Acceptance wording no longer creates independent canonical-source authors merely because different criteria mention client, server, browser, persistence, or similar domains. The smallest-capable-team planner selects one initial admitted implementation agent, while the unchanged Luna/Terra/Sol roster remains eligible through the existing finite candidate-recovery sequence and single final validator repair. P2-V0.23.27 incremental patch convergence and P2-V0.23.28 plan-prefix safety remain defense in depth. Exact acceptance validation, `SafeImplementationEngine`, disposable BUILD/TEST/VERIFY, independent evaluation, immutable source lineage, delivery, lifecycle, Git/deployment, and human REVIEW authority remain unchanged. Candidate admission/validation operational logs expose only bounded sanitized candidate identity, phase/fixed failure kind or protected stage/timeout classification; source/generated content, diffs, exception text, provider payloads, credentials, and filesystem roots remain excluded.
+
+Validated release and deployment evidence:
+
+- protected DSPy spec preparation run `33435042035`: SUCCESS;
+- focused implementation run `33435434052`: SUCCESS, including coherent-topology, recovery-budget, activation, incremental-convergence, and plan-prefix regressions;
+- exact green PR head: `c040895ff13885057c22a1193cf4af8a4bccbd04`;
+- PR Bounded Autonomy Pilot `33435787802`: SUCCESS;
+- PR Workstream Spec Validation `33435787778`: SUCCESS;
+- PR Parallax P2 CI `33435787884`: SUCCESS;
+- squash merge / exact application source: `282e2c2801217a63efad50f1f91e6b1e5f267ba6`;
+- post-merge Workstream Spec Validation `33436229851`: SUCCESS, including changed-spec protected plan evidence;
+- post-merge Parallax P2 CI `33436229844`: SUCCESS, including full API regression, client checks, protected promotion evaluation, and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- production API deployment `dpl_9Csq52Q1ihkenrw3UZW8ZfRrLdka`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;
+- production build preflights passed provider registration/private Blob, exact delivery permission, projected source, private Blob SDK, lineage composition, agentic runtime, projected bootstrap, and execution-snapshot verification;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- exact API deployment warning/error/fatal runtime scan after readiness was clean.
+
+Deployment verification is complete. Workstream #533 remains open only for final authenticated real-path acceptance through the normal signed-in product path. Acceptance requires Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact work) to enter disposable BUILD/TEST/VERIFY under the coherent source unit, or to expose a still-later bounded blocker without recurring the same post-generation/pre-sandbox multi-work-unit assembly pattern. This evidence must not be manufactured by bypassing user authentication or session ownership.
+
+No provider/model/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, direct model filesystem authority, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion, queue redesign, or generic WorkGraph/TeamPlan removal was added.
+
+'''
+          text = text.replace(marker, section + '## P2-V0.23.28 — plan-prefix IMPLEMENT convergence and durable failure diagnostics — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED', 1)
+
+          pattern = re.compile(
+              r'Deployment verification is complete\. Workstream #530 remains open only for its final authenticated real-path acceptance:.*?This evidence must not be manufactured by bypassing user authentication or session ownership\.',
+              re.DOTALL,
+          )
+          replacement = (
+              'Authenticated real-path acceptance for P2-V0.23.28 is complete under the workstream’s explicit later-blocker alternative. '
+              'On exact production deployment `dpl_4DjbFpezU1NGJNsiCKXNRqbA7DA2`, the signed-in retry of Engineering Run '
+              '`3a1ba66a-5649-42b6-81ee-91684fe06bbc` resumed successfully; source-lineage reads succeeded; Luna completed and Terra completed; '
+              'no Sol/final validator-repair dispatch and no disposable BUILD/TEST/VERIFY followed before IMPLEMENT failed again while the production API remained healthy. '
+              'This exposed a still-later post-generation/pre-sandbox source-assembly blocker rather than recurring the prior plan-prefix rejection. '
+              'The completion alternative is therefore satisfied, workstream #530 is closed completed, and successor #533 / P2-V0.23.29 owns the coherent source-authoring correction.'
+          )
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one P2-V0.23.28 acceptance paragraph, replaced {count}')
+
+          path.write_text(text)
+          PY
+      - name: Verify authoritative reconciliation
+        shell: bash
+        run: |
+          grep -F 'P2-V0.23.29 COHERENT IMPLEMENT SOURCE UNIT PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING' CURRENT-STATE.md
+          grep -F '## P2-V0.23.29 — coherent IMPLEMENT source unit and candidate-assembly contraction — PRODUCTION-DEPLOYMENT-VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING' CURRENT-STATE.md
+          grep -F '## P2-V0.23.28 — plan-prefix IMPLEMENT convergence and durable failure diagnostics — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED' CURRENT-STATE.md
+          grep -F 'workstream #530 is closed completed' CURRENT-STATE.md
+      - name: Commit reconciliation and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'Parallax Record Reconciler'
+          git config user.email 'parallax-records@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git rm .github/workflows/tmp-p2329-record.yml
+          git commit -m 'P2-V0.23.29 — record deployment-verified current state'
+          git push origin HEAD:record/p2329-deployment-verification
