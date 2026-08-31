@@ -2,7 +2,7 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
 
 ## CI/CD development pipeline optimization — MAIN-VERIFIED
 
@@ -29,7 +29,7 @@ The observed PR fast-client job completed in about 68 seconds versus about 169 s
 
 ## P2-V0.23.17 / P2-V0.23.18 — dedicated QA proof and exact model patch canonicalization — PRODUCTION-ACCEPTED
 
-P2-V0.23.17 / Architecture v3.29 moved standing production-QA identity to the dedicated `Ryan9876/parallax-qa` repository and bound authorization to an exact signed `(repository, repository_id, workflow_ref)` tuple. The dedicated repository path is now behaviorally production-proven. Temporary legacy application-repository QA tuples remain admitted only until the planned contraction release removes them.
+P2-V0.23.17 / Architecture v3.29 moved standing production-QA identity to the dedicated `Ryan9876/parallax-qa` repository and bound authorization to an exact signed `(repository, repository_id, workflow_ref)` tuple. The dedicated repository path is behaviorally production-proven. P2-V0.23.19 / Architecture v3.31 completed that staged cutover: the two migration-only `Ryan9876/parallax` QA tuples are retired, leaving only the exact dedicated repository tuple as standing production-QA trust.
 
 P2-V0.23.18 / Architecture v3.30 adds a server-owned exact patch-intent canonicalization boundary only for protected model-generated IMPLEMENT proposals. Mechanical unified-diff headers, counts, positions and an anchored stale model base digest may be recovered only when exact current protected source proves the edit intent. Ambiguous, fuzzy, semantic, unanchored stale-base, unsafe-target, secret-sensitive, size-limit and other protected failures remain fail-closed, and every recovered patch is re-parsed by the unchanged strict `TextPatchEngine` before candidate admission or mutation.
 
@@ -52,7 +52,35 @@ Release and production evidence:
 - authenticated source-only ZIP handoff verified 31 entries / 74,567 bytes and contained the exact accepted README marker;
 - source publication: false; application deployment by the generated workload: false.
 
-This closes the P2-V0.23.18 workload-sensitive candidate-validation blocker without widening model count, retry ceilings, source-lineage authority, Git/deployment authority, or the human REVIEW boundary. The next security cleanup is the already-planned P2-V0.23.17 trust contraction: remove the two legacy application-repository QA identities and workflow files now that the dedicated repository path is production-proven.
+This closes the P2-V0.23.18 workload-sensitive candidate-validation blocker without widening model count, retry ceilings, source-lineage authority, Git/deployment authority, or the human REVIEW boundary. Its planned follow-up trust contraction is now complete under P2-V0.23.19.
+
+## P2-V0.23.19 — dedicated production-QA trust contraction — PRODUCTION-VERIFIED
+
+Workstream: #499. Release PR: #505. Governing specification: `P2-V0.23.19`. Architecture: `ARCHITECTURE.md` v3.31.
+
+P2-V0.23.19 completes the staged P2-V0.23.17 migration. Standing GitHub Actions production-QA authorization is now exactly one server-owned tuple: repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The former `Ryan9876/parallax` `qa-production-replay.yml` and `w8-s2-qa-replay.yml` identities are rejected and their standing workflow files are absent from the application repository. Issuer, `parallax://qa-production` audience, `refs/heads/main`, GitHub-hosted runner, admitted event set, bounded run-ID validation and bounded QA-principal mapping remain unchanged.
+
+Release and production evidence:
+
+- exact green PR head: `7a68e91e2ced95c1c9939391718f339c97b0a271`;
+- release merge / deployed API source: `ea00a943d4bc5f00f0f5416881d482c0f799be63`;
+- production deployment: `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- exact-head Parallax P2 CI `33350296468`: SUCCESS;
+- exact-head Bounded Autonomy `33350296492`: SUCCESS;
+- exact-head Workstream Spec Validation `33350296493`: SUCCESS;
+- post-merge Workstream Spec Validation `33350390486`: SUCCESS;
+- post-merge Parallax P2 CI `33350390524`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- exact-deployment post-release error/fatal runtime-log scan: clean in the checked window;
+- dedicated-repository production replay `33350555555`: SUCCESS under the contracted one-tuple trust set;
+- Python job `99362951997`: SUCCESS; Project `d00e23cb-6d84-4805-bf15-4f738d920136`, Engineering Run `1b3c3413-2854-4af9-9625-d6d1838d0357`, final state REVIEW, authenticated source-only ZIP 7 entries / 1,422 bytes;
+- OT Time job `99362951812`: SUCCESS; Project `7b4c2377-6f06-4b43-b174-206e059e24f0`, Engineering Run `beadb914-1ab5-45b2-ba72-50b31efe1f16`, final state REVIEW, authenticated source-only ZIP 32 entries / 74,712 bytes;
+- both routine replays recorded `source_publication=false` and `app_deployment=false`;
+- the temporary QA push trigger used only to initiate the accepted replay was removed immediately afterward; `Ryan9876/parallax-qa` main is restored to manual-only production replay at commit `7ec51807bcd68c8a411f36c41dcb7b0bc941838c`.
+
+This release contracts authentication surface only. Normal user authentication, the bounded QA principal, Project / Work Specification / Engineering Run authority, accepted source lineage, hosted-model routing, worker recovery, Git/deployment authority and the human REVIEW ceiling are unchanged. Rollback restores only the previously deployment-verified exact tuples; wildcard or partial-claim trust remains prohibited.
 
 ## Current production truth
 
@@ -160,7 +188,7 @@ This closes the known WebGL startup gap without broadening browser capability co
 
 Issue: #495. Release PR: #496. This cleanup retires the temporary authenticated GitHub Actions workflow used to prove the P2-V0.23.13/P2-V0.23.14 production retry path after that behavioral acceptance was completed.
 
-The earlier retry-specific QA workflow remains retired. P2-V0.23.17 subsequently admitted the exact dedicated `Ryan9876/parallax-qa` repository ID/workflow tuple and temporarily retained the two application-repository QA tuples for migration safety. The dedicated repository replay is now production-proven; removing those two legacy tuples and workflow files is the next bounded trust-contraction release. Repository-ID binding, `refs/heads/main`, GitHub-hosted runner, event-name and `parallax://qa-production` audience checks remain fail-closed.
+The earlier retry-specific QA workflow remains retired. P2-V0.23.17 subsequently admitted the exact dedicated `Ryan9876/parallax-qa` repository ID/workflow tuple while temporarily retaining two application-repository QA tuples for migration safety. P2-V0.23.19 has now completed the cutover: those two legacy tuples and their standing workflow files are removed, and the dedicated repository replay is production-verified under the contracted trust set. Repository-ID binding, `refs/heads/main`, GitHub-hosted runner, event-name and `parallax://qa-production` audience checks remain fail-closed.
 
 Release and production evidence:
 
@@ -197,15 +225,15 @@ Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA passw
 
 Current deployment-verified production API:
 
-- source: `8e9efa4afec667b644a6a94063a463d72d10cd58`;
-- production deployment: `dpl_2zTNwf1m59cZmNRAWqWXdZ1pw9tw`;
+- source: `ea00a943d4bc5f00f0f5416881d482c0f799be63`;
+- production deployment: `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - state: `READY`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
 - `/health`: HTTP 200;
 - `/ready`: HTTP 200 with database/providers ready and one provider target;
-- post-release runtime-error scan: clean in the checked 30-minute production window;
-- architecture: `ARCHITECTURE.md` v3.30.
+- post-release runtime-error scan: clean in the checked post-release production window;
+- architecture: `ARCHITECTURE.md` v3.31.
 
 The production build preflight restored and qualified both execution substrates before release:
 
@@ -635,7 +663,6 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 ## Other open governed work
 
-- #499 — P2-V0.23.17 dedicated QA repository admission is production-proven; the planned follow-up trust contraction still must remove the two legacy `Ryan9876/parallax` QA identities and workflow files, leaving only the exact `Ryan9876/parallax-qa` standing identity.
 - #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity.
 
 ## Authoritative-record update
@@ -656,4 +683,4 @@ S2 remains non-executing capability intake. External observations are quarantine
 
 `PROJECT-CONSTITUTION.md` was not changed because the release preserves existing least-privilege, explicit-authority, fail-closed validation and evidence-preservation principles rather than introducing a new constitutional rule.
 
-Latest authoritative reconciliation: P2-V0.23.18 is production-accepted on exact API source `8e9efa4afec667b644a6a94063a463d72d10cd58` / deployment `dpl_2zTNwf1m59cZmNRAWqWXdZ1pw9tw`. Dedicated `parallax-qa` workflow run `33349444286` passed both routine jobs; the release-specific OT Time existing-file run `a3a6f6bc-b341-4cb4-98b8-dbc3219ed49b` reached REVIEW revision 6 with IMPLEMENT, BUILD, TEST and VERIFY passed and a verified source-only ZIP. `ARCHITECTURE.md` is authoritative at v3.30. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles. Issue #501 is complete; #499 trust contraction and #442 canonical greenfield acceptance remain open.
+Latest authoritative reconciliation: P2-V0.23.19 is production-verified on exact API source `ea00a943d4bc5f00f0f5416881d482c0f799be63` / deployment `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`. Post-merge Workstream Spec Validation `33350390486` and Parallax P2 CI `33350390524` passed, including fresh promotion-boundary DSPy compilation and verification. Dedicated `parallax-qa` replay `33350555555` then passed both routine jobs under the contracted one-tuple trust set: Python run `1b3c3413-2854-4af9-9625-d6d1838d0357` and OT Time run `beadb914-1ab5-45b2-ba72-50b31efe1f16` both reached REVIEW with verified authenticated source-only ZIP handoff. `ARCHITECTURE.md` is authoritative at v3.31. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles. Issues #501 and #499 are complete; #442 canonical greenfield acceptance remains open.
