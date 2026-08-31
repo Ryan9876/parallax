@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.30
+Version: 3.31
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.31 completes the staged production-QA trust cutover after the dedicated `Ryan9876/parallax-qa` repository path was behaviorally proven in production. Standing GitHub Actions QA authorization now contains only the exact dedicated `(repository, repository_id, workflow_ref)` tuple; the two migration-only `Ryan9876/parallax` workflow identities and their standing workflow files are retired. Issuer, audience, main ref, GitHub-hosted runner, admitted event set, bounded run-id validation, QA-principal mapping, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and the REVIEW ceiling are unchanged. Architecture v3.30 remains the exact model patch-intent canonicalization boundary.
 
 Architecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier. Provider-successful model proposals may recover mechanical unified-diff metadata only when source-consuming context/deletion records match exact current protected source at the declared location or at one unique admissible non-overlapping location. When every existing-file hunk is exact-source anchored, an incorrect model-supplied base digest may also be replaced with the server-derived SHA-256 of that current protected target; unanchored pure insertions cannot use digest repair. Pure insertions remain coordinate-anchored, new-file recovery remains addition-only with `/dev/null` semantics and the server-owned empty digest, and every recovered diff is re-parsed by the unchanged strict `TextPatchEngine` before disposable validation or canonical mutation. No fuzzy matching, semantic patching, shell/Git/network application, retry-budget expansion, source-lineage authority, deployment authority, or REVIEW authority is added. Architecture v3.29 remains the dedicated stable-repository-ID production-QA trust boundary.
 
@@ -17,7 +19,7 @@ This revision replaces the assumption that every admitted validation ecosystem c
 
 ## Dedicated production-QA repository trust boundary
 
-Architecture v3.29 treats a GitHub Actions QA identity as one exact repository-name/repository-ID/workflow tuple. Production authorization never accepts those claims independently: all three signed OIDC claims must match the same server-owned allowlist entry. Standing dedicated QA is repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The temporarily retained application-repository identities are repository `Ryan9876/parallax`, stable GitHub repository ID `1340272514`, plus their exact already-admitted workflow references.
+Architecture v3.31 completes the dedicated production-QA repository boundary first admitted by v3.29. Production authorization still treats a GitHub Actions QA identity as one exact repository-name/repository-ID/workflow tuple and never accepts those claims independently. Standing QA trust is now only repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, with exact workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The former `Ryan9876/parallax` migration identities are retired and no longer appear in the server-owned trusted identity set.
 
 Binding stable repository ID closes owner/name reuse as an authentication path: deleting and recreating a repository at the same name yields a different repository ID and therefore fails closed until explicitly reviewed. A correct repository ID with the wrong owner/name, a correct owner/name with the wrong ID, or either identity with an unpaired workflow is rejected.
 
@@ -25,7 +27,7 @@ The remaining identity guards stay conjunctive and fail-closed: issuer `https://
 
 The dedicated workflow authenticates only to the existing bounded QA principal. It cannot inherit normal-user ownership or create source-publication, Git mutation, deployment, production-promotion, lifecycle-transition, or REVIEW-completion authority beyond the product APIs already available to that bounded QA account. Routine standing acceptance is source-only Python plus OT Time/.NET replay to REVIEW and authenticated ZIP handoff. W9-S1 greenfield initialization is not standing QA trust and requires a separately reviewed exact workflow when a fresh approved target exists.
 
-Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.
+The staged cutover is complete. P2-V0.23.17 admitted the dedicated tuple while temporarily retaining the two application-repository pairs for rollback safety; dedicated production replay subsequently proved both routine source-only paths through REVIEW and authenticated source handoff. P2-V0.23.19 therefore removes the two old allowlist pairs and their standing application-repository workflow files. Rollback may restore only those exact prior tuples if the dedicated path regresses; wildcard, prefix, name-only, ID-only, actor-only, or workflow-only trust remains prohibited.
 
 ## Server-owned exact model patch canonicalization
 
