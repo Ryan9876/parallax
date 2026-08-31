@@ -1,0 +1,58 @@
+name: Parallax Client Visual Validation
+
+on:
+  pull_request:
+    branches: [main, integration/wave7-productization]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'apps/client/**'
+      - '.github/workflows/client-visual-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/client/**'
+      - '.github/workflows/client-visual-validation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: parallax-client-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: Browser / Skia acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install client dependencies
+        working-directory: apps/client
+        run: npm install --no-audit --no-fund
+      - name: Export web build
+        working-directory: apps/client
+        run: npm run export:web
+      - name: Record production dependency audit
+        working-directory: apps/client
+        run: npm audit --omit=dev --json > npm-audit.json || true
+      - name: Install browser runtime
+        working-directory: apps/client
+        run: npx playwright install --with-deps chromium
+      - name: Run browser / Skia acceptance suite
+        working-directory: apps/client
+        run: npm run test:visual
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-visual-evidence
+          path: |
+            apps/client/npm-audit.json
+            apps/client/dist
+            apps/client/visual-evidence
+          if-no-files-found: warn
+          retention-days: 14
