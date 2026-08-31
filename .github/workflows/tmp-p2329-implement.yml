@@ -1,0 +1,235 @@
+name: P2-V0.23.29 Focused Implementation
+
+on:
+  push:
+    branches: [fix/p2329-coherent-implement-unit]
+    paths:
+      - '.github/workflows/tmp-p2329-implement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2329-coherent-implement-unit
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Apply coherent IMPLEMENT topology
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime_path = Path('services/api/parallax_api/code/agentic_runtime.py')
+          text = runtime_path.read_text(encoding='utf-8')
+
+          text = text.replace('import json\nimport os\n', 'import json\nimport logging\nimport os\n', 1)
+          marker = '_DEFAULT_AGENT_SELECTION_PRIORITY = 100\n'
+          if marker not in text:
+              raise SystemExit('runtime constant marker not found')
+          text = text.replace(marker, marker + 'logger = logging.getLogger(__name__)\n', 1)
+
+          old_policy = '"decomposition": "clear-independent-domains-only",'
+          new_policy = '"decomposition": "coherent-implementation-unit-v1",'
+          if old_policy not in text:
+              raise SystemExit('old decomposition policy not found')
+          text = text.replace(old_policy, new_policy, 1)
+
+          start = text.index('    def _work_graph(\n')
+          end = text.index('    def _lineage(', start)
+          coherent = '''    def _work_graph(\n        self,\n        acceptance: tuple[dict[str, str], ...],\n        *,\n        source_digest: str,\n    ) -> WorkGraph:\n        source_ref = AgentEvidenceReference(\n            EvidenceKind.SOURCE,\n            "source:accepted-base",\n            source_digest,\n        )\n        acceptance_ids = tuple(item["id"] for item in acceptance)\n        return WorkGraph(\n            approved_acceptance_ids=acceptance_ids,\n            units=(\n                WorkUnit(\n                    unit_id="implementation",\n                    work_kind="implementation",\n                    acceptance_ids=acceptance_ids,\n                    required_capabilities=("bounded-source-evidence",),\n                    coordination_domains=("source",),\n                    requires_canonical_mutation=False,\n                    context_refs=(source_ref,),\n                ),\n            ),\n        )\n\n'''
+          text = text[:start] + coherent + text[end:]
+
+          old_validation = '''        except CandidateValidationFailure as exc:\n            raise ImplementationGenerationFailure(\n                "agentic runtime rejected a protected implementation candidate",\n                diagnostic_evidence={\n                    "candidate_validation_failure": dict(exc.diagnostic_evidence),\n                },\n            ) from exc\n'''
+          new_validation = '''        except CandidateValidationFailure as exc:\n            diagnostic = dict(exc.diagnostic_evidence)\n            logger.warning(\n                "parallax_candidate_validation_failed candidate=%s stage=%s timed_out=%s",\n                diagnostic.get("candidate_id"),\n                diagnostic.get("failed_stage"),\n                diagnostic.get("timed_out") is True,\n            )\n            raise ImplementationGenerationFailure(\n                "agentic runtime rejected a protected implementation candidate",\n                diagnostic_evidence={\n                    "candidate_validation_failure": diagnostic,\n                },\n            ) from exc\n'''
+          if old_validation not in text:
+              raise SystemExit('candidate validation catch marker not found')
+          text = text.replace(old_validation, new_validation, 1)
+
+          old_admission = '''        except CandidateAdmissionFailure as exc:\n            raise ImplementationGenerationFailure(\n                "agentic runtime failed during bounded candidate admission",\n                diagnostic_evidence={\n                    "candidate_admission_failure": dict(exc.diagnostic_evidence),\n                },\n            ) from exc\n'''
+          new_admission = '''        except CandidateAdmissionFailure as exc:\n            diagnostic = dict(exc.diagnostic_evidence)\n            logger.warning(\n                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s",\n                diagnostic.get("candidate_id"),\n                diagnostic.get("phase"),\n                diagnostic.get("failure_kind"),\n            )\n            raise ImplementationGenerationFailure(\n                "agentic runtime failed during bounded candidate admission",\n                diagnostic_evidence={\n                    "candidate_admission_failure": diagnostic,\n                },\n            ) from exc\n'''
+          if old_admission not in text:
+              raise SystemExit('candidate admission catch marker not found')
+          text = text.replace(old_admission, new_admission, 1)
+          runtime_path.write_text(text, encoding='utf-8')
+
+          test_path = Path('services/api/tests/test_agentic_runtime_activation.py')
+          tests = test_path.read_text(encoding='utf-8')
+          start = tests.index('def test_live_plan_selects_bounded_multi_agent_team_only_for_independent_domains')
+          end = tests.index('\ndef test_selected_candidate_still_uses_existing_safe_mutation_lineage_and_later_stages', start)
+          replacement = '''def test_live_plan_uses_one_coherent_source_unit_for_multi_domain_acceptance(tmp_path):\n    session, service, _, run, allocator, _, _ = create_runtime_fixture(\n        tmp_path,\n        "coherent-implementation",\n        [\n            "Update the client button layout.",\n            "Update the server API endpoint.",\n        ],\n    )\n    try:\n        control = live_control(service, allocator)\n        evidence = control.plan(run=run, operation_key="p2329:plan-coherent")\n\n        assert evidence["selected_agent_count"] == 1\n        units = evidence["work_units"]\n        assert len(units) == 1\n        assert units[0]["unit_id"] == "implementation"\n        assert units[0]["acceptance_ids"] == ["AC-01", "AC-02"]\n        assert units[0]["coordination_domains"] == ["source"]\n        assert evidence["operator_selected_agents"] is False\n        assert control.competition_policy.minimum_expected_quality_gain == 1.0\n    finally:\n        session.close()\n\n'''
+          tests = tests[:start] + replacement + tests[end+1:]
+          test_path.write_text(tests, encoding='utf-8')
+          PY
+
+          cat > services/api/tests/test_coherent_implement_unit_v02329.py <<'PY'
+          from __future__ import annotations
+
+          from parallax_api.code.agent_team_orchestration import (
+              OrchestrationDisposition,
+              build_team_plan,
+              schedule_team_plan,
+          )
+          from parallax_api.code.agentic_candidate_recovery import (
+              MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT,
+              candidate_recovery_assignment,
+          )
+          from parallax_api.code.agentic_runtime import AgenticControlPlane, _MODEL_ORDER
+          from parallax_api.intelligence.dspy_programs import (
+              _HOSTED_MODEL_NUM_RETRIES,
+              _HOSTED_MODEL_TIMEOUT_SECONDS,
+          )
+
+
+          def _control() -> AgenticControlPlane:
+              return AgenticControlPlane(None, None)
+
+
+          def _multi_domain_acceptance() -> tuple[dict[str, str], ...]:
+              return (
+                  {"id": "AC-01", "text": "Update the client button and browser layout."},
+                  {"id": "AC-02", "text": "Update the server API endpoint and response."},
+                  {"id": "AC-03", "text": "Persist the database schema change durably."},
+              )
+
+
+          def _plan(control: AgenticControlPlane):
+              graph = control._work_graph(_multi_domain_acceptance(), source_digest="a" * 64)
+              decision = build_team_plan(
+                  project_id="11111111-1111-4111-8111-111111111111",
+                  run_id="22222222-2222-4222-8222-222222222222",
+                  work_specification_id="33333333-3333-4333-8333-333333333333",
+                  work_specification_revision=1,
+                  work_specification_digest="b" * 64,
+                  graph=graph,
+                  roster=control._roster,
+                  policy_digest=control._policy_digest,
+                  limits=control.orchestration_limits,
+              )
+              assert decision.disposition is OrchestrationDisposition.READY
+              assert decision.plan is not None
+              return decision.plan
+
+
+          def test_multi_domain_acceptance_builds_one_coherent_implementation_unit():
+              control = _control()
+              graph = control._work_graph(_multi_domain_acceptance(), source_digest="a" * 64)
+              assert graph.approved_acceptance_ids == ("AC-01", "AC-02", "AC-03")
+              assert len(graph.units) == 1
+              unit = graph.units[0]
+              assert unit.unit_id == "implementation"
+              assert unit.acceptance_ids == graph.approved_acceptance_ids
+              assert unit.coordination_domains == ("source",)
+              assert unit.requires_canonical_mutation is False
+
+
+          def test_coherent_implementation_selects_one_initial_agent_but_retains_all_recovery_agents():
+              control = _control()
+              plan = _plan(control)
+              roster_digests = tuple(entry.identity_digest for entry in control._roster.entries)
+              assert len(plan.selected_agent_digests) == 1
+              assert plan.selected_agent_digests == (roster_digests[0],)
+              unit_plan = plan.unit_plan("implementation")
+              assert unit_plan.eligible_agent_digests == roster_digests
+              assert len(unit_plan.eligible_agent_digests) == 3
+
+
+          def test_coherent_unit_recovery_still_walks_luna_terra_sol_with_existing_ceiling():
+              control = _control()
+              plan = _plan(control)
+              eligible = plan.unit_plan("implementation").eligible_agent_digests
+              initial = schedule_team_plan(plan).ready[0]
+              assert initial.agent_identity_digest == eligible[0]
+
+              second = candidate_recovery_assignment(
+                  plan,
+                  initial,
+                  attempted_agent_digests=(eligible[0],),
+                  rejection_count=1,
+              )
+              assert second is not None
+              assert second.agent_identity_digest == eligible[1]
+
+              third = candidate_recovery_assignment(
+                  plan,
+                  second,
+                  attempted_agent_digests=(eligible[0], eligible[1]),
+                  rejection_count=2,
+              )
+              assert third is not None
+              assert third.agent_identity_digest == eligible[2]
+
+              exhausted = candidate_recovery_assignment(
+                  plan,
+                  third,
+                  attempted_agent_digests=eligible,
+                  rejection_count=3,
+              )
+              assert exhausted is None
+
+
+          def test_p2329_does_not_expand_model_timeout_retry_or_final_repair_budgets():
+              assert _MODEL_ORDER == (
+                  "openai/gpt-5.6-luna",
+                  "openai/gpt-5.6-terra",
+                  "openai/gpt-5.6-sol",
+              )
+              assert _HOSTED_MODEL_TIMEOUT_SECONDS == 60
+              assert _HOSTED_MODEL_NUM_RETRIES == 0
+              assert MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT == 1
+          PY
+
+      - name: Compile changed runtime
+        run: python -m compileall -q services/api/parallax_api services/api/tests/test_coherent_implement_unit_v02329.py
+      - name: Run focused and inherited regressions
+        run: |
+          python -m pytest \
+            services/api/tests/test_coherent_implement_unit_v02329.py \
+            services/api/tests/test_agentic_runtime_activation.py \
+            services/api/tests/test_agentic_candidate_recovery.py \
+            services/api/tests/test_incremental_implement_convergence_v02327.py \
+            services/api/tests/test_cross_work_unit_convergence_v02328.py \
+            -q
+      - name: Verify governed specification evidence
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.29.md
+      - name: Record Architecture v3.40 only after behavior validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          if 'Version: 3.39' not in text:
+              raise SystemExit('expected Architecture v3.39 baseline')
+          text = text.replace('Version: 3.39', 'Version: 3.40', 1)
+          marker = '## Version relationship\n\n'
+          paragraph = (
+              'Architecture v3.40 contracts ordinary production IMPLEMENT source authoring from heuristic acceptance-keyword multi-work-unit co-authoring to one coherent implementation work unit spanning the exact approved acceptance contract. Client, server, data, browser, persistence and similar acceptance wording no longer creates independent canonical-source authors merely because the text falls into different keyword domains. The smallest-capable-team planner therefore selects one initial admitted implementation agent, while the unchanged Luna/Terra/Sol eligible roster remains available through the existing finite candidate-recovery sequence and the existing single final validator repair. Generic WorkGraph/TeamPlan and multi-unit scheduling primitives remain available for future explicitly governed independently composable work; they are no longer inferred for canonical source authoring from acceptance wording alone. P2-V0.23.27 incremental patch convergence and P2-V0.23.28 plan-prefix safety remain defense-in-depth, and exact acceptance validation, SafeImplementationEngine preflight/commit validation, disposable BUILD/TEST/VERIFY, independent evaluation, immutable source-lineage acceptance, delivery, lifecycle, Git/deployment and human REVIEW authority remain unchanged. v3.40 also emits only the already-sanitized candidate validation/admission phase classifications to operational logs (candidate identity, protected phase, fixed failure kind/stage and timeout boolean) so post-generation/pre-sandbox failures can be diagnosed without exposing source, generated content, diffs, provider payloads, credentials, exception text or new authority. Architecture v3.39 remains the plan-prefix convergence and durable failure-diagnostic foundation.\n\n'
+          )
+          if marker not in text:
+              raise SystemExit('version relationship marker missing')
+          text = text.replace(marker, marker + paragraph, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit implementation and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Runtime Implementer'
+          git config user.email 'parallax-runtime@users.noreply.github.com'
+          git add \
+            ARCHITECTURE.md \
+            services/api/parallax_api/code/agentic_runtime.py \
+            services/api/tests/test_agentic_runtime_activation.py \
+            services/api/tests/test_coherent_implement_unit_v02329.py
+          git rm .github/workflows/tmp-p2329-implement.yml
+          git commit -m 'P2-V0.23.29 — contract IMPLEMENT to coherent source unit'
+          git push origin HEAD:fix/p2329-coherent-implement-unit
