@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.33
+Version: 3.34
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.34 adds one finite validator-repair opportunity after distinct admitted implementation agents are exhausted. Only a server-classified VALIDATION_EXHAUSTED result can authorize the repair, the selected identity is the most recent validator-rejected agent already admitted for the same work unit, and the budget is exactly one additional generation per work unit. The repair receives the existing static safe-patch guidance and then passes through the unchanged typed proposal schema, exact acceptance ownership, strict patch canonicalization and verification, disposable candidate validation, independent evaluation, canonical source writer, delivery authority, and human REVIEW ceiling. Provider-only failure cannot authorize this retry, a repair provider failure consumes the one repair budget, the 60-second hosted-model timeout and zero hidden transport retries remain unchanged, and no new model, provider, credential, queue, source authority, Git authority, deployment authority, lifecycle authority, or REVIEW-completion authority is added. Architecture v3.33 remains the request-bounded autonomous execution and typed hosted-generation foundation.
 
 Architecture v3.33 makes ordinary production autonomous engineering request-bounded without changing canonical lifecycle authority. Each `/autonomous` HTTP invocation may execute at most one protected PLAN, IMPLEMENT, BUILD, TEST, or VERIFY transition; the client may request the next transition only from the newly returned canonical Engineering Run revision and is itself bounded to eight consecutive continuations. After a request consumes its step budget, the server reclassifies the resulting authoritative state before returning, so a VERIFY transition that reaches REVIEW still returns the existing `REVIEW_REQUIRED` boundary and preserves verified source-delivery behavior. Revision checks, idempotent operation keys, durable worker checkpoints, accepted source lineage, protected BUILD/TEST/VERIFY, delivery authority, and the human REVIEW ceiling remain server-owned.
 

@@ -35,8 +35,10 @@ from .service import EngineeringRunService
 from .worker_recovery import WorkerLifecycleState, WorkerStallEvidence, WorkerRecoveryError
 
 
-CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.9"
+CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.23"
 CANDIDATE_GENERATION_EXHAUSTED = "CANDIDATE_GENERATION_EXHAUSTED"
+CANDIDATE_VALIDATION_REPAIR = "CANDIDATE_VALIDATION_REPAIR"
+MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT = 1
 _CANDIDATE_EXHAUSTED_BLOCKER = "AGENTIC_CANDIDATE_EXHAUSTED"
 VALIDATOR_REPAIR_GUIDANCE = (
     "The previous admitted candidate produced a parsed proposal but the server-owned safe proposal validator rejected it. "
@@ -56,6 +58,7 @@ class CandidateRejection:
     agent_identity_digest: str
     generation: int
     failure_kind: str | None = None
+    validator_repair_attempt: bool = False
 
     def as_dict(self) -> dict[str, object]:
         evidence: dict[str, object] = {
@@ -67,6 +70,7 @@ class CandidateRejection:
             "git_mutation": False,
             "deployment_mutation": False,
             "review_completed": False,
+            "validator_repair_attempt": self.validator_repair_attempt,
         }
         if self.failure_kind is not None:
             evidence["failure_kind"] = self.failure_kind
@@ -147,6 +151,51 @@ def candidate_recovery_assignment(
     )
 
 
+def validator_repair_assignment(
+    plan: TeamPlan,
+    current: AssignmentEvidence,
+    *,
+    validator_rejected_agent_digests: tuple[str, ...],
+    repair_count: int,
+) -> AssignmentEvidence | None:
+    """Return one final deterministic repair assignment after validator rejection.
+
+    This budget is deliberately separate from distinct-agent candidate recovery and
+    worker-loss reassignment. It reuses only the most recent already-admitted agent
+    that produced a server-classified VALIDATION_EXHAUSTED result, and it never
+    grants source, lineage, Git, deployment, or REVIEW authority.
+    """
+
+    if current.agent_identity_digest is None:
+        raise AgenticRuntimeError("validator repair requires an assigned work unit")
+    if not isinstance(repair_count, int) or isinstance(repair_count, bool) or repair_count < 0:
+        raise AgenticRuntimeError("validator repair count must be a non-negative integer")
+    if repair_count >= MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT:
+        return None
+    if not validator_rejected_agent_digests:
+        return None
+
+    eligible = plan.unit_plan(current.work_unit_id).eligible_agent_digests
+    for digest in validator_rejected_agent_digests:
+        if digest not in eligible:
+            raise AgenticRuntimeError("validator repair identity is outside admitted work-unit agents")
+    repair_agent = validator_rejected_agent_digests[-1]
+    generation = current.generation + 1
+    stem = f"{plan.plan_id[:20]}:{current.work_unit_id}:g{generation}:repair"
+    return AssignmentEvidence(
+        plan_id=plan.plan_id,
+        work_unit_id=current.work_unit_id,
+        agent_identity_digest=repair_agent,
+        generation=generation,
+        dependency_digest=current.dependency_digest,
+        disposition=OrchestrationDisposition.REASSIGNED,
+        reason_code=CANDIDATE_VALIDATION_REPAIR,
+        operation_id=f"orchestration:{stem}",
+        request_id=f"request:{stem}",
+        attempt_id=f"attempt:{stem}",
+    )
+
+
 class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
     """Live control plane with bounded recovery from pre-mutation candidate rejection."""
 
@@ -190,6 +239,8 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
         seen_paths: set[str] = set()
         last_unit_id = plan.graph.units[0].unit_id
         rejections: list[CandidateRejection] = []
+        validator_rejected_agent_digests: list[str] = []
+        validator_repair_count = 0
 
         try:
             while len(completed) < len(plan.graph.units):
@@ -259,8 +310,13 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                 agent_identity_digest=agent_digest,
                                 generation=assignment.generation,
                                 failure_kind=failure_kind,
+                                validator_repair_attempt=(
+                                    assignment.reason_code == CANDIDATE_VALIDATION_REPAIR
+                                ),
                             )
                             rejections.append(rejection)
+                            if failure_kind == RoutingFailureKind.VALIDATION_EXHAUSTED.value:
+                                validator_rejected_agent_digests.append(agent_digest)
                             lease = self.worker_bridge.checkpoint(
                                 lease,
                                 plan=plan,
@@ -279,6 +335,19 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                 attempted_agent_digests=tuple(attempted_agents),
                                 rejection_count=rejection_count,
                             )
+                            repair_selected = False
+                            if replacement is None:
+                                replacement = validator_repair_assignment(
+                                    plan,
+                                    assignment,
+                                    validator_rejected_agent_digests=tuple(
+                                        validator_rejected_agent_digests
+                                    ),
+                                    repair_count=validator_repair_count,
+                                )
+                                if replacement is not None:
+                                    validator_repair_count += 1
+                                    repair_selected = True
                             if replacement is None:
                                 self._mark_candidate_exhausted(run_id=run.id)
                                 raise ImplementationGenerationFailure(
@@ -288,6 +357,9 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                             "reason_code": CANDIDATE_GENERATION_EXHAUSTED,
                                             "rejection_count": rejection_count,
                                             "max_reassignments_per_work_unit": plan.limits.max_reassignments_per_work_unit,
+                                            "validator_repair_attempted": validator_repair_count > 0,
+                                            "validator_repair_count": validator_repair_count,
+                                            "validator_repair_limit": MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT,
                                             "rejections": [item.as_dict() for item in rejections],
                                             "canonical_source_mutated": False,
                                             "source_lineage_accepted": False,
@@ -295,7 +367,11 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                         }
                                     },
                                 )
-                            previous_failure_kind = failure_kind
+                            previous_failure_kind = (
+                                RoutingFailureKind.VALIDATION_EXHAUSTED.value
+                                if repair_selected
+                                else failure_kind
+                            )
                             assignment = replacement
                             generation_by_work_unit[unit.unit_id] = replacement.generation
                             continue
@@ -420,6 +496,8 @@ def build_resilient_live_agentic_runtime_composition(
 __all__ = [
     "CANDIDATE_GENERATION_EXHAUSTED",
     "CANDIDATE_RECOVERY_VERSION",
+    "CANDIDATE_VALIDATION_REPAIR",
+    "MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT",
     "CandidateRejection",
     "ResilientLiveAgenticControlPlane",
     "VALIDATOR_REPAIR_GUIDANCE",
@@ -427,4 +505,5 @@ __all__ = [
     "candidate_generation_failure_kind",
     "candidate_recovery_assignment",
     "validator_guided_candidate_request",
+    "validator_repair_assignment",
 ]
