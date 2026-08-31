@@ -13,7 +13,12 @@ from parallax_api.code.agent_team_orchestration import (
     build_team_plan,
     schedule_team_plan,
 )
-from parallax_api.code.agentic_candidate_recovery import candidate_recovery_assignment
+from parallax_api.code.agentic_candidate_recovery import (
+    CANDIDATE_VALIDATION_REPAIR,
+    MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT,
+    candidate_recovery_assignment,
+    validator_repair_assignment,
+)
 
 
 def _digest(value: str) -> str:
@@ -145,3 +150,134 @@ def test_candidate_recovery_is_deterministic_and_stops_at_existing_bound():
         rejection_count=3,
     )
     assert exhausted is None
+
+
+def test_final_validator_repair_reuses_most_recent_rejected_admitted_agent_once():
+    plan = _plan()
+    original = schedule_team_plan(plan).ready[0]
+    assert original.agent_identity_digest is not None
+
+    retry1 = candidate_recovery_assignment(
+        plan,
+        original,
+        attempted_agent_digests=(original.agent_identity_digest,),
+        rejection_count=1,
+    )
+    assert retry1 is not None and retry1.agent_identity_digest is not None
+    retry2 = candidate_recovery_assignment(
+        plan,
+        retry1,
+        attempted_agent_digests=(original.agent_identity_digest, retry1.agent_identity_digest),
+        rejection_count=2,
+    )
+    assert retry2 is not None and retry2.agent_identity_digest is not None
+
+    distinct_exhausted = candidate_recovery_assignment(
+        plan,
+        retry2,
+        attempted_agent_digests=(
+            original.agent_identity_digest,
+            retry1.agent_identity_digest,
+            retry2.agent_identity_digest,
+        ),
+        rejection_count=3,
+    )
+    assert distinct_exhausted is None
+
+    repair = validator_repair_assignment(
+        plan,
+        retry2,
+        validator_rejected_agent_digests=(
+            retry1.agent_identity_digest,
+            retry2.agent_identity_digest,
+        ),
+        repair_count=0,
+    )
+    assert repair is not None
+    assert repair.disposition is OrchestrationDisposition.REASSIGNED
+    assert repair.reason_code == CANDIDATE_VALIDATION_REPAIR
+    assert repair.agent_identity_digest == retry2.agent_identity_digest
+    assert _model_label(plan, repair.agent_identity_digest) == "model-sol"
+    assert repair.generation == retry2.generation + 1
+    assert repair.operation_id != retry2.operation_id
+    assert repair.request_id != retry2.request_id
+    assert repair.attempt_id != retry2.attempt_id
+    assert MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT == 1
+
+    assert validator_repair_assignment(
+        plan,
+        repair,
+        validator_rejected_agent_digests=(retry2.agent_identity_digest,),
+        repair_count=1,
+    ) is None
+
+
+def test_final_validator_repair_is_not_available_for_provider_only_failures():
+    plan = _plan()
+    original = schedule_team_plan(plan).ready[0]
+    assert original.agent_identity_digest is not None
+    assert validator_repair_assignment(
+        plan,
+        original,
+        validator_rejected_agent_digests=(),
+        repair_count=0,
+    ) is None
+
+
+def test_final_validator_repair_uses_last_validator_rejection_not_last_provider_failure():
+    plan = _plan()
+    original = schedule_team_plan(plan).ready[0]
+    assert original.agent_identity_digest is not None
+    retry1 = candidate_recovery_assignment(
+        plan,
+        original,
+        attempted_agent_digests=(original.agent_identity_digest,),
+        rejection_count=1,
+    )
+    assert retry1 is not None and retry1.agent_identity_digest is not None
+    retry2 = candidate_recovery_assignment(
+        plan,
+        retry1,
+        attempted_agent_digests=(original.agent_identity_digest, retry1.agent_identity_digest),
+        rejection_count=2,
+    )
+    assert retry2 is not None and retry2.agent_identity_digest is not None
+
+    repair = validator_repair_assignment(
+        plan,
+        retry2,
+        validator_rejected_agent_digests=(retry1.agent_identity_digest,),
+        repair_count=0,
+    )
+    assert repair is not None
+    assert repair.agent_identity_digest == retry1.agent_identity_digest
+    assert _model_label(plan, repair.agent_identity_digest) == "model-terra"
+
+
+def test_final_validator_repair_fails_closed_for_non_admitted_identity():
+    import pytest
+    from parallax_api.code.agentic_runtime import AgenticRuntimeError
+
+    plan = _plan()
+    original = schedule_team_plan(plan).ready[0]
+    with pytest.raises(AgenticRuntimeError):
+        validator_repair_assignment(
+            plan,
+            original,
+            validator_rejected_agent_digests=(_digest("not-admitted"),),
+            repair_count=0,
+        )
+
+
+def test_validator_repair_tracking_is_scoped_inside_each_scheduled_work_unit():
+    import inspect
+    from parallax_api.code.agentic_candidate_recovery import ResilientLiveAgenticControlPlane
+
+    # Repair accounting must reset before each work-unit candidate loop.
+    source = inspect.getsource(ResilientLiveAgenticControlPlane._proposal_for_plan)
+    unit_scope = source.index("for scheduled_assignment in ready:")
+    rejected_scope = source.index("validator_rejected_agent_digests: list[str] = []")
+    repair_scope = source.index("validator_repair_count = 0")
+    loop_scope = source.index("while True:")
+    assert unit_scope < rejected_scope < loop_scope
+    assert unit_scope < repair_scope < loop_scope

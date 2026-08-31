@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- `SafeImplementationEngine`, `CanonicalizingTextPatchEngine`, `source-context authority`, `exact acceptance coverage`, `disposable candidate validation`, `independent evaluation`, `canonical lineage acceptance`, `Git/deployment authority`, and `human REVIEW ceiling remain authoritative and unchanged`."
+  ],
+  "work_items": [
+    "- `Luna hit the server-owned 60-second model timeout`, `Terra returned a parsed proposal rejected by the server-owned safe proposal validator`, and `Sol received the existing validator-guided repair constraint but its parsed proposal was also rejected`."
+  ],
+  "validations": [
+    "- `AUTONOMOUS_IMPLEMENT_FAILED`, `Luna hit the server-owned 60-second model timeout`, `Terra returned a parsed proposal rejected by the server-owned safe proposal validator`, and `Sol received the existing validator-guided repair constraint but its parsed proposal was also rejected`.",
+    "AC-01: validate protected requirement \u2014 Regression evidence encodes the observed sequence of one provider failure followed by safe-validator rejection(s) without converting provider failure into validator failure.",
+    "AC-02: validate protected requirement \u2014 When distinct admitted agents are exhausted and a validator rejection exists, exactly one deterministic same-agent repair assignment is produced for the most recent validator-rejected admitted agent.",
+    "AC-03: validate protected requirement \u2014 If all failures are provider/rate-limit failures, no final validator repair assignment is produced.",
+    "AC-04: validate protected requirement \u2014 The final repair request receives `VALIDATOR_REPAIR_GUIDANCE` and no rejected model output or arbitrary validator exception text.",
+    "AC-05: validate protected requirement \u2014 A work unit cannot receive more than one final validator repair retry, including when that retry itself times out or returns another rejected proposal.",
+    "AC-06: validate protected requirement \u2014 The repair assignment grants no canonical source, lineage, Git, deployment, REVIEW, credential, network, or lifecycle-transition authority.",
+    "AC-07: validate protected requirement \u2014 If repair still fails, the candidate-generation diagnostic envelope exposes only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims. No durable diagnostic-schema expansion is required by this release.",
+    "AC-08: validate protected requirement \u2014 A candidate that passes before distinct-agent exhaustion follows the existing path without a final repair attempt.",
+    "AC-09: validate protected requirement \u2014 Focused candidate-recovery tests, full API regression, Bounded Autonomy, client checks, protected promotion evaluation, protected spec/plan validation, and required DSPy validation pass on the exact PR head.",
+    "AC-10: validate protected requirement \u2014 After exact-source deployment, `/health` and `/ready` return HTTP 200 and the affected production run or an equivalent bounded workload proves that a final validator-rejected candidate no longer fails solely because the distinct-agent set was exhausted before one bounded repair retry."
+  ],
+  "risks": [
+    "- `Provider-only failures do not gain validator-specific retry authority`."
+  ],
+  "spec_id": "P2-V0.23.23",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production failure shape is correctly diagnosed",
+      "protected_requirement": "Regression evidence encodes the observed sequence of one provider failure followed by safe-validator rejection(s) without converting provider failure into validator failure."
+    },
+    {
+      "id": "AC-02",
+      "title": "Final validator repair becomes available",
+      "protected_requirement": "When distinct admitted agents are exhausted and a validator rejection exists, exactly one deterministic same-agent repair assignment is produced for the most recent validator-rejected admitted agent."
+    },
+    {
+      "id": "AC-03",
+      "title": "Provider-only exhaustion remains unchanged",
+      "protected_requirement": "If all failures are provider/rate-limit failures, no final validator repair assignment is produced."
+    },
+    {
+      "id": "AC-04",
+      "title": "Existing guidance is reused",
+      "protected_requirement": "The final repair request receives `VALIDATOR_REPAIR_GUIDANCE` and no rejected model output or arbitrary validator exception text."
+    },
+    {
+      "id": "AC-05",
+      "title": "One-repair ceiling is enforced",
+      "protected_requirement": "A work unit cannot receive more than one final validator repair retry, including when that retry itself times out or returns another rejected proposal."
+    },
+    {
+      "id": "AC-06",
+      "title": "Authority remains unchanged",
+      "protected_requirement": "The repair assignment grants no canonical source, lineage, Git, deployment, REVIEW, credential, network, or lifecycle-transition authority."
+    },
+    {
+      "id": "AC-07",
+      "title": "Exhaustion diagnostics remain bounded",
+      "protected_requirement": "If repair still fails, the candidate-generation diagnostic envelope exposes only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims. No durable diagnostic-schema expansion is required by this release."
+    },
+    {
+      "id": "AC-08",
+      "title": "Success path remains unchanged",
+      "protected_requirement": "A candidate that passes before distinct-agent exhaustion follows the existing path without a final repair attempt."
+    },
+    {
+      "id": "AC-09",
+      "title": "Regression gates pass",
+      "protected_requirement": "Focused candidate-recovery tests, full API regression, Bounded Autonomy, client checks, protected promotion evaluation, protected spec/plan validation, and required DSPy validation pass on the exact PR head."
+    },
+    {
+      "id": "AC-10",
+      "title": "Production behavior is verified",
+      "protected_requirement": "After exact-source deployment, `/health` and `/ready` return HTTP 200 and the affected production run or an equivalent bounded workload proves that a final validator-rejected candidate no longer fails solely because the distinct-agent set was exhausted before one bounded repair retry."
+    }
+  ],
+  "critique": [
+    "The production retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` on P2-V0.23.22 no longer timed out at the HTTP layer. Instead, IMPLEMENT exhausted the admitted candidate set: Luna hit the server-owned 60-second model timeout, Terra returned a parsed proposal rejected by the server-owned safe proposal validator, and Sol received the existing validator-guided repair constraint but its parsed proposal was also rejected. The request returned HTTP 200 and the durable run failed safely with `AUTONOMOUS_IMPLEMENT_FAILED`; no canonical source mutation, lineage acceptance, Git mutation, deployment mutation, or REVIEW completion occurred. The remaining reliability defect is that\u2026"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
