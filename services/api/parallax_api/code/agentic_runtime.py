@@ -106,12 +106,19 @@ from .sandbox_execution import (
     _sanitized_provider_error,
 )
 from .service import EngineeringRunService
-from .validation_toolchains import ValidationProfile, select_validation_profile
+from .validation_toolchains import (
+    ExecutionContract,
+    ValidationProfile,
+    ValidationProfileError,
+    ValidationProfileReason,
+    bind_execution_contract,
+    resolve_execution_contract,
+)
 from .workspace_lineage import ProjectRunIdentity
 
 
-AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.7"
-AGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.7"
+AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.8"
+AGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.8"
 _AGENT_POLICY_VERSION = "1.0.0"
 _SANDBOX_SOURCE_ROOT = "/vercel/sandbox"
 _MAX_CANDIDATE_FILES = 2000
@@ -296,7 +303,7 @@ def _candidate_admission_failure_diagnostic(
 ) -> dict[str, object]:
     if phase not in _CANDIDATE_ADMISSION_PHASES:
         raise AgenticRuntimeError("candidate admission diagnostic phase is not server-owned")
-    return {
+    diagnostic: dict[str, object] = {
         "candidate_id": candidate_id,
         "phase": phase,
         "failure_kind": _candidate_admission_failure_kind(exc),
@@ -307,6 +314,11 @@ def _candidate_admission_failure_diagnostic(
         "review_completed": False,
         "production_deployed": False,
     }
+    if isinstance(exc, ValidationProfileError):
+        diagnostic["reason_code"] = exc.code.value
+    elif isinstance(exc, ExecutionPolicyError):
+        diagnostic["reason_code"] = ValidationProfileReason.EXECUTION_CONTRACT_DRIFT.value
+    return diagnostic
 
 
 @contextmanager
@@ -439,6 +451,20 @@ class VercelCandidateValidationExecutor:
             for path, content in files:
                 batch.write_bytes(path, content)
 
+    @staticmethod
+    def _transfer_server_validator(instance: object, profile: ValidationProfile) -> None:
+        if profile.ecosystem != "static-web":
+            return
+        source = Path(__file__).with_name("static_web_validator.py")
+        if source.is_symlink() or not source.is_file():
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE)
+        filesystem = getattr(instance, "fs", None)
+        if filesystem is None:
+            raise AgenticRuntimeError("sandbox filesystem API is unavailable")
+        filesystem.mkdir("parallax-validator", cwd="/vercel", recursive=True)
+        with filesystem.batch(cwd="/vercel/parallax-validator") as batch:
+            batch.write_bytes("static_web_validator.py", source.read_bytes())
+
     def validate_candidate(
         self,
         workspace_root: Path,
@@ -528,6 +554,7 @@ class VercelCandidateValidationExecutor:
                 if getattr(instance, "current_snapshot_id", None) != selected_snapshot_id:
                     raise AgenticRuntimeError("candidate sandbox did not restore the pinned execution snapshot")
                 self._transfer_source(instance, files)
+                self._transfer_server_validator(instance, profile)
                 try:
                     preparation_evidence = run_dependency_preparation(
                         instance,
@@ -945,6 +972,24 @@ class AgenticControlPlane:
             raise AgenticRuntimeError("accepted source lineage identity mismatch")
         return lineage
 
+    def _execution_contract_for_plan(self, run: EngineeringRun, lineage) -> ExecutionContract:
+        if not run.project_id:
+            raise AgenticRuntimeError("execution contract requires Project-bound run")
+        identity = ProjectRunIdentity(project_id=run.project_id, run_id=run.id)
+        workspace = None
+        try:
+            workspace = self.allocator.resolve(identity, lineage.lineage_id)
+            if workspace.identity != identity:
+                raise AgenticRuntimeError("execution contract workspace identity mismatch")
+            if workspace.lineage.lineage_id != lineage.lineage_id:
+                raise AgenticRuntimeError("execution contract source lineage mismatch")
+            if workspace.lineage.content_digest != lineage.content_digest:
+                raise AgenticRuntimeError("execution contract source content mismatch")
+            return bind_execution_contract(workspace.path)
+        finally:
+            if workspace is not None:
+                self.allocator.cleanup(workspace)
+
     def _team_plan(
         self,
         run: EngineeringRun,
@@ -982,6 +1027,7 @@ class AgenticControlPlane:
             raise AgenticRuntimeError("agentic PLAN operation identity is required")
         acceptance = self._acceptance(run, self.service)
         lineage = self._lineage(run)
+        execution_contract = self._execution_contract_for_plan(run, lineage)
         plan = self._team_plan(
             run,
             acceptance,
@@ -999,6 +1045,12 @@ class AgenticControlPlane:
             "acceptance_ids_covered": list(graph.approved_acceptance_ids),
             "base_source_lineage_ref": lineage.lineage_id,
             "base_source_content_digest": lineage.content_digest,
+            "execution_contract_id": execution_contract.contract_id.value,
+            "execution_contract_digest": execution_contract.digest,
+            "execution_contract_target": execution_contract.target,
+            "execution_contract_binding_reason": execution_contract.binding_reason.value,
+            "validation_profile_id": execution_contract.validation_profile.profile_id.value,
+            "validation_profile_digest": execution_contract.validation_profile.digest,
             "orchestration_policy_digest": self._policy_digest,
             "work_graph_digest": graph.digest,
             "roster_digest": plan.roster.digest,
@@ -1042,10 +1094,22 @@ class AgenticControlPlane:
         run: EngineeringRun,
         base_source_lineage_ref: str,
         source_content_digest: str,
-    ) -> TeamPlan:
+    ) -> tuple[TeamPlan, ExecutionContract]:
         acceptance = self._acceptance(run, self.service)
         plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
         evidence = self._plan_attempt(run)
+        contract_id = evidence.get("execution_contract_id")
+        binding_reason = evidence.get("execution_contract_binding_reason")
+        target = evidence.get("execution_contract_target")
+        if not isinstance(contract_id, str) or not isinstance(binding_reason, str):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        if target is not None and not isinstance(target, str):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        contract = resolve_execution_contract(
+            contract_id,
+            binding_reason=binding_reason,
+            target=target,
+        )
         expected = {
             "project_id": run.project_id,
             "run_id": run.id,
@@ -1054,6 +1118,12 @@ class AgenticControlPlane:
             "work_specification_digest": run.work_specification_digest,
             "base_source_lineage_ref": base_source_lineage_ref,
             "base_source_content_digest": source_content_digest,
+            "execution_contract_id": contract.contract_id.value,
+            "execution_contract_digest": contract.digest,
+            "execution_contract_target": contract.target,
+            "execution_contract_binding_reason": contract.binding_reason.value,
+            "validation_profile_id": contract.validation_profile.profile_id.value,
+            "validation_profile_digest": contract.validation_profile.digest,
             "orchestration_policy_digest": self._policy_digest,
             "work_graph_digest": plan.graph.digest,
             "roster_digest": plan.roster.digest,
@@ -1065,8 +1135,11 @@ class AgenticControlPlane:
         }
         for key, value in expected.items():
             if evidence.get(key) != value:
-                raise AgenticRuntimeError(f"persisted agentic PLAN evidence drifted at {key}")
-        return plan
+                raise ValidationProfileError(
+                    ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                    f"persisted agentic PLAN evidence drifted at {key}",
+                )
+        return plan, contract
 
     @staticmethod
     def _copy_candidate_workspace(source: Path, target: Path) -> None:
@@ -1105,6 +1178,27 @@ class AgenticControlPlane:
             objective=request.objective,
             constraints=constraints,
             acceptance=requirements,
+            source_context=request.source_context,
+        )
+
+    @staticmethod
+    def _request_for_execution_contract(
+        request: ImplementationGenerationRequest,
+        contract: ExecutionContract,
+    ) -> ImplementationGenerationRequest:
+        if contract.contract_id.value != "static-web-v1":
+            return request
+        return ImplementationGenerationRequest(
+            work_specification_id=request.work_specification_id,
+            work_specification_revision=request.work_specification_revision,
+            work_specification_digest=request.work_specification_digest,
+            title=request.title,
+            objective=request.objective,
+            constraints=(
+                *request.constraints,
+                "Produce a self-contained static web app with a root index.html and local HTML, CSS, and JavaScript assets. Do not rely on package scripts, package managers, bundlers, framework build steps, or network fetches.",
+            ),
+            acceptance=request.acceptance,
             source_context=request.source_context,
         )
 
@@ -1234,8 +1328,10 @@ class AgenticControlPlane:
         *,
         operation_key: str,
         candidate_id: str,
+        validation_profile: ValidationProfile,
     ) -> CandidateValidationResult:
-        validation_profile = select_validation_profile(base_workspace)
+        if not isinstance(validation_profile, ValidationProfile):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
         with tempfile.TemporaryDirectory(prefix=f"parallax-{candidate_id}-") as temporary:
             target = Path(temporary) / "candidate"
             self._copy_candidate_workspace(base_workspace, target)
@@ -1476,6 +1572,7 @@ class AgenticControlPlane:
         plan: TeamPlan,
         request: ImplementationGenerationRequest,
         base_workspace: Path,
+        validation_profile: ValidationProfile,
         proposal_validator: Callable[[ImplementationProposal], bool],
         operation_key: str,
         candidate_id: str,
@@ -1495,6 +1592,7 @@ class AgenticControlPlane:
                 proposal,
                 operation_key=operation_key,
                 candidate_id=candidate_id,
+                validation_profile=validation_profile,
             )
         lead = plan.selected_agent_digests[0]
         with _candidate_admission_phase(candidate_id, "CANDIDATE_BINDING"):
@@ -1646,17 +1744,19 @@ class AgenticControlPlane:
         if lineage.lineage_id != base_source_lineage_ref:
             raise ImplementationGenerationFailure("agentic runtime base lineage drifted before generation")
         try:
-            primary_plan = self._verify_plan_evidence(
+            primary_plan, execution_contract = self._verify_plan_evidence(
                 run=run,
                 base_source_lineage_ref=base_source_lineage_ref,
                 source_content_digest=lineage.content_digest,
             )
+            execution_request = self._request_for_execution_contract(request, execution_contract)
             primary, routing_context = self._make_candidate(
                 run=run,
                 primary_plan=primary_plan,
                 plan=primary_plan,
-                request=request,
+                request=execution_request,
                 base_workspace=workspace_root,
+                validation_profile=execution_contract.validation_profile,
                 proposal_validator=proposal_validator,
                 operation_key=operation_key,
                 candidate_id="candidate-primary",
@@ -1713,8 +1813,9 @@ class AgenticControlPlane:
                         run=run,
                         primary_plan=primary_plan,
                         plan=challenger_plan,
-                        request=request,
+                        request=execution_request,
                         base_workspace=workspace_root,
+                        validation_profile=execution_contract.validation_profile,
                         proposal_validator=proposal_validator,
                         operation_key=operation_key,
                         candidate_id="candidate-challenger",
@@ -1791,6 +1892,8 @@ class AgenticControlPlane:
                 {
                     "runtime": AGENTIC_RUNTIME_VERSION,
                     "team_plan_id": primary_plan.plan_id,
+                    "execution_contract_id": execution_contract.contract_id.value,
+                    "execution_contract_digest": execution_contract.digest,
                     "candidate_digests": [item.validation.content_digest for item in candidates],
                     "task_digests": [digest for item in candidates for digest in item.task_digests],
                     "result_digests": [digest for item in candidates for digest in item.result_digests],
@@ -1814,6 +1917,11 @@ class AgenticControlPlane:
                 "runtime_version": AGENTIC_RUNTIME_VERSION,
                 "execution_digest": execution_digest,
                 "team_plan_id": primary_plan.plan_id,
+                "execution_contract_id": execution_contract.contract_id.value,
+                "execution_contract_digest": execution_contract.digest,
+                "execution_contract_binding_reason": execution_contract.binding_reason.value,
+                "validation_profile_id": execution_contract.validation_profile.profile_id.value,
+                "validation_profile_digest": execution_contract.validation_profile.digest,
                 "orchestration_identity_digest": primary_plan.identity.digest,
                 "work_graph_digest": primary_plan.graph.digest,
                 "selected_agent_digests": list(primary_plan.selected_agent_digests),
@@ -1873,10 +1981,11 @@ class AgenticControlPlane:
         except CandidateAdmissionFailure as exc:
             diagnostic = dict(exc.diagnostic_evidence)
             logger.warning(
-                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s",
+                "parallax_candidate_admission_failed candidate=%s phase=%s failure_kind=%s reason_code=%s",
                 diagnostic.get("candidate_id"),
                 diagnostic.get("phase"),
                 diagnostic.get("failure_kind"),
+                diagnostic.get("reason_code"),
             )
             raise ImplementationGenerationFailure(
                 "agentic runtime failed during bounded candidate admission",
