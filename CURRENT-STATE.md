@@ -2,7 +2,30 @@
 
 Date: 2026-08-30
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / CURRENT-SOURCE OT TIME REPLAY PASSED TO REVIEW / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**
+
+## CI/CD development pipeline optimization — MAIN-VERIFIED
+
+PR #503 changed the engineering validation topology to reduce development latency without relaxing protected promotion or production governance. Exact merge source `85d6edc2d8d9e23c97429aa0e0d6a263174180c6` is on `main`. This is a workflow/policy release; it does not claim a newer application deployment or change product runtime authority.
+
+Validated behavior:
+
+- independent API, client, protected-promotion evaluation and DSPy validation jobs no longer serialize behind the API suite, so one CI attempt can expose independent failures together;
+- ordinary pull requests validate committed DSPy plan evidence deterministically, while fresh SpecCritic/SpecCompiler execution is reserved for `main` push/manual promotion boundaries;
+- browser/Skia acceptance and dependency audit are path-scoped to client changes instead of running for unrelated API/spec/governance work;
+- Bounded Autonomy retains its protected execution/autonomy tests but no longer duplicates the full API and client suites; legacy status contexts are preserved without duplicate execution;
+- full API regression coverage, protected Code/Engineering/Reason benchmark rejection, committed DSPy evidence, production QA/replay requirements, deployment authority and the REVIEW ceiling are unchanged.
+
+Validation evidence:
+
+- PR #503 exact head `e7bdfa245754acb006ca5275339f3dbb56a23140`;
+- PR Parallax P2 CI `33347033544`: SUCCESS; API/contracts, fast client, protected promotion evaluation and deterministic committed-plan DSPy validation all passed independently;
+- PR Bounded Autonomy `33347033542`: SUCCESS; focused protected autonomy checks passed and compatibility client context completed without rerunning the client suite;
+- PR Client Visual Validation `33347033522`: SUCCESS after correcting the split workflow to use the repository's established client dependency installation;
+- post-merge main Parallax P2 CI `33347210262`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler validation;
+- post-merge main Client Visual Validation `33347210250`: SUCCESS.
+
+The observed PR fast-client job completed in about 68 seconds versus about 169 seconds for the prior client job that also installed Chromium and ran browser/Skia acceptance. The larger architectural benefit is that unrelated failures no longer force later independent gates to be discovered on separate reruns.
 
 ## Current production truth
 
