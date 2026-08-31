@@ -45,38 +45,39 @@ jobs:
           assert text.count(old_p2318_close) == 1
           text = text.replace(old_p2318_close, new_p2318_close, 1)
 
+          section_lines = [
+              "## P2-V0.23.19 — dedicated production-QA trust contraction — PRODUCTION-VERIFIED",
+              "",
+              "Workstream: #499. Release PR: #505. Governing specification: `P2-V0.23.19`. Architecture: `ARCHITECTURE.md` v3.31.",
+              "",
+              "P2-V0.23.19 completes the staged P2-V0.23.17 migration. Standing GitHub Actions production-QA authorization is now exactly one server-owned tuple: repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The former `Ryan9876/parallax` `qa-production-replay.yml` and `w8-s2-qa-replay.yml` identities are rejected and their standing workflow files are absent from the application repository. Issuer, `parallax://qa-production` audience, `refs/heads/main`, GitHub-hosted runner, admitted event set, bounded run-ID validation and bounded QA-principal mapping remain unchanged.",
+              "",
+              "Release and production evidence:",
+              "",
+              "- exact green PR head: `7a68e91e2ced95c1c9939391718f339c97b0a271`;",
+              "- release merge / deployed API source: `ea00a943d4bc5f00f0f5416881d482c0f799be63`;",
+              "- production deployment: `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`, target production, state `READY`;",
+              "- canonical production alias: `parallax-api-tan.vercel.app`;",
+              "- exact-head Parallax P2 CI `33350296468`: SUCCESS;",
+              "- exact-head Bounded Autonomy `33350296492`: SUCCESS;",
+              "- exact-head Workstream Spec Validation `33350296493`: SUCCESS;",
+              "- post-merge Workstream Spec Validation `33350390486`: SUCCESS;",
+              "- post-merge Parallax P2 CI `33350390524`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;",
+              "- production `/health`: HTTP 200;",
+              "- production `/ready`: HTTP 200 with database/providers ready and one provider target;",
+              "- exact-deployment post-release error/fatal runtime-log scan: clean in the checked window;",
+              "- dedicated-repository production replay `33350555555`: SUCCESS under the contracted one-tuple trust set;",
+              "- Python job `99362951997`: SUCCESS; Project `d00e23cb-6d84-4805-bf15-4f738d920136`, Engineering Run `1b3c3413-2854-4af9-9625-d6d1838d0357`, final state REVIEW, authenticated source-only ZIP 7 entries / 1,422 bytes;",
+              "- OT Time job `99362951812`: SUCCESS; Project `7b4c2377-6f06-4b43-b174-206e059e24f0`, Engineering Run `beadb914-1ab5-45b2-ba72-50b31efe1f16`, final state REVIEW, authenticated source-only ZIP 32 entries / 74,712 bytes;",
+              "- both routine replays recorded `source_publication=false` and `app_deployment=false`;",
+              "- the temporary QA push trigger used only to initiate the accepted replay was removed immediately afterward; `Ryan9876/parallax-qa` main is restored to manual-only production replay at commit `7ec51807bcd68c8a411f36c41dcb7b0bc941838c`.",
+              "",
+              "This release contracts authentication surface only. Normal user authentication, the bounded QA principal, Project / Work Specification / Engineering Run authority, accepted source lineage, hosted-model routing, worker recovery, Git/deployment authority and the human REVIEW ceiling are unchanged. Rollback restores only the previously deployment-verified exact tuples; wildcard or partial-claim trust remains prohibited.",
+          ]
+          section = "\n".join(section_lines)
           anchor = "\n\n## Current production truth"
-          section = """
-
-## P2-V0.23.19 — dedicated production-QA trust contraction — PRODUCTION-VERIFIED
-
-Workstream: #499. Release PR: #505. Governing specification: `P2-V0.23.19`. Architecture: `ARCHITECTURE.md` v3.31.
-
-P2-V0.23.19 completes the staged P2-V0.23.17 migration. Standing GitHub Actions production-QA authorization is now exactly one server-owned tuple: repository `Ryan9876/parallax-qa`, stable GitHub repository ID `1351817336`, workflow `Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main`. The former `Ryan9876/parallax` `qa-production-replay.yml` and `w8-s2-qa-replay.yml` identities are rejected and their standing workflow files are absent from the application repository. Issuer, `parallax://qa-production` audience, `refs/heads/main`, GitHub-hosted runner, admitted event set, bounded run-ID validation and bounded QA-principal mapping remain unchanged.
-
-Release and production evidence:
-
-- exact green PR head: `7a68e91e2ced95c1c9939391718f339c97b0a271`;
-- release merge / deployed API source: `ea00a943d4bc5f00f0f5416881d482c0f799be63`;
-- production deployment: `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`, target production, state `READY`;
-- canonical production alias: `parallax-api-tan.vercel.app`;
-- exact-head Parallax P2 CI `33350296468`: SUCCESS;
-- exact-head Bounded Autonomy `33350296492`: SUCCESS;
-- exact-head Workstream Spec Validation `33350296493`: SUCCESS;
-- post-merge Workstream Spec Validation `33350390486`: SUCCESS;
-- post-merge Parallax P2 CI `33350390524`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
-- production `/health`: HTTP 200;
-- production `/ready`: HTTP 200 with database/providers ready and one provider target;
-- exact-deployment post-release error/fatal runtime-log scan: clean in the checked window;
-- dedicated-repository production replay `33350555555`: SUCCESS under the contracted one-tuple trust set;
-- Python job `99362951997`: SUCCESS; Project `d00e23cb-6d84-4805-bf15-4f738d920136`, Engineering Run `1b3c3413-2854-4af9-9625-d6d1838d0357`, final state REVIEW, authenticated source-only ZIP 7 entries / 1,422 bytes;
-- OT Time job `99362951812`: SUCCESS; Project `7b4c2377-6f06-4b43-b174-206e059e24f0`, Engineering Run `beadb914-1ab5-45b2-ba72-50b31efe1f16`, final state REVIEW, authenticated source-only ZIP 32 entries / 74,712 bytes;
-- both routine replays recorded `source_publication=false` and `app_deployment=false`;
-- the temporary QA push trigger used only to initiate the accepted replay was removed immediately afterward; `Ryan9876/parallax-qa` main is restored to manual-only production replay at commit `7ec51807bcd68c8a411f36c41dcb7b0bc941838c`.
-
-This release contracts authentication surface only. Normal user authentication, the bounded QA principal, Project / Work Specification / Engineering Run authority, accepted source lineage, hosted-model routing, worker recovery, Git/deployment authority and the human REVIEW ceiling are unchanged. Rollback restores only the previously deployment-verified exact tuples; wildcard or partial-claim trust remains prohibited."""
           assert text.count(anchor) >= 1
-          text = text.replace(anchor, section + anchor, 1)
+          text = text.replace(anchor, "\n\n" + section + anchor, 1)
 
           old_retirement = "The earlier retry-specific QA workflow remains retired. P2-V0.23.17 subsequently admitted the exact dedicated `Ryan9876/parallax-qa` repository ID/workflow tuple and temporarily retained the two application-repository QA tuples for migration safety. The dedicated repository replay is now production-proven; removing those two legacy tuples and workflow files is the next bounded trust-contraction release. Repository-ID binding, `refs/heads/main`, GitHub-hosted runner, event-name and `parallax://qa-production` audience checks remain fail-closed."
           new_retirement = "The earlier retry-specific QA workflow remains retired. P2-V0.23.17 subsequently admitted the exact dedicated `Ryan9876/parallax-qa` repository ID/workflow tuple while temporarily retaining two application-repository QA tuples for migration safety. P2-V0.23.19 has now completed the cutover: those two legacy tuples and their standing workflow files are removed, and the dedicated repository replay is production-verified under the contracted trust set. Repository-ID binding, `refs/heads/main`, GitHub-hosted runner, event-name and `parallax://qa-production` audience checks remain fail-closed."
