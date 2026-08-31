@@ -5,9 +5,11 @@ from hashlib import sha256
 import pytest
 
 from parallax_api.code.implementation import ImplementationRequest, SafeImplementationEngine
+from parallax_api.code.model_patch_canonicalization import CanonicalizingTextPatchEngine
 from parallax_api.code.patching import (
     EMPTY_SHA256,
     PatchConflictError,
+    PatchFormatError,
     SourcePatch,
     StaleBaseError,
     UnsafeTargetError,
@@ -30,6 +32,29 @@ def _request(path: str, before: str, diff: str, *, digest: str | None = None) ->
     )
 
 
+def _model_engine() -> SafeImplementationEngine:
+    return SafeImplementationEngine(patch_engine=CanonicalizingTextPatchEngine())
+
+
+def test_generic_safe_engine_remains_strict_and_does_not_repair_model_metadata(tmp_path):
+    before = "alpha\nbeta\ngamma\n"
+    target = tmp_path / "sample.txt"
+    target.write_text(before, encoding="utf-8")
+    malformed = """--- sample.txt
++++ sample.txt
+@@ -99,9 +42,17 @@
+ alpha
+-beta
++BETA
+ gamma
+"""
+
+    with pytest.raises(PatchFormatError):
+        SafeImplementationEngine().validate(tmp_path, _request("sample.txt", before, malformed))
+
+    assert target.read_text(encoding="utf-8") == before
+
+
 def test_strict_valid_patch_remains_unchanged(tmp_path):
     before = "alpha\nbeta\ngamma\n"
     target = tmp_path / "sample.txt"
@@ -43,7 +68,7 @@ def test_strict_valid_patch_remains_unchanged(tmp_path):
  gamma
 """
 
-    result = SafeImplementationEngine().apply(tmp_path, _request("sample.txt", before, diff))
+    result = _model_engine().apply(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == "alpha\nBETA\ngamma\n"
     assert result["patches"][0]["unified_diff"] == diff
@@ -62,7 +87,7 @@ def test_wrong_hunk_counts_and_positions_are_canonicalized_from_exact_source(tmp
  gamma
 """
 
-    result = SafeImplementationEngine().apply(tmp_path, _request("sample.txt", before, diff))
+    result = _model_engine().apply(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == "alpha\nBETA\ngamma\n"
     canonical = result["patches"][0]["unified_diff"]
@@ -80,7 +105,7 @@ def test_declared_exact_position_disambiguates_repeated_source(tmp_path):
 +chosen
 """
 
-    SafeImplementationEngine().apply(tmp_path, _request("sample.txt", before, diff))
+    _model_engine().apply(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == "same\nleft\nchosen\nright\n"
 
@@ -97,7 +122,7 @@ def test_wrong_position_with_multiple_exact_matches_is_rejected(tmp_path):
 """
 
     with pytest.raises(PatchConflictError):
-        SafeImplementationEngine().validate(tmp_path, _request("sample.txt", before, diff))
+        _model_engine().validate(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == before
 
@@ -112,7 +137,7 @@ def test_pure_insertion_remains_coordinate_anchored(tmp_path):
 +inserted
 """
 
-    SafeImplementationEngine().apply(tmp_path, _request("sample.txt", before, diff))
+    _model_engine().apply(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == "alpha\ninserted\nbeta\n"
 
@@ -128,7 +153,7 @@ def test_pure_insertion_outside_source_is_rejected(tmp_path):
 """
 
     with pytest.raises(PatchConflictError):
-        SafeImplementationEngine().validate(tmp_path, _request("sample.txt", before, diff))
+        _model_engine().validate(tmp_path, _request("sample.txt", before, diff))
 
 
 def test_new_file_git_prologue_and_bad_counts_are_canonicalized(tmp_path):
@@ -148,7 +173,7 @@ index 0000000..1234567
         digest=EMPTY_SHA256,
     )
 
-    result = SafeImplementationEngine().apply(tmp_path, request)
+    result = _model_engine().apply(tmp_path, request)
 
     assert (tmp_path / "PARALLAX_QA.md").read_text(encoding="utf-8") == "QA fixture\nbounded change\n"
     canonical = result["patches"][0]["unified_diff"]
@@ -166,7 +191,7 @@ def test_stale_model_base_is_rebound_only_after_exact_source_anchor(tmp_path):
 +ALPHA
 """
 
-    result = SafeImplementationEngine().apply(
+    result = _model_engine().apply(
         tmp_path,
         _request("sample.txt", before, diff, digest="0" * 64),
     )
@@ -186,7 +211,7 @@ def test_stale_model_base_with_unanchored_insertion_remains_rejected(tmp_path):
 """
 
     with pytest.raises(StaleBaseError):
-        SafeImplementationEngine().validate(
+        _model_engine().validate(
             tmp_path,
             _request("sample.txt", before, diff, digest="0" * 64),
         )
@@ -204,7 +229,7 @@ def test_exact_source_mismatch_is_not_fuzzed(tmp_path):
 """
 
     with pytest.raises(PatchConflictError):
-        SafeImplementationEngine().validate(tmp_path, _request("sample.txt", before, diff))
+        _model_engine().validate(tmp_path, _request("sample.txt", before, diff))
 
 
 def test_unsafe_target_remains_rejected_before_canonicalization(tmp_path):
@@ -215,7 +240,7 @@ def test_unsafe_target_remains_rejected_before_canonicalization(tmp_path):
 """
 
     with pytest.raises(UnsafeTargetError):
-        SafeImplementationEngine().validate(
+        _model_engine().validate(
             tmp_path,
             _request(".env", "", diff, digest=EMPTY_SHA256),
         )
@@ -235,6 +260,6 @@ def test_multiple_hunks_relocate_only_forward_without_overlap(tmp_path):
 +FOUR
 """
 
-    SafeImplementationEngine().apply(tmp_path, _request("sample.txt", before, diff))
+    _model_engine().apply(tmp_path, _request("sample.txt", before, diff))
 
     assert target.read_text(encoding="utf-8") == "one\nTWO\nthree\nFOUR\nfive\n"
