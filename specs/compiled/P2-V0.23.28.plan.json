@@ -1,0 +1,116 @@
+{
+  "architecture_decisions": [
+    ":\n- The approved Work Specification and exact acceptance IDs remain authoritative.\n- `ImplementationContentProposal`, server-canonicalized `ImplementationProposal`, `GeneratedSourcePatch`, `SourcePatch`, `CanonicalizingTextPatchEngine`, `ProposalSafetyPreflight`, and `SafeImplementationEngine` remain the canonical generation and source-safety contracts.\n- P2-V0.23.27 per-file and per-work-unit incremental convergence remains in place.\n- Before a work unit is marked complete, the runtime must preflight the already completed plan-prefix patches plus that work unit's candidate proposal.\n- A plan-prefix rejection is attributed only to the current work-unit generation for recovery purposes.\n- Already completed work-unit intent remains unchanged and non-authoritative.\n- The plan-prefix safe-preflight reason is obtained only from the existing server-owned sanitized reason seam.\n- A plan-prefix rejection consumes the same existing candidate recovery path: remaining distinct admitted agents first, then\u2026"
+  ],
+  "work_items": [
+    ":\n- The current work-unit proposal is rejected before the work unit\u2026\n- The sanitized reason code from `ProposalSafetyPreflight.reason()` becomes bounded\u2026\n- The current work-unit intent remains unchanged and non-authoritative.\n- The plan-prefix safe-preflight reason is obtained only from the existing server-owned sanitized reason seam.\n- A plan-prefix rejection consumes the same existing candidate recovery path: remaining distinct admitted agents first, then\u2026"
+  ],
+  "validations": [
+    ":\n- The current work-unit intent remains unchanged and non-authoritative.\n- The plan-prefix safe-preflight reason is obtained only from the existing server-owned sanitized reason seam.\n- A plan-prefix rejection consumes the same existing candidate recovery path: remaining distinct admitted agents first, then\u2026",
+    "AC-01: validate protected requirement \u2014 The P2-V0.23.27 workstream/current-state record states that the authenticated run exposed a later post-generation/pre-BUILD blocker at durable sequence #86 and does not claim BUILD progression.",
+    "AC-02: validate protected requirement \u2014 A current work-unit proposal that is locally safe but fails when combined with prior completed work-unit patches is rejected before the work unit enters `completed`.",
+    "AC-03: validate protected requirement \u2014 A plan-prefix rejection never mutates, removes, or overwrites patches already admitted from completed work units.",
+    "AC-04: validate protected requirement \u2014 A plan-prefix rejection advances through the existing distinct admitted-agent recovery path and can converge on a later safe current-unit proposal.",
+    "AC-05: validate protected requirement \u2014 After distinct agents are exhausted, at most one existing validator-repair generation is available for the work unit. No additional retry is introduced.",
+    "AC-06: validate protected requirement \u2014 If every bounded current-unit generation continues to fail plan-prefix preflight, IMPLEMENT fails closed without canonical mutation and with `CANDIDATE_GENERATION_EXHAUSTED` evidence.",
+    "AC-07: validate protected requirement \u2014 Even after plan-prefix-aware convergence, the final combined proposal still passes through exact acceptance validation and the unchanged full safe preflight before candidate BUILD/TEST/VERIFY.",
+    "AC-08: validate protected requirement \u2014 Only a fully converged final proposal may enter disposable protected BUILD/TEST/VERIFY and independent evaluation. Prefix preflight success is not functional correctness evidence.",
+    "AC-09: validate protected requirement \u2014 A valid bounded `candidate_generation_failure` envelope is preserved through `ImplementationContractError.diagnostic_evidence` and durable failed IMPLEMENT evidence.",
+    "AC-10: validate protected requirement \u2014 Unknown fields, arbitrary reason strings, source/generated text, diffs, exception text, provider payloads, filesystem roots, credentials, tokens, environment values, or true authority claims cannot survive `_bounded_implementation_failure_evidence()`.",
+    "AC-11: validate protected requirement \u2014 Traversal, secrets, symlinks, unsupported extensions, stale source, collisions, nested source creation, hierarchy conflicts, aggregate limits, patch canonicalization, source-lineage, candidate validation, and final mutation regressions remain green.",
+    "AC-12: validate protected requirement \u2014 Luna/Terra/Sol, 60-second hosted timeout, zero hidden provider retries, distinct-agent recovery ceiling, one final validator repair, request-level autonomy budget, and competition limits remain unchanged.",
+    "AC-13: validate protected requirement \u2014 Focused P2-V0.23.28 tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy Pilot, Workstream Spec Validation, and required DSPy compile/verify pass on the exact reviewed head.",
+    "AC-14: validate protected requirement \u2014 After merge, the exact application source is READY on the production API; canonical `/health` and `/ready` return HTTP 200 with database/providers ready; runtime warning/error/fatal verification is clean.",
+    "AC-15: validate protected requirement \u2014 A user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work either enters disposable BUILD/TEST/VERIFY after plan-prefix-aware convergence or exposes a still-later bounded blocker with preserved server-owned diagnostic evidence. A generic `AUTONOMOUS_IMPLEMENT_FAILED` with the new diagnostic envelope silently dropped fails this criterion."
+  ],
+  "risks": [
+    ":\n- No material risk and mitigation.\n- No material risk and mitigation.\n- No material risk and mitigation.\n- No material risk and mitigation.\n- No material"
+  ],
+  "spec_id": "P2-V0.23.28",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Authenticated P2-V0.23.27 evidence is recorded truthfully",
+      "protected_requirement": "The P2-V0.23.27 workstream/current-state record states that the authenticated run exposed a later post-generation/pre-BUILD blocker at durable sequence #86 and does not claim BUILD progression."
+    },
+    {
+      "id": "AC-02",
+      "title": "Plan-prefix preflight executes before work-unit completion",
+      "protected_requirement": "A current work-unit proposal that is locally safe but fails when combined with prior completed work-unit patches is rejected before the work unit enters `completed`."
+    },
+    {
+      "id": "AC-03",
+      "title": "Prior completed work-unit intent is preserved",
+      "protected_requirement": "A plan-prefix rejection never mutates, removes, or overwrites patches already admitted from completed work units."
+    },
+    {
+      "id": "AC-04",
+      "title": "Current-unit rejected generation is recoverable",
+      "protected_requirement": "A plan-prefix rejection advances through the existing distinct admitted-agent recovery path and can converge on a later safe current-unit proposal."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing final validator repair remains the only extra repair",
+      "protected_requirement": "After distinct agents are exhausted, at most one existing validator-repair generation is available for the work unit. No additional retry is introduced."
+    },
+    {
+      "id": "AC-06",
+      "title": "No-progress exhaustion remains finite",
+      "protected_requirement": "If every bounded current-unit generation continues to fail plan-prefix preflight, IMPLEMENT fails closed without canonical mutation and with `CANDIDATE_GENERATION_EXHAUSTED` evidence."
+    },
+    {
+      "id": "AC-07",
+      "title": "Final whole-plan preflight remains mandatory",
+      "protected_requirement": "Even after plan-prefix-aware convergence, the final combined proposal still passes through exact acceptance validation and the unchanged full safe preflight before candidate BUILD/TEST/VERIFY."
+    },
+    {
+      "id": "AC-08",
+      "title": "Candidate BUILD/TEST/VERIFY authority is unchanged",
+      "protected_requirement": "Only a fully converged final proposal may enter disposable protected BUILD/TEST/VERIFY and independent evaluation. Prefix preflight success is not functional correctness evidence."
+    },
+    {
+      "id": "AC-09",
+      "title": "Candidate-generation diagnostics survive sanitization",
+      "protected_requirement": "A valid bounded `candidate_generation_failure` envelope is preserved through `ImplementationContractError.diagnostic_evidence` and durable failed IMPLEMENT evidence."
+    },
+    {
+      "id": "AC-10",
+      "title": "Unknown or sensitive diagnostics are rejected",
+      "protected_requirement": "Unknown fields, arbitrary reason strings, source/generated text, diffs, exception text, provider payloads, filesystem roots, credentials, tokens, environment values, or true authority claims cannot survive `_bounded_implementation_failure_evidence()`."
+    },
+    {
+      "id": "AC-11",
+      "title": "Existing safety regressions remain green",
+      "protected_requirement": "Traversal, secrets, symlinks, unsupported extensions, stale source, collisions, nested source creation, hierarchy conflicts, aggregate limits, patch canonicalization, source-lineage, candidate validation, and final mutation regressions remain green."
+    },
+    {
+      "id": "AC-12",
+      "title": "Existing model/recovery budgets are unchanged",
+      "protected_requirement": "Luna/Terra/Sol, 60-second hosted timeout, zero hidden provider retries, distinct-agent recovery ceiling, one final validator repair, request-level autonomy budget, and competition limits remain unchanged."
+    },
+    {
+      "id": "AC-13",
+      "title": "Protected release gates pass",
+      "protected_requirement": "Focused P2-V0.23.28 tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy Pilot, Workstream Spec Validation, and required DSPy compile/verify pass on the exact reviewed head."
+    },
+    {
+      "id": "AC-14",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "After merge, the exact application source is READY on the production API; canonical `/health` and `/ready` return HTTP 200 with database/providers ready; runtime warning/error/fatal verification is clean."
+    },
+    {
+      "id": "AC-15",
+      "title": "Authenticated real retry progresses beyond the new boundary",
+      "protected_requirement": "A user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work either enters disposable BUILD/TEST/VERIFY after plan-prefix-aware convergence or exposes a still-later bounded blocker with preserved server-owned diagnostic evidence. A generic `AUTONOMOUS_IMPLEMENT_FAILED` with the new diagnostic envelope silently dropped fails this criterion."
+    }
+  ],
+  "critique": [
+    "The authenticated P2-V0.23.27 retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` reached durable sequence #86: PLAN completed at evidence #79, worker checkpoint #85 persisted CHECKPOINTED state at 1:58:54 PM, and IMPLEMENT attempt 6 failed at evidence #86 at 1:58:55 PM with `AUTONOMOUS_IMPLEMENT_FAILED`. Source-lineage reads succeeded. Luna and Terra each completed real hosted generation immediately before the failure. No Sol/final validator-repair generation and no disposable candidate BUILD/TEST/VERIFY sandbox followed Terra. P2-V0.23.27 moved safe-preflight convergence inside each work unit, but plan-level combination is still checked only after work units are completed. A work-unit proposal can therefore pass its own\u2026\n\n## Fixed decisions\n- The approved Work Specification and exact acceptance IDs remain authoritative.\n- `ImplementationContentProposal`, server-canonicalized `ImplementationProposal`, `GeneratedSourcePatch`, `SourcePatch`, `CanonicalizingTextPatchEngine`, `ProposalSafetyPreflight`, and `SafeImplementationEngine` remain the canonical generation and source-safety contracts.\n- P2-V0.23.27 per-file and per-work-unit incremental convergence remains in place.\n- Before a work-unit proposal can be rejected, the runtime must preflight the already completed plan-prefix patches plus that work unit's candidate proposal.\n- A plan-prefix rejection is attributed only to the current work-unit generation for recovery purposes.\n- Already completed work-unit intent remains unchanged and non-authoritative.\n- The plan-prefix safe-preflight reason is obtained only from the existing server-owned sanitized reason seam.\n- No exception text, raw source"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
