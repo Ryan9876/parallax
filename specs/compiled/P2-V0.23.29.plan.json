@@ -1,0 +1,103 @@
+{
+  "architecture_decisions": [
+    ":\n- 5.1 Coherent production implementation unit `AgenticControlPlane._work_graph()` must return one `WorkUnit` for ordinary implementation generation regardless of whether acceptance text contains client, server, data, browser, endpoint, schema, persistence, or other keyword domains. The unit must: - have stable server-owned identity `implementation`; - own exactly `tuple(item[\"id\"] for item in acceptance)` in approved order; - retain `work_kind=\"implementation\"`; - retain the existing `bounded-source-evidence` capability requirement; - retain one source evidence reference bound to the accepted source digest; - remain non-authoritative for canonical mutation."
+  ],
+  "work_items": [
+    ":\n- AC-01 Authenticated P2-V0.23.28 failure evidence is recorded: The workstream records that the exact P2-V0.23.28 deployment remained healthy, Luna and Terra completed, no Sol/final repair or disposable candidate sandbox followed Terra before the run became failed again. The production API remained HTTP-healthy and source-lineage reads succeeded."
+  ],
+  "validations": [
+    ":\n- No retry budget, timeout, provider roster, source authority, mutation authority, deployment authority, lifecycle authority, or REVIEW authority is enforced.",
+    "AC-02: validate protected requirement \u2014 Multi-domain acceptance text produces exactly one implementation work unit.",
+    "AC-03: validate protected requirement \u2014 The coherent unit owns every approved acceptance ID exactly once and in approved order.",
+    "AC-04: validate protected requirement \u2014 With the standard Luna/Terra/Sol roster, the coherent work graph selects one initial implementation agent rather than a multi-agent co-authoring team.",
+    "AC-05: validate protected requirement \u2014 The coherent unit's `UnitPlan` keeps all eligible admitted implementation agents available so existing candidate recovery can progress Luna -> Terra -> Sol within existing bounds.",
+    "AC-06: validate protected requirement \u2014 At most one final validator repair remains available after distinct admitted agents are exhausted.",
+    "AC-07: validate protected requirement \u2014 Within one coherent work unit, safe patch retention/rejection isolation and sanitized repair guidance remain functional.",
+    "AC-08: validate protected requirement \u2014 WorkGraph, TeamPlan, scheduling, worker recovery, and generic multi-unit tests remain valid; only the production `_work_graph()` decomposition policy changes.",
+    "AC-09: validate protected requirement \u2014 Safe preflight, disposable application, BUILD/TEST/VERIFY, independent evaluation, commit-time mutation validation, and lineage acceptance remain mandatory.",
+    "AC-10: validate protected requirement \u2014 Luna/Terra/Sol roster, 60-second hosted timeout, zero hidden provider retries, max candidate reassignments, one final validator repair, request autonomy ceiling, and human REVIEW ceiling remain unchanged.",
+    "AC-11: validate protected requirement \u2014 Focused tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and required DSPy compile/verify are green on the exact reviewed head.",
+    "AC-12: validate protected requirement \u2014 The exact merged application source reaches READY on the production API; `/health` and `/ready` return HTTP 200 and runtime verification is clean.",
+    "AC-13: validate protected requirement \u2014 A signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work enters disposable BUILD/TEST/VERIFY from the coherent IMPLEMENT proposal, or exposes a later bounded blocker with preserved server-owned diagnostics. The same post-generation/pre-sandbox assembly failure pattern is not acceptable."
+  ],
+  "risks": [
+    ":\n- No retry budget, timeout, provider roster, source authority, mutation authority, deployment authority, lifecycle authority, or REVIEW authority is enforced."
+  ],
+  "spec_id": "P2-V0.23.29",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Authenticated P2-V0.23.28 failure evidence is recorded",
+      "protected_requirement": "The workstream records that the exact P2-V0.23.28 deployment remained healthy, Luna and Terra completed, no Sol/final repair or disposable candidate sandbox followed Terra, and the run still failed before BUILD."
+    },
+    {
+      "id": "AC-02",
+      "title": "Production IMPLEMENT graph is coherent",
+      "protected_requirement": "Multi-domain acceptance text produces exactly one implementation work unit."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact acceptance ownership is preserved",
+      "protected_requirement": "The coherent unit owns every approved acceptance ID exactly once and in approved order."
+    },
+    {
+      "id": "AC-04",
+      "title": "Initial team is minimal",
+      "protected_requirement": "With the standard Luna/Terra/Sol roster, the coherent work graph selects one initial implementation agent rather than a multi-agent co-authoring team."
+    },
+    {
+      "id": "AC-05",
+      "title": "Recovery diversity is preserved",
+      "protected_requirement": "The coherent unit's `UnitPlan` keeps all eligible admitted implementation agents available so existing candidate recovery can progress Luna -> Terra -> Sol within existing bounds."
+    },
+    {
+      "id": "AC-06",
+      "title": "Final validator repair ceiling is unchanged",
+      "protected_requirement": "At most one final validator repair remains available after distinct admitted agents are exhausted."
+    },
+    {
+      "id": "AC-07",
+      "title": "Incremental convergence remains available",
+      "protected_requirement": "Within one coherent work unit, safe patch retention/rejection isolation and sanitized repair guidance remain functional."
+    },
+    {
+      "id": "AC-08",
+      "title": "Generic orchestration primitives are preserved",
+      "protected_requirement": "WorkGraph, TeamPlan, scheduling, worker recovery, and generic multi-unit tests remain valid; only the production `_work_graph()` decomposition policy changes."
+    },
+    {
+      "id": "AC-09",
+      "title": "Candidate safety/validation authority is unchanged",
+      "protected_requirement": "Safe preflight, disposable application, BUILD/TEST/VERIFY, independent evaluation, commit-time mutation validation, and lineage acceptance remain mandatory."
+    },
+    {
+      "id": "AC-10",
+      "title": "Model and runtime budgets are unchanged",
+      "protected_requirement": "Luna/Terra/Sol roster, 60-second hosted timeout, zero hidden provider retries, max candidate reassignments, one final validator repair, request autonomy ceiling, and human REVIEW ceiling remain unchanged."
+    },
+    {
+      "id": "AC-11",
+      "title": "Protected gates pass",
+      "protected_requirement": "Focused tests, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and required DSPy compile/verify are green on the exact reviewed head."
+    },
+    {
+      "id": "AC-12",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "The exact merged application source reaches READY on the production API; `/health` and `/ready` return HTTP 200 and runtime verification is clean."
+    },
+    {
+      "id": "AC-13",
+      "title": "Authenticated real-path acceptance",
+      "protected_requirement": "A signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact work enters disposable BUILD/TEST/VERIFY from the coherent IMPLEMENT proposal, or exposes a later bounded blocker with preserved server-owned diagnostics. The same post-generation/pre-sandbox assembly failure pattern is not acceptable."
+    }
+  ],
+  "critique": [
+    "The production source-authoring work graph contains exactly one implementation work unit for one approved Work Specification execution. The coherent work unit owns the exact ordered approved acceptance ID set. Acceptance-text keyword classification must not split canonical source authoring into client/server/data work units. The smallest-capable-team planner therefore selects one initial implementation agent; remaining eligible hosted agents remain available only through the existing bounded candidate-recovery path. At most the existing one final validator repair remains available after distinct eligible agents are exhausted. P2-V0.23.27 per-generation incremental patch retention remains available within the coherent work unit. P2-V0.23.28 plan-prefix convergence remains a compatibility/defense-in-depth path but is not exercised by ordinary production source authoring because there is no multi-unit source proposal to assemble. No retry budget, timeout, provider roster, source authority, mutation authority, deployment authority, lifecycle authority, or REVIEW authority is\u2026\n\n## Architecture\n### 5.1 Coherent production implementation unit `AgenticControlPlane._work_graph()` must return one `WorkUnit` for ordinary implementation generation regardless of whether acceptance text contains client, server, data, browser, endpoint, schema, persistence, or other keyword domains. The unit must: - have stable server-owned identity `implementation`; - own exactly `tuple(item[\"id\"] for item in acceptance)` in approved order; - retain `work_kind=\"implementation\"`; - retain the existing `bounded-source-evidence` capability requirement; - retain one source evidence reference bound to the accepted source digest; - remain non-authoritative for canonical mutation."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
