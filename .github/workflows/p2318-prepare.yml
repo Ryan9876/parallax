@@ -1,0 +1,95 @@
+name: Prepare P2-V0.23.18
+
+on:
+  push:
+    branches:
+      - fix/p2318-canonicalize-model-patches
+    paths:
+      - .github/workflows/p2318-prepare.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2318-canonicalize-model-patches
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Patch authoritative architecture
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('Version: 3.29', 'Version: 3.30', 1)
+          anchor = '## Version relationship\n\n'
+          note = (
+              'Architecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier. '
+              'Provider-successful model proposals may recover only mechanical unified-diff metadata when every source-consuming context/deletion record matches exact current protected source at the declared location or at one unique admissible non-overlapping location. '
+              'Pure insertions remain coordinate-anchored, new-file recovery remains addition-only with `/dev/null` semantics, stale expected-base SHA-256 values remain fail-closed, and every recovered diff is re-parsed by the unchanged strict `TextPatchEngine` before disposable validation or canonical mutation. '
+              'No fuzzy matching, semantic patching, shell/Git/network application, retry-budget expansion, source-lineage authority, deployment authority, or REVIEW authority is added. Architecture v3.29 remains the dedicated stable-repository-ID production-QA trust boundary.\n\n'
+          )
+          if note not in text:
+              if anchor not in text:
+                  raise SystemExit('version relationship anchor missing')
+              text = text.replace(anchor, anchor + note, 1)
+
+          section_anchor = '## Source authority is independent from deployment authority\n'
+          section = '''## Server-owned exact model patch canonicalization\n\nArchitecture v3.30 keeps model output non-authoritative while reducing false rejection caused by mechanical unified-diff reproduction. The ordinary strict patch engine remains the final verifier and committer. A canonicalization attempt occurs only after strict preparation fails for unified-diff format or exact-position conflict; unsafe targets, secret-sensitive paths/content, stale expected-base digests, unsupported extensions, symlinks, missing parents, byte limits and other protected failures are never repaired.\n\nFor an existing target, each hunk's complete source-consuming record sequence (context plus deletions, in order) must equal current protected UTF-8 source exactly. If the model-declared old position is an exact match, that location is used. Otherwise the complete sequence must have exactly one admissible non-overlapping exact match after prior hunks. Zero matches and multiple matches fail closed. There is no edit-distance, whitespace-normalized, semantic, AST, fuzzy, approximate or model-assisted matching. A pure insertion has no source text anchor and therefore remains bound to its declared old position.\n\nFor a new target, recovery requires `/dev/null` old-file semantics and one addition-only hunk. Target/path/extension/parent/secret/size rules and the empty-content base digest remain unchanged. Git-style prologue metadata may be discarded only when its exact a/b paths match the separately declared safe target; deletion and unsupported mode intent are rejected.\n\nAfter exact intent is established, Parallax generates canonical single-file headers and hunk positions/counts and submits that diff back through the unchanged `TextPatchEngine`. Only that second strict parse can produce a `PreparedPatch`. Canonicalization performs no filesystem mutation, shell execution, Git operation, network call, source-lineage acceptance, provider action or lifecycle transition. Accepted source still has one canonical writer and the ordinary disposable BUILD/TEST/VERIFY and REVIEW ceilings remain authoritative.\n\n'''
+          if '## Server-owned exact model patch canonicalization' not in text:
+              if section_anchor not in text:
+                  raise SystemExit('architecture section anchor missing')
+              text = text.replace(section_anchor, section + section_anchor, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+
+      - name: Run focused P2-V0.23.18 tests
+        run: pytest -q services/api/tests/test_model_patch_canonicalization_v02318.py
+
+      - name: Install local DSPy development LM
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+
+      - name: Compile and validate P2-V0.23.18
+        env:
+          DSPY_MODEL: ollama_chat/qwen2.5:0.5b
+          DSPY_API_BASE: http://127.0.0.1:11434
+          DSPY_API_KEY: ""
+          DSPY_LOCAL_DEVELOPMENT: "1"
+        run: |
+          python scripts/compile_spec.py specs/P2-V0.23.18.md
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.18.md
+
+      - name: Commit prepared evidence
+        run: |
+          git config user.name "parallax-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add ARCHITECTURE.md specs/compiled/P2-V0.23.18.plan.json
+          if git diff --cached --quiet; then
+            echo "Prepared evidence already present"
+            exit 0
+          fi
+          git commit -m "Prepare P2-V0.23.18 architecture and DSPy plan"
+          git push origin HEAD:fix/p2318-canonicalize-model-patches
