@@ -31,11 +31,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
-          cache: npm
-          cache-dependency-path: apps/client/package-lock.json
       - name: Install client dependencies
         working-directory: apps/client
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
+      - name: Export web build
+        working-directory: apps/client
+        run: npm run export:web
       - name: Record production dependency audit
         working-directory: apps/client
         run: npm audit --omit=dev --json > npm-audit.json || true
@@ -50,7 +51,6 @@ jobs:
         with:
           name: client-visual-evidence
           path: |
-            apps/client/package-lock.json
             apps/client/npm-audit.json
             apps/client/dist
             apps/client/visual-evidence
