@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from hashlib import sha256
+import json
+import logging
 from typing import Callable
 
 from ..intelligence.implementation_generation import (
@@ -35,11 +38,14 @@ from .service import EngineeringRunService
 from .worker_recovery import WorkerLifecycleState, WorkerStallEvidence, WorkerRecoveryError
 
 
-CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.23"
+CANDIDATE_RECOVERY_VERSION = "candidate-recovery-v0.23.24"
 CANDIDATE_GENERATION_EXHAUSTED = "CANDIDATE_GENERATION_EXHAUSTED"
 CANDIDATE_VALIDATION_REPAIR = "CANDIDATE_VALIDATION_REPAIR"
 MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT = 1
 _CANDIDATE_EXHAUSTED_BLOCKER = "AGENTIC_CANDIDATE_EXHAUSTED"
+_FINAL_VALIDATOR_REPAIR_CONTEXT_DOMAIN = "parallax-final-validator-repair-context-v1"
+_FINAL_VALIDATOR_REPAIR_CONTEXT_TOKEN_HEX = 24
+logger = logging.getLogger(__name__)
 VALIDATOR_REPAIR_GUIDANCE = (
     "The previous admitted candidate produced a parsed proposal but the server-owned safe proposal validator rejected it. "
     "Repair the proposal without changing the approved objective or acceptance criteria. Use only the supplied protected "
@@ -48,6 +54,12 @@ VALIDATOR_REPAIR_GUIDANCE = (
     "form with headers exactly matching the declared path (`--- a/path` and `+++ b/path`, or `--- /dev/null` for a new "
     "file), exact hunk coordinates and counts, and removed/context lines copied exactly from the supplied source text. "
     "Do not emit multi-file diffs, duplicate targets, unsupported or binary-prone paths, secret material, or no-op patches."
+)
+FINAL_VALIDATOR_REPAIR_GUIDANCE = (
+    "This is the single final validator-repair generation for this work unit. "
+    "Re-derive a fresh proposal from the supplied protected source context instead of reusing or repeating any prior response. "
+    "Re-check every target path, base SHA-256, unified diff header, hunk coordinate and count, and every removed/context line "
+    "against the supplied source before returning the proposal."
 )
 _BOUNDED_ROUTING_FAILURES = frozenset(item.value for item in RoutingFailureKind)
 
@@ -101,6 +113,77 @@ def validator_guided_candidate_request(
     return replace(
         request,
         constraints=(*request.constraints, VALIDATOR_REPAIR_GUIDANCE),
+    )
+
+
+def final_validator_repair_context_token(
+    *,
+    run_revision: int,
+    work_unit_id: str,
+    generation: int,
+) -> str:
+    if (
+        not isinstance(run_revision, int)
+        or isinstance(run_revision, bool)
+        or run_revision < 0
+    ):
+        raise AgenticRuntimeError("final validator repair run revision must be a non-negative integer")
+    if (
+        not isinstance(generation, int)
+        or isinstance(generation, bool)
+        or generation < 0
+    ):
+        raise AgenticRuntimeError("final validator repair generation must be a non-negative integer")
+    if (
+        not isinstance(work_unit_id, str)
+        or not work_unit_id
+        or len(work_unit_id) > 180
+        or work_unit_id.strip() != work_unit_id
+        or any(ord(ch) < 32 for ch in work_unit_id)
+    ):
+        raise AgenticRuntimeError("final validator repair work-unit identity is invalid")
+
+    payload = json.dumps(
+        {
+            "domain": _FINAL_VALIDATOR_REPAIR_CONTEXT_DOMAIN,
+            "generation": generation,
+            "run_revision": run_revision,
+            "work_unit_id": work_unit_id,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(payload).hexdigest()[:_FINAL_VALIDATOR_REPAIR_CONTEXT_TOKEN_HEX]
+
+
+def final_validator_repair_request(
+    request: ImplementationGenerationRequest,
+    *,
+    run_revision: int,
+    work_unit_id: str,
+    generation: int,
+) -> tuple[ImplementationGenerationRequest, str]:
+    guided = validator_guided_candidate_request(
+        request,
+        RoutingFailureKind.VALIDATION_EXHAUSTED.value,
+    )
+    context_token = final_validator_repair_context_token(
+        run_revision=run_revision,
+        work_unit_id=work_unit_id,
+        generation=generation,
+    )
+    final_constraint = (
+        f"{FINAL_VALIDATOR_REPAIR_GUIDANCE} "
+        f"Server-owned final-repair context token: {context_token}."
+    )
+    if final_constraint in guided.constraints:
+        return guided, context_token
+    return (
+        replace(
+            guided,
+            constraints=(*guided.constraints, final_constraint),
+        ),
+        context_token,
     )
 
 
@@ -295,6 +378,18 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                             subrequest,
                             previous_failure_kind,
                         )
+                        if assignment.reason_code == CANDIDATE_VALIDATION_REPAIR:
+                            subrequest, repair_context_token = final_validator_repair_request(
+                                subrequest,
+                                run_revision=run.revision,
+                                work_unit_id=unit.unit_id,
+                                generation=assignment.generation,
+                            )
+                            logger.info(
+                                "parallax_final_validator_repair_dispatch generation=%s context=%s",
+                                assignment.generation,
+                                repair_context_token,
+                            )
                         adapter = self._adapter(agent_digest)
                         try:
                             result, generation = adapter.generate(
@@ -499,11 +594,14 @@ __all__ = [
     "CANDIDATE_VALIDATION_REPAIR",
     "MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT",
     "CandidateRejection",
+    "FINAL_VALIDATOR_REPAIR_GUIDANCE",
     "ResilientLiveAgenticControlPlane",
     "VALIDATOR_REPAIR_GUIDANCE",
     "build_resilient_live_agentic_runtime_composition",
     "candidate_generation_failure_kind",
     "candidate_recovery_assignment",
+    "final_validator_repair_context_token",
+    "final_validator_repair_request",
     "validator_guided_candidate_request",
     "validator_repair_assignment",
 ]

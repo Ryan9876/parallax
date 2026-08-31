@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.34
+Version: 3.35
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.35 makes the single P2-V0.23.23 final validator-repair opportunity a genuinely fresh generation identity. The existing eligibility, admitted-agent selection, one-repair ceiling, 60-second hosted-model timeout, zero hidden transport retries, safe patch validation/canonicalization, disposable candidate validation, source-lineage authority, delivery authority, lifecycle authority, and human REVIEW ceiling remain unchanged. A final `CANDIDATE_VALIDATION_REPAIR` assignment now receives the existing static validator guidance plus a final-repair-only server-owned constraint carrying a bounded deterministic context token derived from the authoritative run revision, work-unit identity, and assignment generation. This changes the model request/cache identity so an earlier validator-rejected prediction cannot be counted as the new repair generation. The token is evidence only, contains no source or rejected output, grants no authority, and only a fixed event name, repair generation, and bounded token may be logged. Global DSPy caching, provider/model/credential authority, and all mutation/review boundaries are unchanged. Architecture v3.34 remains the finite validator-repair eligibility foundation.
 
 Architecture v3.34 adds one finite validator-repair opportunity after distinct admitted implementation agents are exhausted. Only a server-classified VALIDATION_EXHAUSTED result can authorize the repair, the selected identity is the most recent validator-rejected agent already admitted for the same work unit, and the budget is exactly one additional generation per work unit. The repair receives the existing static safe-patch guidance and then passes through the unchanged typed proposal schema, exact acceptance ownership, strict patch canonicalization and verification, disposable candidate validation, independent evaluation, canonical source writer, delivery authority, and human REVIEW ceiling. Provider-only failure cannot authorize this retry, a repair provider failure consumes the one repair budget, the 60-second hosted-model timeout and zero hidden transport retries remain unchanged, and no new model, provider, credential, queue, source authority, Git authority, deployment authority, lifecycle authority, or REVIEW-completion authority is added. Architecture v3.33 remains the request-bounded autonomous execution and typed hosted-generation foundation.
 
