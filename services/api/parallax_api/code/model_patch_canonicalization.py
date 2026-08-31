@@ -115,7 +115,11 @@ class CanonicalizingTextPatchEngine(TextPatchEngine):
         diff: str,
     ) -> _CanonicalizedIntent:
         normalized = self.normalize_path(path)
-        root, target = self._safe_target(workspace_root, normalized)
+        root, target, _ = self._safe_target(
+            workspace_root,
+            normalized,
+            allow_missing_parents=True,
+        )
         del root
 
         if target.exists():

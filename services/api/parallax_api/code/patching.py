@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import errno
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -12,6 +13,7 @@ import tempfile
 DEFAULT_MAX_FILE_BYTES = 512_000
 DEFAULT_MAX_PATCH_BYTES = 512_000
 DEFAULT_MAX_RESULT_BYTES = 768_000
+DEFAULT_MAX_MISSING_PARENT_DIRECTORIES = 16
 EMPTY_SHA256 = sha256(b"").hexdigest()
 
 _SUPPORTED_SUFFIXES = frozenset(
@@ -129,6 +131,7 @@ class PreparedPatch:
     patch_bytes: bytes
     additions: int
     deletions: int
+    missing_parent_directories: tuple[str, ...] = ()
 
     @property
     def evidence(self) -> dict[str, object]:
@@ -178,12 +181,19 @@ class TextPatchEngine:
         max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
         max_patch_bytes: int = DEFAULT_MAX_PATCH_BYTES,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
+        max_missing_parent_directories: int = DEFAULT_MAX_MISSING_PARENT_DIRECTORIES,
     ) -> None:
-        if min(max_file_bytes, max_patch_bytes, max_result_bytes) <= 0:
+        if min(
+            max_file_bytes,
+            max_patch_bytes,
+            max_result_bytes,
+            max_missing_parent_directories,
+        ) <= 0:
             raise ValueError("patch limits must be positive")
         self.max_file_bytes = max_file_bytes
         self.max_patch_bytes = max_patch_bytes
         self.max_result_bytes = max_result_bytes
+        self.max_missing_parent_directories = max_missing_parent_directories
 
     def normalize_path(self, path: str) -> str:
         if not isinstance(path, str) or not path:
@@ -220,7 +230,11 @@ class TextPatchEngine:
             raise PatchFormatError("unified diff contains binary NUL content")
         self._reject_secret_content(patch.unified_diff)
 
-        root, target = self._safe_target(workspace_root, normalized)
+        root, target, missing_parent_directories = self._safe_target(
+            workspace_root,
+            normalized,
+            allow_missing_parents=expected == EMPTY_SHA256,
+        )
         del root  # containment has been validated; target is the only required value below.
 
         existed = target.exists()
@@ -261,28 +275,66 @@ class TextPatchEngine:
             patch_bytes=patch_bytes,
             additions=additions,
             deletions=deletions,
+            missing_parent_directories=missing_parent_directories,
         )
 
     def commit(self, workspace_root: str | Path, prepared: PreparedPatch) -> None:
         normalized = self.normalize_path(prepared.path)
-        _, target = self._safe_target(workspace_root, normalized)
-        if target != prepared.target:
-            raise UnsafeTargetError("prepared target no longer resolves to the same workspace path")
+        created_parent_directories: tuple[str, ...] = ()
 
         if prepared.existed:
+            _, target, missing = self._safe_target(workspace_root, normalized)
+            if missing:
+                raise StaleBaseError("prepared existing target parent structure changed before commit")
+            if target != prepared.target:
+                raise UnsafeTargetError("prepared target no longer resolves to the same workspace path")
             if not target.exists() or not target.is_file() or target.is_symlink():
                 raise StaleBaseError("prepared existing target changed type before commit")
             current = target.read_bytes()
             if current != prepared.before:
                 raise StaleBaseError("prepared existing target changed before commit")
-        elif target.exists() or target.is_symlink():
+            self._atomic_replace(target, prepared.after, preserve_mode=True)
+            return
+
+        root, target, current_missing = self._safe_target(
+            workspace_root,
+            normalized,
+            allow_missing_parents=True,
+        )
+        if target != prepared.target:
+            raise UnsafeTargetError("prepared target no longer resolves to the same workspace path")
+        recorded_missing = set(prepared.missing_parent_directories)
+        if any(relative not in recorded_missing for relative in current_missing):
+            raise StaleBaseError("prepared new target parent structure changed before commit")
+        if target.exists() or target.is_symlink():
             raise StaleBaseError("prepared new target appeared before commit")
 
-        self._atomic_replace(target, prepared.after, preserve_mode=prepared.existed)
+        try:
+            created_parent_directories = self._create_missing_parent_directories(
+                root,
+                prepared.missing_parent_directories,
+            )
+            _, target, missing_after_creation = self._safe_target(workspace_root, normalized)
+            if missing_after_creation:
+                raise StaleBaseError("prepared new target parent creation is incomplete")
+            if target != prepared.target:
+                raise UnsafeTargetError("prepared target changed while creating parent directories")
+            if target.exists() or target.is_symlink():
+                raise StaleBaseError("prepared new target appeared before commit")
+            self._atomic_replace(target, prepared.after, preserve_mode=False)
+        except Exception:
+            self._cleanup_parent_directories(
+                root,
+                created_parent_directories,
+                fail_on_unsafe=False,
+            )
+            raise
 
     def restore(self, workspace_root: str | Path, prepared: PreparedPatch) -> None:
         normalized = self.normalize_path(prepared.path)
-        _, target = self._safe_target(workspace_root, normalized)
+        root, target, missing = self._safe_target(workspace_root, normalized)
+        if missing:
+            raise StaleBaseError("committed target parent structure changed before rollback")
         if target != prepared.target:
             raise UnsafeTargetError("prepared rollback target no longer resolves to the same workspace path")
 
@@ -296,8 +348,19 @@ class TextPatchEngine:
             self._atomic_replace(target, prepared.before, preserve_mode=True)
         else:
             target.unlink()
+            self._cleanup_parent_directories(
+                root,
+                prepared.missing_parent_directories,
+                fail_on_unsafe=True,
+            )
 
-    def _safe_target(self, workspace_root: str | Path, normalized: str) -> tuple[Path, Path]:
+    def _safe_target(
+        self,
+        workspace_root: str | Path,
+        normalized: str,
+        *,
+        allow_missing_parents: bool = False,
+    ) -> tuple[Path, Path, tuple[str, ...]]:
         root_input = Path(workspace_root)
         if not root_input.exists() or not root_input.is_dir():
             raise UnsafeTargetError("workspace root must be an existing directory")
@@ -305,12 +368,20 @@ class TextPatchEngine:
 
         current = root
         parts = PurePosixPath(normalized).parts
-        for part in parts[:-1]:
+        missing_parent_directories: list[str] = []
+        for index, part in enumerate(parts[:-1], start=1):
             current = current / part
             if current.is_symlink():
                 raise UnsafeTargetError("symlink path components are forbidden")
-            if not current.exists() or not current.is_dir():
-                raise UnsafeTargetError("patch target parent directory must already exist")
+            if current.exists():
+                if not current.is_dir():
+                    raise UnsafeTargetError("patch target parent component must be a directory")
+            else:
+                if not allow_missing_parents:
+                    raise UnsafeTargetError("patch target parent directory must already exist")
+                missing_parent_directories.append(PurePosixPath(*parts[:index]).as_posix())
+                if len(missing_parent_directories) > self.max_missing_parent_directories:
+                    raise PatchLimitError("patch target exceeds the missing-parent directory limit")
 
         target = current / parts[-1]
         if target.is_symlink():
@@ -318,7 +389,79 @@ class TextPatchEngine:
         resolved = target.resolve(strict=False)
         if resolved != root and root not in resolved.parents:
             raise UnsafeTargetError("patch target resolves outside the workspace")
-        return root, resolved
+        return root, resolved, tuple(missing_parent_directories)
+
+    def _create_missing_parent_directories(
+        self,
+        root: Path,
+        missing_parent_directories: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        created: list[str] = []
+        try:
+            for relative in missing_parent_directories:
+                pure = PurePosixPath(relative)
+                directory = root.joinpath(*pure.parts)
+                parent = directory.parent
+                if parent.is_symlink() or not parent.exists() or not parent.is_dir():
+                    raise UnsafeTargetError("patch parent hierarchy changed before directory creation")
+                resolved_parent = parent.resolve(strict=True)
+                if resolved_parent != root and root not in resolved_parent.parents:
+                    raise UnsafeTargetError("patch parent hierarchy resolves outside the workspace")
+                if directory.is_symlink():
+                    raise UnsafeTargetError("symlink path components are forbidden")
+                if directory.exists():
+                    if not directory.is_dir():
+                        raise UnsafeTargetError("patch target parent component must be a directory")
+                    resolved_directory = directory.resolve(strict=True)
+                    if resolved_directory != root and root not in resolved_directory.parents:
+                        raise UnsafeTargetError("patch parent hierarchy resolves outside the workspace")
+                    continue
+                try:
+                    directory.mkdir()
+                except FileExistsError:
+                    if directory.is_symlink() or not directory.is_dir():
+                        raise UnsafeTargetError("patch parent hierarchy changed during directory creation")
+                    resolved_directory = directory.resolve(strict=True)
+                    if resolved_directory != root and root not in resolved_directory.parents:
+                        raise UnsafeTargetError("patch parent hierarchy resolves outside the workspace")
+                    continue
+                created.append(relative)
+            return tuple(created)
+        except Exception:
+            self._cleanup_parent_directories(root, tuple(created), fail_on_unsafe=False)
+            raise
+
+    def _cleanup_parent_directories(
+        self,
+        root: Path,
+        parent_directories: tuple[str, ...],
+        *,
+        fail_on_unsafe: bool,
+    ) -> None:
+        for relative in reversed(parent_directories):
+            directory = root.joinpath(*PurePosixPath(relative).parts)
+            if directory.is_symlink():
+                if fail_on_unsafe:
+                    raise UnsafeTargetError("rollback parent became a symlink")
+                continue
+            if not directory.exists():
+                continue
+            if not directory.is_dir():
+                if fail_on_unsafe:
+                    raise UnsafeTargetError("rollback parent changed type")
+                continue
+            resolved = directory.resolve(strict=True)
+            if resolved != root and root not in resolved.parents:
+                if fail_on_unsafe:
+                    raise UnsafeTargetError("rollback parent resolves outside the workspace")
+                continue
+            try:
+                directory.rmdir()
+            except OSError as exc:
+                if exc.errno in {errno.ENOTEMPTY, errno.EEXIST}:
+                    continue
+                if fail_on_unsafe:
+                    raise
 
     @staticmethod
     def _validate_target_name(path: PurePosixPath) -> None:
