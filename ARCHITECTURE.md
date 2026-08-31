@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.29
+Version: 3.30
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier. Provider-successful model proposals may recover only mechanical unified-diff metadata when every source-consuming context/deletion record matches exact current protected source at the declared location or at one unique admissible non-overlapping location. Pure insertions remain coordinate-anchored, new-file recovery remains addition-only with `/dev/null` semantics, stale expected-base SHA-256 values remain fail-closed, and every recovered diff is re-parsed by the unchanged strict `TextPatchEngine` before disposable validation or canonical mutation. No fuzzy matching, semantic patching, shell/Git/network application, retry-budget expansion, source-lineage authority, deployment authority, or REVIEW authority is added. Architecture v3.29 remains the dedicated stable-repository-ID production-QA trust boundary.
 
 Architecture v3.29 moves standing production-QA execution identity to a dedicated repository trust boundary. GitHub Actions OIDC authorization is now an exact server-owned `(repository, repository_id, workflow_ref)` tuple, binding the human-readable repository identity to GitHub's stable repository ID and the exact workflow reference. This prevents workflow substitution, cross-repository replay, and silent trust inheritance if a repository name is later deleted and recreated. The migration admission release temporarily retains the two existing exact application-repository QA tuples until the dedicated `Ryan9876/parallax-qa` production replay is behaviorally proven; the bounded QA principal, issuer, audience, main ref, hosted-runner requirement, allowed events, Project / Work Specification / Engineering Run authority, source lineage, model routing, Git/deployment authority, and REVIEW ceiling are unchanged.
 
@@ -24,6 +26,16 @@ The remaining identity guards stay conjunctive and fail-closed: issuer `https://
 The dedicated workflow authenticates only to the existing bounded QA principal. It cannot inherit normal-user ownership or create source-publication, Git mutation, deployment, production-promotion, lifecycle-transition, or REVIEW-completion authority beyond the product APIs already available to that bounded QA account. Routine standing acceptance is source-only Python plus OT Time/.NET replay to REVIEW and authenticated ZIP handoff. W9-S1 greenfield initialization is not standing QA trust and requires a separately reviewed exact workflow when a fresh approved target exists.
 
 Cutover is intentionally staged. During P2-V0.23.17 only, the two prior exact `Ryan9876/parallax` workflow pairs remain admitted alongside the new dedicated pair so the new path can be production-proven without destroying rollback. After successful dedicated-repository replay, a follow-up trust-contraction release removes the old pairs and workflow files. Temporary dual trust is migration evidence, not a permanent expansion target.
+
+## Server-owned exact model patch canonicalization
+
+Architecture v3.30 keeps model output non-authoritative while reducing false rejection caused by mechanical unified-diff reproduction. The ordinary strict patch engine remains the final verifier and committer. A canonicalization attempt occurs only after strict preparation fails for unified-diff format or exact-position conflict; unsafe targets, secret-sensitive paths/content, stale expected-base digests, unsupported extensions, symlinks, missing parents, byte limits and other protected failures are never repaired.
+
+For an existing target, each hunk's complete source-consuming record sequence (context plus deletions, in order) must equal current protected UTF-8 source exactly. If the model-declared old position is an exact match, that location is used. Otherwise the complete sequence must have exactly one admissible non-overlapping exact match after prior hunks. Zero matches and multiple matches fail closed. There is no edit-distance, whitespace-normalized, semantic, AST, fuzzy, approximate or model-assisted matching. A pure insertion has no source text anchor and therefore remains bound to its declared old position.
+
+For a new target, recovery requires `/dev/null` old-file semantics and one addition-only hunk. Target/path/extension/parent/secret/size rules and the empty-content base digest remain unchanged. Git-style prologue metadata may be discarded only when its exact a/b paths match the separately declared safe target; deletion and unsupported mode intent are rejected.
+
+After exact intent is established, Parallax generates canonical single-file headers and hunk positions/counts and submits that diff back through the unchanged `TextPatchEngine`. Only that second strict parse can produce a `PreparedPatch`. Canonicalization performs no filesystem mutation, shell execution, Git operation, network call, source-lineage acceptance, provider action or lifecycle transition. Accepted source still has one canonical writer and the ordinary disposable BUILD/TEST/VERIFY and REVIEW ceilings remain authoritative.
 
 ## Source authority is independent from deployment authority
 
