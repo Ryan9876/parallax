@@ -13,13 +13,13 @@
     "AC-04: validate protected requirement \u2014 The final repair request receives `VALIDATOR_REPAIR_GUIDANCE` and no rejected model output or arbitrary validator exception text.",
     "AC-05: validate protected requirement \u2014 A work unit cannot receive more than one final validator repair retry, including when that retry itself times out or returns another rejected proposal.",
     "AC-06: validate protected requirement \u2014 The repair assignment grants no canonical source, lineage, Git, deployment, REVIEW, credential, network, or lifecycle-transition authority.",
-    "AC-07: validate protected requirement \u2014 If repair still fails, durable diagnostics expose only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims.",
+    "AC-07: validate protected requirement \u2014 If repair still fails, the candidate-generation diagnostic envelope exposes only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims. No durable diagnostic-schema expansion is required by this release.",
     "AC-08: validate protected requirement \u2014 A candidate that passes before distinct-agent exhaustion follows the existing path without a final repair attempt.",
     "AC-09: validate protected requirement \u2014 Focused candidate-recovery tests, full API regression, Bounded Autonomy, client checks, protected promotion evaluation, protected spec/plan validation, and required DSPy validation pass on the exact PR head.",
     "AC-10: validate protected requirement \u2014 After exact-source deployment, `/health` and `/ready` return HTTP 200 and the affected production run or an equivalent bounded workload proves that a final validator-rejected candidate no longer fails solely because the distinct-agent set was exhausted before one bounded repair retry."
   ],
   "risks": [
-    "- `No change in the risk assessment`."
+    "- `Provider-only failures do not gain validator-specific retry authority`."
   ],
   "spec_id": "P2-V0.23.23",
   "protected_acceptance_map": [
@@ -56,7 +56,7 @@
     {
       "id": "AC-07",
       "title": "Exhaustion diagnostics remain bounded",
-      "protected_requirement": "If repair still fails, durable diagnostics expose only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims."
+      "protected_requirement": "If repair still fails, the candidate-generation diagnostic envelope exposes only bounded failure kind, admitted identity/generation, repair-attempted state, and existing false mutation/authority claims. No durable diagnostic-schema expansion is required by this release."
     },
     {
       "id": "AC-08",
