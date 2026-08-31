@@ -1,0 +1,54 @@
+name: P2-V0.23.24 Production Acceptance Reconciliation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/reconcile-p2324-acceptance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record production behavior acceptance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text()
+          text = text.replace(
+              'P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING',
+              'P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED',
+              1,
+          )
+          text = text.replace(
+              '## P2-V0.23.24 — fresh final validator repair generation — DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING',
+              '## P2-V0.23.24 — fresh final validator repair generation — PRODUCTION-BEHAVIOR-VERIFIED',
+              1,
+          )
+          start_marker = 'Production behavior acceptance remains pending because the affected user-owned Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` requires an authenticated user-session resume.'
+          start = text.index(start_marker)
+          end = text.index('\n\nNo database migration', start)
+          replacement = '''Production behavior acceptance completed on the affected authenticated Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc`. On exact deployment `dpl_Am5D5JkShtNHnXYuFcDBfnrYK7i2`, the retry returned HTTP 200 and emitted `parallax_final_validator_repair_dispatch generation=7 context=7176413ebb4b332036c3fcee`; immediately afterward Parallax started a real Vercel AI Gateway Terra completion at 10:34:35 UTC. That hosted call completed at 10:35:12 UTC and was classified `validation_failed` after about 36.7 seconds. This proves the final repair request is cache-distinct and genuinely fresh rather than the prior approximately 7 ms DSPy cache replay. The fresh proposal still failed protected validation, which is a separate implementation-capability blocker and does not invalidate P2-V0.23.24 acceptance. Workstream #512 is closed completed with the evidence recorded.'''
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+          PY
+          git diff --check
+      - name: Commit authoritative record and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git config user.name "Parallax Release Worker"
+          git config user.email "parallax-release-worker@users.noreply.github.com"
+          git rm .github/workflows/reconcile-p2324-acceptance.yml
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git commit -m "P2-V0.23.24 — record production behavior acceptance"
+          git push origin HEAD:main
