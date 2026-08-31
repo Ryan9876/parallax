@@ -138,7 +138,7 @@ Current deployment-verified client:
 - production deployment: `dpl_4c4KnCtsTheUiKGfvy9fpTtUxTqB`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - state: `READY`;
-- production shell: HTTT 200;
+- production shell: HTTP 200;
 - post-release runtime-error scan: clean in the checked production window.
 
 Normal `/` remains Google-first. `/?qa=1` exposes the bounded dedicated QA password/recovery path. Agent-runnable GitHub Actions OIDC maps to that same bounded QA principal without storing or exposing the QA password.
