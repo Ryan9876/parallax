@@ -31,15 +31,7 @@ jobs:
         run: pip install -e 'services/api[dev]'
 
       - name: Apply bounded final-repair freshness implementation
-        env:
-          PATCH_SCRIPT_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpzb3VyY2VfcGF0aCA9IFBhdGgoInNlcnZpY2VzL2FwaS9wYXJhbGxheF9hcGkvY29kZS9hZ2VudGljX2NhbmRpZGF0ZV9yZWNvdmVyeS5weSIpCnRleHQgPSBzb3VyY2VfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkID0gJ2Zyb20gZGF0YWNsYXNzZXMgaW1wb3J0IGRhdGFjbGFzcywgcmVwbGFjZVxuZnJvbSB0eXBpbmcgaW1wb3J0IENhbGxhYmxlXG4nCm5ldyA9ICdmcm9tIGRhdGFjbGFzc2VzIGltcG9ydCBkYXRhY2xhc3MsIHJlcGxhY2VcbmZyb20gaGFzaGxpYiBpbXBvcnQgc2hhMjU2XG5pbXBvcnQganNvblxuaW1wb3J0IGxvZ2dpbmdcbmZyb20gdHlwaW5nIGltcG9ydCBDYWxsYWJsZVxuJwphc3NlcnQgb2xkIGluIHRleHQsIG9sZFs6MTIwXQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKb2xkID0gJ0NBTkRJREFURV9SRUNPVkVSWV9WRVJTSU9OID0gImNhbmRpZGF0ZS1yZWNvdmVyeS12MC4yMy4yMyJcbkNBTkRJREFURV9HRU5FUkFUSU9OX0VYSEFVU1RFRAA9ICJDQU5ESURBVEVfR0VORVJBVElPTl9FWEhBVVNURUQiXG5DQU5ESURBVEVfVkFMSURBVElPTl9SRVBBRVIgPSAiQ0FORElEQVRFX1ZBTElEQVRJT05fUkVQQUlSIlxuTUFYX1ZBTElEQVRPUl9SRVBBSVJfUkVUUklFU19QRVJfV09SS19VTklUID0gMVxuX0NBTkRJREFURV9FWEhBVVNURURfQkxPQ0tFUiA9ICJBR0VOVElDX0NBTkRJREFURV9FWEhBVVNURUQiXG5WQUxJREFUT1JfUkVQQUlSX0dVSURBTkNFID0gKFxuJwpuZXcgPSAnQ0FORElEQVRFX1JFQ09WRVJZX1ZFUlNJT04gPSAiY2FuZGlkYXRlLXJlY292ZXJ5LXYwLjIzLjI0IlxuQ0FORElEQVRFX0dFTkVSQVRJT05fRVhBVVNURUQgPSAiQ0FORElEQVRFX0dFTkVSQVRJT05fRVhBVVNURUQiXG5DQU5ESURBVEVfVkFMSURBVElPTl9SRVBBRVIgPSAiQ0FORElEQVRFX1ZBTElEQVRJT05fUkVQQUlSIlxuTUFYX1ZBTElEQVRPUl9SRVBBSVJfUkVUUklFU19QRVJfV09SS19VTklUID0gMVxuX0NBTkRJREFURV9FWEhBVVNURURfQkxPQ0tFUiA9ICJBR0VOVElDX0NBTkRJREFURV9FWEhBVVNURUQiXG5fRklOQUxfVkFMSURBVE9SX1JFUEFJUl9DT05URVhUX0RPTUFJTiA9ICJwYXJhbGxheC1maW5hbC12YWxpZGF0b3ItcmVwYWlyLWNvbnRleHQtdjEiXG5fRklOQUxfVkFMSURBVE9SX1JFUEFJUl9DT05URVhUX1RPS0VOX0hFWCA9IDI0XG5sb2dnZXIgPSBsb2dnaW5nLmdldExvZ2dlcihfX25hbWVfXylcblZBTElEQVRPUl9SRVBBSVJfR1VJREFOQ0UgPSAoXG4nCmFzc2VydCBvbGQgaW4gdGV4dCwgb2xkWzoxMjBdCnRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpCgpvbGQgPSAnKVxuX0JPVU5ERURfUk9VVElOR19GQUlMVVJFUyA9IGZyb3plbnNldChpdGVtLnZhbHVlIGZvciBpdGVtIGluIFJvdXRpbmdGYWlsdXJlS2luZClcbicKbmV3ID0gJylcbkZJTkFMX1ZBTElEQVRPUl9SRVBBSVJfR1VJREFOQ0UgPSAoXG4gICAgIlRoaXMgaXMgdGhlIHNpbmdsZSBmaW5hbCB2YWxpZGF0b3ItcmVwYWlyIGdlbmVyYXRpb24gZm9yIHRoaXMgd29yayB1bml0LiAiXG4gICAgIlJlLWRlcml2ZSBhIGZyZXNoIHByb3Bvc2FsIGZyb20gdGhlIHN1cHBsaWVkIHByb3RlY3RlZCBzb3VyY2UgY29udGV4dCBpbnN0ZWFkIG9mIHJldXNpbmcgb3IgcmVwZWF0aW5nIGFueSBwcmlvciByZXNwb25zZS4gIlxuICAgICJSZS1jaGVjayBldmVyeSB0YXJnZXQgcGF0aCwgYmFzZSBTSEEtMjU2LCB1bmlmaWVkIGRpZmYgaGVhZGVyLCBodW5rIGNvb3JkaW5hdGUgYW5kIGNvdW50LCBhbmQgZXZlcnkgcmVtb3ZlZC9jb250ZXh0IGxpbmUgIlxuICAgICJhZ2FpbnN0IHRoZSBzdXBwbGllZCBzb3VyY2UgYmVmb3JlIHJldHVybmluZyB0aGUgcHJvcG9zYWwuIlxuKVxuX0JPVU5ERURfUk9VVElOR19GQUlMVVJFUyA9IGZyb3plbnNldChpdGVtLnZhbHVlIGZvciBpdGVtIGluIFJvdXRpbmdGYWlsdXJlS2luZClcbicKYXNzZXJ0IG9sZCBpbiB0ZXh0LCBvbGRbOjEyMF0KdGV4dCA9IHRleHQucmVwbGFjZShvbGQsIG5ldygpIGlmIEZhbHNlIGVsc2BuZXcsIDEpCg==
-        run: |
-          python - <<'PY'
-          import base64, os
-          payload = base64.b64decode(os.environ['PATCH_SCRIPT_B64'])
-          compile(payload, 'p2324_patch.py', 'exec')
-          exec(payload, {'__name__': '__main__'})
-          PY
+        run: python scripts/p2324_apply.py
 
       - name: Compile and run focused regressions
         run: |
@@ -61,12 +53,15 @@ jobs:
             services/api/parallax_api/code/model_patch_canonicalization.py
           test "$(grep -c '^MAX_VALIDATOR_REPAIR_RETRIES_PER_WORK_UNIT = 1$' services/api/parallax_api/code/agentic_candidate_recovery.py)" = '1'
 
-      - name: Commit validated implementation and remove temporary workflows
+      - name: Commit validated implementation and remove temporary tooling
         run: |
           set -euo pipefail
           git config user.name "Parallax Release Worker"
           git config user.email "parallax-release-worker@users.noreply.github.com"
-          git rm .github/workflows/prepare-p2324.yml .github/workflows/implement-p2324.yml
+          git rm \
+            .github/workflows/prepare-p2324.yml \
+            .github/workflows/implement-p2324.yml \
+            scripts/p2324_apply.py
           git add ARCHITECTURE.md \
             services/api/parallax_api/code/agentic_candidate_recovery.py \
             services/api/tests/test_final_validator_repair_freshness_v02324.py
