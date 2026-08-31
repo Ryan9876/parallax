@@ -2,7 +2,36 @@
 
 Date: 2026-08-31
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.26 SERVER-CANONICALIZED IMPLEMENTATION CONTENT EDITS PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.26 SERVER-CANONICALIZED IMPLEMENTATION CONTENT EDITS PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.27 INCREMENTAL IMPLEMENT CONVERGENCE PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**
+
+## P2-V0.23.27 — incremental IMPLEMENT convergence — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
+
+Workstream: #527. Release PR: #528. Governing specification: `P2-V0.23.27`. Architecture: `ARCHITECTURE.md` v3.38.
+
+P2-V0.23.27 changes only the resilient live IMPLEMENT proposal-admission boundary from whole-proposal regeneration to bounded incremental convergence. The protected server classifies safe-preflight failures into a fixed sanitized reason-code vocabulary, independently validates canonical patches against the authoritative workspace, retains only independently safe non-overlapping patches as non-authoritative candidate intent, isolates rejected patches, and supplies subsequent bounded repair generations only retained target names plus sanitized rejection codes. Retained targets cannot be overwritten, ancestor/descendant conflicts fail before retention, and current-generation additions are discarded if the combined retained proposal fails unchanged whole-proposal safe preflight. Convergence still requires the combined proposal to pass `SafeImplementationEngine`; disposable BUILD/TEST/VERIFY, independent evaluation, commit-time safe-engine validation, source-lineage acceptance, delivery authority, lifecycle authority, Git/deployment authority, and the human REVIEW ceiling remain unchanged.
+
+Validated release and deployment evidence:
+
+- protected spec-first preparation and DSPy compile/verify run `33418091097`: SUCCESS;
+- focused runtime implementation/regression run `33419284259`: SUCCESS;
+- focused incremental-convergence behavior and architecture run `33419461306`: SUCCESS;
+- exact green PR head: `e955774274bdca0697378cf7ceeb007bab9d6efd`;
+- PR Parallax P2 CI `33419601581`: SUCCESS;
+- PR Bounded Autonomy Pilot `33419601582`: SUCCESS;
+- PR Workstream Spec Validation `33419601635`: SUCCESS;
+- merge / exact application source: `a6b61f0e278cf366e3bd7cd43a2c7c4409607c00`;
+- post-merge Workstream Spec Validation `33420204270`: SUCCESS;
+- post-merge Parallax P2 CI `33420204150`: SUCCESS, including full API regression, client checks, protected promotion evaluation, and promotion-boundary DSPy compilation/verification;
+- production API deployment `dpl_9wJkX4CXrhgbAn9ECQPiXYMEsm83`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;
+- production client deployment `dpl_6CKUg7iZJRmGmWQpoPXQmh4PJRXw` for the backend-only merge was canceled/ignored by Vercel, so the prior READY client remains authoritative;
+- production build preflights passed: provider registration/private Blob, exact delivery permission, projected source (678 files / 7,022,596 UTF-8 bytes), private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution snapshots, and Engineering Run event schema guard;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- exact API deployment warning/error/fatal runtime scan after readiness was clean, and project runtime-error aggregation found no errors in the selected verification window.
+
+Deployment verification is complete, but workstream #527 remains open because its completion condition requires authenticated behavior on the real Engineering Run path. The next acceptance is a user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact work) proving incremental IMPLEMENT convergence progresses into BUILD or exposes a later bounded blocker with retained-convergence evidence rather than generic whole-proposal safe-validator exhaustion. That evidence must not be manufactured by bypassing user authentication or session ownership.
+
+No model/provider/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, direct model filesystem authority, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion, or queue redesign was added.
 
 ## P2-V0.23.26 — server-canonicalized implementation content edits — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
 
