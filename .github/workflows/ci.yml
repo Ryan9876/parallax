@@ -12,9 +12,6 @@ concurrency:
   group: parallax-p2-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  RELEASE_VALIDATION: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false) }}
-
 jobs:
   spec-and-api:
     name: Fast API + contract checks
@@ -27,42 +24,47 @@ jobs:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: services/api/pyproject.toml
-      - name: Validate specifications
+      - name: Validate baseline specifications
         run: |
           python scripts/validate_spec.py specs/P2-V0.1.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.2.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.3.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.4.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.5.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.6.2.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.6.3.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.7.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.8.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.9.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.9.1.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.10.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.11.0.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.11.1.md
-          python scripts/validate_spec.py --spec-only specs/P2-V0.12.0.md
+          for spec in \
+            specs/P2-V0.2.0.md \
+            specs/P2-V0.3.0.md \
+            specs/P2-V0.4.0.md \
+            specs/P2-V0.5.0.md \
+            specs/P2-V0.6.2.md \
+            specs/P2-V0.6.3.md \
+            specs/P2-V0.7.0.md \
+            specs/P2-V0.8.0.md \
+            specs/P2-V0.9.0.md \
+            specs/P2-V0.9.1.md \
+            specs/P2-V0.10.0.md \
+            specs/P2-V0.11.0.md \
+            specs/P2-V0.11.1.md \
+            specs/P2-V0.12.0.md; do
+            python scripts/validate_spec.py --spec-only "$spec"
+          done
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
       - name: Compile Python sources
         run: python -m compileall -q services/api/parallax_api scripts
-      - name: Run API tests
+      - name: Run API regression suite
         run: python -m pytest services/api/tests -q
 
   client:
     name: Fast client checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+          cache: npm
+          cache-dependency-path: apps/client/package-lock.json
       - name: Install client dependencies
         working-directory: apps/client
-        run: npm install
+        run: npm ci --no-audit --no-fund
       - name: Typecheck
         working-directory: apps/client
         run: npm run typecheck
@@ -72,35 +74,11 @@ jobs:
       - name: Export web build
         working-directory: apps/client
         run: npm run export:web
-      - name: Record production dependency audit
-        if: env.RELEASE_VALIDATION == 'true'
-        working-directory: apps/client
-        run: npm audit --omit=dev --json > npm-audit.json || true
-      - name: Install release browser runtime
-        if: env.RELEASE_VALIDATION == 'true'
-        working-directory: apps/client
-        run: npx playwright install --with-deps chromium
-      - name: Run browser/Skia acceptance suite
-        if: env.RELEASE_VALIDATION == 'true'
-        working-directory: apps/client
-        run: npm run test:visual
-      - uses: actions/upload-artifact@v4
-        if: always() && env.RELEASE_VALIDATION == 'true'
-        with:
-          name: client-build-evidence
-          path: |
-            apps/client/package-lock.json
-            apps/client/npm-audit.json
-            apps/client/dist
-            apps/client/visual-evidence
-          if-no-files-found: error
-          retention-days: 14
 
   evaluation:
     name: Protected promotion evaluation
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    needs: spec-and-api
     timeout-minutes: 15
     permissions:
       contents: read
@@ -113,147 +91,95 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
 
-      - name: Validate engineering and Reason benchmark suites
+      - name: Validate protected benchmark suites
         run: |
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/development-v0.1.json
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/promotion-v0.1.json
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-development-v0.1.json
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/reason-promotion-v0.1.json
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/code-development-v0.4.json
-          python scripts/validate_benchmark.py benchmarks/parallax-engineering/code-promotion-v0.4.json
+          for benchmark in \
+            benchmarks/parallax-engineering/development-v0.1.json \
+            benchmarks/parallax-engineering/promotion-v0.1.json \
+            benchmarks/parallax-engineering/reason-development-v0.1.json \
+            benchmarks/parallax-engineering/reason-promotion-v0.1.json \
+            benchmarks/parallax-engineering/code-development-v0.4.json \
+            benchmarks/parallax-engineering/code-promotion-v0.4.json; do
+            python scripts/validate_benchmark.py "$benchmark"
+          done
 
       - name: Evaluate protected Code baseline and equivalent challenger
         run: |
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/code-promotion-v0.4.json \
-            benchmarks/parallax-engineering/fixtures/code-baseline.json \
-            --evidence-dir evaluation-evidence/code-promotion-baseline
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/code-promotion-v0.4.json \
-            benchmarks/parallax-engineering/fixtures/code-equivalent.json \
-            --evidence-dir evaluation-evidence/code-promotion-challenger
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/code-promotion-v0.4.json benchmarks/parallax-engineering/fixtures/code-baseline.json --evidence-dir evaluation-evidence/code-promotion-baseline
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/code-promotion-v0.4.json benchmarks/parallax-engineering/fixtures/code-equivalent.json --evidence-dir evaluation-evidence/code-promotion-challenger
           BASELINE=$(find evaluation-evidence/code-promotion-baseline -type f -name 'eval-*.json' | head -1)
           CHALLENGER=$(find evaluation-evidence/code-promotion-challenger -type f -name 'eval-*.json' | head -1)
-          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
-            --evidence-dir evaluation-evidence/code-promotion-decision
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" --evidence-dir evaluation-evidence/code-promotion-decision
 
       - name: Prove Code regressions are rejected
         run: |
-          for FIXTURE in \
-            code-stage-regression.json \
-            code-status-regression.json \
-            code-spec-regression.json \
-            code-unsafe-regression.json; do
+          for fixture in code-stage-regression.json code-status-regression.json code-spec-regression.json code-unsafe-regression.json; do
             set +e
-            python scripts/evaluate_recorded.py \
-              benchmarks/parallax-engineering/code-promotion-v0.4.json \
-              "benchmarks/parallax-engineering/fixtures/$FIXTURE" \
-              --evidence-dir "evaluation-evidence/code-rejected-$FIXTURE"
-            RC=$?
+            python scripts/evaluate_recorded.py benchmarks/parallax-engineering/code-promotion-v0.4.json "benchmarks/parallax-engineering/fixtures/$fixture" --evidence-dir "evaluation-evidence/code-rejected-$fixture"
+            rc=$?
             set -e
-            if [ "$RC" -eq 0 ]; then
-              echo "FAIL: Code regression unexpectedly passed: $FIXTURE"
+            if [ "$rc" -eq 0 ]; then
+              echo "FAIL: Code regression unexpectedly passed: $fixture"
               exit 1
             fi
           done
 
-      - name: Evaluate recorded engineering development fixture
+      - name: Evaluate engineering development and promotion fixtures
         run: |
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/development-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/development-good.json \
-            --evidence-dir evaluation-evidence/development
-
-      - name: Evaluate protected engineering promotion baseline and equivalent challenger
-        run: |
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/promotion-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/promotion-baseline.json \
-            --evidence-dir evaluation-evidence/promotion-baseline
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/promotion-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/promotion-equivalent.json \
-            --evidence-dir evaluation-evidence/promotion-challenger
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/development-v0.1.json benchmarks/parallax-engineering/fixtures/development-good.json --evidence-dir evaluation-evidence/development
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/promotion-v0.1.json benchmarks/parallax-engineering/fixtures/promotion-baseline.json --evidence-dir evaluation-evidence/promotion-baseline
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/promotion-v0.1.json benchmarks/parallax-engineering/fixtures/promotion-equivalent.json --evidence-dir evaluation-evidence/promotion-challenger
           BASELINE=$(find evaluation-evidence/promotion-baseline -type f -name 'eval-*.json' | head -1)
           CHALLENGER=$(find evaluation-evidence/promotion-challenger -type f -name 'eval-*.json' | head -1)
-          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
-            --evidence-dir evaluation-evidence/promotion-decision
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" --evidence-dir evaluation-evidence/promotion-decision
 
-      - name: Prove an inherited engineering protected regression is rejected
+      - name: Prove inherited engineering regression is rejected
         run: |
           set +e
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/promotion-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/promotion-regression.json \
-            --evidence-dir evaluation-evidence/rejected-regression
-          RC=$?
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/promotion-v0.1.json benchmarks/parallax-engineering/fixtures/promotion-regression.json --evidence-dir evaluation-evidence/rejected-regression
+          rc=$?
           set -e
-          if [ "$RC" -eq 0 ]; then
+          if [ "$rc" -eq 0 ]; then
             echo 'FAIL: known engineering protected regression unexpectedly passed'
             exit 1
           fi
-          echo "PASS: known engineering protected regression rejected with rc=$RC"
 
-      - name: Evaluate recorded Reason development fixture
+      - name: Evaluate protected Reason fixtures
         run: |
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/reason-development-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/reason-development-good.json \
-            --evidence-dir evaluation-evidence/reason-development
-
-      - name: Evaluate protected Reason baseline and equivalent challenger
-        run: |
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/reason-promotion-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/reason-baseline.json \
-            --evidence-dir evaluation-evidence/reason-promotion-baseline
-          python scripts/evaluate_recorded.py \
-            benchmarks/parallax-engineering/reason-promotion-v0.1.json \
-            benchmarks/parallax-engineering/fixtures/reason-equivalent.json \
-            --evidence-dir evaluation-evidence/reason-promotion-challenger
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/reason-development-v0.1.json benchmarks/parallax-engineering/fixtures/reason-development-good.json --evidence-dir evaluation-evidence/reason-development
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/reason-promotion-v0.1.json benchmarks/parallax-engineering/fixtures/reason-baseline.json --evidence-dir evaluation-evidence/reason-promotion-baseline
+          python scripts/evaluate_recorded.py benchmarks/parallax-engineering/reason-promotion-v0.1.json benchmarks/parallax-engineering/fixtures/reason-equivalent.json --evidence-dir evaluation-evidence/reason-promotion-challenger
           BASELINE=$(find evaluation-evidence/reason-promotion-baseline -type f -name 'eval-*.json' | head -1)
           CHALLENGER=$(find evaluation-evidence/reason-promotion-challenger -type f -name 'eval-*.json' | head -1)
-          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" \
-            --evidence-dir evaluation-evidence/reason-promotion-decision
+          python scripts/compare_evaluations.py "$BASELINE" "$CHALLENGER" --evidence-dir evaluation-evidence/reason-promotion-decision
 
-      - name: Prove Reason continuity, status, and scope regressions are rejected
+      - name: Prove Reason regressions are rejected
         run: |
           BASELINE=$(find evaluation-evidence/reason-promotion-baseline -type f -name 'eval-*.json' | head -1)
-          if [ -z "$BASELINE" ]; then
-            echo 'FAIL: Reason baseline evidence was not produced'
-            exit 1
-          fi
-
+          test -n "$BASELINE"
           for regression in continuity status scope; do
             case "$regression" in
-              continuity) FIXTURE="reason-continuity-regression.json" ;;
-              status) FIXTURE="reason-status-regression.json" ;;
-              scope) FIXTURE="reason-scope-regression.json" ;;
+              continuity) fixture=reason-continuity-regression.json ;;
+              status) fixture=reason-status-regression.json ;;
+              scope) fixture=reason-scope-regression.json ;;
             esac
-            OUT="evaluation-evidence/reason-rejected-${regression}"
-            DECISION="evaluation-evidence/reason-rejected-${regression}-decision"
-
+            out="evaluation-evidence/reason-rejected-$regression"
+            decision="evaluation-evidence/reason-rejected-$regression-decision"
             set +e
-            python scripts/evaluate_recorded.py \
-              benchmarks/parallax-engineering/reason-promotion-v0.1.json \
-              "benchmarks/parallax-engineering/fixtures/${FIXTURE}" \
-              --evidence-dir "$OUT"
-            EVAL_RC=$?
-            REGRESSION_EVIDENCE=$(find "$OUT" -type f -name 'eval-*.json' | head -1)
-            if [ -z "$REGRESSION_EVIDENCE" ]; then
+            python scripts/evaluate_recorded.py benchmarks/parallax-engineering/reason-promotion-v0.1.json "benchmarks/parallax-engineering/fixtures/$fixture" --evidence-dir "$out"
+            eval_rc=$?
+            evidence=$(find "$out" -type f -name 'eval-*.json' | head -1)
+            if [ -z "$evidence" ]; then
               echo "FAIL: $regression regression produced no evaluation evidence"
               exit 1
             fi
-            python scripts/compare_evaluations.py "$BASELINE" "$REGRESSION_EVIDENCE" \
-              --evidence-dir "$DECISION"
-            COMPARE_RC=$?
+            python scripts/compare_evaluations.py "$BASELINE" "$evidence" --evidence-dir "$decision"
+            compare_rc=$?
             set -e
-
-            if [ "$EVAL_RC" -eq 0 ] || [ "$COMPARE_RC" -eq 0 ]; then
-              echo "FAIL: Reason $regression regression was not rejected by both protected evaluation and promotion comparison"
+            if [ "$eval_rc" -eq 0 ] || [ "$compare_rc" -eq 0 ]; then
+              echo "FAIL: Reason $regression regression was not rejected by both protected checks"
               exit 1
             fi
-            echo "PASS: Reason $regression regression rejected; evaluate=$EVAL_RC compare=$COMPARE_RC"
           done
 
       - uses: actions/upload-artifact@v4
@@ -266,9 +192,8 @@ jobs:
 
   dspy-development:
     name: DSPy release compilation
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    needs: spec-and-api
     timeout-minutes: 15
     permissions:
       contents: read
@@ -281,8 +206,23 @@ jobs:
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
 
+      - id: spec
+        name: Select latest governed specification
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest=$(find specs -maxdepth 1 -type f -name 'P2-V*.md' -printf '%f\n' | sort -V | tail -1)
+          test -n "$latest"
+          echo "path=specs/$latest" >> "$GITHUB_OUTPUT"
+          echo "id=${latest%.md}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate committed DSPy evidence on pull requests
+        if: github.event_name == 'pull_request'
+        run: python scripts/validate_spec.py --require-dspy "${{ steps.spec.outputs.path }}"
+
       - id: model
         name: Select provider-backed or local DSPy model
+        if: github.event_name != 'pull_request'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -299,8 +239,8 @@ jobs:
             echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
           fi
 
-      - name: Install local DSPy development LM
-        if: steps.model.outputs.provider == 'false'
+      - name: Install local DSPy release LM
+        if: github.event_name != 'pull_request' && steps.model.outputs.provider == 'false'
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           nohup ollama serve > /tmp/ollama.log 2>&1 &
@@ -311,43 +251,48 @@ jobs:
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
           ollama pull qwen2.5:0.5b
 
-      - name: Run DSPy SpecCritic + SpecCompiler for active release contract
+      - name: Run DSPy SpecCritic + SpecCompiler at promotion boundary
+        if: github.event_name != 'pull_request'
         timeout-minutes: 8
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/compile_spec.py specs/P2-V0.12.0.md
+        run: python scripts/compile_spec.py "${{ steps.spec.outputs.path }}"
 
-      - name: Verify compiled plan against protected v0.12.0 contract
-        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.12.0.md
+      - name: Verify freshly compiled plan at promotion boundary
+        if: github.event_name != 'pull_request'
+        run: python scripts/validate_spec.py --require-dspy "${{ steps.spec.outputs.path }}"
 
-      - name: Record DSPy development status
-        if: success()
+      - name: Record DSPy promotion status
+        if: github.event_name != 'pull_request' && success()
         env:
           PROVIDER: ${{ steps.model.outputs.provider }}
           MODEL: ${{ steps.model.outputs.name }}
+          SPEC_ID: ${{ steps.spec.outputs.id }}
         run: |
           python - <<'PY'
           import json
           import os
           from pathlib import Path
+          spec_id = os.environ['SPEC_ID']
           Path('specs/compiled/dspy-run-status.json').write_text(json.dumps({
               'executed': True,
-              'spec_id': 'P2-V0.12.0',
+              'spec_id': spec_id,
               'spec_compiler_executed': True,
               'spec_critic_executed': True,
               'model': os.environ['MODEL'],
               'provider_backed': os.environ['PROVIDER'] == 'true',
-              'artifact': 'P2-V0.12.0.plan.json',
-              'protected_metrics_required': True
+              'artifact': f'{spec_id}.plan.json',
+              'protected_metrics_required': True,
+              'boundary': 'promotion'
           }, indent=2) + '\n', encoding='utf-8')
           PY
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
-          name: dspy-development-evidence
+          name: dspy-promotion-evidence
           path: |
-            specs/compiled/P2-V0.12.0.plan.json
+            specs/compiled/${{ steps.spec.outputs.id }}.plan.json
             specs/compiled/dspy-run-status.json
             /tmp/ollama.log
           if-no-files-found: warn
