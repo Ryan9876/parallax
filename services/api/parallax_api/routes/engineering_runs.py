@@ -58,6 +58,7 @@ router = APIRouter(prefix="/v1/engineering-runs", tags=["engineering-runs"])
 
 _RUN_EVENTS_ENABLE_ENV = "PARALLAX_RUN_EVENTS_ENABLED"
 _AGENTIC_RUNTIME_ENABLE_ENV = "PARALLAX_AGENTIC_RUNTIME_ENABLED"
+_AUTONOMY_REQUEST_MAX_STEPS = 1
 
 # Preserve the accepted route-level composition seam. W8-S2 changes the
 # implementation behind this name so source bootstrap is immediate while Vercel
@@ -273,7 +274,11 @@ def autonomous(
     if allocator is None:
         if agentic_enabled:
             raise HTTPException(503, "Wave 6 agentic runtime requires durable source lineage")
-        runtime = AutonomyCoordinator(svc, legacy_executor)
+        runtime = AutonomyCoordinator(
+            svc,
+            legacy_executor,
+            max_steps=_AUTONOMY_REQUEST_MAX_STEPS,
+        )
     else:
         run = invoke(lambda: svc.get(run_id))
         if not run.project_id:
@@ -298,6 +303,7 @@ def autonomous(
                     allocator,
                     legacy_executor,
                     source_delivery=source_delivery,
+                    max_steps=_AUTONOMY_REQUEST_MAX_STEPS,
                 )
             except ValueError as exc:
                 raise HTTPException(503, "Wave 6 agentic runtime composition is unavailable") from exc
@@ -307,6 +313,7 @@ def autonomous(
                 allocator,
                 legacy_executor,
                 source_delivery=source_delivery,
+                max_steps=_AUTONOMY_REQUEST_MAX_STEPS,
             )
 
     result = invoke(

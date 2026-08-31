@@ -2,7 +2,9 @@ const assert = require('node:assert/strict');
 const {
   AUTONOMOUS_ENGINEERING_RUN_STATES,
   automaticAutonomyOperationKey,
+  autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
+  MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } = require('../.tmp-state/engineeringRunContinuation.js');
 
 const base = {
@@ -45,6 +47,32 @@ assert.throws(
 assert.throws(
   () => automaticAutonomyOperationKey({ ...base, revision: -1, state: 'PLAN' }),
   /revision is invalid/,
+);
+
+assert.equal(MAX_AUTONOMY_REQUESTS_PER_CONTINUATION, 8);
+assert.equal(
+  autonomyContinuationDisposition({ ...base, state: 'IMPLEMENT' }, 'MAX_STEPS_REACHED', 1),
+  'CONTINUE',
+);
+assert.equal(
+  autonomyContinuationDisposition(
+    { ...base, state: 'VERIFY' },
+    'MAX_STEPS_REACHED',
+    MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
+  ),
+  'LIMIT_REACHED',
+);
+assert.equal(
+  autonomyContinuationDisposition({ ...base, state: 'REVIEW' }, 'REVIEW_REQUIRED', 1),
+  'STOP',
+);
+assert.equal(
+  autonomyContinuationDisposition({ ...base, state: 'FAILED' }, 'MAX_STEPS_REACHED', 1),
+  'STOP',
+);
+assert.throws(
+  () => autonomyContinuationDisposition({ ...base, state: 'PLAN' }, 'MAX_STEPS_REACHED', 0),
+  /request count is invalid/,
 );
 
 console.log('PASS engineering run continuation policy');

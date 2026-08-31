@@ -47,8 +47,8 @@ def test_autonomous_route_injects_composed_runtime_when_durable_allocator_exists
     captured = {}
 
     class Composition:
-        def __init__(self, svc, bound_allocator, legacy_executor, *, source_delivery=None):
-            captured["init"] = (svc, bound_allocator, legacy_executor, source_delivery)
+        def __init__(self, svc, bound_allocator, legacy_executor, *, source_delivery=None, max_steps=8):
+            captured["init"] = (svc, bound_allocator, legacy_executor, source_delivery, max_steps)
 
         def run(self, **kwargs):
             captured["run"] = kwargs
@@ -80,7 +80,13 @@ def test_autonomous_route_injects_composed_runtime_when_durable_allocator_exists
         allocator,
         run.project_id,
     )
-    assert captured["init"] == (service, allocator, legacy, source_delivery)
+    assert captured["init"] == (
+        service,
+        allocator,
+        legacy,
+        source_delivery,
+        engineering_runs._AUTONOMY_REQUEST_MAX_STEPS,
+    )
     assert captured["run"] == {
         "run_id": "run-1",
         "operation_key": "route:composition",
@@ -97,8 +103,8 @@ def test_autonomous_route_preserves_fail_closed_legacy_composition_when_68_is_ab
     captured = {}
 
     class LegacyCoordinator:
-        def __init__(self, svc, executor):
-            captured["init"] = (svc, executor)
+        def __init__(self, svc, executor, *, max_steps=8):
+            captured["init"] = (svc, executor, max_steps)
 
         def run(self, **kwargs):
             captured["run"] = kwargs
@@ -124,6 +130,6 @@ def test_autonomous_route_preserves_fail_closed_legacy_composition_when_68_is_ab
         None,
     )
 
-    assert captured["init"] == (service, legacy)
+    assert captured["init"] == (service, legacy, engineering_runs._AUTONOMY_REQUEST_MAX_STEPS)
     assert captured["run"]["run_id"] == "run-2"
     assert response["stop_reason"] == AutonomyStopReason.IMPLEMENTATION_REQUIRED.value

@@ -1,0 +1,80 @@
+{
+  "architecture_decisions": [
+    "- Preserve the canonical Engineering Run state machine and all existing stage-transition authority."
+  ],
+  "work_items": [
+    "- Preserve the existing durable source-lineage, worker checkpoint, selected-candidate artifact, recovery, validation, delivery and REVIEW contracts."
+  ],
+  "validations": [
+    "- Production `/autonomous` invocations execute at most one protected lifecycle stage before returning authoritative server state to the client.",
+    "AC-01: validate protected requirement — Focused route/runtime tests prove one `/autonomous` invocation can persist no more than one PLAN/IMPLEMENT/BUILD/TEST/VERIFY transition under production composition.",
+    "AC-02: validate protected requirement — A coordinator with `max_steps=1` that advances VERIFY into REVIEW returns `REVIEW_REQUIRED`, allowing the existing verified delivery path to run. Equivalent existing terminal boundaries are classified before `MAX_STEPS_REACHED`.",
+    "AC-03: validate protected requirement — Client tests prove `MAX_STEPS_REACHED` causes a next request only from the newly returned authoritative revision, progress state is applied between calls, terminal/human stop reasons stop chaining, and no more than eight requests occur.",
+    "AC-04: validate protected requirement — Implementation-generation tests prove the production DSPy signature/adapter consumes typed acceptance/patch fields, valid structured output becomes the existing `ImplementationProposal`, and invalid typed/schema output fails through sanitized `ModelOutputValidationError` without raw output persistence.",
+    "AC-05: validate protected requirement — Exact ordered acceptance coverage and downstream safe patch/candidate validation remain unchanged; malformed or semantically invalid proposals are still rejected.",
+    "AC-06: validate protected requirement — Focused model-transport tests prove production hosted Gateway models receive a 60-second timeout and zero transport retries, while existing local-development behavior remains intact.",
+    "AC-07: validate protected requirement — Revision conflicts, provider failures, output-validation failures, failed implementation recovery, worker checkpoint authority, source-lineage identity, delivery authority and the REVIEW ceiling retain their existing fail-closed behavior.",
+    "AC-08: validate protected requirement — Protected spec validation, committed DSPy plan validation, applicable API/client tests, Bounded Autonomy, protected promotion evaluation and full exact-head PR gates pass.",
+    "AC-09: validate protected requirement — After exact-source production deployment, a real or bounded production-QA app-building run progresses beyond the previous synchronous model-routing point without a 300-second `/autonomous` timeout. The exact same user run may be resumed when principal access permits; otherwise an equivalent production-bound workload must exercise typed generation and request-to-request continuation. A synthetic unit test alone is insufficient for deployment verification."
+  ],
+  "risks": [
+    "- Production `/autonomous` invocations execute at most one protected lifecycle stage before returning authoritative server state to the client."
+  ],
+  "spec_id": "P2-V0.23.22",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production autonomy is one-stage bounded",
+      "protected_requirement": "Focused route/runtime tests prove one `/autonomous` invocation can persist no more than one PLAN/IMPLEMENT/BUILD/TEST/VERIFY transition under production composition."
+    },
+    {
+      "id": "AC-02",
+      "title": "Step exhaustion preserves real stop boundaries",
+      "protected_requirement": "A coordinator with `max_steps=1` that advances VERIFY into REVIEW returns `REVIEW_REQUIRED`, allowing the existing verified delivery path to run. Equivalent existing terminal boundaries are classified before `MAX_STEPS_REACHED`."
+    },
+    {
+      "id": "AC-03",
+      "title": "Client safely chains authoritative revisions",
+      "protected_requirement": "Client tests prove `MAX_STEPS_REACHED` causes a next request only from the newly returned authoritative revision, progress state is applied between calls, terminal/human stop reasons stop chaining, and no more than eight requests occur."
+    },
+    {
+      "id": "AC-04",
+      "title": "Typed structured generation replaces JSON-as-text",
+      "protected_requirement": "Implementation-generation tests prove the production DSPy signature/adapter consumes typed acceptance/patch fields, valid structured output becomes the existing `ImplementationProposal`, and invalid typed/schema output fails through sanitized `ModelOutputValidationError` without raw output persistence."
+    },
+    {
+      "id": "AC-05",
+      "title": "Strict proposal authority is unchanged",
+      "protected_requirement": "Exact ordered acceptance coverage and downstream safe patch/candidate validation remain unchanged; malformed or semantically invalid proposals are still rejected."
+    },
+    {
+      "id": "AC-06",
+      "title": "Hosted model calls are finitely bounded",
+      "protected_requirement": "Focused model-transport tests prove production hosted Gateway models receive a 60-second timeout and zero transport retries, while existing local-development behavior remains intact."
+    },
+    {
+      "id": "AC-07",
+      "title": "Failure and replay semantics remain truthful",
+      "protected_requirement": "Revision conflicts, provider failures, output-validation failures, failed implementation recovery, worker checkpoint authority, source-lineage identity, delivery authority and the REVIEW ceiling retain their existing fail-closed behavior."
+    },
+    {
+      "id": "AC-08",
+      "title": "Full regression gates pass",
+      "protected_requirement": "Protected spec validation, committed DSPy plan validation, applicable API/client tests, Bounded Autonomy, protected promotion evaluation and full exact-head PR gates pass."
+    },
+    {
+      "id": "AC-09",
+      "title": "Production 504 regression is behaviorally disproven",
+      "protected_requirement": "After exact-source production deployment, a real or bounded production-QA app-building run progresses beyond the previous synchronous model-routing point without a 300-second `/autonomous` timeout. The exact same user run may be resumed when principal access permits; otherwise an equivalent production-bound workload must exercise typed generation and request-to-request continuation. A synthetic unit test alone is insufficient for deployment verification."
+    }
+  ],
+  "critique": [
+    "The production autonomous route `/autonomous` invocation was initiated with a timeout of 300 seconds. The server returned an HTTP 504 error, indicating that the request was not processed within the specified timeout. This release fixes the observed failure at its…"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

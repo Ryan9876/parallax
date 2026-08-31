@@ -74,6 +74,8 @@ def test_request_scoped_oidc_uses_explicit_gateway_endpoint_without_model_rewrit
     assert kwargs == {
         "api_base": "https://ai-gateway.vercel.sh/v1",
         "api_key": "request-oidc-secret",
+        "timeout": 60,
+        "num_retries": 0,
     }
 
 
@@ -242,6 +244,8 @@ def test_request_credential_propagates_through_asyncio_to_thread(monkeypatch: py
     assert lm.kwargs == {
         "api_base": "https://ai-gateway.vercel.sh/v1",
         "api_key": "thread-request-secret",
+        "timeout": 60,
+        "num_retries": 0,
     }
 
 
