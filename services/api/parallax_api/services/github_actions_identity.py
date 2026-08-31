@@ -8,18 +8,26 @@ from jwt import PyJWKClient
 
 GITHUB_ACTIONS_ISSUER = "https://token.actions.githubusercontent.com"
 QA_AUTOMATION_AUDIENCE = "parallax://qa-production"
-QA_AUTOMATION_REPOSITORY = "Ryan9876/parallax"
 QA_AUTOMATION_REF = "refs/heads/main"
+
+QA_AUTOMATION_REPOSITORY = "Ryan9876/parallax-qa"
 QA_AUTOMATION_WORKFLOW_REF = (
+    "Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main"
+)
+
+LEGACY_QA_AUTOMATION_REPOSITORY = "Ryan9876/parallax"
+LEGACY_QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main"
 )
 W8_S2_QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax/.github/workflows/w8-s2-qa-replay.yml@refs/heads/main"
 )
-QA_AUTOMATION_WORKFLOW_REFS = frozenset(
+
+QA_AUTOMATION_TRUSTED_WORKFLOW_PAIRS = frozenset(
     {
-        QA_AUTOMATION_WORKFLOW_REF,
-        W8_S2_QA_AUTOMATION_WORKFLOW_REF,
+        (QA_AUTOMATION_REPOSITORY, QA_AUTOMATION_WORKFLOW_REF),
+        (LEGACY_QA_AUTOMATION_REPOSITORY, LEGACY_QA_AUTOMATION_WORKFLOW_REF),
+        (LEGACY_QA_AUTOMATION_REPOSITORY, W8_S2_QA_AUTOMATION_WORKFLOW_REF),
     }
 )
 QA_AUTOMATION_EMAIL = "parallax.qa.ai@gmail.com"
@@ -65,7 +73,6 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
         ) from exc
 
     required = {
-        "repository": QA_AUTOMATION_REPOSITORY,
         "ref": QA_AUTOMATION_REF,
         "runner_environment": "github-hosted",
     }
@@ -75,8 +82,9 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
                 "GitHub Actions authentication could not be verified"
             )
 
+    repository = str(claims.get("repository") or "")
     workflow_ref = str(claims.get("workflow_ref") or "")
-    if workflow_ref not in QA_AUTOMATION_WORKFLOW_REFS:
+    if (repository, workflow_ref) not in QA_AUTOMATION_TRUSTED_WORKFLOW_PAIRS:
         raise GitHubActionsIdentityError("GitHub Actions authentication could not be verified")
 
     if claims.get("event_name") not in QA_AUTOMATION_EVENTS:
@@ -88,7 +96,7 @@ def verify_github_actions_identity(token: str) -> GitHubActionsIdentity:
 
     actor = str(claims.get("actor") or "").strip() or None
     return GitHubActionsIdentity(
-        repository=QA_AUTOMATION_REPOSITORY,
+        repository=repository,
         workflow_ref=workflow_ref,
         run_id=run_id,
         actor=actor,
