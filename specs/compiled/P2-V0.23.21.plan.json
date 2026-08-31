@@ -1,0 +1,74 @@
+{
+  "architecture_decisions": [
+    "P2-V0.23.20"
+  ],
+  "work_items": [
+    "Remove one production diagnostic blind spot in the W9-S1 empty-greenfield bootstrap without changing repository classification, provider authority, lifecycle state, error semantics, or mutation behavior."
+  ],
+  "validations": [
+    "No changes are required to the provided specification.",
+    "AC-01: validate protected requirement \u2014 A protected authenticated greenfield inspection failure with normalized provider evidence emits `greenfield_repository_inspection_failed` and that exact normalized result code.",
+    "AC-02: validate protected requirement \u2014 Raw exception text, token-like values, provider bodies and arbitrary external strings are absent from the diagnostic.",
+    "AC-03: validate protected requirement \u2014 An inspection exception without protected normalized provider evidence emits only `UNCLASSIFIED_PROVIDER_FAILURE`.",
+    "AC-04: validate protected requirement \u2014 `REPOSITORY_AUTHORIZATION_REQUIRED` still produces the existing structured retry-safe 503 contract.",
+    "AC-05: validate protected requirement \u2014 Non-authorization inspection failures still preserve/rethrow the original public-source bootstrap failure.",
+    "AC-06: validate protected requirement \u2014 Provider capabilities, credential scopes, greenfield proof rules, lineage initialization, Git/deployment authority, REVIEW ceiling and pre-REVIEW mutation behavior are unchanged.",
+    "AC-07: validate protected requirement \u2014 Focused tests prove AC-01 through AC-05, and the full API/protected release gates remain green.",
+    "AC-08: validate protected requirement \u2014 After exact-source production deployment, a bounded replay against still-empty `Ryan9876/parallax-qa1` captures the normalized authenticated inspection result code without mutating the target. That evidence determines the next #442 action; it does not itself satisfy canonical greenfield acceptance."
+  ],
+  "risks": [
+    "No material risk and mitigation is necessary."
+  ],
+  "spec_id": "P2-V0.23.21",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Normalized provider result is observable",
+      "protected_requirement": "A protected authenticated greenfield inspection failure with normalized provider evidence emits `greenfield_repository_inspection_failed` and that exact normalized result code."
+    },
+    {
+      "id": "AC-02",
+      "title": "No raw provider leakage",
+      "protected_requirement": "Raw exception text, token-like values, provider bodies and arbitrary external strings are absent from the diagnostic."
+    },
+    {
+      "id": "AC-03",
+      "title": "Unknown failures are bounded",
+      "protected_requirement": "An inspection exception without protected normalized provider evidence emits only `UNCLASSIFIED_PROVIDER_FAILURE`."
+    },
+    {
+      "id": "AC-04",
+      "title": "Authorization behavior is unchanged",
+      "protected_requirement": "`REPOSITORY_AUTHORIZATION_REQUIRED` still produces the existing structured retry-safe 503 contract."
+    },
+    {
+      "id": "AC-05",
+      "title": "Generic outward behavior is unchanged",
+      "protected_requirement": "Non-authorization inspection failures still preserve/rethrow the original public-source bootstrap failure."
+    },
+    {
+      "id": "AC-06",
+      "title": "No authority or mutation change",
+      "protected_requirement": "Provider capabilities, credential scopes, greenfield proof rules, lineage initialization, Git/deployment authority, REVIEW ceiling and pre-REVIEW mutation behavior are unchanged."
+    },
+    {
+      "id": "AC-07",
+      "title": "Regression coverage",
+      "protected_requirement": "Focused tests prove AC-01 through AC-05, and the full API/protected release gates remain green."
+    },
+    {
+      "id": "AC-08",
+      "title": "Production diagnosis",
+      "protected_requirement": "After exact-source production deployment, a bounded replay against still-empty `Ryan9876/parallax-qa1` captures the normalized authenticated inspection result code without mutating the target. That evidence determines the next #442 action; it does not itself satisfy canonical greenfield acceptance."
+    }
+  ],
+  "critique": [
+    "No material implementation risk or omission identified."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
