@@ -5,6 +5,7 @@ from pathlib import Path
 
 import parallax_api.code.agentic_runtime as runtime
 from parallax_api.code.agentic_runtime import VercelCandidateValidationExecutor
+from parallax_api.code.validation_toolchains import select_validation_profile
 from parallax_api.code.dependency_preparation import DependencyPreparationError
 
 
@@ -95,7 +96,12 @@ def test_prepare_failure_returns_bounded_candidate_result_not_http500_path(tmp_p
         )
 
     monkeypatch.setattr(runtime, "run_dependency_preparation", fail_prepare)
-    result = executor.validate_candidate(tmp_path.resolve(), operation_key="qa-prepare-failure")
+    profile = select_validation_profile(tmp_path.resolve())
+    result = executor.validate_candidate(
+        tmp_path.resolve(),
+        operation_key="qa-prepare-failure",
+        validation_profile=profile,
+    )
 
     assert result.passed is False
     assert len(result.stage_evidence) == 1

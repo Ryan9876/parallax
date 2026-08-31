@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from parallax_api.code.agentic_runtime import VercelCandidateValidationExecutor
+from parallax_api.code.validation_toolchains import select_validation_profile
 from parallax_api.execution_environment import (
     DEFAULT_EXECUTION_SNAPSHOT_ID,
     DOTNET_EXECUTION_SNAPSHOT_ENV,
@@ -58,7 +59,12 @@ def test_dotnet_candidate_missing_snapshot_fails_before_sandbox_creation(tmp_pat
         raise AssertionError("sandbox SDK must not be reached without a qualified .NET snapshot")
 
     executor._sdk = unexpected_sdk_call
-    result = executor.validate_candidate(tmp_path.resolve(), operation_key="qa-missing-dotnet-snapshot")
+    profile = select_validation_profile(tmp_path.resolve())
+    result = executor.validate_candidate(
+        tmp_path.resolve(),
+        operation_key="qa-missing-dotnet-snapshot",
+        validation_profile=profile,
+    )
 
     assert result.passed is False
     assert result.validation_profile_id == "dotnet-v1"
