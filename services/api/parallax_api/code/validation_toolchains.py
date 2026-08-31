@@ -11,14 +11,49 @@ from .execution import ExecutionPolicyError, ExecutionSpec
 from .sandbox_execution import ProtectedCommandRegistry, RegisteredCommand
 
 
+class ValidationProfileReason(StrEnum):
+    UNSUPPORTED_VALIDATION_ECOSYSTEM = "UNSUPPORTED_VALIDATION_ECOSYSTEM"
+    AMBIGUOUS_VALIDATION_ECOSYSTEM = "AMBIGUOUS_VALIDATION_ECOSYSTEM"
+    AMBIGUOUS_DOTNET_TARGET = "AMBIGUOUS_DOTNET_TARGET"
+    PYTHON_FIXED_VALIDATION_UNAVAILABLE = "PYTHON_FIXED_VALIDATION_UNAVAILABLE"
+    NODE_FIXED_VALIDATION_UNAVAILABLE = "NODE_FIXED_VALIDATION_UNAVAILABLE"
+    EXECUTION_CONTRACT_DRIFT = "EXECUTION_CONTRACT_DRIFT"
+    EXECUTION_CONTRACT_UNAVAILABLE = "EXECUTION_CONTRACT_UNAVAILABLE"
+    EXECUTION_SNAPSHOT_UNAVAILABLE = "EXECUTION_SNAPSHOT_UNAVAILABLE"
+    INVALID_VALIDATION_PROFILE = "INVALID_VALIDATION_PROFILE"
+    INVALID_VALIDATION_TARGET = "INVALID_VALIDATION_TARGET"
+
+
 class ValidationProfileError(ExecutionPolicyError):
-    pass
+    def __init__(
+        self,
+        code: ValidationProfileReason | str,
+        message: str | None = None,
+    ) -> None:
+        raw = code.value if isinstance(code, ValidationProfileReason) else str(code)
+        try:
+            self.code = ValidationProfileReason(raw)
+        except ValueError:
+            self.code = ValidationProfileReason.INVALID_VALIDATION_PROFILE
+        super().__init__(message or raw)
 
 
 class ValidationProfileCode(StrEnum):
     PYTHON = "python-v1"
     DOTNET = "dotnet-v1"
     NODE = "node-v1"
+
+
+class ExecutionContractCode(StrEnum):
+    PARALLAX_PYTHON = "parallax-python-v1"
+    DOTNET = "dotnet-v1"
+    STATIC_WEB = "static-web-v1"
+
+
+class ExecutionBindingReason(StrEnum):
+    EXISTING_PARALLAX_PYTHON = "EXISTING_PARALLAX_PYTHON"
+    EXISTING_DOTNET = "EXISTING_DOTNET"
+    GREENFIELD_STATIC_WEB = "GREENFIELD_STATIC_WEB"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +115,10 @@ class ValidationProfile:
         for command in self.commands:
             if command.stage is stage:
                 return command
-        raise ValidationProfileError(f"validation profile has no command for {stage.value}")
+        raise ValidationProfileError(
+            ValidationProfileReason.INVALID_VALIDATION_PROFILE,
+            f"validation profile has no command for {stage.value}",
+        )
 
     def spec_for(self, stage: WorkflowStage, *, operation_key: str) -> ExecutionSpec:
         command = self.command_for(stage)
@@ -99,12 +137,43 @@ class ValidationProfile:
         return command.command, command.args
 
 
+@dataclass(frozen=True, slots=True)
+class ExecutionContract:
+    contract_id: ExecutionContractCode
+    binding_reason: ExecutionBindingReason
+    validation_profile: ValidationProfile
+
+    @property
+    def target(self) -> str | None:
+        return self.validation_profile.target
+
+    @property
+    def digest(self) -> str:
+        payload = {
+            "contract_id": self.contract_id.value,
+            "binding_reason": self.binding_reason.value,
+            "validation_profile_id": self.validation_profile.profile_id.value,
+            "validation_profile_digest": self.validation_profile.digest,
+            "target": self.target,
+        }
+        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def _safe_relative(path: Path, root: Path) -> str:
     relative = path.relative_to(root).as_posix()
-    pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
-        raise ValidationProfileError("validation target path is unsafe")
-    return relative
+    return _validate_bound_target(relative)
+
+
+def _validate_bound_target(target: str) -> str:
+    pure = PurePosixPath(target)
+    if (
+        pure.is_absolute()
+        or not pure.parts
+        or any(part in {"", ".", ".."} for part in pure.parts)
+        or pure.suffix.casefold() not in {".sln", ".csproj"}
+    ):
+        raise ValidationProfileError(ValidationProfileReason.INVALID_VALIDATION_TARGET)
+    return pure.as_posix()
 
 
 def _root_files(root: Path, pattern: str) -> tuple[Path, ...]:
@@ -119,14 +188,14 @@ def _is_regular_dir(path: Path) -> bool:
     return path.is_dir() and not path.is_symlink()
 
 
-def _is_established_parallax_python_root(root: Path) -> bool:
-    """Recognize only the source shape covered by the legacy protected commands.
+def _validate_root(root: Path) -> Path:
+    if not root.is_absolute() or root.is_symlink() or not root.is_dir():
+        raise ValidationProfileError(ValidationProfileReason.INVALID_VALIDATION_PROFILE)
+    return root.resolve(strict=True)
 
-    Parallax is deliberately a mixed Python/Node repository. Root-level
-    `package.json` must therefore not turn its existing protected Python
-    validation into Node or ambiguity. Generic Python admission remains a
-    separately governed future profile.
-    """
+
+def _is_established_parallax_python_root(root: Path) -> bool:
+    """Recognize only the source shape covered by the legacy protected commands."""
 
     return (
         _is_regular_file(root / "services/api/pyproject.toml")
@@ -156,97 +225,202 @@ def _legacy_parallax_commands() -> tuple[RegisteredCommand, ...]:
     return tuple(commands)
 
 
-def select_validation_profile(root: Path) -> ValidationProfile:
-    """Select one immutable server-owned validation profile from source shape.
+def _parallax_python_profile() -> ValidationProfile:
+    return ValidationProfile(
+        profile_id=ValidationProfileCode.PYTHON,
+        ecosystem="python",
+        root=".",
+        target=None,
+        commands=_legacy_parallax_commands(),
+    )
 
-    File names and bounded paths are evidence only. Repository file contents,
-    scripts, model output, and user text never become executable command text.
-    """
 
-    if not root.is_absolute() or root.is_symlink() or not root.is_dir():
-        raise ValidationProfileError("validation workspace root is invalid")
-    resolved = root.resolve(strict=True)
+def _dotnet_profile(target: str) -> ValidationProfile:
+    target = _validate_bound_target(target)
+    common = (target, "--no-restore", "--nologo")
+    return ValidationProfile(
+        profile_id=ValidationProfileCode.DOTNET,
+        ecosystem="dotnet",
+        root=".",
+        target=target,
+        preparation=PreparationCommand(
+            tool_id="dotnet-restore",
+            probe_command="dotnet",
+            probe_args=("--info",),
+            probe_timeout_seconds=30,
+            command="dotnet",
+            args=("restore", target, "--nologo"),
+            working_directory=".",
+            timeout_seconds=300,
+            package_domains=("api.nuget.org", "globalcdn.nuget.org"),
+        ),
+        commands=(
+            RegisteredCommand(WorkflowStage.BUILD, "build", "dotnet", ("build", *common), timeout_seconds=300),
+            RegisteredCommand(
+                WorkflowStage.TEST,
+                "test",
+                "dotnet",
+                ("test", target, "--no-restore", "--nologo"),
+                timeout_seconds=300,
+            ),
+            RegisteredCommand(
+                WorkflowStage.VERIFY,
+                "verify",
+                "dotnet",
+                ("test", target, "--no-restore", "--nologo"),
+                timeout_seconds=300,
+            ),
+        ),
+    )
 
-    if _is_established_parallax_python_root(resolved):
-        return ValidationProfile(
-            profile_id=ValidationProfileCode.PYTHON,
-            ecosystem="python",
-            root=".",
-            target=None,
-            commands=_legacy_parallax_commands(),
+
+def _static_web_profile() -> ValidationProfile:
+    validator = "/vercel/parallax-validator/static_web_validator.py"
+    source_root = "/vercel/sandbox"
+    commands = tuple(
+        RegisteredCommand(
+            stage=stage,
+            tool_id={
+                WorkflowStage.BUILD: "build",
+                WorkflowStage.TEST: "test",
+                WorkflowStage.VERIFY: "verify",
+            }[stage],
+            command="python",
+            args=(validator, stage.value, source_root),
+            working_directory=".",
+            timeout_seconds=60,
         )
+        for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)
+    )
+    return ValidationProfile(
+        profile_id=ValidationProfileCode.NODE,
+        ecosystem="static-web",
+        root=".",
+        target=None,
+        commands=commands,
+    )
 
-    root_solutions = _root_files(resolved, "*.sln")
-    root_projects = _root_files(resolved, "*.csproj")
+
+def _source_shape(root: Path) -> tuple[tuple[Path, ...], tuple[Path, ...], tuple[Path, ...], bool]:
+    root_solutions = _root_files(root, "*.sln")
+    root_projects = _root_files(root, "*.csproj")
     python_markers = tuple(
         path
         for name in ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
-        if _is_regular_file(path := resolved / name)
+        if _is_regular_file(path := root / name)
     )
-    node_marker = resolved / "package.json"
-    has_node = _is_regular_file(node_marker)
+    return root_solutions, root_projects, python_markers, _is_regular_file(root / "package.json")
 
+
+def _dotnet_target(root: Path, root_solutions: tuple[Path, ...], root_projects: tuple[Path, ...]) -> str:
+    if len(root_solutions) > 1:
+        raise ValidationProfileError(ValidationProfileReason.AMBIGUOUS_DOTNET_TARGET)
+    if root_solutions:
+        return _safe_relative(root_solutions[0], root)
+    if len(root_projects) == 1:
+        return _safe_relative(root_projects[0], root)
+    raise ValidationProfileError(ValidationProfileReason.AMBIGUOUS_DOTNET_TARGET)
+
+
+def select_validation_profile(root: Path) -> ValidationProfile:
+    """Legacy source-shape selector retained for already governed profile consumers.
+
+    Greenfield admission deliberately remains unsupported here. P2-V0.23.31
+    binds greenfield execution through `bind_execution_contract` during PLAN so
+    candidate validation never infers authority from candidate source.
+    """
+
+    resolved = _validate_root(root)
+    if _is_established_parallax_python_root(resolved):
+        return _parallax_python_profile()
+
+    root_solutions, root_projects, python_markers, has_node = _source_shape(resolved)
     ecosystems = int(bool(root_solutions or root_projects)) + int(bool(python_markers)) + int(has_node)
     if ecosystems == 0:
-        raise ValidationProfileError("UNSUPPORTED_VALIDATION_ECOSYSTEM")
+        raise ValidationProfileError(ValidationProfileReason.UNSUPPORTED_VALIDATION_ECOSYSTEM)
     if ecosystems > 1:
-        raise ValidationProfileError("AMBIGUOUS_VALIDATION_ECOSYSTEM")
-
+        raise ValidationProfileError(ValidationProfileReason.AMBIGUOUS_VALIDATION_ECOSYSTEM)
     if root_solutions or root_projects:
-        if len(root_solutions) > 1:
-            raise ValidationProfileError("AMBIGUOUS_DOTNET_TARGET")
-        if root_solutions:
-            target = _safe_relative(root_solutions[0], resolved)
-        elif len(root_projects) == 1:
-            target = _safe_relative(root_projects[0], resolved)
-        else:
-            raise ValidationProfileError("AMBIGUOUS_DOTNET_TARGET")
-        common = (target, "--no-restore", "--nologo")
-        return ValidationProfile(
-            profile_id=ValidationProfileCode.DOTNET,
-            ecosystem="dotnet",
-            root=".",
-            target=target,
-            preparation=PreparationCommand(
-                tool_id="dotnet-restore",
-                probe_command="dotnet",
-                probe_args=("--info",),
-                probe_timeout_seconds=30,
-                command="dotnet",
-                args=("restore", target, "--nologo"),
-                working_directory=".",
-                timeout_seconds=300,
-                package_domains=("api.nuget.org", "globalcdn.nuget.org"),
-            ),
-            commands=(
-                RegisteredCommand(WorkflowStage.BUILD, "build", "dotnet", ("build", *common), timeout_seconds=300),
-                RegisteredCommand(
-                    WorkflowStage.TEST,
-                    "test",
-                    "dotnet",
-                    ("test", target, "--no-restore", "--nologo"),
-                    timeout_seconds=300,
-                ),
-                RegisteredCommand(
-                    WorkflowStage.VERIFY,
-                    "verify",
-                    "dotnet",
-                    ("test", target, "--no-restore", "--nologo"),
-                    timeout_seconds=300,
-                ),
-            ),
+        return _dotnet_profile(_dotnet_target(resolved, root_solutions, root_projects))
+    if python_markers:
+        raise ValidationProfileError(ValidationProfileReason.PYTHON_FIXED_VALIDATION_UNAVAILABLE)
+    raise ValidationProfileError(ValidationProfileReason.NODE_FIXED_VALIDATION_UNAVAILABLE)
+
+
+def bind_execution_contract(root: Path) -> ExecutionContract:
+    """Bind execution authority once from accepted source before IMPLEMENT."""
+
+    resolved = _validate_root(root)
+    if _is_established_parallax_python_root(resolved):
+        return ExecutionContract(
+            contract_id=ExecutionContractCode.PARALLAX_PYTHON,
+            binding_reason=ExecutionBindingReason.EXISTING_PARALLAX_PYTHON,
+            validation_profile=_parallax_python_profile(),
         )
 
+    root_solutions, root_projects, python_markers, has_node = _source_shape(resolved)
+    ecosystems = int(bool(root_solutions or root_projects)) + int(bool(python_markers)) + int(has_node)
+    if ecosystems == 0:
+        return ExecutionContract(
+            contract_id=ExecutionContractCode.STATIC_WEB,
+            binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB,
+            validation_profile=_static_web_profile(),
+        )
+    if ecosystems > 1:
+        raise ValidationProfileError(ValidationProfileReason.AMBIGUOUS_VALIDATION_ECOSYSTEM)
+    if root_solutions or root_projects:
+        return ExecutionContract(
+            contract_id=ExecutionContractCode.DOTNET,
+            binding_reason=ExecutionBindingReason.EXISTING_DOTNET,
+            validation_profile=_dotnet_profile(_dotnet_target(resolved, root_solutions, root_projects)),
+        )
     if python_markers:
-        raise ValidationProfileError("PYTHON_FIXED_VALIDATION_UNAVAILABLE")
+        raise ValidationProfileError(ValidationProfileReason.PYTHON_FIXED_VALIDATION_UNAVAILABLE)
+    raise ValidationProfileError(ValidationProfileReason.NODE_FIXED_VALIDATION_UNAVAILABLE)
 
-    raise ValidationProfileError("NODE_FIXED_VALIDATION_UNAVAILABLE")
+
+def resolve_execution_contract(
+    contract_id: str,
+    *,
+    binding_reason: str,
+    target: str | None,
+) -> ExecutionContract:
+    """Resolve only a previously bound closed-catalog contract; never inspect source."""
+
+    try:
+        code = ExecutionContractCode(contract_id)
+        reason = ExecutionBindingReason(binding_reason)
+    except ValueError as exc:
+        raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE) from exc
+
+    if code is ExecutionContractCode.PARALLAX_PYTHON:
+        if reason is not ExecutionBindingReason.EXISTING_PARALLAX_PYTHON or target is not None:
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        profile = _parallax_python_profile()
+    elif code is ExecutionContractCode.DOTNET:
+        if reason is not ExecutionBindingReason.EXISTING_DOTNET or not isinstance(target, str):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        profile = _dotnet_profile(target)
+    elif code is ExecutionContractCode.STATIC_WEB:
+        if reason is not ExecutionBindingReason.GREENFIELD_STATIC_WEB or target is not None:
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        profile = _static_web_profile()
+    else:  # pragma: no cover - StrEnum exhaustiveness
+        raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE)
+
+    return ExecutionContract(code, reason, profile)
 
 
 __all__ = [
+    "ExecutionBindingReason",
+    "ExecutionContract",
+    "ExecutionContractCode",
     "PreparationCommand",
     "ValidationProfile",
     "ValidationProfileCode",
     "ValidationProfileError",
+    "ValidationProfileReason",
+    "bind_execution_contract",
+    "resolve_execution_contract",
     "select_validation_profile",
 ]
