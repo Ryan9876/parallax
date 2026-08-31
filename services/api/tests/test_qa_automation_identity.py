@@ -6,6 +6,14 @@ from parallax_api.services import github_actions_identity as identity
 
 
 TOKEN = "x" * 64
+LEGACY_REPOSITORY = "Ryan9876/parallax"
+LEGACY_REPOSITORY_ID = "1340272514"
+LEGACY_QA_WORKFLOW_REF = (
+    "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main"
+)
+LEGACY_W8_S2_WORKFLOW_REF = (
+    "Ryan9876/parallax/.github/workflows/w8-s2-qa-replay.yml@refs/heads/main"
+)
 
 
 def _claims(**overrides):
@@ -64,36 +72,33 @@ def test_accepts_exact_dedicated_qa_main_push_workflow(monkeypatch):
     assert result.workflow_ref == identity.QA_AUTOMATION_WORKFLOW_REF
 
 
-def test_temporarily_accepts_legacy_application_qa_workflow(monkeypatch):
+def test_standing_trust_contains_only_dedicated_repository_tuple():
+    assert identity.QA_AUTOMATION_TRUSTED_WORKFLOW_IDENTITIES == frozenset(
+        {
+            (
+                identity.QA_AUTOMATION_REPOSITORY,
+                identity.QA_AUTOMATION_REPOSITORY_ID,
+                identity.QA_AUTOMATION_WORKFLOW_REF,
+            )
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "workflow_ref",
+    [LEGACY_QA_WORKFLOW_REF, LEGACY_W8_S2_WORKFLOW_REF],
+)
+def test_rejects_retired_application_qa_workflows(monkeypatch, workflow_ref):
     _install_valid_decode(
         monkeypatch,
-        repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
-        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
-        workflow_ref=identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF,
+        repository=LEGACY_REPOSITORY,
+        repository_id=LEGACY_REPOSITORY_ID,
+        workflow_ref=workflow_ref,
         event_name="push",
     )
 
-    result = identity.verify_github_actions_identity(TOKEN)
-
-    assert result.repository == identity.LEGACY_QA_AUTOMATION_REPOSITORY
-    assert result.repository_id == identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID
-    assert result.workflow_ref == identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF
-
-
-def test_temporarily_accepts_legacy_w8_s2_workflow(monkeypatch):
-    _install_valid_decode(
-        monkeypatch,
-        repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
-        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
-        workflow_ref=identity.W8_S2_QA_AUTOMATION_WORKFLOW_REF,
-        event_name="push",
-    )
-
-    result = identity.verify_github_actions_identity(TOKEN)
-
-    assert result.repository == identity.LEGACY_QA_AUTOMATION_REPOSITORY
-    assert result.repository_id == identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID
-    assert result.workflow_ref == identity.W8_S2_QA_AUTOMATION_WORKFLOW_REF
+    with pytest.raises(identity.GitHubActionsIdentityError):
+        identity.verify_github_actions_identity(TOKEN)
 
 
 @pytest.mark.parametrize(
@@ -102,11 +107,11 @@ def test_temporarily_accepts_legacy_w8_s2_workflow(monkeypatch):
         (
             identity.QA_AUTOMATION_REPOSITORY,
             identity.QA_AUTOMATION_REPOSITORY_ID,
-            identity.LEGACY_QA_AUTOMATION_WORKFLOW_REF,
+            LEGACY_QA_WORKFLOW_REF,
         ),
         (
-            identity.LEGACY_QA_AUTOMATION_REPOSITORY,
-            identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
+            LEGACY_REPOSITORY,
+            LEGACY_REPOSITORY_ID,
             identity.QA_AUTOMATION_WORKFLOW_REF,
         ),
         (
@@ -154,8 +159,8 @@ def test_rejects_missing_repository_id(monkeypatch, repository_id):
 def test_rejects_retired_p2314_production_retry_workflow(monkeypatch):
     _install_valid_decode(
         monkeypatch,
-        repository=identity.LEGACY_QA_AUTOMATION_REPOSITORY,
-        repository_id=identity.LEGACY_QA_AUTOMATION_REPOSITORY_ID,
+        repository=LEGACY_REPOSITORY,
+        repository_id=LEGACY_REPOSITORY_ID,
         workflow_ref=(
             "Ryan9876/parallax/.github/workflows/"
             "qa-p2313-production-retry.yml@refs/heads/main"
