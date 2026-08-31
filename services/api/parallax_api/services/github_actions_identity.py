@@ -16,31 +16,12 @@ QA_AUTOMATION_WORKFLOW_REF = (
     "Ryan9876/parallax-qa/.github/workflows/production-replay.yml@refs/heads/main"
 )
 
-LEGACY_QA_AUTOMATION_REPOSITORY = "Ryan9876/parallax"
-LEGACY_QA_AUTOMATION_REPOSITORY_ID = "1340272514"
-LEGACY_QA_AUTOMATION_WORKFLOW_REF = (
-    "Ryan9876/parallax/.github/workflows/qa-production-replay.yml@refs/heads/main"
-)
-W8_S2_QA_AUTOMATION_WORKFLOW_REF = (
-    "Ryan9876/parallax/.github/workflows/w8-s2-qa-replay.yml@refs/heads/main"
-)
-
 QA_AUTOMATION_TRUSTED_WORKFLOW_IDENTITIES = frozenset(
     {
         (
             QA_AUTOMATION_REPOSITORY,
             QA_AUTOMATION_REPOSITORY_ID,
             QA_AUTOMATION_WORKFLOW_REF,
-        ),
-        (
-            LEGACY_QA_AUTOMATION_REPOSITORY,
-            LEGACY_QA_AUTOMATION_REPOSITORY_ID,
-            LEGACY_QA_AUTOMATION_WORKFLOW_REF,
-        ),
-        (
-            LEGACY_QA_AUTOMATION_REPOSITORY,
-            LEGACY_QA_AUTOMATION_REPOSITORY_ID,
-            W8_S2_QA_AUTOMATION_WORKFLOW_REF,
         ),
     }
 )
