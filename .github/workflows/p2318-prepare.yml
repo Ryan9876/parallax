@@ -19,67 +19,15 @@ jobs:
         with:
           ref: fix/p2318-canonicalize-model-patches
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
       - name: Patch authoritative architecture
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          path = Path('ARCHITECTURE.md')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('Version: 3.29', 'Version: 3.30', 1)
-
-          note = (
-              'Architecture v3.30 inserts a server-owned exact patch-intent canonicalization boundary before the existing strict safe patch verifier. '
-              'Provider-successful model proposals may recover mechanical unified-diff metadata only when source-consuming context/deletion records match exact current protected source at the declared location or at one unique admissible non-overlapping location. '
-              'When every existing-file hunk is exact-source anchored, an incorrect model-supplied base digest may also be replaced with the server-derived SHA-256 of that current protected target; unanchored pure insertions cannot use digest repair. '
-              'Pure insertions remain coordinate-anchored, new-file recovery remains addition-only with `/dev/null` semantics and the server-owned empty digest, and every recovered diff is re-parsed by the unchanged strict `TextPatchEngine` before disposable validation or canonical mutation. '
-              'No fuzzy matching, semantic patching, shell/Git/network application, retry-budget expansion, source-lineage authority, deployment authority, or REVIEW authority is added. Architecture v3.29 remains the dedicated stable-repository-ID production-QA trust boundary.'
-          )
-          pattern = r'(## Version relationship\n\n)Architecture v3\.30.*?(?=\n\nArchitecture v3\.29)'
-          if re.search(pattern, text, flags=re.S):
-              text = re.sub(pattern, lambda m: m.group(1) + note, text, count=1, flags=re.S)
-          else:
-              anchor = '## Version relationship\n\n'
-              if anchor not in text:
-                  raise SystemExit('version relationship anchor missing')
-              text = text.replace(anchor, anchor + note + '\n\n', 1)
-
-          section = '''## Server-owned exact model patch canonicalization
-
-Architecture v3.30 keeps model output non-authoritative while reducing false rejection caused by mechanical source-patch reproduction. The ordinary strict patch engine remains the final verifier and committer. A canonicalization attempt occurs only after strict preparation fails for unified-diff format, exact-position conflict, or a model-supplied base-digest mismatch. Unsafe targets, secret-sensitive paths/content, unsupported extensions, symlinks, missing parents, byte limits and other protected failures are never repaired.
-
-For an existing target, each hunk's complete source-consuming record sequence (context plus deletions, in order) must equal current protected UTF-8 source exactly. If the model-declared old position is an exact match, that location is used. Otherwise the complete sequence must have exactly one admissible non-overlapping exact match after prior hunks. Zero matches and multiple matches fail closed. There is no edit-distance, whitespace-normalized, semantic, AST, fuzzy, approximate or model-assisted matching. A pure insertion has no source text anchor and therefore remains bound to its declared old position.
-
-The model-provided base digest is a strict-path assertion rather than unique source authority. If it is wrong, Parallax may substitute the server-derived SHA-256 of the current protected target only after every existing-file hunk proves exact source-consuming anchors. If any existing-file hunk is an unanchored pure insertion, stale model digest recovery is rejected. For a new target, recovery requires `/dev/null` old-file semantics and one addition-only hunk and uses the fixed server-owned SHA-256 of empty content. Target/path/extension/parent/secret/size rules remain unchanged. Git-style prologue metadata may be discarded only when its exact a/b paths match the separately declared safe target; deletion, rename and mode-change intent are rejected.
-
-After exact intent and any permitted authoritative base digest are established, Parallax generates canonical single-file headers and hunk positions/counts and submits that patch back through the unchanged `TextPatchEngine`. Only that second strict parse can produce a `PreparedPatch`. Canonicalization performs no filesystem mutation, shell execution, Git operation, network call, source-lineage acceptance, provider action or lifecycle transition. Accepted source still has one canonical writer and the ordinary disposable BUILD/TEST/VERIFY and REVIEW ceilings remain authoritative.
-
-'''
-          section_pattern = r'## Server-owned exact model patch canonicalization\n\n.*?(?=## Source authority is independent from deployment authority\n)'
-          if re.search(section_pattern, text, flags=re.S):
-              text = re.sub(section_pattern, section, text, count=1, flags=re.S)
-          else:
-              anchor = '## Source authority is independent from deployment authority\n'
-              if anchor not in text:
-                  raise SystemExit('architecture section anchor missing')
-              text = text.replace(anchor, section + anchor, 1)
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
+        run: python -c "import base64; exec(base64.b64decode('CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAppbXBvcnQgcmUKCnBhdGggPSBQYXRoKCJBUkNISVRFQ1RVUkUubWQiKQp0ZXh0ID0gcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKdGV4dCA9IHRleHQucmVwbGFjZSgiVmVyc2lvbjogMy4yOSIsICJWZXJzaW9uOiAzLjMwIiwgMSkKCm5vdGUgPSAoCiAgICAiQXJjaGl0ZWN0dXJlIHYzLjMwIGluc2VydHMgYSBzZXJ2ZXItb3duZWQgZXhhY3QgcGF0Y2gtaW50ZW50IGNhbm9uaWNhbGl6YXRpb24gYm91bmRhcnkgYmVmb3JlIHRoZSBleGlzdGluZyBzdHJpY3Qgc2FmZSBwYXRjaCB2ZXJpZmllci4gIgogICAgIlByb3ZpZGVyLXN1Y2Nlc3NmdWwgbW9kZWwgcHJvcG9zYWxzIG1heSByZWNvdmVyIG1lY2hhbmljYWwgdW5pZmllZC1kaWZmIG1ldGFkYXRhIG9ubHkgd2hlbiBzb3VyY2UtY29uc3VtaW5nIGNvbnRleHQvZGVsZXRpb24gcmVjb3JkcyBtYXRjaCBleGFjdCBjdXJyZW50IHByb3RlY3RlZCBzb3VyY2UgYXQgdGhlIGRlY2xhcmVkIGxvY2F0aW9uIG9yIGF0IG9uZSB1bmlxdWUgYWRtaXNzaWJsZSBub24tb3ZlcmxhcHBpbmcgbG9jYXRpb24uICIKICAgICJXaGVuIGV2ZXJ5IGV4aXN0aW5nLWZpbGUgaHVuayBpcyBleGFjdC1zb3VyY2UgYW5jaG9yZWQsIGFuIGluY29ycmVjdCBtb2RlbC1zdXBwbGllZCBiYXNlIGRpZ2VzdCBtYXkgYWxzbyBiZSByZXBsYWNlZCB3aXRoIHRoZSBzZXJ2ZXItZGVyaXZlZCBTSEEtMjU2IG9mIHRoYXQgY3VycmVudCBwcm90ZWN0ZWQgdGFyZ2V0OyB1bmFuY2hvcmVkIHB1cmUgaW5zZXJ0aW9ucyBjYW5ub3QgdXNlIGRpZ2VzdCByZXBhaXIuICIKICAgICJQdXJlIGluc2VydGlvbnMgcmVtYWluIGNvb3JkaW5hdGUtYW5jaG9yZWQsIG5ldy1maWxlIHJlY292ZXJ5IHJlbWFpbnMgYWRkaXRpb24tb25seSB3aXRoIGAvZGV2L251bGxgIHNlbWFudGljcyBhbmQgdGhlIHNlcnZlci1vd25lZCBlbXB0eSBkaWdlc3QsIGFuZCBldmVyeSByZWNvdmVyZWQgZGlmZiBpcyByZS1wYXJzZWQgYnkgdGhlIHVuY2hhbmdlZCBzdHJpY3QgYFRleHRQYXRjaEVuZ2luZWAgYmVmb3JlIGRpc3Bvc2FibGUgdmFsaWRhdGlvbiBvciBjYW5vbmljYWwgbXV0YXRpb24uICIKICAgICJObyBmdXp6eSBtYXRjaGluZywgc2VtYW50aWMgcGF0Y2hpbmcsIHNoZWxsL0dpdC9uZXR3b3JrIGFwcGxpY2F0aW9uLCByZXRyeS1idWRnZXQgZXhwYW5zaW9uLCBzb3VyY2UtbGluZWFnZSBhdXRob3JpdHksIGRlcGxveW1lbnQgYXV0aG9yaXR5LCBvciBSRVZJRVcgYXV0aG9yaXR5IGlzIGFkZGVkLiBBcmNoaXRlY3R1cmUgdjMuMjkgcmVtYWlucyB0aGUgZGVkaWNhdGVkIHN0YWJsZS1yZXBvc2l0b3J5LUlEIHByb2R1Y3Rpb24tUUEgdHJ1c3QgYm91bmRhcnkuIgopCnBhdHRlcm4gPSByIigjIyBWZXJzaW9uIHJlbGF0aW9uc2hpcFxuXG4pQXJjaGl0ZWN0dXJlIHYzXC4zMC4qPyg/PVxuXG5BcmNoaXRlY3R1cmUgdjNcLjI5KSIKaWYgcmUuc2VhcmNoKHBhdHRlcm4sIHRleHQsIGZsYWdzPXJlLlMpOgogICAgdGV4dCA9IHJlLnN1YihwYXR0ZXJuLCBsYW1iZGEgbTogbS5ncm91cCgxKSArIG5vdGUsIHRleHQsIGNvdW50PTEsIGZsYWdzPXJlLlMpCmVsc2U6CiAgICBhbmNob3IgPSAiIyMgVmVyc2lvbiByZWxhdGlvbnNoaXBcblxuIgogICAgaWYgYW5jaG9yIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoInZlcnNpb24gcmVsYXRpb25zaGlwIGFuY2hvciBtaXNzaW5nIikKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2UoYW5jaG9yLCBhbmNob3IgKyBub3RlICsgIlxuXG4iLCAxKQoKc2VjdGlvbiA9ICIiIiMjIFNlcnZlci1vd25lZCBleGFjdCBtb2RlbCBwYXRjaCBjYW5vbmljYWxpemF0aW9uCgpBcmNoaXRlY3R1cmUgdjMuMzAga2VlcHMgbW9kZWwgb3V0cHV0IG5vbi1hdXRob3JpdGF0aXZlIHdoaWxlIHJlZHVjaW5nIGZhbHNlIHJlamVjdGlvbiBjYXVzZWQgYnkgbWVjaGFuaWNhbCBzb3VyY2UtcGF0Y2ggcmVwcm9kdWN0aW9uLiBUaGUgb3JkaW5hcnkgc3RyaWN0IHBhdGNoIGVuZ2luZSByZW1haW5zIHRoZSBmaW5hbCB2ZXJpZmllciBhbmQgY29tbWl0dGVyLiBBIGNhbm9uaWNhbGl6YXRpb24gYXR0ZW1wdCBvY2N1cnMgb25seSBhZnRlciBzdHJpY3QgcHJlcGFyYXRpb24gZmFpbHMgZm9yIHVuaWZpZWQtZGlmZiBmb3JtYXQsIGV4YWN0LXBvc2l0aW9uIGNvbmZsaWN0LCBvciBhIG1vZGVsLXN1cHBsaWVkIGJhc2UtZGlnZXN0IG1pc21hdGNoLiBVbnNhZmUgdGFyZ2V0cywgc2VjcmV0LXNlbnNpdGl2ZSBwYXRocy9jb250ZW50LCB1bnN1cHBvcnRlZCBleHRlbnNpb25zLCBzeW1saW5rcywgbWlzc2luZyBwYXJlbnRzLCBieXRlIGxpbWl0cyBhbmQgb3RoZXIgcHJvdGVjdGVkIGZhaWx1cmVzIGFyZSBuZXZlciByZXBhaXJlZC4KCkZvciBhbiBleGlzdGluZyB0YXJnZXQsIGVhY2ggaHVuaydzIGNvbXBsZXRlIHNvdXJjZS1jb25zdW1pbmcgcmVjb3JkIHNlcXVlbmNlIChjb250ZXh0IHBsdXMgZGVsZXRpb25zLCBpbiBvcmRlcikgbXVzdCBlcXVhbCBjdXJyZW50IHByb3RlY3RlZCBVVEYtOCBzb3VyY2UgZXhhY3RseS4gSWYgdGhlIG1vZGVsLWRlY2xhcmVkIG9sZCBwb3NpdGlvbiBpcyBhbiBleGFjdCBtYXRjaCwgdGhhdCBsb2NhdGlvbiBpcyB1c2VkLiBPdGhlcndpc2UgdGhlIGNvbXBsZXRlIHNlcXVlbmNlIG11c3QgaGF2ZSBleGFjdGx5IG9uZSBhZG1pc3NpYmxlIG5vbi1vdmVybGFwcGluZyBleGFjdCBtYXRjaCBhZnRlciBwcmlvciBodW5rcy4gWmVybyBtYXRjaGVzIGFuZCBtdWx0aXBsZSBtYXRjaGVzIGZhaWwgY2xvc2VkLiBUaGVyZSBpcyBubyBlZGl0LWRpc3RhbmNlLCB3aGl0ZXNwYWNlLW5vcm1hbGl6ZWQsIHNlbWFudGljLCBBU1QsIGZ1enp5LCBhcHByb3hpbWF0ZSBvciBtb2RlbC1hc3Npc3RlZCBtYXRjaGluZy4gQSBwdXJlIGluc2VydGlvbiBoYXMgbm8gc291cmNlIHRleHQgYW5jaG9yIGFuZCB0aGVyZWZvcmUgcmVtYWlucyBib3VuZCB0byBpdHMgZGVjbGFyZWQgb2xkIHBvc2l0aW9uLgoKVGhlIG1vZGVsLXByb3ZpZGVkIGJhc2UgZGlnZXN0IGlzIGEgc3RyaWN0LXBhdGggYXNzZXJ0aW9uIHJhdGhlciB0aGFuIHVuaXF1ZSBzb3VyY2UgYXV0aG9yaXR5LiBJZiBpdCBpcyB3cm9uZywgUGFyYWxsYXggbWF5IHN1YnN0aXR1dGUgdGhlIHNlcnZlci1kZXJpdmVkIFNIQS0yNTYgb2YgdGhlIGN1cnJlbnQgcHJvdGVjdGVkIHRhcmdldCBvbmx5IGFmdGVyIGV2ZXJ5IGV4aXN0aW5nLWZpbGUgaHVuayBwcm92ZXMgZXhhY3Qgc291cmNlLWNvbnN1bWluZyBhbmNob3JzLiBJZiBhbnkgZXhpc3RpbmctZmlsZSBodW5rIGlzIGFuIHVuYW5jaG9yZWQgcHVyZSBpbnNlcnRpb24sIHN0YWxlIG1vZGVsIGRpZ2VzdCByZWNvdmVyeSBpcyByZWplY3RlZC4gRm9yIGEgbmV3IHRhcmdldCwgcmVjb3ZlcnkgcmVxdWlyZXMgYC9kZXYvbnVsbGAgb2xkLWZpbGUgc2VtYW50aWNzIGFuZCBvbmUgYWRkaXRpb24tb25seSBodW5rIGFuZCB1c2VzIHRoZSBmaXhlZCBzZXJ2ZXItb3duZWQgU0hBLTI1NiBvZiBlbXB0eSBjb250ZW50LiBUYXJnZXQvcGF0aC9leHRlbnNpb24vcGFyZW50L3NlY3JldC9zaXplIHJ1bGVzIHJlbWFpbiB1bmNoYW5nZWQuIEdpdC1zdHlsZSBwcm9sb2d1ZSBtZXRhZGF0YSBtYXkgYmUgZGlzY2FyZGVkIG9ubHkgd2hlbiBpdHMgZXhhY3QgYS9iIHBhdGhzIG1hdGNoIHRoZSBzZXBhcmF0ZWx5IGRlY2xhcmVkIHNhZmUgdGFyZ2V0OyBkZWxldGlvbiwgcmVuYW1lIGFuZCBtb2RlLWNoYW5nZSBpbnRlbnQgYXJlIHJlamVjdGVkLgoKQWZ0ZXIgZXhhY3QgaW50ZW50IGFuZCBhbnkgcGVybWl0dGVkIGF1dGhvcml0YXRpdmUgYmFzZSBkaWdlc3QgYXJlIGVzdGFibGlzaGVkLCBQYXJhbGxheCBnZW5lcmF0ZXMgY2Fub25pY2FsIHNpbmdsZS1maWxlIGhlYWRlcnMgYW5kIGh1bmsgcG9zaXRpb25zL2NvdW50cyBhbmQgc3VibWl0cyB0aGF0IHBhdGNoIGJhY2sgdGhyb3VnaCB0aGUgdW5jaGFuZ2VkIGBUZXh0UGF0Y2hFbmdpbmVgLiBPbmx5IHRoYXQgc2Vjb25kIHN0cmljdCBwYXJzZSBjYW4gcHJvZHVjZSBhIGBQcmVwYXJlZFBhdGNoYC4gQ2Fub25pY2FsaXphdGlvbiBwZXJmb3JtcyBubyBmaWxlc3lzdGVtIG11dGF0aW9uLCBzaGVsbCBleGVjdXRpb24sIEdpdCBvcGVyYXRpb24sIG5ldHdvcmsgY2FsbCwgc291cmNlLWxpbmVhZ2UgYWNjZXB0YW5jZSwgcHJvdmlkZXIgYWN0aW9uIG9yIGxpZmVjeWNsZSB0cmFuc2l0aW9uLiBBY2NlcHRlZCBzb3VyY2Ugc3RpbGwgaGFzIG9uZSBjYW5vbmljYWwgd3JpdGVyIGFuZCB0aGUgb3JkaW5hcnkgZGlzcG9zYWJsZSBCVUlMRC9URVNUL1ZFUklGWSBhbmQgUkVWSUVXIGNlaWxpbmdzIHJlbWFpbiBhdXRob3JpdGF0aXZlLgoKIiIiCnNlY3Rpb25fcGF0dGVybiA9IHIiIyMgU2VydmVyLW93bmVkIGV4YWN0IG1vZGVsIHBhdGNoIGNhbm9uaWNhbGl6YXRpb25cblxuLio/KD89IyMgU291cmNlIGF1dGhvcml0eSBpcyBpbmRlcGVuZGVudCBmcm9tIGRlcGxveW1lbnQgYXV0aG9yaXR5XG4pIgppZiByZS5zZWFyY2goc2VjdGlvbl9wYXR0ZXJuLCB0ZXh0LCBmbGFncz1yZS5TKToKICAgIHRleHQgPSByZS5zdWIoc2VjdGlvbl9wYXR0ZXJuLCBzZWN0aW9uLCB0ZXh0LCBjb3VudD0xLCBmbGFncz1yZS5TKQplbHNlOgogICAgYW5jaG9yID0gIiMjIFNvdXJjZSBhdXRob3JpdHkgaXMgaW5kZXBlbmRlbnQgZnJvbSBkZXBsb3ltZW50IGF1dGhvcml0eVxuIgogICAgaWYgYW5jaG9yIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoImFyY2hpdGVjdHVyZSBzZWN0aW9uIGFuY2hvciBtaXNzaW5nIikKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2UoYW5jaG9yLCBzZWN0aW9uICsgYW5jaG9yLCAxKQoKcGF0aC53cml0ZV90ZXh0KHRleHQsIGVuY29kaW5nPSJ1dGYtOCIpCg=='))"
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
-
       - name: Run focused P2-V0.23.18 tests
         run: pytest -q services/api/tests/test_model_patch_canonicalization_v02318.py
-
       - name: Install local DSPy development LM
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
@@ -90,7 +38,6 @@ After exact intent and any permitted authoritative base digest are established, 
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
           ollama pull qwen2.5:0.5b
-
       - name: Compile and validate P2-V0.23.18
         env:
           DSPY_MODEL: ollama_chat/qwen2.5:0.5b
@@ -100,7 +47,6 @@ After exact intent and any permitted authoritative base digest are established, 
         run: |
           python scripts/compile_spec.py specs/P2-V0.23.18.md
           python scripts/validate_spec.py --require-dspy specs/P2-V0.23.18.md
-
       - name: Commit prepared evidence
         run: |
           git config user.name "parallax-release-bot"
