@@ -1,0 +1,52 @@
+name: P2-V0.23.23 Repair Scope Validation
+
+on:
+  push:
+    branches: [fix/p2323-bounded-validator-repair]
+    paths:
+      - '.github/workflows/p2323-scope-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p2323-bounded-validator-repair
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - run: pip install -e 'services/api[dev]'
+      - name: Apply per-work-unit scope correction
+        run: python scripts/p2323_scope_fix.py
+      - name: Verify protected spec evidence
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.23.md
+      - name: Run focused regressions
+        run: |
+          python -m compileall -q services/api/parallax_api/code/agentic_candidate_recovery.py
+          pytest -q \
+            services/api/tests/test_agentic_candidate_recovery.py \
+            services/api/tests/test_candidate_repair_guidance_v0239.py \
+            services/api/tests/test_agentic_runtime_activation.py
+      - name: Verify diff boundaries and clean temporary tools
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only -- services/api/parallax_api/code/implementation_runtime.py)" = ""
+          git rm .github/workflows/p2323-scope-fix.yml scripts/p2323_scope_fix.py
+          git diff --check
+      - name: Commit correction
+        run: |
+          set -euo pipefail
+          git config user.name "Parallax Release Worker"
+          git config user.email "parallax-release-worker@users.noreply.github.com"
+          git add services/api/parallax_api/code/agentic_candidate_recovery.py services/api/tests/test_agentic_candidate_recovery.py
+          git add -u .github/workflows scripts
+          git commit -m "P2-V0.23.23 — scope validator repair per work unit"
+          git push origin HEAD:fix/p2323-bounded-validator-repair
