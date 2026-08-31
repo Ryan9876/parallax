@@ -1,0 +1,91 @@
+name: Reconcile P2-V0.23.21 Current State
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/reconcile-current-state-p2321.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+
+          release_label = 'P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED'
+          lines = text.splitlines()
+          for index, line in enumerate(lines):
+              if line.startswith('Status: **') and line.endswith('**'):
+                  if release_label not in line:
+                      suffix = ' / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED**'
+                      if not line.endswith(suffix):
+                          raise SystemExit('Current-state status line has an unexpected shape')
+                      lines[index] = line[:-len(suffix)] + ' / ' + release_label + suffix
+                  break
+          else:
+              raise SystemExit('Current-state status line is missing')
+          text = '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
+
+          heading = '## P2-V0.23.21 — bounded greenfield inspection diagnostics — PRODUCTION-VERIFIED / EXTERNAL EXACT-REPOSITORY AUTHORIZATION REQUIRED'
+          if heading not in text:
+              anchor = '\n## Current production truth\n'
+              if anchor not in text:
+                  raise SystemExit('Current production truth anchor is missing')
+              section_lines = [
+                  heading,
+                  '',
+                  'Workstream: #442. Release PR: #507. Governing specification: `P2-V0.23.21`. Architecture remains `ARCHITECTURE.md` v3.32 because the release changes observation only and does not alter durable authority, lifecycle, provider, persistence, recovery, source-lineage, Git, deployment, or REVIEW semantics.',
+                  '',
+                  'P2-V0.23.21 closes the diagnostic blind spot at the authenticated greenfield inspection fallback. When that protected inspection fails, runtime emits only fixed event `greenfield_repository_inspection_failed` plus the existing bounded normalized provider result code, or fixed `UNCLASSIFIED_PROVIDER_FAILURE` when no protected code exists. Raw exception/provider payload material is not logged. Structured `REPOSITORY_AUTHORIZATION_REQUIRED` recovery and the original public-source outward failure for every other inspection failure remain unchanged.',
+                  '',
+                  'Release evidence: exact merge/deployed API source `71849d0979d940065efdefc909f1937272c87834`; production deployment `dpl_CoTeZoRWcupTLhJkD9viUE8YfBB3`, target production, READY on `parallax-api-tan.vercel.app`; post-merge Workstream Spec Validation `33355379613` SUCCESS; post-merge Parallax P2 CI `33355379617` SUCCESS including full API regression, client checks, protected promotion, and fresh main SpecCritic/SpecCompiler compilation + verification; `/health` and `/ready` HTTP 200 with database/providers ready; pre-replay runtime error scan clean.',
+                  '',
+                  'Fresh-target diagnostic replay `Ryan9876/parallax-qa` run `33355557297`, job `99376902748`, checked out exact deployed source and positively verified `Ryan9876/parallax-qa1` (repository ID `1351932371`) empty immediately before execution. Canonical Project `ba697355-424c-4d86-8b89-3cf23455a6f5`; Conversation `516f4d7a-2ce7-4df4-acf4-b8fc56aa891f`; Work Specification `960709f3-1db6-425a-8d34-d1e050ca0c51` revision 1; Engineering Run `aa53bb66-d0fc-4423-ae89-b7367cd54603`. The run stopped safely at PLAN revision 1 with disposition `AUTONOMOUS_REQUEST_FAILED_HTTP_503`, zero clarifications, and zero out-of-band source edits.',
+                  '',
+                  'Exact deployment runtime evidence captured `greenfield_repository_inspection_failed result_code=REPOSITORY_AUTHORIZATION_REQUIRED`. This proves the remaining W9-S1 blocker is the existing external provider/user authorization boundary: `Ryan9876/parallax-qa1` is not covered by the `github/parallax-runtime` GitHub App / Vercel Connect exact-repository authorization. The prior outward public-source `PROVIDER_INVALID_RESPONSE` was masking that authenticated result by the preserved public-first fallback; this is not another empty-repository parsing defect.',
+                  '',
+                  'After replay, `Ryan9876/parallax-qa1` was re-verified still truly empty; no REVIEW-only baseline initialization, branch, PR, or Preview mutation occurred. The dedicated QA workflow was restored immediately to standing manual-only content SHA `cfb41caffd5e16531b28d55f65eb730cb8fcc082` at `Ryan9876/parallax-qa` commit `cb4a772adecd237df42367efa3bc6a673b9792b2`.',
+                  '',
+                  '#442 remains open. Canonical completion now requires external exact-repository authorization for `Ryan9876/parallax-qa1`, followed by the same frozen Decision Ledger retry. Full AC-27 greenfield acceptance is not claimed until the ordinary protected lifecycle reaches accepted implementation/validation, REVIEW-only initialization, bounded branch/PR, READY Preview, and REVIEW.',
+                  '',
+              ]
+              text = text.replace(anchor, '\n' + '\n'.join(section_lines) + anchor, 1)
+
+          reconciliation = 'Latest authoritative reconciliation: P2-V0.23.21 is production-verified on exact API source `71849d0979d940065efdefc909f1937272c87834` / deployment `dpl_CoTeZoRWcupTLhJkD9viUE8YfBB3`. Dedicated replay `33355557297` proved the hidden authenticated greenfield inspection result is `REPOSITORY_AUTHORIZATION_REQUIRED`; `Ryan9876/parallax-qa1` remains truly empty and unmodified, and #442 remains open pending external exact-repository authorization through `github/parallax-runtime`. `ARCHITECTURE.md` remains authoritative at v3.32. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles.'
+          if reconciliation not in text:
+              text = text.rstrip() + '\n\n' + reconciliation + '\n'
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit authoritative state
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- CURRENT-STATE.md; then
+            echo 'CURRENT-STATE.md already reconciled'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git commit -m 'Record P2-V0.23.21 production diagnosis'
+          git push origin HEAD:main
