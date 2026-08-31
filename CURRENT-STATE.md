@@ -2,7 +2,34 @@
 
 Date: 2026-08-31
 
-Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**
+Status: **WAVES 1–8 DEPLOYMENT-VERIFIED / PYTHON AND .NET SOURCE-ONLY FULL EXPERIENCE PRODUCTION-ACCEPTED / P2-V0.23.10 LUNA-FIRST HOSTED SELECTION PRODUCTION-ACCEPTED / P2-V0.23.13 FAILED-IMPLEMENT HUMAN REPLAN PRODUCTION-ACCEPTED / P2-V0.23.14 RECOVERED-WORKER PLAN REBIND PRODUCTION-ACCEPTED / P2-V0.23.15 STRUCTURED-OUTPUT ROUTING CLASSIFICATION PRODUCTION-ACCEPTED / P2-V0.23.16 WEBGL PREFLIGHT REDUCED-GRAPHICS FALLBACK PRODUCTION-ACCEPTED / P2-V0.23.17 DEDICATED QA REPOSITORY PRODUCTION-PROVEN / P2-V0.23.18 EXACT MODEL PATCH CANONICALIZATION PRODUCTION-ACCEPTED / P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.23.21 BOUNDED GREENFIELD INSPECTION DIAGNOSTICS PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED / P2-V0.23.22 REQUEST-BOUNDED AUTONOMOUS BUILDS PRODUCTION-VERIFIED / P2-V0.23.23 BOUNDED VALIDATOR REPAIR DEPLOYED-READY / PRODUCTION BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.24 FRESH FINAL VALIDATOR REPAIR PRODUCTION-BEHAVIOR-VERIFIED / P2-V0.23.25 SAFE NESTED SOURCE CREATION + TRANSPORT RECONCILIATION PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING / P2-V0.23.26 SERVER-CANONICALIZED IMPLEMENTATION CONTENT EDITS PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING**
+
+## P2-V0.23.26 — server-canonicalized implementation content edits — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
+
+Workstream: #519. Release PR: #525. Governing specification: `P2-V0.23.26`. Architecture: `ARCHITECTURE.md` v3.37.
+
+P2-V0.23.26 removes model-owned unified-diff mechanics from hosted IMPLEMENT generation while preserving the existing canonical safe-patch and source-lineage authority. Hosted DSPy generation now returns exact acceptance coverage plus bounded typed `{path, content}` file intent. The protected server binds existing targets to authoritative source SHA/content, classifies absent selected paths only as empty-base new-file intent, deterministically renders strict single-file unified diffs including no-final-newline markers, and then constructs the unchanged downstream `ImplementationProposal`. Duplicate and no-op content intents fail before candidate admission. Existing path, secret, symlink, extension, size, hierarchy, stale-source, collision, source-lineage, disposable BUILD/TEST/VERIFY, delivery, lifecycle, Git/deployment, and human REVIEW controls remain authoritative.
+
+Validated release and deployment evidence:
+
+- spec-first preparation run `33391451812`: SUCCESS, including protected DSPy SpecCritic/SpecCompiler plan generation and verification;
+- focused implementation run `33392060970`: SUCCESS;
+- exact green PR head: `8156832c51373f743a0afab2aa69f33e022c60c9`;
+- PR Bounded Autonomy Pilot `33392511170`: SUCCESS;
+- PR Workstream Spec Validation `33392511127`: SUCCESS;
+- PR Parallax P2 CI `33392511167`: SUCCESS;
+- squash merge / exact application source: `15a02cdeac4f36b1ca6701bccc4d209b747e8dca`;
+- post-merge Workstream Spec Validation `33392742869`: SUCCESS;
+- post-merge Parallax P2 CI `33392742926`: SUCCESS;
+- production API deployment `dpl_GzfqpAS5Sex1sZNSfXHKnhEosJph`: target production, state `READY`, exact application source, canonical alias `parallax-api-tan.vercel.app`;
+- production client deployment for the same backend-only source was intentionally ignored/skipped by Vercel, so the prior READY client remains authoritative;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- exact API deployment warning/error/fatal runtime scan after readiness was clean, and project runtime-error aggregation found no errors in the selected verification window.
+
+Deployment verification is complete, but workstream #519 remains open because its completion condition requires authenticated behavior on the real Engineering Run path. The next acceptance is a user-authenticated retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact work) proving IMPLEMENT progresses through the new server-canonicalized content boundary into BUILD, or exposing a later bounded blocker without reintroducing model-owned diff syntax. That evidence must not be manufactured by bypassing user authentication or session ownership.
+
+No model/provider/credential addition, retry-budget increase, timeout increase, hidden transport retry, arbitrary recursive filesystem authority, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion, or queue redesign was added.
 
 ## P2-V0.23.25 — safe nested source creation and ambiguous transport reconciliation — PRODUCTION-DEPLOYMENT-VERIFIED / REAL-PATH BEHAVIOR ACCEPTANCE PENDING
 
