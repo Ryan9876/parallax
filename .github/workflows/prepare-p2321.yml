@@ -74,3 +74,5 @@ jobs:
           fi
           git commit -m "Compile P2-V0.23.21 DSPy plan"
           git push origin HEAD:fix/p2321-greenfield-inspection-diagnostics
+
+# rerun after protected section alignment
