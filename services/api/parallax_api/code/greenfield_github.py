@@ -4,6 +4,7 @@ import base64
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
+from urllib.parse import quote
 
 from ..tools.providers.common import (
     AuthorizedProviderExecutor,
@@ -101,6 +102,25 @@ class GreenfieldGitHubClient:
             raise TypeError("greenfield GitHub operations require the protected REST client")
         self._delegate = delegate
 
+    def _default_head(self, repository_ref: str, default_branch: str) -> str | None:
+        """Read the exact default ref while recognizing GitHub's empty-repo signal."""
+
+        path = (
+            f"{self._delegate._repo_path(repository_ref)}/git/ref/heads/"
+            f"{quote(default_branch, safe='/')}"
+        )
+        response = self._delegate._send("GET", repository_ref, path)
+        if response.status_code == 404:
+            return None
+        if response.status_code == 409:
+            payload = self._delegate._json(response)
+            if isinstance(payload, dict) and payload.get("message") == "Git Repository is empty.":
+                return None
+        self._delegate._raise_status(response)
+        payload = _dict(self._delegate._json(response))
+        object_payload = _dict(payload.get("object"))
+        return _text(object_payload.get("sha"))
+
     def inspect_repository(self, repository_ref: str) -> GreenfieldRepositoryInspection:
         owner, repository = repository_ref.removeprefix("github:").split("/", 1)
         response = self._delegate._send("GET", repository_ref, self._delegate._repo_path(repository_ref))
@@ -110,7 +130,7 @@ class GreenfieldGitHubClient:
         if full_name.casefold() != f"{owner}/{repository}".casefold():
             raise ProviderClientError("REPOSITORY_MISMATCH")
         default_branch = _text(payload.get("default_branch"))
-        head = self._delegate._get_ref(repository_ref, default_branch)
+        head = self._default_head(repository_ref, default_branch)
         return GreenfieldRepositoryInspection(repository_ref, default_branch, head)
 
     @staticmethod
@@ -188,7 +208,7 @@ class GreenfieldGitHubClient:
             raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from exc
         if decoded != expected or sha256(decoded.encode("utf-8")).hexdigest() != sha256(expected.encode("utf-8")).hexdigest():
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
-        current = self._delegate._get_ref(repository_ref, default_branch)
+        current = self._default_head(repository_ref, default_branch)
         if current != baseline_revision:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         return GreenfieldBaselineResult(

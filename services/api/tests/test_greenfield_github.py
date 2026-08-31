@@ -74,6 +74,39 @@ def test_positive_empty_inspection_is_distinct_from_not_found() -> None:
         _client(missing).inspect_repository(REPOSITORY)
 
 
+def test_real_github_empty_ref_409_is_narrowly_normalized() -> None:
+    def empty_409(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if request.url.path.endswith("/git/ref/heads/main"):
+            return httpx.Response(409, json={"message": "Git Repository is empty."})
+        raise AssertionError(request.url)
+
+    result = _client(empty_409).inspect_repository(REPOSITORY)
+    assert result.is_empty is True
+    assert result.head_revision is None
+
+    def unrelated_409(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if request.url.path.endswith("/git/ref/heads/main"):
+            return httpx.Response(409, json={"message": "Reference conflict"})
+        raise AssertionError(request.url)
+
+    with pytest.raises(ProviderClientError, match="PROVIDER_CONFLICT"):
+        _client(unrelated_409).inspect_repository(REPOSITORY)
+
+    def malformed_409(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if request.url.path.endswith("/git/ref/heads/main"):
+            return httpx.Response(409, text="not-json")
+        raise AssertionError(request.url)
+
+    with pytest.raises(ProviderClientError, match="PROVIDER_INVALID_RESPONSE"):
+        _client(malformed_409).inspect_repository(REPOSITORY)
+
+
 def test_initializer_creates_marker_deletes_it_and_verifies_empty_head() -> None:
     writes: list[str] = []
 
