@@ -16,6 +16,7 @@ from ..intelligence.implementation_generation import (
 )
 from .domain import AttemptStatus, WorkflowStage
 from .implementation import ImplementationError, ImplementationRequest, SafeImplementationEngine
+from .model_patch_canonicalization import CanonicalizingTextPatchEngine
 from .patching import PatchError, SourcePatch
 from .service import EngineeringRunService, RunOperationResult
 from .source_context import BoundedSourceContextSelector, SourceContextError
@@ -163,7 +164,9 @@ class ProtectedImplementationRuntime:
         self.workspace_lineage = workspace_lineage
         self.generator = generator or ImplementationGenerationCoordinator()
         self.source_selector = source_selector or BoundedSourceContextSelector()
-        self.implementation_engine = implementation_engine or SafeImplementationEngine()
+        self.implementation_engine = implementation_engine or SafeImplementationEngine(
+            patch_engine=CanonicalizingTextPatchEngine()
+        )
 
     @staticmethod
     def _implementation_request(proposal: ImplementationProposal) -> ImplementationRequest:

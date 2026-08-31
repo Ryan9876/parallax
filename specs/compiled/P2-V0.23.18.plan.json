@@ -1,0 +1,104 @@
+{
+  "architecture_decisions": [
+    "- Model text never becomes mutation authority."
+  ],
+  "work_items": [
+    "- The existing strict `TextPatchEngine` remains the final source patch verifier and committer."
+  ],
+  "validations": [
+    "- A server-owned canonicalization layer may run only after an ordinary strict patch attempt fails for unified-diff format, exact-position conflict, or model-supplied base-digest mismatch.",
+    "AC-01: validate protected requirement \u2014 A currently valid strict single-file unified diff with the correct base digest continues to validate and apply exactly as before without canonicalization changing its bytes or result.",
+    "AC-02: validate protected requirement \u2014 For an existing safe text target, a proposal with exact context/deletion/addition intent but incorrect hunk counts or positions is converted to a canonical strict diff and accepted only when the source-consuming sequence matches exact protected source at one admissible location.",
+    "AC-03: validate protected requirement \u2014 When the declared old position points at an exact source-consuming sequence, that exact location is used even if equivalent text exists elsewhere; no search-based ambiguity is introduced.",
+    "AC-04: validate protected requirement \u2014 When the declared position is wrong, a hunk may relocate only if its complete source-consuming sequence has exactly one admissible non-overlapping exact match. Zero or multiple matches are rejected.",
+    "AC-05: validate protected requirement \u2014 An existing-file hunk containing additions only is never fuzzy-relocated. Its declared old position must be in bounds and non-overlapping, and a stale model-supplied base digest is not rebound when any such unanchored hunk exists.",
+    "AC-06: validate protected requirement \u2014 When every existing-file hunk consumes exact current protected source text, an incorrect model-supplied expected-base SHA-256 may be replaced only with the server-derived SHA-256 of that exact current target after canonicalization proves all anchors. The unchanged strict verifier must then accept the resulting patch before candidate admission.",
+    "AC-07: validate protected requirement \u2014 A new safe target may canonicalize addition-only diff intent only with `/dev/null` old-file semantics. The server-owned empty-base SHA, parent directory, extension, path, secret, size, and no-op protections remain unchanged.",
+    "AC-08: validate protected requirement \u2014 Unsafe/secret path or content, unsupported extension, symlink, missing parent, oversized patch/result/source, ambiguous relocation, mismatching context/deletion text, overlapping hunks, unanchored stale-base insertion, multi-file intent, deletion/rename/mode-change intent, and malformed records remain rejected.",
+    "AC-09: validate protected requirement \u2014 Work Specification binding, acceptance-ID equality, candidate/worker ceilings, model order, source lineage acceptance, disposable candidate validation, Git/deployment authority and REVIEW boundary are unchanged.",
+    "AC-10: validate protected requirement \u2014 Runtime diagnostics may identify fixed canonicalization result/rejection classes and whether an anchored base digest was rebound without persisting raw model output, raw source text, provider payloads, credentials, or arbitrary exception messages.",
+    "AC-11: validate protected requirement \u2014 After deployment, replay at least one production path that previously ended `AGENTIC_CANDIDATE_EXHAUSTED` and require evidence that IMPLEMENT crosses the candidate safe-patch boundary. Simple Python/OT Time QA fixture success alone is insufficient acceptance evidence.",
+    "AC-12: validate protected requirement \u2014 `ARCHITECTURE.md` v3.30 records server-owned exact patch-intent canonicalization, anchored base-digest derivation, and the unchanged strict patch verifier.",
+    "AC-13: validate protected requirement \u2014 Exact-head API/contracts, client/browser/Skia, Bounded Autonomy, protected promotion, Workstream Spec Validation, and DSPy release compilation pass before merge."
+  ],
+  "risks": [
+    "- Canonicalization may repair only mechanical source-patch metadata: accepted path header prefix form, hunk counts, hunk coordinates, exact relocation of a hunk whose old/context record sequence exists unmodified in current protected source, and the model-supplied expected-base digest after exact source intent has been proven."
+  ],
+  "spec_id": "P2-V0.23.18",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Strict valid patches remain unchanged",
+      "protected_requirement": "A currently valid strict single-file unified diff with the correct base digest continues to validate and apply exactly as before without canonicalization changing its bytes or result."
+    },
+    {
+      "id": "AC-02",
+      "title": "Mechanical hunk metadata can be canonicalized",
+      "protected_requirement": "For an existing safe text target, a proposal with exact context/deletion/addition intent but incorrect hunk counts or positions is converted to a canonical strict diff and accepted only when the source-consuming sequence matches exact protected source at one admissible location."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact declared-position recovery is deterministic",
+      "protected_requirement": "When the declared old position points at an exact source-consuming sequence, that exact location is used even if equivalent text exists elsewhere; no search-based ambiguity is introduced."
+    },
+    {
+      "id": "AC-04",
+      "title": "Unique relocation is exact and bounded",
+      "protected_requirement": "When the declared position is wrong, a hunk may relocate only if its complete source-consuming sequence has exactly one admissible non-overlapping exact match. Zero or multiple matches are rejected."
+    },
+    {
+      "id": "AC-05",
+      "title": "Pure insertion remains coordinate anchored",
+      "protected_requirement": "An existing-file hunk containing additions only is never fuzzy-relocated. Its declared old position must be in bounds and non-overlapping, and a stale model-supplied base digest is not rebound when any such unanchored hunk exists."
+    },
+    {
+      "id": "AC-06",
+      "title": "Anchored base-digest recovery is server-owned",
+      "protected_requirement": "When every existing-file hunk consumes exact current protected source text, an incorrect model-supplied expected-base SHA-256 may be replaced only with the server-derived SHA-256 of that exact current target after canonicalization proves all anchors. The unchanged strict verifier must then accept the resulting patch before candidate admission."
+    },
+    {
+      "id": "AC-07",
+      "title": "New-file recovery remains bounded",
+      "protected_requirement": "A new safe target may canonicalize addition-only diff intent only with `/dev/null` old-file semantics. The server-owned empty-base SHA, parent directory, extension, path, secret, size, and no-op protections remain unchanged."
+    },
+    {
+      "id": "AC-08",
+      "title": "Safety failures remain fail-closed",
+      "protected_requirement": "Unsafe/secret path or content, unsupported extension, symlink, missing parent, oversized patch/result/source, ambiguous relocation, mismatching context/deletion text, overlapping hunks, unanchored stale-base insertion, multi-file intent, deletion/rename/mode-change intent, and malformed records remain rejected."
+    },
+    {
+      "id": "AC-09",
+      "title": "No authority expansion",
+      "protected_requirement": "Work Specification binding, acceptance-ID equality, candidate/worker ceilings, model order, source lineage acceptance, disposable candidate validation, Git/deployment authority and REVIEW boundary are unchanged."
+    },
+    {
+      "id": "AC-10",
+      "title": "Bounded observability distinguishes the boundary",
+      "protected_requirement": "Runtime diagnostics may identify fixed canonicalization result/rejection classes and whether an anchored base digest was rebound without persisting raw model output, raw source text, provider payloads, credentials, or arbitrary exception messages."
+    },
+    {
+      "id": "AC-11",
+      "title": "User-visible production replay crosses the former blocker",
+      "protected_requirement": "After deployment, replay at least one production path that previously ended `AGENTIC_CANDIDATE_EXHAUSTED` and require evidence that IMPLEMENT crosses the candidate safe-patch boundary. Simple Python/OT Time QA fixture success alone is insufficient acceptance evidence."
+    },
+    {
+      "id": "AC-12",
+      "title": "Architecture records the durable contract",
+      "protected_requirement": "`ARCHITECTURE.md` v3.30 records server-owned exact patch-intent canonicalization, anchored base-digest derivation, and the unchanged strict patch verifier."
+    },
+    {
+      "id": "AC-13",
+      "title": "Release gates remain green",
+      "protected_requirement": "Exact-head API/contracts, client/browser/Skia, Bounded Autonomy, protected promotion, Workstream Spec Validation, and DSPy release compilation pass before merge."
+    }
+  ],
+  "critique": [
+    "The model text never becomes mutation authority. The existing strict `TextPatchEngine` remains the final source patch verifier and committer. A server-owned canonicalization layer may run only after an ordinary strict patch attempt fails for unified-diff format, exact-position conflict, or model-supplied base-digest mismatch. The canonicalization may repair only mechanical source-patch metadata: accepted path header prefix form, hunk counts, hunk coordinates, exact relocation of a hunk whose old/context record sequence exists unmodified in current protected source, and the model-supplied expected-base digest after exact source intent has been proven. The relocation uses exact string equality only. It may use the declared old position when that position exactly matches the hunk; otherwise, the complete old/context sequence must occur at exactly one admissible non-overlapping source position. No fuzzy text matching, edit-distance matching, semantic patching, approximate context, shell `patch`, Git apply, network tool, model, and other protected failures remain fail-closed. The canonicalization may repair only mechanical source-patch metadata: accepted path header prefix form, hunk counts, hunk coordinates, exact relocation of a hunk whose old/context record sequence exists unmodified in current protected source, and the model-supplied expected-base digest after exact source intent has been proven. The relocation uses exact string equality only. It may use the declared old position when that position exactly matches the hunk; otherwise, the complete old/context sequence must occur at exactly one admissible non-overlapping source position. No fuzzy text matching, edit-distance matching, semantic patching, approximate context, shell `patch`, Git apply, network tool, model, and other protected failures remain fail-closed. The canonicalization may repair only mechanical source-patch metadata: accepted path header prefix form, hunk counts, hunk coordinates, exact relocation of a hunk whose old"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
