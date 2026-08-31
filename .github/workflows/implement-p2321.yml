@@ -54,33 +54,34 @@ jobs:
           text = text.replace(old, new, 1)
 
           old = '    return None\n\n\ndef is_repository_authorization_required(error: BaseException) -> bool:\n'
-          new = '''    return None
-
-
-def _log_greenfield_repository_inspection_failure(error: BaseException) -> str:
-    """Emit only server-owned event text plus a protected normalized result code."""
-
-    result_code = _provider_result_code(error) or _UNCLASSIFIED_PROVIDER_FAILURE
-    logger.warning(
-        "greenfield_repository_inspection_failed result_code=%s",
-        result_code,
-    )
-    return result_code
-
-
-def is_repository_authorization_required(error: BaseException) -> bool:
-'''
+          helper_lines = [
+              '    return None',
+              '',
+              '',
+              'def _log_greenfield_repository_inspection_failure(error: BaseException) -> str:',
+              '    """Emit only server-owned event text plus a protected normalized result code."""',
+              '',
+              '    result_code = _provider_result_code(error) or _UNCLASSIFIED_PROVIDER_FAILURE',
+              '    logger.warning(',
+              '        "greenfield_repository_inspection_failed result_code=%s",',
+              '        result_code,',
+              '    )',
+              '    return result_code',
+              '',
+              '',
+              'def is_repository_authorization_required(error: BaseException) -> bool:',
+          ]
+          new = '\n'.join(helper_lines) + '\n'
           if text.count(old) != 1:
               raise SystemExit('unexpected provider-result helper boundary')
           text = text.replace(old, new, 1)
 
-          old = '''            except Exception as inspection_error:
-                if is_repository_authorization_required(inspection_error):
-'''
-          new = '''            except Exception as inspection_error:
-                _log_greenfield_repository_inspection_failure(inspection_error)
-                if is_repository_authorization_required(inspection_error):
-'''
+          old = '            except Exception as inspection_error:\n                if is_repository_authorization_required(inspection_error):\n'
+          new = (
+              '            except Exception as inspection_error:\n'
+              '                _log_greenfield_repository_inspection_failure(inspection_error)\n'
+              '                if is_repository_authorization_required(inspection_error):\n'
+          )
           if text.count(old) != 1:
               raise SystemExit('unexpected inspection error boundary')
           text = text.replace(old, new, 1)
@@ -91,100 +92,107 @@ def is_repository_authorization_required(error: BaseException) -> bool:
         shell: bash
         run: |
           set -euo pipefail
-          cat > services/api/tests/test_greenfield_inspection_diagnostics.py <<'PY'
-          from __future__ import annotations
+          python - <<'PY'
+          from pathlib import Path
 
-          import logging
-
-          from parallax_api.code.greenfield_composition import (
-              _log_greenfield_repository_inspection_failure,
-              _provider_result_code,
+          lines = [
+              'from __future__ import annotations',
+              '',
+              'import logging',
+              '',
+              'from parallax_api.code.greenfield_composition import (',
+              '    _log_greenfield_repository_inspection_failure,',
+              '    _provider_result_code,',
+              ')',
+              'from parallax_api.tools.contracts import (',
+              '    ToolAuditRecord,',
+              '    ToolConsequence,',
+              '    ToolExecutionResult,',
+              '    ToolOutcome,',
+              ')',
+              'from parallax_api.tools.providers import (',
+              '    ProviderActionEvidence,',
+              '    ProviderActionFailed,',
+              '    ProviderActionState,',
+              ')',
+              '',
+              '',
+              'PROJECT = "11111111-1111-4111-8111-111111111111"',
+              '',
+              '',
+              'def _provider_failure(code: str) -> ProviderActionFailed:',
+              '    execution = ToolExecutionResult(succeeded=False, result_code=code)',
+              '    audit = ToolAuditRecord(',
+              '        request_id="request:greenfield-diagnostic",',
+              '        capability_id="cap:greenfield-diagnostic",',
+              '        project_ref=PROJECT,',
+              '        tool="github",',
+              '        action="repository.inspect",',
+              '        actor_ref="actor:parallax-runtime",',
+              '        consequence=ToolConsequence.READ,',
+              '        authority_allowed=True,',
+              '        outcome=ToolOutcome.FAILED,',
+              '        deny_reason=None,',
+              '        approval_id=None,',
+              '        request_digest="a" * 64,',
+              '        result_digest=execution.digest,',
+              '        result_code=code,',
+              '        result_identity=None,',
+              '    )',
+              '    evidence = ProviderActionEvidence(',
+              '        provider="github",',
+              '        action="repository.inspect",',
+              '        state=ProviderActionState.FAILED,',
+              '        project_ref=PROJECT,',
+              '        repository_identity_digest="b" * 64,',
+              '        result_status=code,',
+              '    )',
+              '    return ProviderActionFailed(evidence=evidence, audit=audit)',
+              '',
+              '',
+              'def test_protected_provider_result_code_is_logged_without_raw_exception(caplog) -> None:',
+              '    failure = _provider_failure("CREDENTIAL_SCOPE_MISMATCH")',
+              '    failure.__cause__ = RuntimeError("raw-provider-secret-token")',
+              '',
+              '    with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):',
+              '        result = _log_greenfield_repository_inspection_failure(failure)',
+              '',
+              '    assert result == "CREDENTIAL_SCOPE_MISMATCH"',
+              '    assert _provider_result_code(failure) == "CREDENTIAL_SCOPE_MISMATCH"',
+              '    assert caplog.messages == [',
+              '        "greenfield_repository_inspection_failed result_code=CREDENTIAL_SCOPE_MISMATCH"',
+              '    ]',
+              '    assert "raw-provider-secret-token" not in caplog.text',
+              '',
+              '',
+              'def test_unclassified_failure_uses_fixed_server_owned_fallback(caplog) -> None:',
+              '    raw = RuntimeError("external-body-with-sensitive-material")',
+              '',
+              '    with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):',
+              '        result = _log_greenfield_repository_inspection_failure(raw)',
+              '',
+              '    assert result == "UNCLASSIFIED_PROVIDER_FAILURE"',
+              '    assert caplog.messages == [',
+              '        "greenfield_repository_inspection_failed result_code=UNCLASSIFIED_PROVIDER_FAILURE"',
+              '    ]',
+              '    assert "external-body-with-sensitive-material" not in caplog.text',
+              '',
+              '',
+              'def test_authorization_required_remains_a_normalized_protected_code(caplog) -> None:',
+              '    failure = _provider_failure("REPOSITORY_AUTHORIZATION_REQUIRED")',
+              '',
+              '    with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):',
+              '        result = _log_greenfield_repository_inspection_failure(failure)',
+              '',
+              '    assert result == "REPOSITORY_AUTHORIZATION_REQUIRED"',
+              '    assert caplog.messages == [',
+              '        "greenfield_repository_inspection_failed result_code=REPOSITORY_AUTHORIZATION_REQUIRED"',
+              '    ]',
+              '',
+          ]
+          Path('services/api/tests/test_greenfield_inspection_diagnostics.py').write_text(
+              '\n'.join(lines), encoding='utf-8'
           )
-          from parallax_api.tools.contracts import (
-              ToolAuditRecord,
-              ToolConsequence,
-              ToolExecutionResult,
-              ToolOutcome,
-          )
-          from parallax_api.tools.providers import (
-              ProviderActionEvidence,
-              ProviderActionFailed,
-              ProviderActionState,
-          )
-
-
-          PROJECT = "11111111-1111-4111-8111-111111111111"
-
-
-          def _provider_failure(code: str) -> ProviderActionFailed:
-              execution = ToolExecutionResult(succeeded=False, result_code=code)
-              audit = ToolAuditRecord(
-                  request_id="request:greenfield-diagnostic",
-                  capability_id="cap:greenfield-diagnostic",
-                  project_ref=PROJECT,
-                  tool="github",
-                  action="repository.inspect",
-                  actor_ref="actor:parallax-runtime",
-                  consequence=ToolConsequence.READ,
-                  authority_allowed=True,
-                  outcome=ToolOutcome.FAILED,
-                  deny_reason=None,
-                  approval_id=None,
-                  request_digest="a" * 64,
-                  result_digest=execution.digest,
-                  result_code=code,
-                  result_identity=None,
-              )
-              evidence = ProviderActionEvidence(
-                  provider="github",
-                  action="repository.inspect",
-                  state=ProviderActionState.FAILED,
-                  project_ref=PROJECT,
-                  repository_identity_digest="b" * 64,
-                  result_status=code,
-              )
-              return ProviderActionFailed(evidence=evidence, audit=audit)
-
-
-          def test_protected_provider_result_code_is_logged_without_raw_exception(caplog) -> None:
-              failure = _provider_failure("CREDENTIAL_SCOPE_MISMATCH")
-              raw = RuntimeError("raw-provider-secret-token")
-              failure.__cause__ = raw
-
-              with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):
-                  result = _log_greenfield_repository_inspection_failure(failure)
-
-              assert result == "CREDENTIAL_SCOPE_MISMATCH"
-              assert _provider_result_code(failure) == "CREDENTIAL_SCOPE_MISMATCH"
-              assert caplog.messages == [
-                  "greenfield_repository_inspection_failed result_code=CREDENTIAL_SCOPE_MISMATCH"
-              ]
-              assert "raw-provider-secret-token" not in caplog.text
-
-
-          def test_unclassified_failure_uses_fixed_server_owned_fallback(caplog) -> None:
-              raw = RuntimeError("external-body-with-sensitive-material")
-
-              with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):
-                  result = _log_greenfield_repository_inspection_failure(raw)
-
-              assert result == "UNCLASSIFIED_PROVIDER_FAILURE"
-              assert caplog.messages == [
-                  "greenfield_repository_inspection_failed result_code=UNCLASSIFIED_PROVIDER_FAILURE"
-              ]
-              assert "external-body-with-sensitive-material" not in caplog.text
-
-
-          def test_authorization_required_remains_a_normalized_protected_code(caplog) -> None:
-              failure = _provider_failure("REPOSITORY_AUTHORIZATION_REQUIRED")
-
-              with caplog.at_level(logging.WARNING, logger="parallax_api.code.greenfield_composition"):
-                  result = _log_greenfield_repository_inspection_failure(failure)
-
-              assert result == "REPOSITORY_AUTHORIZATION_REQUIRED"
-              assert caplog.messages == [
-                  "greenfield_repository_inspection_failed result_code=REPOSITORY_AUTHORIZATION_REQUIRED"
-              ]
           PY
 
       - name: Validate focused release surface
