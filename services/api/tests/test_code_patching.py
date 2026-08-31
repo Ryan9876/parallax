@@ -59,6 +59,7 @@ def test_existing_text_patch_is_bounded_and_emits_deterministic_evidence(tmp_pat
 
 
 def test_new_text_file_can_create_bounded_missing_safe_parent_at_commit(tmp_path):
+    # Preparation remains mutation-free; a missing safe parent is created only at commit.
     (tmp_path / "src").mkdir()
     after = "def ready():\n    return True\n"
     patch_text = unified("src/ready.py", "", after, creating=True)
