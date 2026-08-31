@@ -1,0 +1,117 @@
+name: Reconcile P2-V0.23.20 Current State
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/reconcile-current-state-p2320.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Reconcile authoritative current state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+
+          old_status = "P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED"
+          new_status = "P2-V0.23.19 DEDICATED QA TRUST CONTRACTION PRODUCTION-VERIFIED / P2-V0.23.20 EXACT GITHUB EMPTY-REF COMPATIBILITY PRODUCTION-DEPLOYMENT-VERIFIED / RISK-TIERED CI/CD VALIDATION MAIN-VERIFIED"
+          assert text.count(old_status) == 1
+          text = text.replace(old_status, new_status, 1)
+
+          anchor = "\n\n## Current production truth"
+          section = r'''
+
+## P2-V0.23.20 — exact GitHub empty-repository ref compatibility — PRODUCTION-DEPLOYMENT-VERIFIED / CANONICAL GREENFIELD ACCEPTANCE STILL OPEN
+
+Workstream: #442. Release PR: #506. Governing specification: `P2-V0.23.20`. Architecture: `ARCHITECTURE.md` v3.32.
+
+The user approved a new canonical W9-S1 target, `Ryan9876/parallax-qa1` (GitHub repository ID `1351932371`). Before each bounded attempt the repository was positively verified public and truly empty with no refs. The first canonical attempt on P2-V0.23.19 exposed a provider-compatibility defect before any mutation: GitHub's real default-ref REST response for a genuinely empty repository is HTTP 409 with exact JSON message `Git Repository is empty.`, while the greenfield inspector previously accepted only HTTP 404 as no head.
+
+P2-V0.23.20 recognizes only that exact GitHub 409 response inside the authenticated greenfield inspection boundary after repository identity/default-branch verification. Existing 404 no-head behavior remains equivalent; malformed/unrelated 409, 422 and ordinary shared Git-ref conflicts remain fail-closed. The shared `_get_ref()` path is unchanged, no pre-REVIEW mutation authority was added, and the v3.21 zero-file lineage, non-empty accepted implementation, REVIEW-only deterministic initializer, exact branch/PR/Preview delivery, production-promotion prohibition and human REVIEW ceiling remain authoritative.
+
+Release and deployment evidence:
+
+- release PR: #506;
+- exact green PR head: `a06e2cd20448e5de0f5dcae6f10ed12eb289bb6b`;
+- merge / deployed API source: `bfc2373d690113a592a52ca8a12fc6b5343d481d`;
+- production deployment: `dpl_AUapYhiyoD2G16t8uH4AzR5hqKQv`, target production, state `READY`;
+- canonical production alias: `parallax-api-tan.vercel.app`;
+- post-merge Workstream Spec Validation `33353572435`: SUCCESS;
+- post-merge Parallax P2 CI `33353572439`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- production build preflights passed, including exact source-lineage composition, agentic runtime, projected bootstrap, execution snapshots and run-event schema.
+
+Canonical acceptance evidence remains bounded rather than overstated:
+
+- first fresh-target replay on P2-V0.23.19: Project `ba697355-424c-4d86-8b89-3cf23455a6f5`, Work Specification `bed43b64-1eea-424d-84be-e7da4c9018e0`, Engineering Run `2f9a39d5-ddbf-4da5-a022-a70d243f28c8`; stopped at PLAN before mutation and exposed the real GitHub 409 response compatibility gap;
+- corrected exact-source replay: dedicated `Ryan9876/parallax-qa` workflow run `33353749430`, job `99371868349`;
+- corrected replay Project: `ba697355-424c-4d86-8b89-3cf23455a6f5`;
+- Work Specification: `7f8effdf-be77-4a2d-8967-8780cf41fe73` revision 1;
+- Engineering Run: `dd81cacd-932c-4414-9dae-c906beee24a9`;
+- observed disposition: `AUTONOMOUS_REQUEST_FAILED_HTTP_503`, final observed lifecycle state PLAN / revision 1, with zero out-of-band source edits;
+- exact runtime evidence: `source_bootstrap_failed stage=provider-repository ... result_code=PROVIDER_INVALID_RESPONSE`;
+- after the corrected replay, `Ryan9876/parallax-qa1` still returns GitHub `This repository is empty.` and has no default ref;
+- the temporary W9-S1 QA push trigger was removed immediately after the observation; the dedicated QA workflow is restored to manual-only operation.
+
+The public GitHub empty-ref incompatibility is therefore fixed and deployed, but positive authenticated greenfield inspection for the newly created repository has not yet been established. P2-V0.23.7 deliberately defines exact GitHub App / Vercel Connect repository permission as an explicit provider/user authorization boundary. Connector coverage for `Ryan9876/parallax-qa1` must be positively established before another canonical retry; provider/source failures alone must not be reinterpreted as greenfield. #442 remains open and AC-27/full canonical greenfield success is not claimed.'''
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, section + anchor, 1)
+
+          old_w9 = "W9-S1 empty-greenfield initialization authority is now implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21. Parallax can positively inspect an exact credentialed repository as empty, create an explicit zero-file greenfield root lineage, preserve the ordinary protected lifecycle, and at REVIEW use a separate fixed `repository.initialize-empty` capability before ordinary bounded publication. The canonical Decision Ledger end-to-end acceptance is not yet complete because its fixed disposable repository was initialized by earlier Parallax QA fixture activity before this release; v3.21 did not mutate that target."
+          new_w9 = "W9-S1 empty-greenfield initialization authority is implemented and production-deployment-verified under P2-V0.23.7 / Architecture v3.21, with GitHub's exact empty-repository 409 ref response now compatibility-corrected under P2-V0.23.20 / Architecture v3.32. The fresh approved target `Ryan9876/parallax-qa1` remains truly empty after two bounded canonical attempts. Full Decision Ledger acceptance is still open because positive authenticated GitHub App / Vercel Connect coverage for that new repository has not yet been established through the protected greenfield inspection path; no repository initialization, branch, PR or Preview mutation has occurred."
+          assert text.count(old_w9) == 1
+          text = text.replace(old_w9, new_w9, 1)
+
+          api_marker = "### API\n\nCurrent deployment-verified production API:\n\n"
+          head, sep, tail = text.partition(api_marker)
+          assert sep
+          for old, new in [
+              ("- source: `ea00a943d4bc5f00f0f5416881d482c0f799be63`;", "- source: `bfc2373d690113a592a52ca8a12fc6b5343d481d`;"),
+              ("- production deployment: `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`;", "- production deployment: `dpl_AUapYhiyoD2G16t8uH4AzR5hqKQv`;"),
+              ("- architecture: `ARCHITECTURE.md` v3.31.", "- architecture: `ARCHITECTURE.md` v3.32."),
+          ]:
+              assert old in tail
+              tail = tail.replace(old, new, 1)
+          text = head + sep + tail
+
+          old_open = "- #442 — P2-V0.23.7 empty-greenfield authority is implementation- and deployment-verified; canonical Decision Ledger acceptance remains pending a fresh approved empty target because the prior disposable target was consumed by legacy QA fixture activity."
+          new_open = "- #442 — P2-V0.23.7 greenfield authority and P2-V0.23.20 exact empty-ref compatibility are production-deployment-verified. Fresh approved target `Ryan9876/parallax-qa1` remains empty after bounded canonical replays; completion now requires positive exact GitHub App / Vercel Connect coverage for that repository, followed by the frozen Decision Ledger path through REVIEW-only initialization, bounded branch/PR, READY Preview and REVIEW."
+          assert text.count(old_open) == 1
+          text = text.replace(old_open, new_open, 1)
+
+          old_latest = "Latest authoritative reconciliation: P2-V0.23.19 is production-verified on exact API source `ea00a943d4bc5f00f0f5416881d482c0f799be63` / deployment `dpl_ACcZLXGNc9Rt1kBekWRJaFw9Vov8`. Post-merge Workstream Spec Validation `33350390486` and Parallax P2 CI `33350390524` passed, including fresh promotion-boundary DSPy compilation and verification. Dedicated `parallax-qa` replay `33350555555` then passed both routine jobs under the contracted one-tuple trust set: Python run `1b3c3413-2854-4af9-9625-d6d1838d0357` and OT Time run `beadb914-1ab5-45b2-ba72-50b31efe1f16` both reached REVIEW with verified authenticated source-only ZIP handoff. `ARCHITECTURE.md` is authoritative at v3.31. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles. Issues #501 and #499 are complete; #442 canonical greenfield acceptance remains open."
+          new_latest = "Latest authoritative reconciliation: P2-V0.23.20 is production-deployment-verified on exact API source `bfc2373d690113a592a52ca8a12fc6b5343d481d` / deployment `dpl_AUapYhiyoD2G16t8uH4AzR5hqKQv`. Post-merge Workstream Spec Validation `33353572435` and Parallax P2 CI `33353572439` passed, including fresh promotion-boundary DSPy compilation and verification. The fresh approved target `Ryan9876/parallax-qa1` remains truly empty after canonical replay `33353749430`; Engineering Run `dd81cacd-932c-4414-9dae-c906beee24a9` stopped safely at PLAN with no source mutation because positive authenticated provider-repository inspection is still not established. `ARCHITECTURE.md` is authoritative at v3.32. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` require no change because this release changes neither durable visual-system rules nor constitutional authority principles. #442 remains the only listed open governed work and must not be closed until exact connector coverage plus REVIEW-only initialization, bounded branch/PR and READY Preview are proven."
+          assert text.count(old_latest) == 1
+          text = text.replace(old_latest, new_latest, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit authoritative state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "parallax-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add CURRENT-STATE.md
+          git diff --cached --check
+          git commit -m "Record P2-V0.23.20 deployment and greenfield blocker"
+          git push origin HEAD:main
