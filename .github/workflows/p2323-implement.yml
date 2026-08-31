@@ -72,6 +72,6 @@ jobs:
           set -euo pipefail
           git config user.name "Parallax Release Worker"
           git config user.email "parallax-release-worker@users.noreply.github.com"
-          git add ARCHITECTURE.md services/api/parallax_api/code/agentic_candidate_recovery.py services/api/tests/test_agentic_candidate_recovery.py .github/workflows/p2323-prepare.yml .github/workflows/p2323-implement.yml scripts/p2323_apply.py
+          git add -A
           git commit -m "P2-V0.23.23 — add bounded final validator repair"
           git push origin HEAD:fix/p2323-bounded-validator-repair
