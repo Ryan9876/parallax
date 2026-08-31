@@ -15,9 +15,24 @@ from ..intelligence.implementation_generation import (
     validate_implementation_proposal,
 )
 from .domain import AttemptStatus, WorkflowStage
-from .implementation import ImplementationError, ImplementationRequest, SafeImplementationEngine
+from .implementation import (
+    DuplicateTargetError,
+    ImplementationError,
+    ImplementationLimitError,
+    ImplementationRequest,
+    SafeImplementationEngine,
+    TargetHierarchyConflictError,
+)
 from .model_patch_canonicalization import CanonicalizingTextPatchEngine
-from .patching import PatchError, SourcePatch
+from .patching import (
+    PatchConflictError,
+    PatchError,
+    PatchFormatError,
+    PatchLimitError,
+    SourcePatch,
+    StaleBaseError,
+    UnsafeTargetError,
+)
 from .service import EngineeringRunService, RunOperationResult
 from .source_context import BoundedSourceContextSelector, SourceContextError
 from .state_machine import RevisionConflict
@@ -59,6 +74,73 @@ class ImplementationContractError(ImplementationRuntimeError):
 
 class ImplementationMutationError(ImplementationRuntimeError):
     pass
+
+
+PROPOSAL_PREFLIGHT_REASON_CODES = frozenset(
+    {
+        "UNSAFE_TARGET",
+        "STALE_BASE",
+        "PATCH_FORMAT",
+        "PATCH_CONFLICT",
+        "PATCH_LIMIT",
+        "DUPLICATE_TARGET",
+        "TARGET_HIERARCHY_CONFLICT",
+        "IMPLEMENTATION_LIMIT",
+        "SAFE_IMPLEMENTATION_ERROR",
+        "UNKNOWN_PATCH_ERROR",
+        "OS_BOUNDARY_ERROR",
+        "UNKNOWN_PRECHECK_ERROR",
+    }
+)
+
+
+def classify_proposal_preflight_failure(exc: Exception) -> str:
+    """Map protected safe-engine failures to fixed non-sensitive reason codes."""
+
+    if isinstance(exc, UnsafeTargetError):
+        return "UNSAFE_TARGET"
+    if isinstance(exc, StaleBaseError):
+        return "STALE_BASE"
+    if isinstance(exc, PatchFormatError):
+        return "PATCH_FORMAT"
+    if isinstance(exc, PatchConflictError):
+        return "PATCH_CONFLICT"
+    if isinstance(exc, PatchLimitError):
+        return "PATCH_LIMIT"
+    if isinstance(exc, DuplicateTargetError):
+        return "DUPLICATE_TARGET"
+    if isinstance(exc, TargetHierarchyConflictError):
+        return "TARGET_HIERARCHY_CONFLICT"
+    if isinstance(exc, ImplementationLimitError):
+        return "IMPLEMENTATION_LIMIT"
+    if isinstance(exc, PatchError):
+        return "UNKNOWN_PATCH_ERROR"
+    if isinstance(exc, ImplementationError):
+        return "SAFE_IMPLEMENTATION_ERROR"
+    if isinstance(exc, OSError):
+        return "OS_BOUNDARY_ERROR"
+    return "UNKNOWN_PRECHECK_ERROR"
+
+
+class ProposalSafetyPreflight:
+    """Callable whole-proposal gate with a sanitized read-only reason seam."""
+
+    def __init__(self, engine: SafeImplementationEngine, workspace_root: Path) -> None:
+        self.engine = engine
+        self.workspace_root = workspace_root
+
+    def reason(self, proposal: ImplementationProposal) -> str | None:
+        try:
+            self.engine.validate(
+                self.workspace_root,
+                ProtectedImplementationRuntime._implementation_request(proposal),
+            )
+        except (ImplementationError, PatchError, OSError, ValueError) as exc:
+            return classify_proposal_preflight_failure(exc)
+        return None
+
+    def __call__(self, proposal: ImplementationProposal) -> bool:
+        return self.reason(proposal) is None
 
 
 class CanonicalProjectBinding(Protocol):
@@ -246,15 +328,10 @@ class ProtectedImplementationRuntime:
             source_context=source_context,
         )
 
-        def proposal_is_safe(proposal: ImplementationProposal) -> bool:
-            try:
-                self.implementation_engine.validate(
-                    handle.workspace_root,
-                    self._implementation_request(proposal),
-                )
-            except (ImplementationError, PatchError, OSError):
-                return False
-            return True
+        proposal_is_safe = ProposalSafetyPreflight(
+            self.implementation_engine,
+            handle.workspace_root,
+        )
 
         controller_evidence: dict[str, object] | None = None
         try:
