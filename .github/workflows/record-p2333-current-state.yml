@@ -21,63 +21,56 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cat > /tmp/p2333-section.md <<'EOF'
+          ## P2-V0.23.33 — canonical durable PLAN identity across candidate repair — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED
+
+          Workstream: #546. Release PR: #547. Governing specification: `P2-V0.23.33`. Architecture: `ARCHITECTURE.md` v3.44.
+
+          P2-V0.23.33 separates the canonical protected PLAN identity from subordinate disposable candidate-local producer selection during one IMPLEMENT attempt. The exact `primary_plan` accepted at protected PLAN remains the only durable worker-checkpoint `plan_ref`; bounded candidate rounds retain candidate-local producer/scheduling/dispatch identity but cannot become a durable PLAN replacement. The server-owned compatibility guard preserves exact Project, run, Work Specification, acceptance contract, work graph, limits, and canonical agent admission. Candidate ceilings, Luna/Terra/Sol roster, 60-second hosted timeout, zero hidden provider retries, SafeImplementationEngine, source-lineage authority, disposable validation, Git/deployment/lifecycle authority, and human REVIEW authority remain unchanged.
+
+          Validated release and deployment evidence:
+
+          - protected SpecCritic/SpecCompiler preparation `33502875202`: SUCCESS;
+          - focused implementation/full regression and architecture v3.44 reconciliation `33503125360`: SUCCESS;
+          - exact green PR head `cef9a78892c9e97f7697f2c9ff12df2669c4d474`;
+          - PR #547 Bounded Autonomy `33503410878`, Workstream Spec Validation `33503410859`, and P2 CI `33503410923`: SUCCESS;
+          - merge / exact application source `4e5b1e3d3962221b655630891bb7cae25cb66f01`;
+          - post-merge Workstream Spec Validation `33503578717` and P2 CI `33503578716`: SUCCESS, including fresh promotion-boundary DSPy compilation;
+          - production deployment `dpl_6ahCYmgKUyaFCZJVAEB2cMfQNGMD`: `READY`, exact source `4e5b1e3d3962221b655630891bb7cae25cb66f01`, canonical alias `parallax-api-tan.vercel.app`;
+          - production preflights and real static-web candidate BUILD/TEST/VERIFY canary: PASS;
+          - production `/health` and `/ready`: HTTP 200; initial exact-deployment warning/error/fatal verification window clean.
+
+          The first dedicated-QA replay `33503995863` / job `99843617504` was invalid as release acceptance because its objective required two `.svg` targets outside both the governed text-patch allowlist and the `static-web-v1` replacement contract. Parallax correctly rejected them as `UNSAFE_TARGET`; product authority was not widened. QA PR #2 corrected only the fixture and was squash-merged as `246229a807c193ae7a44ed9a1217624d977e9131`.
+
+          Corrected authenticated replay `33506848853` / job `99852814534` exercised Engineering Run `c7c6a645-aa4e-4440-b4d3-19ff1bbc8a82` on the exact P2-V0.23.33 production deployment. Protected PLAN succeeded; durable worker checkpoints progressed through `AGENT_DISPATCH`, `AGENT_RESULT`, `AGENT_PROPOSAL`, and `CANDIDATE_SELECTED`; IMPLEMENT attempt `4240d596-41f1-42c1-be8e-dbde9a490a73` PASSED with exactly `index.html`, `styles.css`, and `app.js`; and immutable source lineage `src:eded58029c39114fd67a2aaa11b4d5a01551c170031f78a9f306e015d525b9fb` was accepted. The prior candidate-repair PLAN-ref failure did not recur. Execution then advanced to BUILD, where attempt `d987c5f5-93ed-49ee-97bb-2c8ea1b470ec` failed bounded as `AUTONOMOUS_BUILD_FAILED`. This is a genuinely later blocker and satisfies #546.
+
+          Successor #548 / P2-V0.23.34 owns the later blocker. Candidate validation already consumes the immutable PLAN-bound `static-web-v1` execution contract, but `SameLineageVercelSandboxExecutor.execute_on_lineage()` re-runs legacy `select_validation_profile()` against post-IMPLEMENT source. Marker-free static source intentionally has no Node/Python/.NET execution marker, so source-shape re-inference rejects an already-authorized static-web lineage. P2-V0.23.34 will preserve the persisted closed-catalog PLAN execution contract through same-lineage BUILD/TEST/VERIFY instead of re-inferring authority from generated source.
+
+          No database migration, generic Node/Python admission, arbitrary repository command path, provider/model/credential addition, retry/timeout increase, hidden provider retry, source-lineage authority expansion, Git/deployment/lifecycle expansion, automatic REVIEW completion, or UI redesign was added.
+          EOF
+
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("CURRENT-STATE.md")
-          text = path.read_text(encoding="utf-8")
-
-          old_tail = " / P2-V0.23.32 BOUNDED CANDIDATE VALIDATION REPAIR + EXPLICIT CANARY IDENTITY PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED**"
-          new_tail = old_tail[:-2] + " / P2-V0.23.33 CANONICAL DURABLE PLAN IDENTITY ACROSS CANDIDATE REPAIR PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED**"
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+          old_tail = ' / P2-V0.23.32 BOUNDED CANDIDATE VALIDATION REPAIR + EXPLICIT CANARY IDENTITY PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED**'
+          new_tail = old_tail[:-2] + ' / P2-V0.23.33 CANONICAL DURABLE PLAN IDENTITY ACROSS CANDIDATE REPAIR PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED**'
+          marker = '\n## P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED\n'
           if old_tail not in text:
-              raise SystemExit("expected P2-V0.23.32 status tail not found")
-          text = text.replace(old_tail, new_tail, 1)
-
-          marker = "\n## P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED\n"
+              raise SystemExit('expected P2-V0.23.32 status tail not found')
           if marker not in text:
-              raise SystemExit("expected P2-V0.23.31 insertion marker not found")
-
-          section = r'''
-## P2-V0.23.33 — canonical durable PLAN identity across candidate repair — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED
-
-Workstream: #546. Release PR: #547. Governing specification: `P2-V0.23.33`. Architecture: `ARCHITECTURE.md` v3.44.
-
-P2-V0.23.33 separates the canonical protected PLAN identity from subordinate disposable candidate-local producer selection during one IMPLEMENT attempt. The exact `primary_plan` accepted at protected PLAN remains the only durable worker-checkpoint `plan_ref`; bounded candidate-primary, validation-repair, and challenger rounds may retain their existing candidate-local TeamPlan/assignment/operation/request/attempt identities for producer selection and scheduling, but those non-authoritative identities cannot become a durable PLAN replacement. A server-owned compatibility guard requires exact Project, Engineering Run, Work Specification identity/revision/digest, acceptance contract, work graph, policy/limits, and canonical agent admission before a candidate-local plan may share the canonical worker PLAN checkpoint. Existing candidate ceilings, Luna/Terra/Sol roster, 60-second hosted timeout, zero hidden provider retries, source-lineage authority, SafeImplementationEngine, disposable BUILD/TEST/VERIFY, Git/deployment/lifecycle authority, and human REVIEW ceiling remain unchanged.
-
-Validated release and deployment evidence:
-
-- protected P2-V0.23.33 SpecCritic/SpecCompiler preparation run `33502875202`: SUCCESS;
-- focused implementation, compatibility/checkpoint regression, architecture v3.44 reconciliation, governed-spec validation, and full API regression run `33503125360`: SUCCESS;
-- exact green PR head: `cef9a78892c9e97f7697f2c9ff12df2669c4d474`;
-- PR #547 Bounded Autonomy Pilot `33503410878`: SUCCESS;
-- PR #547 Workstream Spec Validation `33503410859`: SUCCESS, including committed protected DSPy plan evidence;
-- PR #547 Parallax P2 CI `33503410923`: SUCCESS, including API/client regression, protected promotion evaluation, and DSPy release evidence;
-- merge / exact application source: `4e5b1e3d3962221b655630891bb7cae25cb66f01`;
-- post-merge Workstream Spec Validation `33503578717`: SUCCESS;
-- post-merge Parallax P2 CI `33503578716`: SUCCESS, including full API regression, client checks, protected promotion evaluation, and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
-- production API deployment `dpl_6ahCYmgKUyaFCZJVAEB2cMfQNGMD`: target production, state `READY`, exact application source `4e5b1e3d3962221b655630891bb7cae25cb66f01`, canonical alias `parallax-api-tan.vercel.app`;
-- production build preflights passed provider/private Blob, exact delivery permission, projected source, private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution snapshots, Engineering Run event schema guard, and the real static-web candidate-validation canary through BUILD/TEST/VERIFY;
-- production `/health`: HTTP 200;
-- production `/ready`: HTTP 200 with database/providers ready and one provider target;
-- exact deployment warning/error/fatal scan after readiness was clean.
-
-The first dedicated-QA replay `33503995863` / job `99843617504` correctly failed before P2-V0.23.33 acceptance because the QA objective itself required two `.svg` targets outside Parallax's governed text patch allowlist and outside the `static-web-v1` replacement contract. The product correctly rejected those targets as `UNSAFE_TARGET`; no production authority was widened to make the fixture pass. QA PR #2 corrected only the acceptance fixture and was squash-merged as `246229a807c193ae7a44ed9a1217624d977e9131`.
-
-Authenticated real-path acceptance for P2-V0.23.33 is complete under the workstream's explicit later-bounded-blocker alternative. Corrected dedicated-QA replay `33506848853` / job `99852814534` exercised Engineering Run `c7c6a645-aa4e-4440-b4d3-19ff1bbc8a82` on exact production deployment `dpl_6ahCYmgKUyaFCZJVAEB2cMfQNGMD`. Protected PLAN succeeded, durable worker checkpoints progressed through `AGENT_DISPATCH`, `AGENT_RESULT`, `AGENT_PROPOSAL`, and `CANDIDATE_SELECTED`, IMPLEMENT attempt `4240d596-41f1-42c1-be8e-dbde9a490a73` PASSED with exactly `index.html`, `styles.css`, and `app.js`, and immutable source lineage `src:eded58029c39114fd67a2aaa11b4d5a01551c170031f78a9f306e015d525b9fb` was accepted. The prior candidate-repair PLAN-ref conflict did not recur. The run then advanced to protected BUILD, where attempt `d987c5f5-93ed-49ee-97bb-2c8ea1b470ec` failed bounded as `AUTONOMOUS_BUILD_FAILED`. This is a genuinely later blocker and satisfies #546. Workstream #546 is closed completed; successor #548 / P2-V0.23.34 owns preservation of the PLAN-bound execution contract through same-lineage BUILD/TEST/VERIFY.
-
-The successor root cause is bounded and explicit: candidate validation already uses the immutable PLAN-bound `static-web-v1` contract, but `SameLineageVercelSandboxExecutor.execute_on_lineage()` re-runs `select_validation_profile()` against post-IMPLEMENT source. Marker-free static source intentionally has no package.json, Python marker, or .NET marker, so source-shape re-inference rejects the lineage as unsupported despite the already authoritative static-web contract. P2-V0.23.34 must resolve the persisted closed-catalog contract instead of re-inferring execution authority from generated source.
-
-No database migration, generic Node/Python ecosystem admission, arbitrary repository command path, provider/model/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion, or UI redesign was added.
-'''
-
-          text = text.replace(marker, "\n" + section.strip() + "\n" + marker, 1)
-          path.write_text(text, encoding="utf-8")
+              raise SystemExit('expected P2-V0.23.31 insertion marker not found')
+          section = Path('/tmp/p2333-section.md').read_text(encoding='utf-8').strip()
+          text = text.replace(old_tail, new_tail, 1)
+          text = text.replace(marker, '\n' + section + '\n' + marker, 1)
+          path.write_text(text, encoding='utf-8')
           PY
 
           git rm .github/workflows/record-p2333-current-state.yml
-          git config user.name "Ryan9876"
-          git config user.email "ryansmith100@gmail.com"
+          git config user.name 'Ryan9876'
+          git config user.email 'ryansmith100@gmail.com'
           git add CURRENT-STATE.md
           git diff --cached --check
-          git commit -m "Record P2-V0.23.33 production acceptance"
+          git commit -m 'Record P2-V0.23.33 production acceptance'
           git push origin HEAD:records/p2333-production-acceptance
