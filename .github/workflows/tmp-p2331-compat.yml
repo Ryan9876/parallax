@@ -1,0 +1,177 @@
+name: P2-V0.23.31 PLAN Compatibility Patch
+
+on:
+  push:
+    branches:
+      - release/p2-v0.23.31
+    paths:
+      - .github/workflows/tmp-p2331-compat.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/p2-v0.23.31
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Preserve existing PLAN verification seam
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/api/parallax_api/code/agentic_runtime.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''    def _verify_plan_evidence(
+              self,
+              *,
+              run: EngineeringRun,
+              base_source_lineage_ref: str,
+              source_content_digest: str,
+          ) -> tuple[TeamPlan, ExecutionContract]:
+              acceptance = self._acceptance(run, self.service)
+              plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
+              evidence = self._plan_attempt(run)
+              contract_id = evidence.get("execution_contract_id")
+              binding_reason = evidence.get("execution_contract_binding_reason")
+              target = evidence.get("execution_contract_target")
+              if not isinstance(contract_id, str) or not isinstance(binding_reason, str):
+                  raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+              if target is not None and not isinstance(target, str):
+                  raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+              contract = resolve_execution_contract(
+                  contract_id,
+                  binding_reason=binding_reason,
+                  target=target,
+              )
+              expected = {
+                  "project_id": run.project_id,
+                  "run_id": run.id,
+                  "work_specification_id": run.work_specification_id,
+                  "work_specification_revision": run.work_specification_revision,
+                  "work_specification_digest": run.work_specification_digest,
+                  "base_source_lineage_ref": base_source_lineage_ref,
+                  "base_source_content_digest": source_content_digest,
+                  "execution_contract_id": contract.contract_id.value,
+                  "execution_contract_digest": contract.digest,
+                  "execution_contract_target": contract.target,
+                  "execution_contract_binding_reason": contract.binding_reason.value,
+                  "validation_profile_id": contract.validation_profile.profile_id.value,
+                  "validation_profile_digest": contract.validation_profile.digest,
+                  "orchestration_policy_digest": self._policy_digest,
+                  "work_graph_digest": plan.graph.digest,
+                  "roster_digest": plan.roster.digest,
+                  "orchestration_identity_digest": plan.identity.digest,
+                  "team_plan_id": plan.plan_id,
+                  "selected_agent_digests": list(plan.selected_agent_digests),
+                  "routing_policy_digest": self.routing_policy.digest,
+                  "competition_policy_digest": self.competition_policy.digest,
+              }
+              for key, value in expected.items():
+                  if evidence.get(key) != value:
+                      raise ValidationProfileError(
+                          ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                          f"persisted agentic PLAN evidence drifted at {key}",
+                      )
+              return plan, contract
+          '''
+          new = '''    @staticmethod
+              def _execution_contract_from_plan_evidence(evidence: dict[str, object]) -> ExecutionContract:
+                  contract_id = evidence.get("execution_contract_id")
+                  binding_reason = evidence.get("execution_contract_binding_reason")
+                  target = evidence.get("execution_contract_target")
+                  if not isinstance(contract_id, str) or not isinstance(binding_reason, str):
+                      raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+                  if target is not None and not isinstance(target, str):
+                      raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+                  return resolve_execution_contract(
+                      contract_id,
+                      binding_reason=binding_reason,
+                      target=target,
+                  )
+
+              def _verify_plan_evidence(
+                  self,
+                  *,
+                  run: EngineeringRun,
+                  base_source_lineage_ref: str,
+                  source_content_digest: str,
+              ) -> TeamPlan:
+                  acceptance = self._acceptance(run, self.service)
+                  plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
+                  evidence = self._plan_attempt(run)
+                  contract = self._execution_contract_from_plan_evidence(evidence)
+                  expected = {
+                      "project_id": run.project_id,
+                      "run_id": run.id,
+                      "work_specification_id": run.work_specification_id,
+                      "work_specification_revision": run.work_specification_revision,
+                      "work_specification_digest": run.work_specification_digest,
+                      "base_source_lineage_ref": base_source_lineage_ref,
+                      "base_source_content_digest": source_content_digest,
+                      "execution_contract_id": contract.contract_id.value,
+                      "execution_contract_digest": contract.digest,
+                      "execution_contract_target": contract.target,
+                      "execution_contract_binding_reason": contract.binding_reason.value,
+                      "validation_profile_id": contract.validation_profile.profile_id.value,
+                      "validation_profile_digest": contract.validation_profile.digest,
+                      "orchestration_policy_digest": self._policy_digest,
+                      "work_graph_digest": plan.graph.digest,
+                      "roster_digest": plan.roster.digest,
+                      "orchestration_identity_digest": plan.identity.digest,
+                      "team_plan_id": plan.plan_id,
+                      "selected_agent_digests": list(plan.selected_agent_digests),
+                      "routing_policy_digest": self.routing_policy.digest,
+                      "competition_policy_digest": self.competition_policy.digest,
+                  }
+                  for key, value in expected.items():
+                      if evidence.get(key) != value:
+                          raise ValidationProfileError(
+                              ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                              f"persisted agentic PLAN evidence drifted at {key}",
+                          )
+                  return plan
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'PLAN verification anchor count={text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          old_generate = '''            primary_plan, execution_contract = self._verify_plan_evidence(
+                      run=run,
+                      base_source_lineage_ref=base_source_lineage_ref,
+                      source_content_digest=lineage.content_digest,
+                  )
+                  execution_request = self._request_for_execution_contract(request, execution_contract)
+          '''
+          new_generate = '''            primary_plan = self._verify_plan_evidence(
+                      run=run,
+                      base_source_lineage_ref=base_source_lineage_ref,
+                      source_content_digest=lineage.content_digest,
+                  )
+                  execution_contract = self._execution_contract_from_plan_evidence(self._plan_attempt(run))
+                  execution_request = self._request_for_execution_contract(request, execution_contract)
+          '''
+          if text.count(old_generate) != 1:
+              raise SystemExit(f'generate PLAN anchor count={text.count(old_generate)}')
+          text = text.replace(old_generate, new_generate, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Compile compatibility patch
+        run: python -m compileall -q services/api/parallax_api/code/agentic_runtime.py
+      - name: Commit compatibility patch and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'Parallax Runtime Patcher'
+          git config user.email 'parallax-runtime@users.noreply.github.com'
+          git add services/api/parallax_api/code/agentic_runtime.py
+          git rm .github/workflows/tmp-p2331-compat.yml
+          git commit -m 'P2-V0.23.31 — preserve PLAN verification compatibility'
+          git push origin HEAD:release/p2-v0.23.31
