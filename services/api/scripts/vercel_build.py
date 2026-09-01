@@ -80,12 +80,16 @@ def main() -> None:
         _run_service_preflight("scripts/production_agentic_runtime_preflight.py")
         _run_isolated_preflight("scripts/production_projected_bootstrap_preflight.py")
         _run_isolated_preflight("scripts/production_execution_snapshot_preflight.py")
+        # P2-V0.23.31 proves the exact released candidate-admission path in a real
+        # disposable Vercel sandbox before production publication can succeed.
+        _run_service_preflight("scripts/production_candidate_validation_canary.py")
         _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
     else:
         print("Production lineage composition preflight: SKIP (non-production)")
         print("Production agentic runtime preflight: SKIP (non-production)")
         print("Production projected bootstrap preflight: SKIP (non-production)")
         print("Production execution-snapshot preflight: SKIP (non-production)")
+        print("Production candidate-validation canary: SKIP (non-production)")
         print("Production run-event schema guard: SKIP (non-production)")
 
     public = Path("public")
