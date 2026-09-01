@@ -611,7 +611,7 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         raw_phase = value["candidate_admission_failure"]
         if not isinstance(raw_phase, dict):
             raise ValueError("candidate admission diagnostics must be an object")
-        allowed_phase_fields = {
+        required_phase_fields = {
             "candidate_id",
             "phase",
             "failure_kind",
@@ -622,9 +622,11 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
             "review_completed",
             "production_deployed",
         }
-        if set(raw_phase) != allowed_phase_fields:
+        allowed_phase_fields = {*required_phase_fields, "reason_code"}
+        if set(raw_phase) - allowed_phase_fields or not required_phase_fields <= set(raw_phase):
             raise ValueError("candidate admission diagnostics contain a non-admitted field")
         phases = {
+            "EXECUTION_CONTRACT_VERIFICATION",
             "PROPOSAL_ASSEMBLY",
             "DISPOSABLE_CANDIDATE_VALIDATION",
             "CANDIDATE_BINDING",
@@ -637,6 +639,7 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
             "SAFE_IMPLEMENTATION_ERROR",
             "PATCH_ERROR",
             "OS_BOUNDARY_ERROR",
+            "VALIDATION_PROFILE_ERROR",
             "AGENTIC_CONTRACT_ERROR",
             "VALUE_CONTRACT_ERROR",
         }
@@ -650,6 +653,25 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
             "phase": phase,
             "failure_kind": failure_kind,
         }
+        reason_code = raw_phase.get("reason_code")
+        profile_reason_codes = {
+            "UNSUPPORTED_VALIDATION_ECOSYSTEM",
+            "AMBIGUOUS_VALIDATION_ECOSYSTEM",
+            "AMBIGUOUS_DOTNET_TARGET",
+            "PYTHON_FIXED_VALIDATION_UNAVAILABLE",
+            "NODE_FIXED_VALIDATION_UNAVAILABLE",
+            "EXECUTION_CONTRACT_DRIFT",
+            "EXECUTION_CONTRACT_UNAVAILABLE",
+            "EXECUTION_SNAPSHOT_UNAVAILABLE",
+            "INVALID_VALIDATION_PROFILE",
+            "INVALID_VALIDATION_TARGET",
+        }
+        if failure_kind == "VALIDATION_PROFILE_ERROR":
+            if reason_code not in profile_reason_codes:
+                raise ValueError("candidate admission diagnostics contain an invalid validation reason")
+            normalized_phase["reason_code"] = reason_code
+        elif reason_code is not None:
+            raise ValueError("candidate admission diagnostics contain an unexpected reason code")
         for claim in (
             "candidate_is_canonical_lineage",
             "accepts_source_lineage",

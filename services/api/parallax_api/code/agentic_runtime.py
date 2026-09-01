@@ -271,6 +271,7 @@ def _candidate_validation_failure_diagnostic(
 
 _CANDIDATE_ADMISSION_PHASES = frozenset(
     {
+        "EXECUTION_CONTRACT_VERIFICATION",
         "PROPOSAL_ASSEMBLY",
         "DISPOSABLE_CANDIDATE_VALIDATION",
         "CANDIDATE_BINDING",
@@ -1094,6 +1095,20 @@ class AgenticControlPlane:
         run: EngineeringRun,
         base_source_lineage_ref: str,
         source_content_digest: str,
+    ) -> TeamPlan:
+        plan, _ = self._verify_plan_and_execution_contract(
+            run=run,
+            base_source_lineage_ref=base_source_lineage_ref,
+            source_content_digest=source_content_digest,
+        )
+        return plan
+
+    def _verify_plan_and_execution_contract(
+        self,
+        *,
+        run: EngineeringRun,
+        base_source_lineage_ref: str,
+        source_content_digest: str,
     ) -> tuple[TeamPlan, ExecutionContract]:
         acceptance = self._acceptance(run, self.service)
         plan = self._team_plan(run, acceptance, source_digest=source_content_digest)
@@ -1744,11 +1759,15 @@ class AgenticControlPlane:
         if lineage.lineage_id != base_source_lineage_ref:
             raise ImplementationGenerationFailure("agentic runtime base lineage drifted before generation")
         try:
-            primary_plan, execution_contract = self._verify_plan_evidence(
-                run=run,
-                base_source_lineage_ref=base_source_lineage_ref,
-                source_content_digest=lineage.content_digest,
-            )
+            with _candidate_admission_phase(
+                "candidate-primary",
+                "EXECUTION_CONTRACT_VERIFICATION",
+            ):
+                primary_plan, execution_contract = self._verify_plan_and_execution_contract(
+                    run=run,
+                    base_source_lineage_ref=base_source_lineage_ref,
+                    source_content_digest=lineage.content_digest,
+                )
             execution_request = self._request_for_execution_contract(request, execution_contract)
             primary, routing_context = self._make_candidate(
                 run=run,
