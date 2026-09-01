@@ -56,7 +56,7 @@ def test_service_preflight_fails_closed_without_uv(monkeypatch) -> None:
         vercel_build._run_service_preflight("scripts/production_agentic_runtime_preflight.py")
 
 
-def test_production_build_uses_project_runtime_only_for_agentic_canary(monkeypatch, tmp_path: Path) -> None:
+def test_production_build_uses_project_runtime_for_service_canaries(monkeypatch, tmp_path: Path) -> None:
     events: list[tuple[str, tuple[str, ...]]] = []
     monkeypatch.setenv("VERCEL_ENV", "production")
     monkeypatch.chdir(tmp_path)
@@ -82,5 +82,6 @@ def test_production_build_uses_project_runtime_only_for_agentic_canary(monkeypat
         ("service", ("scripts/production_agentic_runtime_preflight.py",)),
         ("isolated", ("scripts/production_projected_bootstrap_preflight.py",)),
         ("isolated", ("scripts/production_execution_snapshot_preflight.py",)),
+        ("service", ("scripts/production_candidate_validation_canary.py",)),
         ("isolated", ("scripts/production_run_event_schema_guard.py",)),
     ]
