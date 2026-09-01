@@ -6,6 +6,7 @@ on:
       - ws/548-plan-bound-execution-contract
     paths:
       - specs/P2-V0.23.34.md
+      - services/api/parallax_api/intelligence/dspy_programs.py
       - .github/workflows/p2334-spec-gate.yml
 
 permissions:
@@ -79,7 +80,7 @@ jobs:
           set -euo pipefail
           git config user.name 'parallax-spec-compiler'
           git config user.email 'actions@users.noreply.github.com'
-          git add specs/compiled/P2-V0.23.34.plan.json
+          git add specs/compiled/P2-V0.23.34.plan.json services/api/parallax_api/intelligence/dspy_programs.py
           git rm .github/workflows/p2334-spec-gate.yml
           git diff --cached --check
           git commit -m 'Compile P2-V0.23.34 protected DSPy plan'
