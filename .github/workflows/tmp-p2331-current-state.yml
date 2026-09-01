@@ -2,8 +2,10 @@ name: P2-V0.23.31 Current State Reconciliation
 
 on:
   push:
-    branches: [record/p2331-deployment-verification]
-    paths: [.github/workflows/tmp-p2331-current-state.yml]
+    branches:
+      - record/p2331-deployment-verification
+    paths:
+      - .github/workflows/tmp-p2331-current-state.yml
 
 permissions:
   contents: write
@@ -22,6 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import base64
           from pathlib import Path
 
           path = Path('CURRENT-STATE.md')
@@ -31,49 +34,23 @@ jobs:
           if old_status not in text:
               raise SystemExit('P2-V0.23.31 status anchor drifted')
           text = text.replace(old_status, new_status, 1)
-
           anchor = '## P2-V0.23.30 — source-anchored candidate validation profile — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED\n'
           if text.count(anchor) != 1:
               raise SystemExit('P2-V0.23.30 section anchor drifted')
-          section = '''## P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay — PRODUCTION-DEPLOYMENT-VERIFIED / PRE-USER CANDIDATE CANARY VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING
-
-Workstream: #539. Release PR: #541. Governing specification: `P2-V0.23.31`. Architecture: `ARCHITECTURE.md` v3.42.
-
-P2-V0.23.31 replaces source-shape inference as the remaining marker-free greenfield execution authority with one immutable server-owned execution contract bound during protected PLAN to the exact accepted source lineage and work-specification identity. Established Parallax Python and bounded root .NET source retain their governed validation profiles; a marker-free greenfield lineage binds only the narrow `static-web-v1` contract. Generic Python and generic Node source remain fail-closed. The static-web validator is server-owned code outside candidate source, uses only deterministic HTML/local-reference and JavaScript syntax checks, and runs through the existing pinned disposable candidate sandbox. Candidate-authored markers, package scripts, command text, network policy, execution snapshots and validator source cannot change the bound authority. IMPLEMENT verifies the persisted execution contract before generation/candidate validation. Contract/profile admission failures persist only a closed server-owned phase, fixed failure kind and fixed reason-code vocabulary; raw source, generated content, exception/provider payloads and environment material remain excluded.
-
-Validated release and deployment evidence:
-
-- protected P2-V0.23.31 spec-first preparation / DSPy compile-and-verify run `33452271536`: SUCCESS;
-- exact validated release branch head: `a1ce6564076cad7399939266cd9d1cc1b6eb7fe2`;
-- release-branch completion run `33453570435`: SUCCESS, including focused execution-contract regressions, full API regression, compatibility repair, bounded diagnostic admission and architecture v3.42 reconciliation;
-- PR #541 Bounded Autonomy Pilot `33453718040`: SUCCESS;
-- PR #541 Workstream Spec Validation `33453717927`: SUCCESS, including committed protected DSPy plan evidence;
-- PR #541 Parallax P2 CI `33453717932`: SUCCESS, including full API regression, client checks, protected promotion evaluation and DSPy release evidence;
-- merge / exact application source: `27bb6b2af73dbae1809cbb168dc760cf81c977ba`;
-- post-merge Workstream Spec Validation `33453948745`: SUCCESS, including changed-spec protected plan evidence;
-- post-merge Parallax P2 CI `33453948968`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
-- production API deployment `dpl_FDuJ3JKRHnvHf14mzJX59cVGasAY`: target production, state `READY`, exact application source `27bb6b2af73dbae1809cbb168dc760cf81c977ba`, canonical alias `parallax-api-tan.vercel.app`;
-- production build preflights passed provider registration/private Blob, exact delivery permission, projected source (697 lineage-eligible files / 7,208,638 UTF-8 bytes), private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution-snapshot verification, and Engineering Run event schema guard;
-- production candidate-validation canary: PASS under `node-v1`, with exact disposable `BUILD`, `TEST`, and `VERIFY` all protected-successful; immutable candidate digest `f2e8320d210228539bd8c44a9a2d62dccea66d4e7d29f81389b71ba148a483a4`;
-- production `/health`: HTTP 200;
-- production `/ready`: HTTP 200 with database/providers ready and one provider target;
-- exact production deployment warning/error/fatal runtime scan after readiness was clean;
-- backend-only client production attempt `dpl_AHh6NNdySuwEQQd7EzRgW2XokJFd` was canceled/ignored by path-aware deployment logic, so the prior READY client remains authoritative.
-
-The deterministic pre-user acceptance replay has therefore crossed the same real disposable candidate BUILD/TEST/VERIFY substrate that previously required a signed-in user retry to discover post-generation blockers. No Project, Engineering Run, source lineage, Git, delivery, lifecycle, deployment or REVIEW state was mutated by the canary. The remaining P2-V0.23.31 completion boundary is authenticated real-path acceptance: a signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact marker-free greenfield work) must enter disposable BUILD/TEST/VERIFY under the persisted execution contract or expose a later bounded blocker. Workstream #539 remains open until that evidence exists.
-
-No generic ecosystem admission, provider/model/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, model filesystem authority, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion or queue redesign was added.
-
-'''
+          section_b64 = 'IyMgUDItVjAuMjMuMzEg4oCUIGV4cGxpY2l0IGV4ZWN1dGlvbiBjb250cmFjdCBhbmQgZW5kLXRvLWVuZCBhY2NlcHRhbmNlIHJlcGxheSDigJQgUFJPRFVDVElPTi1ERVBMT1lNRU5ULVZFUklGSUVEIC8gUFJFLVVTRVIgQ0FORElEQVRFIENBTkFSWSBWRVJJRklFRCAvIEFVVEhFTlRJQ0FURUQgUkVBTC1QQVRIIEFDQ0VQVEFOQ0UgUEVORElORwoKV29ya3N0cmVhbTogIzUzOS4gUmVsZWFzZSBQUjogIzU0MS4gR292ZXJuaW5nIHNwZWNpZmljYXRpb246IGBQMi1WMC4yMy4zMWAuIEFyY2hpdGVjdHVyZTogYEFSQ0hJVEVDVFVSRS5tZGAgdjMuNDIuCgpQMi1WMC4yMy4zMSByZXBsYWNlcyBzb3VyY2Utc2hhcGUgaW5mZXJlbmNlIGFzIHRoZSByZW1haW5pbmcgbWFya2VyLWZyZWUgZ3JlZW5maWVsZCBleGVjdXRpb24gYXV0aG9yaXR5IHdpdGggb25lIGltbXV0YWJsZSBzZXJ2ZXItb3duZWQgZXhlY3V0aW9uIGNvbnRyYWN0IGJvdW5kIGR1cmluZyBwcm90ZWN0ZWQgUExBTiB0byB0aGUgZXhhY3QgYWNjZXB0ZWQgc291cmNlIGxpbmVhZ2UgYW5kIHdvcmstc3BlY2lmaWNhdGlvbiBpZGVudGl0eS4gRXN0YWJsaXNoZWQgUGFyYWxsYXggUHl0aG9uIGFuZCBib3VuZGVkIHJvb3QgLk5FVCBzb3VyY2UgcmV0YWluIHRoZWlyIGdvdmVybmVkIHZhbGlkYXRpb24gcHJvZmlsZXM7IGEgbWFya2VyLWZyZWUgZ3JlZW5maWVsZCBsaW5lYWdlIGJpbmRzIG9ubHkgdGhlIG5hcnJvdyBgc3RhdGljLXdlYi12MWAgY29udHJhY3QuIEdlbmVyaWMgUHl0aG9uIGFuZCBnZW5lcmljIE5vZGUgc291cmNlIHJlbWFpbiBmYWlsLWNsb3NlZC4gVGhlIHN0YXRpYy13ZWIgdmFsaWRhdG9yIGlzIHNlcnZlci1vd25lZCBjb2RlIG91dHNpZGUgY2FuZGlkYXRlIHNvdXJjZSwgdXNlcyBvbmx5IGRldGVybWluaXN0aWMgSFRNTC9sb2NhbC1yZWZlcmVuY2UgYW5kIEphdmFTY3JpcHQgc3ludGF4IGNoZWNrcywgYW5kIHJ1bnMgdGhyb3VnaCB0aGUgZXhpc3RpbmcgcGlubmVkIGRpc3Bvc2FibGUgY2FuZGlkYXRlIHNhbmRib3guIENhbmRpZGF0ZS1hdXRob3JlZCBtYXJrZXJzLCBwYWNrYWdlIHNjcmlwdHMsIGNvbW1hbmQgdGV4dCwgbmV0d29yayBwb2xpY3ksIGV4ZWN1dGlvbiBzbmFwc2hvdHMgYW5kIHZhbGlkYXRvciBzb3VyY2UgY2Fubm90IGNoYW5nZSB0aGUgYm91bmQgYXV0aG9yaXR5LiBJTVBMRU1FTlQgdmVyaWZpZXMgdGhlIHBlcnNpc3RlZCBleGVjdXRpb24gY29udHJhY3QgYmVmb3JlIGdlbmVyYXRpb24vY2FuZGlkYXRlIHZhbGlkYXRpb24uIENvbnRyYWN0L3Byb2ZpbGUgYWRtaXNzaW9uIGZhaWx1cmVzIHBlcnNpc3Qgb25seSBhIGNsb3NlZCBzZXJ2ZXItb3duZWQgcGhhc2UsIGZpeGVkIGZhaWx1cmUga2luZCBhbmQgZml4ZWQgcmVhc29uLWNvZGUgdm9jYWJ1bGFyeTsgcmF3IHNvdXJjZSwgZ2VuZXJhdGVkIGNvbnRlbnQsIGV4Y2VwdGlvbi9wcm92aWRlciBwYXlsb2FkcyBhbmQgZW52aXJvbm1lbnQgbWF0ZXJpYWwgcmVtYWluIGV4Y2x1ZGVkLgoKVmFsaWRhdGVkIHJlbGVhc2UgYW5kIGRlcGxveW1lbnQgZXZpZGVuY2U6CgotIHByb3RlY3RlZCBQMi1WMC4yMy4zMSBzcGVjLWZpcnN0IHByZXBhcmF0aW9uIC8gRFNQeSBjb21waWxlLWFuZC12ZXJpZnkgcnVuIGAzMzQ1MjI3MTUzNmA6IFNVQ0NFU1M7Ci0gZXhhY3QgdmFsaWRhdGVkIHJlbGVhc2UgYnJhbmNoIGhlYWQ6IGBhMWNlNjU2NDA3NmNhZDczOTk5MzkyNjZjZDlkMWNjMWI2ZWI3ZmUyYDsKLSByZWxlYXNlLWJyYW5jaCBjb21wbGV0aW9uIHJ1biBgMzM0NTM1NzA0MzVgOiBTVUNDRVNTLCBpbmNsdWRpbmcgZm9jdXNlZCBleGVjdXRpb24tY29udHJhY3QgcmVncmVzc2lvbnMsIGZ1bGwgQVBJIHJlZ3Jlc3Npb24sIGNvbXBhdGliaWxpdHkgcmVwYWlyLCBib3VuZGVkIGRpYWdub3N0aWMgYWRtaXNzaW9uIGFuZCBhcmNoaXRlY3R1cmUgdjMuNDIgcmVjb25jaWxpYXRpb247Ci0gUFIgIzU0MSBCb3VuZGVkIEF1dG9ub215IFBpbG90IGAzMzQ1MzcxODA0MGA6IFNVQ0NFU1M7Ci0gUFIgIzU0MSBXb3Jrc3RyZWFtIFNwZWMgVmFsaWRhdGlvbiBgMzM0NTM3MTc5MjdgOiBTVUNDRVNTLCBpbmNsdWRpbmcgY29tbWl0dGVkIHByb3RlY3RlZCBEU1B5IHBsYW4gZXZpZGVuY2U7Ci0gUFIgIzU0MSBQYXJhbGxheCBQMiBDSSBgMzM0NTM3MTc5MzJgOiBTVUNDRVNTLCBpbmNsdWRpbmcgZnVsbCBBUEkgcmVncmVzc2lvbiwgY2xpZW50IGNoZWNrcywgcHJvdGVjdGVkIHByb21vdGlvbiBldmFsdWF0aW9uIGFuZCBEU1B5IHJlbGVhc2UgZXZpZGVuY2U7Ci0gbWVyZ2UgLyBleGFjdCBhcHBsaWNhdGlvbiBzb3VyY2U6IGAyN2JiNmIyYWY3M2RiYWUxODA5Y2JiMTY4ZGM3NjBjZjgxYzk3N2JhYDsKLSBwb3N0LW1lcmdlIFdvcmtzdHJlYW0gU3BlYyBWYWxpZGF0aW9uIGAzMzQ1Mzk0ODc0NWA6IFNVQ0NFU1MsIGluY2x1ZGluZyBjaGFuZ2VkLXNwZWMgcHJvdGVjdGVkIHBsYW4gZXZpZGVuY2U7Ci0gcG9zdC1tZXJnZSBQYXJhbGxheCBQMiBDSSBgMzM0NTM5NDg5NjhgOiBTVUNDRVNTLCBpbmNsdWRpbmcgZnVsbCBBUEkgcmVncmVzc2lvbiwgY2xpZW50IGNoZWNrcywgcHJvdGVjdGVkIHByb21vdGlvbiBldmFsdWF0aW9uIGFuZCBmcmVzaCBwcm9tb3Rpb24tYm91bmRhcnkgRFNQeSBTcGVjQ3JpdGljL1NwZWNDb21waWxlciBjb21waWxhdGlvbiBhbmQgdmVyaWZpY2F0aW9uOwotIHByb2R1Y3Rpb24gQVBJIGRlcGxveW1lbnQgYGRwbF9GRHVKM0pLUkhudkhmMTRtekpYNTljVkdhc0FZYDogdGFyZ2V0IHByb2R1Y3Rpb24sIHN0YXRlIGBSRUFEWWAsIGV4YWN0IGFwcGxpY2F0aW9uIHNvdXJjZSBgMjdiYjZiMmFmNzNkYmFlMTgwOWNiYjE2OGRjNzYwY2Y4MWM5NzdiYWAsIGNhbm9uaWNhbCBhbGlhcyBgcGFyYWxsYXgtYXBpLXRhbi52ZXJjZWwuYXBwYDsKLSBwcm9kdWN0aW9uIGJ1aWxkIHByZWZsaWdodHMgcGFzc2VkIHByb3ZpZGVyIHJlZ2lzdHJhdGlvbi9wcml2YXRlIEJsb2IsIGV4YWN0IGRlbGl2ZXJ5IHBlcm1pc3Npb24sIHByb2plY3RlZCBzb3VyY2UgKDY5NyBsaW5lYWdlLWVsaWdpYmxlIGZpbGVzIC8gNywyMDgsNjM4IFVURi04IGJ5dGVzKSwgcHJpdmF0ZSBCbG9iIFNESywgbGluZWFnZSBjb21wb3NpdGlvbiwgYWdlbnRpYyBydW50aW1lLCBwcm9qZWN0ZWQgYm9vdHN0cmFwLCBleGVjdXRpb24tc25hcHNob3QgdmVyaWZpY2F0aW9uLCBhbmQgRW5naW5lZXJpbmcgUnVuIGV2ZW50IHNjaGVtYSBndWFyZDsKLSBwcm9kdWN0aW9uIGNhbmRpZGF0ZS12YWxpZGF0aW9uIGNhbmFyeTogUEFTUyB1bmRlciBgbm9kZS12MWAsIHdpdGggZXhhY3QgZGlzcG9zYWJsZSBgQlVJTERgLCBgVEVTVGAsIGFuZCBgVkVSSUZZYCBhbGwgcHJvdGVjdGVkLXN1Y2Nlc3NmdWw7IGltbXV0YWJsZSBjYW5kaWRhdGUgZGlnZXN0IGBmMmU4MzIwZDIxMDIyODUzOWJkOGM0NGE5YTJkNjJkY2NlYTY2ZDRlN2QyOWY4MTM4OWI3MWJhMTQ4YTQ4M2E0YDsKLSBwcm9kdWN0aW9uIGAvaGVhbHRoYDogSFRUUCAyMDA7Ci0gcHJvZHVjdGlvbiBgL3JlYWR5YDogSFRUUCAyMDAgd2l0aCBkYXRhYmFzZS9wcm92aWRlcnMgcmVhZHkgYW5kIG9uZSBwcm92aWRlciB0YXJnZXQ7Ci0gZXhhY3QgcHJvZHVjdGlvbiBkZXBsb3ltZW50IHdhcm5pbmcvZXJyb3IvZmF0YWwgcnVudGltZSBzY2FuIGFmdGVyIHJlYWRpbmVzcyB3YXMgY2xlYW47Ci0gYmFja2VuZC1vbmx5IGNsaWVudCBwcm9kdWN0aW9uIGF0dGVtcHQgYGRwbF9BSGg2Tk5keVN1d0VRUWQ3RXpSZ1cyWG9rSkZkYCB3YXMgY2FuY2VsZWQvaWdub3JlZCBieSBwYXRoLWF3YXJlIGRlcGxveW1lbnQgbG9naWMsIHNvIHRoZSBwcmlvciBSRUFEWSBjbGllbnQgcmVtYWlucyBhdXRob3JpdGF0aXZlLgoKVGhlIGRldGVybWluaXN0aWMgcHJlLXVzZXIgYWNjZXB0YW5jZSByZXBsYXkgaGFzIHRoZXJlZm9yZSBjcm9zc2VkIHRoZSBzYW1lIHJlYWwgZGlzcG9zYWJsZSBjYW5kaWRhdGUgQlVJTEQvVEVTVC9WRVJJRlkgc3Vic3RyYXRlIHRoYXQgcHJldmlvdXNseSByZXF1aXJlZCBhIHNpZ25lZC1pbiB1c2VyIHJldHJ5IHRvIGRpc2NvdmVyIHBvc3QtZ2VuZXJhdGlvbiBibG9ja2Vycy4gTm8gUHJvamVjdCwgRW5naW5lZXJpbmcgUnVuLCBzb3VyY2UgbGluZWFnZSwgR2l0LCBkZWxpdmVyeSwgbGlmZWN5Y2xlLCBkZXBsb3ltZW50IG9yIFJFVklFVyBzdGF0ZSB3YXMgbXV0YXRlZCBieSB0aGUgY2FuYXJ5LiBUaGUgcmVtYWluaW5nIFAyLVYwLjIzLjMxIGNvbXBsZXRpb24gYm91bmRhcnkgaXMgYXV0aGVudGljYXRlZCByZWFsLXBhdGggYWNjZXB0YW5jZTogYSBzaWduZWQtaW4gcmV0cnkgb2YgRW5naW5lZXJpbmcgUnVuIGAzYTFiYTY2YS01NjQ5LTQyYjYtODFlZS05MTY4NGZlMDZiYmNgIChvciBlcXVpdmFsZW50IGV4YWN0IG1hcmtlci1mcmVlIGdyZWVuZmllbGQgd29yaykgbXVzdCBlbnRlciBkaXNwb3NhYmxlIEJVSUxEL1RFU1QvVkVSSUZZIHVuZGVyIHRoZSBwZXJzaXN0ZWQgZXhlY3V0aW9uIGNvbnRyYWN0IG9yIGV4cG9zZSBhIGxhdGVyIGJvdW5kZWQgYmxvY2tlci4gV29ya3N0cmVhbSAjNTM5IHJlbWFpbnMgb3BlbiB1bnRpbCB0aGF0IGV2aWRlbmNlIGV4aXN0cy4KCk5vIGdlbmVyaWMgZWNvc3lzdGVtIGFkbWlzc2lvbiwgcHJvdmlkZXIvbW9kZWwvY3JlZGVudGlhbCBhZGRpdGlvbiwgcmV0cnktYnVkZ2V0IGluY3JlYXNlLCBob3N0ZWQgdGltZW91dCBpbmNyZWFzZSwgaGlkZGVuIHByb3ZpZGVyIHJldHJ5LCBtb2RlbCBmaWxlc3lzdGVtIGF1dGhvcml0eSwgc291cmNlLWxpbmVhZ2UgYXV0aG9yaXR5IGV4cGFuc2lvbiwgR2l0L2RlcGxveW1lbnQgYXV0aG9yaXR5IGV4cGFuc2lvbiwgbGlmZWN5Y2xlLXRyYW5zaXRpb24gYXV0aG9yaXR5IGV4cGFuc2lvbiwgYXV0b21hdGljIFJFVklFVyBjb21wbGV0aW9uIG9yIHF1ZXVlIHJlZGVzaWduIHdhcyBhZGRlZC4KCg=='
+          section = base64.b64decode(section_b64).decode('utf-8')
           path.write_text(text.replace(anchor, section + anchor, 1), encoding='utf-8')
           PY
       - name: Verify authoritative record delta
+        shell: bash
         run: |
+          set -euo pipefail
           grep -q 'P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay' CURRENT-STATE.md
           grep -q 'dpl_FDuJ3JKRHnvHf14mzJX59cVGasAY' CURRENT-STATE.md
           grep -q 'f2e8320d210228539bd8c44a9a2d62dccea66d4e7d29f81389b71ba148a483a4' CURRENT-STATE.md
           test "$(git diff --name-only | sort)" = 'CURRENT-STATE.md'
       - name: Commit record and remove temporary workflow
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name 'Parallax State Reconciler'
