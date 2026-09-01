@@ -28,6 +28,19 @@ jobs:
         run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.32.md
       - name: Apply governed implementation
         run: python scripts/tmp_p2332_apply.py
+      - name: Repair focused SourceContext fixture contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('services/api/tests/test_candidate_validation_repair_v02332.py')
+          text = path.read_text()
+          old = 'SourceContextSnapshot(files=(), digest="d" * 64, total_bytes=0),'
+          new = 'SourceContextSnapshot(files=(), digest="d" * 64, total_bytes=0, excluded_secret_files=(), omitted_bounded_files=()),'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one SourceContext fixture anchor, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
       - name: Compile changed Python
         run: python -m compileall -q services/api/parallax_api/code services/api/scripts services/api/tests/test_candidate_validation_repair_v02332.py
       - name: Run focused P2-V0.23.32 regressions
