@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
 from urllib.parse import unquote, urlsplit
@@ -66,13 +67,25 @@ def _index(root: Path) -> Path:
     return resolved
 
 
+def _node_executable() -> str:
+    node = shutil.which("node")
+    if not node:
+        raise StaticWebValidationError("STATIC_WEB_JS_CHECK_UNAVAILABLE")
+    candidate = Path(node)
+    if not candidate.is_absolute() or not candidate.exists() or not candidate.is_file():
+        raise StaticWebValidationError("STATIC_WEB_JS_CHECK_UNAVAILABLE")
+    return str(candidate.resolve(strict=True))
+
+
 def _syntax_check_javascript(root: Path, files: tuple[Path, ...]) -> None:
-    for path in files:
-        if path.suffix.casefold() not in _JS_SUFFIXES:
-            continue
+    javascript = tuple(path for path in files if path.suffix.casefold() in _JS_SUFFIXES)
+    if not javascript:
+        return
+    node = _node_executable()
+    for path in javascript:
         try:
             result = subprocess.run(
-                ["node", "--check", str(path)],
+                [node, "--check", str(path)],
                 cwd=root,
                 env={},
                 stdin=subprocess.DEVNULL,
