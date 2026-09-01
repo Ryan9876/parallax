@@ -1,0 +1,110 @@
+{
+  "architecture_decisions": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "work_items": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "validations": [
+    "5.1 Closed static-web validation reason contract",
+    "AC-01: validate protected requirement \u2014 The workstream records exact production evidence that P2-V0.23.31 reached real disposable candidate BUILD and failed with `candidate-primary stage=BUILD timed_out=False`, while execution-contract verification, source lineage, and production infrastructure remained healthy.",
+    "AC-02: validate protected requirement \u2014 Focused tests prove only an exact single-line static-web fixed reason code can populate `validation_reason_code`; unknown/multiline/arbitrary output and other profiles cannot.",
+    "AC-03: validate protected requirement \u2014 Focused tests prove the admitted fixed reason code survives the existing bounded `candidate_validation_failure` envelope while arbitrary fields/unknown codes/raw output/true authority claims are rejected or dropped.",
+    "AC-04: validate protected requirement \u2014 Only BUILD/TEST/VERIFY failures with a repairable admitted static-web reason authorize candidate repair. Infrastructure/policy/non-repairable reasons terminate without generation.",
+    "AC-05: validate protected requirement \u2014 A repairable primary candidate rejection consumes the existing alternative candidate round and never creates a third candidate or expands the model, validator-repair, timeout, hidden-retry, or autonomy ceilings.",
+    "AC-06: validate protected requirement \u2014 The replacement generation receives only failed stage, admitted reason code, fixed execution contract/profile IDs, fixed server-authored instructions, and the original authoritative request/source context. Rejected candidate source and raw validator output are absent.",
+    "AC-07: validate protected requirement \u2014 The repair candidate is a complete replacement proposal applied to the authoritative base workspace, re-runs SafeImplementationEngine preflight and real disposable BUILD/TEST/VERIFY from scratch, and cannot retain/mutate the rejected candidate workspace.",
+    "AC-08: validate protected requirement \u2014 A successful replacement candidate passes the existing independent evaluation and routing boundary; ordinary challenger competition is skipped because the alternative slot was consumed.",
+    "AC-09: validate protected requirement \u2014 A replacement candidate validation failure produces bounded diagnostics and no further candidate generation.",
+    "AC-10: validate protected requirement \u2014 Tests prove primary static-web validation failure -> bounded repair -> replacement validation success, plus non-repairable failure, second-failure, no-third-candidate, no-authority, and no-raw-output cases.",
+    "AC-11: validate protected requirement \u2014 The exact release runs immutable `node-v1` and `static-web-v1` fixtures through real `VercelCandidateValidationExecutor` disposable BUILD/TEST/VERIFY and requires all protected stages to succeed before production publication.",
+    "AC-12: validate protected requirement \u2014 Mandatory DSPy spec preparation, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green.",
+    "AC-13: validate protected requirement \u2014 The exact merged application source reaches READY only after both profile canaries pass; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal runtime verification is clean.",
+    "AC-14: validate protected requirement \u2014 Only after AC-13, retry Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact marker-free work through the signed-in product path. It must survive the prior terminal primary BUILD rejection through bounded repair and complete canonical IMPLEMENT acceptance/advance, or expose a genuinely later bounded blocker. Repeating the same un-repaired primary BUILD failure does not pass."
+  ],
+  "risks": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "spec_id": "P2-V0.23.32",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "P2-V0.23.31 authenticated evidence is recorded",
+      "protected_requirement": "The workstream records exact production evidence that P2-V0.23.31 reached real disposable candidate BUILD and failed with `candidate-primary stage=BUILD timed_out=False`, while execution-contract verification, source lineage, and production infrastructure remained healthy."
+    },
+    {
+      "id": "AC-02",
+      "title": "Fixed validation reason extraction is closed",
+      "protected_requirement": "Focused tests prove only an exact single-line static-web fixed reason code can populate `validation_reason_code`; unknown/multiline/arbitrary output and other profiles cannot."
+    },
+    {
+      "id": "AC-03",
+      "title": "Durable diagnostics remain sanitized",
+      "protected_requirement": "Focused tests prove the admitted fixed reason code survives the existing bounded `candidate_validation_failure` envelope while arbitrary fields/unknown codes/raw output/true authority claims are rejected or dropped."
+    },
+    {
+      "id": "AC-04",
+      "title": "Repair eligibility is candidate-controlled and bounded",
+      "protected_requirement": "Only BUILD/TEST/VERIFY failures with a repairable admitted static-web reason authorize candidate repair. Infrastructure/policy/non-repairable reasons terminate without generation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing alternative candidate slot is reused",
+      "protected_requirement": "A repairable primary candidate rejection consumes the existing alternative candidate round and never creates a third candidate or expands the model, validator-repair, timeout, hidden-retry, or autonomy ceilings."
+    },
+    {
+      "id": "AC-06",
+      "title": "Repair guidance is closed and source-free",
+      "protected_requirement": "The replacement generation receives only failed stage, admitted reason code, fixed execution contract/profile IDs, fixed server-authored instructions, and the original authoritative request/source context. Rejected candidate source and raw validator output are absent."
+    },
+    {
+      "id": "AC-07",
+      "title": "Replacement validation restarts from authoritative base",
+      "protected_requirement": "The repair candidate is a complete replacement proposal applied to the authoritative base workspace, re-runs SafeImplementationEngine preflight and real disposable BUILD/TEST/VERIFY from scratch, and cannot retain/mutate the rejected candidate workspace."
+    },
+    {
+      "id": "AC-08",
+      "title": "Successful repair preserves evaluation/routing",
+      "protected_requirement": "A successful replacement candidate passes the existing independent evaluation and routing boundary; ordinary challenger competition is skipped because the alternative slot was consumed."
+    },
+    {
+      "id": "AC-09",
+      "title": "Second rejection remains fail-closed",
+      "protected_requirement": "A replacement candidate validation failure produces bounded diagnostics and no further candidate generation."
+    },
+    {
+      "id": "AC-10",
+      "title": "Deterministic candidate-repair regressions pass",
+      "protected_requirement": "Tests prove primary static-web validation failure -> bounded repair -> replacement validation success, plus non-repairable failure, second-failure, no-third-candidate, no-authority, and no-raw-output cases."
+    },
+    {
+      "id": "AC-11",
+      "title": "Profile-matched production canaries pass",
+      "protected_requirement": "The exact release runs immutable `node-v1` and `static-web-v1` fixtures through real `VercelCandidateValidationExecutor` disposable BUILD/TEST/VERIFY and requires all protected stages to succeed before production publication."
+    },
+    {
+      "id": "AC-12",
+      "title": "Protected release gates pass",
+      "protected_requirement": "Mandatory DSPy spec preparation, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green."
+    },
+    {
+      "id": "AC-13",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "The exact merged application source reaches READY only after both profile canaries pass; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal runtime verification is clean."
+    },
+    {
+      "id": "AC-14",
+      "title": "One authenticated real-path retry proves outcome",
+      "protected_requirement": "Only after AC-13, retry Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact marker-free work through the signed-in product path. It must survive the prior terminal primary BUILD rejection through bounded repair and complete canonical IMPLEMENT acceptance/advance, or expose a genuinely later bounded blocker. Repeating the same un-repaired primary BUILD failure does not pass."
+    }
+  ],
+  "critique": [
+    "The execution contract remains selected and bound by protected PLAN. Candidate validation repair cannot change contract ID, validation profile, commands, working directory, network policy, or execution snapshot. Candidate validation remains non-authoritative. A rejected candidate never mutates accepted source lineage, Project, Engineering Run, Git, delivery, deployment, lifecycle, or REVIEW state. No raw stdout, stderr, source text, generated content, provider payload, exception text, filesystem root, credential, or environment value may be forwarded to models or durable failure evidence. A server-owned validator may expose a repair reason only when the runtime proves it is one exact member of a closed fixed vocabulary. P2-V0.23.32 initially admits only the `static-web-v1` validator vocabulary. Candidate-repairable static-web reasons are content/structure defects that candidate source can change. Infrastructure/policy reasons remain terminal and do not authorize model repair. A repairable protected BUILD/TEST/VERIFY rejection consumes the already-existing alternative-candidate slot. It does not add a third candidate, increase the Luna/Terra/Sol roster, or expand the model."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
