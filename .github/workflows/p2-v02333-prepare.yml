@@ -14,11 +14,14 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SPEC_PATH: specs/P2-V0.23.33.md
+      TARGET_BRANCH: ws/546-candidate-repair-plan-identity
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -55,7 +58,7 @@ jobs:
         run: python scripts/compile_spec.py "$SPEC_PATH"
       - name: Verify protected DSPy evidence
         run: python scripts/validate_spec.py --require-dspy "$SPEC_PATH"
-      - name: Commit exact compiled plan
+      - name: Commit exact compiled plan without overwriting newer branch work
         run: |
           set -euo pipefail
           plan="specs/compiled/P2-V0.23.33.plan.json"
@@ -67,7 +70,9 @@ jobs:
           git config user.name 'parallax-spec-gate'
           git config user.email 'parallax-spec-gate@users.noreply.github.com'
           git commit -m 'P2-V0.23.33 — commit protected DSPy plan'
-          git push origin HEAD:ws/546-candidate-repair-plan-identity
+          git fetch origin "$TARGET_BRANCH"
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
