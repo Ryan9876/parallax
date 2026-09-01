@@ -13,7 +13,7 @@ permissions:
 jobs:
   complete:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,13 +22,138 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
+      - name: Repair execution-contract compatibility and diagnostic admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          agent = Path('services/api/parallax_api/code/agentic_runtime.py')
+          text = agent.read_text(encoding='utf-8')
+
+          phases_old = '''_CANDIDATE_ADMISSION_PHASES = frozenset(\n    {\n        "PROPOSAL_ASSEMBLY",\n'''
+          phases_new = '''_CANDIDATE_ADMISSION_PHASES = frozenset(\n    {\n        "EXECUTION_CONTRACT_VERIFICATION",\n        "PROPOSAL_ASSEMBLY",\n'''
+          if phases_old in text:
+              text = text.replace(phases_old, phases_new, 1)
+          elif '"EXECUTION_CONTRACT_VERIFICATION"' not in text:
+              raise SystemExit('candidate admission phase anchor drifted')
+
+          signature_old = '''    def _verify_plan_evidence(\n        self,\n        *,\n        run: EngineeringRun,\n        base_source_lineage_ref: str,\n        source_content_digest: str,\n    ) -> tuple[TeamPlan, ExecutionContract]:\n'''
+          signature_new = '''    def _verify_plan_evidence(\n        self,\n        *,\n        run: EngineeringRun,\n        base_source_lineage_ref: str,\n        source_content_digest: str,\n    ) -> TeamPlan:\n        plan, _ = self._verify_plan_and_execution_contract(\n            run=run,\n            base_source_lineage_ref=base_source_lineage_ref,\n            source_content_digest=source_content_digest,\n        )\n        return plan\n\n    def _verify_plan_and_execution_contract(\n        self,\n        *,\n        run: EngineeringRun,\n        base_source_lineage_ref: str,\n        source_content_digest: str,\n    ) -> tuple[TeamPlan, ExecutionContract]:\n'''
+          if signature_old in text:
+              text = text.replace(signature_old, signature_new, 1)
+          elif 'def _verify_plan_and_execution_contract(' not in text:
+              raise SystemExit('plan verification compatibility anchor drifted')
+
+          call_old = '''            primary_plan, execution_contract = self._verify_plan_evidence(\n                run=run,\n                base_source_lineage_ref=base_source_lineage_ref,\n                source_content_digest=lineage.content_digest,\n            )\n'''
+          call_new = '''            with _candidate_admission_phase(\n                "candidate-primary",\n                "EXECUTION_CONTRACT_VERIFICATION",\n            ):\n                primary_plan, execution_contract = self._verify_plan_and_execution_contract(\n                    run=run,\n                    base_source_lineage_ref=base_source_lineage_ref,\n                    source_content_digest=lineage.content_digest,\n                )\n'''
+          if call_old in text:
+              text = text.replace(call_old, call_new, 1)
+          elif 'primary_plan, execution_contract = self._verify_plan_and_execution_contract(' not in text:
+              raise SystemExit('protected generation verification anchor drifted')
+
+          agent.write_text(text, encoding='utf-8')
+
+          runtime = Path('services/api/parallax_api/code/implementation_runtime.py')
+          text = runtime.read_text(encoding='utf-8')
+
+          fields_old = '''        allowed_phase_fields = {\n            "candidate_id",\n            "phase",\n            "failure_kind",\n            "candidate_is_canonical_lineage",\n            "accepts_source_lineage",\n            "source_lineage_accepted",\n            "engineering_run_transitioned",\n            "review_completed",\n            "production_deployed",\n        }\n        if set(raw_phase) != allowed_phase_fields:\n            raise ValueError("candidate admission diagnostics contain a non-admitted field")\n'''
+          fields_new = '''        required_phase_fields = {\n            "candidate_id",\n            "phase",\n            "failure_kind",\n            "candidate_is_canonical_lineage",\n            "accepts_source_lineage",\n            "source_lineage_accepted",\n            "engineering_run_transitioned",\n            "review_completed",\n            "production_deployed",\n        }\n        allowed_phase_fields = {*required_phase_fields, "reason_code"}\n        if set(raw_phase) - allowed_phase_fields or not required_phase_fields <= set(raw_phase):\n            raise ValueError("candidate admission diagnostics contain a non-admitted field")\n'''
+          if fields_old in text:
+              text = text.replace(fields_old, fields_new, 1)
+          elif 'allowed_phase_fields = {*required_phase_fields, "reason_code"}' not in text:
+              raise SystemExit('candidate diagnostic field anchor drifted')
+
+          phase_old = '''        phases = {\n            "PROPOSAL_ASSEMBLY",\n'''
+          phase_new = '''        phases = {\n            "EXECUTION_CONTRACT_VERIFICATION",\n            "PROPOSAL_ASSEMBLY",\n'''
+          if phase_old in text:
+              text = text.replace(phase_old, phase_new, 1)
+          elif '            "EXECUTION_CONTRACT_VERIFICATION",\n' not in text:
+              raise SystemExit('durable diagnostic phase anchor drifted')
+
+          kinds_old = '''        failure_kinds = {\n            "SAFE_IMPLEMENTATION_ERROR",\n            "PATCH_ERROR",\n            "OS_BOUNDARY_ERROR",\n            "AGENTIC_CONTRACT_ERROR",\n            "VALUE_CONTRACT_ERROR",\n        }\n'''
+          kinds_new = '''        failure_kinds = {\n            "SAFE_IMPLEMENTATION_ERROR",\n            "PATCH_ERROR",\n            "OS_BOUNDARY_ERROR",\n            "VALIDATION_PROFILE_ERROR",\n            "AGENTIC_CONTRACT_ERROR",\n            "VALUE_CONTRACT_ERROR",\n        }\n'''
+          if kinds_old in text:
+              text = text.replace(kinds_old, kinds_new, 1)
+          elif '            "VALIDATION_PROFILE_ERROR",\n' not in text:
+              raise SystemExit('durable diagnostic failure-kind anchor drifted')
+
+          normalize_old = '''        normalized_phase: dict[str, object] = {\n            "candidate_id": candidate_id,\n            "phase": phase,\n            "failure_kind": failure_kind,\n        }\n        for claim in (\n'''
+          normalize_new = '''        normalized_phase: dict[str, object] = {\n            "candidate_id": candidate_id,\n            "phase": phase,\n            "failure_kind": failure_kind,\n        }\n        reason_code = raw_phase.get("reason_code")\n        profile_reason_codes = {\n            "UNSUPPORTED_VALIDATION_ECOSYSTEM",\n            "AMBIGUOUS_VALIDATION_ECOSYSTEM",\n            "AMBIGUOUS_DOTNET_TARGET",\n            "PYTHON_FIXED_VALIDATION_UNAVAILABLE",\n            "NODE_FIXED_VALIDATION_UNAVAILABLE",\n            "EXECUTION_CONTRACT_DRIFT",\n            "EXECUTION_CONTRACT_UNAVAILABLE",\n            "EXECUTION_SNAPSHOT_UNAVAILABLE",\n            "INVALID_VALIDATION_PROFILE",\n            "INVALID_VALIDATION_TARGET",\n        }\n        if failure_kind == "VALIDATION_PROFILE_ERROR":\n            if reason_code not in profile_reason_codes:\n                raise ValueError("candidate admission diagnostics contain an invalid validation reason")\n            normalized_phase["reason_code"] = reason_code\n        elif reason_code is not None:\n            raise ValueError("candidate admission diagnostics contain an unexpected reason code")\n        for claim in (\n'''
+          if normalize_old in text:
+              text = text.replace(normalize_old, normalize_new, 1)
+          elif 'profile_reason_codes = {' not in text:
+              raise SystemExit('durable diagnostic reason-code anchor drifted')
+
+          runtime.write_text(text, encoding='utf-8')
+          PY
+
+          cat > services/api/tests/test_execution_contract_diagnostics_v02331.py <<'PY'
+          from __future__ import annotations
+
+          from parallax_api.code.agentic_runtime import (
+              _CANDIDATE_ADMISSION_PHASES,
+              _candidate_admission_failure_diagnostic,
+          )
+          from parallax_api.code.implementation_runtime import (
+              ImplementationRuntimeError,
+              _bounded_implementation_failure_evidence,
+          )
+          from parallax_api.code.validation_toolchains import (
+              ValidationProfileError,
+              ValidationProfileReason,
+          )
+
+
+          def test_contract_verification_failure_admits_only_fixed_reason_code():
+              diagnostic = _candidate_admission_failure_diagnostic(
+                  "candidate-primary",
+                  "EXECUTION_CONTRACT_VERIFICATION",
+                  ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT),
+              )
+              assert "EXECUTION_CONTRACT_VERIFICATION" in _CANDIDATE_ADMISSION_PHASES
+              assert diagnostic["failure_kind"] == "VALIDATION_PROFILE_ERROR"
+              assert diagnostic["reason_code"] == "EXECUTION_CONTRACT_DRIFT"
+              admitted = _bounded_implementation_failure_evidence(
+                  {"candidate_admission_failure": diagnostic}
+              )
+              assert admitted["candidate_admission_failure"]["reason_code"] == "EXECUTION_CONTRACT_DRIFT"
+              assert admitted["candidate_admission_failure"]["source_lineage_accepted"] is False
+              assert admitted["candidate_admission_failure"]["production_deployed"] is False
+
+
+          def test_unrecognized_validation_reason_is_dropped_from_runtime_evidence():
+              raw = {
+                  "candidate_id": "candidate-primary",
+                  "phase": "EXECUTION_CONTRACT_VERIFICATION",
+                  "failure_kind": "VALIDATION_PROFILE_ERROR",
+                  "reason_code": "RAW_PROVIDER_DETAIL",
+                  "candidate_is_canonical_lineage": False,
+                  "accepts_source_lineage": False,
+                  "source_lineage_accepted": False,
+                  "engineering_run_transitioned": False,
+                  "review_completed": False,
+                  "production_deployed": False,
+              }
+              error = ImplementationRuntimeError(
+                  "protected implementation generation failed",
+                  diagnostic_evidence={"candidate_admission_failure": raw},
+              )
+              assert error.diagnostic_evidence is None
+          PY
       - name: Focused P2-V0.23.31 validation
         run: |
           python -m compileall -q services/api/parallax_api services/api/scripts
+          node --version
           pytest -q \
             services/api/tests/test_execution_contract_v02331.py \
+            services/api/tests/test_execution_contract_diagnostics_v02331.py \
             services/api/tests/test_static_web_validator_v02331.py \
             services/api/tests/test_validation_toolchains.py \
             services/api/tests/test_source_anchored_candidate_validation_profile_v02330.py \
@@ -48,26 +173,41 @@ jobs:
 
           path = Path('ARCHITECTURE.md')
           text = path.read_text(encoding='utf-8')
-          if 'Version: 3.41' not in text:
-              raise SystemExit('architecture version anchor drifted')
-          text = text.replace('Version: 3.41', 'Version: 3.42', 1)
-          anchor = '## Version relationship\n\n'
-          paragraph = (
-              'Architecture v3.42 binds one immutable server-owned execution contract during protected PLAN to the exact accepted source lineage and work-specification identity, then requires IMPLEMENT to resolve and verify that closed-catalog contract before model generation or disposable candidate validation. Established Parallax Python and bounded root .NET source retain their governed profiles; a marker-free greenfield lineage binds the narrow `static-web-v1` contract, whose validator is server-owned code transferred outside candidate source and uses only deterministic HTML/local-reference and JavaScript syntax checks under the released common execution snapshot. Candidate-authored marker files, package scripts, command text, network policy, snapshot identities and validator source cannot change that bound authority. Production publication is fail-closed on an immutable static-web fixture replay through the same `VercelCandidateValidationExecutor` and real disposable BUILD/TEST/VERIFY sandbox path before another signed-in Engineering Run retry is requested. The canary has no Project, Engineering Run, source-lineage, Git, delivery, lifecycle or REVIEW mutation authority. SafeImplementationEngine, bounded dependency preparation, deny-all validation networking, independent evaluation, canonical source lineage, Luna/Terra/Sol routing, hosted timeout/retry ceilings, deployment authority and the human REVIEW boundary are unchanged. Architecture v3.41 remains the accepted-source validation-profile pinning foundation.\n\n'
-          )
-          if anchor not in text:
-              raise SystemExit('architecture relationship anchor drifted')
-          text = text.replace(anchor, anchor + paragraph, 1)
+          if 'Version: 3.42' not in text:
+              if text.count('Version: 3.41') != 1:
+                  raise SystemExit('architecture version anchor drifted')
+              text = text.replace('Version: 3.41', 'Version: 3.42', 1)
+          marker = 'Architecture v3.42 binds one immutable server-owned execution contract'
+          if marker not in text:
+              anchor = '## Version relationship\n\n'
+              paragraph = (
+                  'Architecture v3.42 binds one immutable server-owned execution contract during protected PLAN to the exact accepted source lineage and work-specification identity, then requires IMPLEMENT to resolve and verify that closed-catalog contract before model generation or disposable candidate validation. Established Parallax Python and bounded root .NET source retain their governed profiles; marker-free greenfield lineage binds the narrow `static-web-v1` contract, whose validator is server-owned code transferred outside candidate source and uses only deterministic HTML/local-reference and JavaScript syntax checks under the released common execution snapshot. Candidate-authored marker files, package scripts, command text, network policy, snapshot identities and validator source cannot change that bound authority. Production publication is fail-closed on an immutable static-web fixture replay through the same `VercelCandidateValidationExecutor` and real disposable BUILD/TEST/VERIFY sandbox path. Execution-contract admission failures are bounded to a server-owned phase, failure kind and closed reason-code vocabulary; raw exception/provider/source material is rejected. The canary has no Project, Engineering Run, source-lineage, Git, delivery, lifecycle or REVIEW mutation authority. SafeImplementationEngine, bounded dependency preparation, deny-all validation networking, independent evaluation, canonical source lineage, Luna/Terra/Sol routing, hosted timeout/retry ceilings, deployment authority and the human REVIEW boundary are unchanged. Architecture v3.41 remains the accepted-source validation-profile pinning foundation.\n\n'
+              )
+              if text.count(anchor) != 1:
+                  raise SystemExit('architecture relationship anchor drifted')
+              text = text.replace(anchor, anchor + paragraph, 1)
           path.write_text(text, encoding='utf-8')
           PY
-      - name: Verify release diff and commit
+      - name: Commit validated implementation and remove temporary workflow
         shell: bash
         run: |
-          grep -F 'Version: 3.42' ARCHITECTURE.md
-          grep -F 'Architecture v3.42 binds one immutable server-owned execution contract' ARCHITECTURE.md
+          set -euo pipefail
           git config user.name 'Parallax Release Validator'
           git config user.email 'parallax-release@users.noreply.github.com'
-          git add ARCHITECTURE.md
+          git add \
+            ARCHITECTURE.md \
+            services/api/parallax_api/code/agentic_runtime.py \
+            services/api/parallax_api/code/implementation_runtime.py \
+            services/api/parallax_api/code/static_web_validator.py \
+            services/api/parallax_api/code/validation_toolchains.py \
+            services/api/scripts/production_candidate_validation_canary.py \
+            services/api/scripts/vercel_build.py \
+            services/api/tests/fixtures/static_web_canary \
+            services/api/tests/test_execution_contract_v02331.py \
+            services/api/tests/test_execution_contract_diagnostics_v02331.py \
+            services/api/tests/test_static_web_validator_v02331.py \
+            specs/P2-V0.23.31.md \
+            specs/compiled/P2-V0.23.31.plan.json
           git rm .github/workflows/tmp-p2331-complete.yml
           git commit -m 'P2-V0.23.31 — validate explicit execution contract release'
           git push origin HEAD:release/p2-v0.23.31
