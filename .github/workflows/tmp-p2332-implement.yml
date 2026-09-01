@@ -1,0 +1,63 @@
+name: P2-V0.23.32 Focused Implementation
+
+on:
+  push:
+    branches:
+      - ws/543-candidate-validation-repair
+    paths:
+      - .github/workflows/tmp-p2332-implement.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/543-candidate-validation-repair
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Reverify governed DSPy plan before implementation
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.32.md
+      - name: Apply governed implementation
+        run: python scripts/tmp_p2332_apply.py
+      - name: Compile changed Python
+        run: python -m compileall -q services/api/parallax_api/code services/api/scripts services/api/tests/test_candidate_validation_repair_v02332.py
+      - name: Run focused P2-V0.23.32 regressions
+        run: |
+          pytest -q \
+            services/api/tests/test_candidate_validation_repair_v02332.py \
+            services/api/tests/test_incremental_implement_convergence_v02327.py \
+            services/api/tests/test_cross_work_unit_convergence_v02328.py \
+            services/api/tests/test_agentic_runtime_activation.py
+      - name: Run static-web and execution-contract regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find services/api/tests -maxdepth 1 -type f \( -name '*static*web*.py' -o -name '*execution*contract*.py' -o -name '*candidate*validation*.py' \) | sort)
+          if [ "${#tests[@]}" -gt 0 ]; then
+            pytest -q "${tests[@]}"
+          fi
+      - name: Check diff hygiene
+        run: git diff --check
+      - name: Commit validated implementation and remove temporary helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Validator'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git rm scripts/tmp_p2332_apply.py .github/workflows/tmp-p2332-implement.yml
+          git add services/api/parallax_api/code/agentic_runtime.py \
+                  services/api/parallax_api/code/implementation_runtime.py \
+                  services/api/parallax_api/code/static_web_validator.py \
+                  services/api/scripts/production_candidate_validation_canary.py \
+                  services/api/tests/test_candidate_validation_repair_v02332.py
+          git commit -m 'P2-V0.23.32 — bounded candidate validation repair'
+          git push origin HEAD:ws/543-candidate-validation-repair
