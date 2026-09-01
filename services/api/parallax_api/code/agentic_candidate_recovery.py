@@ -553,6 +553,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
         *,
         proposal_validator: Callable[[ImplementationProposal], bool],
         alternative_round: int,
+        canonical_plan: TeamPlan | None = None,
     ) -> tuple[
         ImplementationProposal,
         tuple[AttemptRecord, ...],
@@ -560,7 +561,9 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
         tuple[str, ...],
         tuple[str, ...],
     ]:
-        run = self.service.get(plan.identity.run_id)
+        durable_plan = canonical_plan or plan
+        self._assert_candidate_plan_compatible(plan, durable_plan)
+        run = self.service.get(durable_plan.identity.run_id)
         lineage = self._lineage(run)
         lease = self.worker_bridge.acquire(run_id=run.id)
         generation_by_work_unit = {unit.unit_id: lease.generation for unit in plan.graph.units}
@@ -622,7 +625,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                         )
                         lease = self.worker_bridge.checkpoint(
                             lease,
-                            plan=plan,
+                            plan=durable_plan,
                             work_unit_id=unit.unit_id,
                             source_lineage_ref=lineage.lineage_id,
                             step="AGENT_DISPATCH",
@@ -680,7 +683,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                 validator_rejected_agent_digests.append(agent_digest)
                             lease = self.worker_bridge.checkpoint(
                                 lease,
-                                plan=plan,
+                                plan=durable_plan,
                                 work_unit_id=unit.unit_id,
                                 source_lineage_ref=lineage.lineage_id,
                                 step="CANDIDATE_REJECTED",
@@ -761,7 +764,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                                     task_digests.append(task.digest)
                                 lease = self.worker_bridge.checkpoint(
                                     lease,
-                                    plan=plan,
+                                    plan=durable_plan,
                                     work_unit_id=unit.unit_id,
                                     source_lineage_ref=lineage.lineage_id,
                                     step=("CANDIDATE_PARTIAL_PROGRESS" if convergence.made_progress else "CANDIDATE_REJECTED"),
@@ -848,7 +851,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                         task_digests.append(task.digest)
                         lease = self.worker_bridge.checkpoint(
                             lease,
-                            plan=plan,
+                            plan=durable_plan,
                             work_unit_id=unit.unit_id,
                             source_lineage_ref=lineage.lineage_id,
                             step="AGENT_RESULT",
@@ -874,7 +877,7 @@ class ResilientLiveAgenticControlPlane(LiveAgenticControlPlane):
                 raise AgenticRuntimeError("combined incrementally converged proposal failed final safe preflight")
             self.worker_bridge.checkpoint(
                 lease,
-                plan=plan,
+                plan=durable_plan,
                 work_unit_id=last_unit_id,
                 source_lineage_ref=lineage.lineage_id,
                 step="AGENT_PROPOSAL",
