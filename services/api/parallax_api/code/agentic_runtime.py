@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
 import logging
@@ -106,8 +106,13 @@ from .sandbox_execution import (
     _sanitized_provider_error,
 )
 from .service import EngineeringRunService
+from .static_web_validator import (
+    STATIC_WEB_REPAIRABLE_REASON_CODES,
+    STATIC_WEB_VALIDATION_REASON_CODES,
+)
 from .validation_toolchains import (
     ExecutionContract,
+    ExecutionContractCode,
     ValidationProfile,
     ValidationProfileError,
     ValidationProfileReason,
@@ -117,7 +122,7 @@ from .validation_toolchains import (
 from .workspace_lineage import ProjectRunIdentity
 
 
-AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.8"
+AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.9"
 AGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.8"
 _AGENT_POLICY_VERSION = "1.0.0"
 _SANDBOX_SOURCE_ROOT = "/vercel/sandbox"
@@ -187,6 +192,17 @@ def _sha256_value(value: object) -> str | None:
     return None
 
 
+def _static_web_validation_reason(value: object) -> str | None:
+    """Project exactly one fixed server-owned static-web validator reason."""
+
+    if not isinstance(value, str):
+        return None
+    clean = value.strip()
+    if not clean or len(clean.splitlines()) != 1:
+        return None
+    return clean if clean in STATIC_WEB_VALIDATION_REASON_CODES else None
+
+
 def _candidate_validation_failure_diagnostic(
     candidate_id: str,
     validation: CandidateValidationResult,
@@ -253,6 +269,10 @@ def _candidate_validation_failure_diagnostic(
         value = evidence.get(key)
         if value is None or (isinstance(value, int) and not isinstance(value, bool)):
             diagnostic[key] = value
+
+    reason_code = evidence.get("validation_reason_code")
+    if reason_code in STATIC_WEB_VALIDATION_REASON_CODES:
+        diagnostic["validation_reason_code"] = reason_code
 
     content_digest = _sha256_value(validation.content_digest)
     if content_digest is not None:
@@ -621,13 +641,18 @@ class VercelCandidateValidationExecutor:
                             kill_after=spec.timeout_seconds,
                             capture_output=True,
                         )
+                        raw_stderr = result.stderr or ""
                         evidence = _bounded_evidence(
                             spec,
                             exit_code=result.returncode,
                             duration_ms=int((time.monotonic() - started) * 1000),
                             stdout=result.stdout or "",
-                            stderr=result.stderr or "",
+                            stderr=raw_stderr,
                         )
+                        if profile.ecosystem == "static-web":
+                            reason_code = _static_web_validation_reason(raw_stderr)
+                            if reason_code is not None:
+                                evidence["validation_reason_code"] = reason_code
                     except Exception as exc:
                         evidence = _bounded_evidence(
                             spec,
@@ -1740,6 +1765,114 @@ class AgenticControlPlane:
             operation_sequence=1,
         )
 
+    @staticmethod
+    def _candidate_validation_repairable(
+        diagnostic: dict[str, object],
+        execution_contract: ExecutionContract,
+    ) -> bool:
+        return (
+            execution_contract.contract_id is ExecutionContractCode.STATIC_WEB
+            and execution_contract.validation_profile.ecosystem == "static-web"
+            and diagnostic.get("failed_stage")
+            in {WorkflowStage.BUILD.value, WorkflowStage.TEST.value, WorkflowStage.VERIFY.value}
+            and diagnostic.get("validation_reason_code") in STATIC_WEB_REPAIRABLE_REASON_CODES
+            and diagnostic.get("timed_out") is False
+        )
+
+    @staticmethod
+    def _candidate_validation_repair_request(
+        request: ImplementationGenerationRequest,
+        execution_contract: ExecutionContract,
+        diagnostic: dict[str, object],
+    ) -> ImplementationGenerationRequest:
+        reason_code = diagnostic.get("validation_reason_code")
+        failed_stage = diagnostic.get("failed_stage")
+        if (
+            execution_contract.contract_id is not ExecutionContractCode.STATIC_WEB
+            or execution_contract.validation_profile.ecosystem != "static-web"
+            or reason_code not in STATIC_WEB_REPAIRABLE_REASON_CODES
+            or failed_stage not in {WorkflowStage.BUILD.value, WorkflowStage.TEST.value, WorkflowStage.VERIFY.value}
+        ):
+            raise AgenticRuntimeError("candidate validation repair guidance is not server-admitted")
+        fixed_guidance = (
+            "Server-owned candidate validation repair: the previous disposable candidate was rejected and is discarded. "
+            f"Protected {failed_stage} returned fixed static-web reason {reason_code}. "
+            "Produce one complete replacement proposal that independently covers every supplied acceptance ID under the "
+            "immutable static-web-v1 execution contract. The replacement must include a root index.html and only local "
+            "HTML, CSS, and JavaScript assets compatible with the server-owned static-web validator. Package managers, "
+            "bundlers, package scripts, arbitrary shell commands, and network fetches are unavailable. Do not reference "
+            "or rely on rejected candidate content or validator output beyond the fixed reason code supplied here."
+        )
+        return replace(request, constraints=(*request.constraints, fixed_guidance))
+
+    def _repair_failed_primary_candidate(
+        self,
+        *,
+        run: EngineeringRun,
+        primary: ProducedCandidate,
+        primary_plan: TeamPlan,
+        execution_contract: ExecutionContract,
+        execution_request: ImplementationGenerationRequest,
+        base_workspace: Path,
+        source_digest: str,
+        proposal_validator: Callable[[ImplementationProposal], bool],
+        operation_key: str,
+        routing_context: RoutingContext,
+    ) -> tuple[ProducedCandidate, dict[str, object]]:
+        diagnostic = _candidate_validation_failure_diagnostic(
+            primary.candidate_id,
+            primary.validation,
+        )
+        if diagnostic is None:
+            raise AgenticRuntimeError("failed primary candidate lacks bounded validation diagnostics")
+        if not self._candidate_validation_repairable(diagnostic, execution_contract):
+            raise CandidateValidationFailure(
+                "protected candidate validation failed without repairable server-owned reason",
+                diagnostic_evidence=diagnostic,
+            )
+        acceptance = self._acceptance(run, self.service)
+        repair_plan = self._challenger_plan(
+            run=run,
+            acceptance=acceptance,
+            source_digest=source_digest,
+            primary=primary_plan,
+        )
+        if repair_plan is None:
+            raise CandidateValidationFailure(
+                "protected candidate validation repair has no admitted alternative candidate",
+                diagnostic_evidence=diagnostic,
+            )
+        repair_request = self._candidate_validation_repair_request(
+            execution_request,
+            execution_contract,
+            diagnostic,
+        )
+        replacement, _ = self._make_candidate(
+            run=run,
+            primary_plan=primary_plan,
+            plan=repair_plan,
+            request=repair_request,
+            base_workspace=base_workspace,
+            validation_profile=execution_contract.validation_profile,
+            proposal_validator=proposal_validator,
+            operation_key=operation_key,
+            candidate_id="candidate-repair",
+            alternative_round=2,
+            routing_context=routing_context,
+        )
+        if not replacement.validation.passed:
+            replacement_diagnostic = _candidate_validation_failure_diagnostic(
+                replacement.candidate_id,
+                replacement.validation,
+            )
+            if replacement_diagnostic is None:
+                raise AgenticRuntimeError("failed replacement candidate lacks bounded validation diagnostics")
+            raise CandidateValidationFailure(
+                "bounded replacement candidate failed protected validation",
+                diagnostic_evidence=replacement_diagnostic,
+            )
+        return replacement, diagnostic
+
     def generate_protected(
         self,
         request: ImplementationGenerationRequest,
@@ -1781,7 +1914,25 @@ class AgenticControlPlane:
                 candidate_id="candidate-primary",
                 alternative_round=1,
             )
-            candidates = [primary]
+            repair_used = False
+            repair_diagnostic: dict[str, object] | None = None
+            if primary.validation.passed:
+                candidates = [primary]
+            else:
+                replacement, repair_diagnostic = self._repair_failed_primary_candidate(
+                    run=run,
+                    primary=primary,
+                    primary_plan=primary_plan,
+                    execution_contract=execution_contract,
+                    execution_request=execution_request,
+                    base_workspace=workspace_root,
+                    source_digest=lineage.content_digest,
+                    proposal_validator=proposal_validator,
+                    operation_key=operation_key,
+                    routing_context=routing_context,
+                )
+                candidates = [replacement]
+                repair_used = True
 
             competition_context = self._competition_context(
                 run=run,
@@ -1790,7 +1941,7 @@ class AgenticControlPlane:
                 evaluation_policy_digest=primary.evaluation_record.policy_digest,
             )
             signal = None
-            if len(primary_plan.selected_agent_digests) > 1:
+            if not repair_used and len(primary_plan.selected_agent_digests) > 1:
                 signal = CompetitionSignal(
                     routing_evidence_digest=routing_context.digest,
                     project_id=run.project_id or "",
@@ -1819,7 +1970,7 @@ class AgenticControlPlane:
                     if item.eligible
                 ),
             )
-            if trigger is CompetitionTriggerDisposition.COMPETE:
+            if not repair_used and trigger is CompetitionTriggerDisposition.COMPETE:
                 acceptance = self._acceptance(run, self.service)
                 challenger_plan = self._challenger_plan(
                     run=run,
@@ -1945,6 +2096,16 @@ class AgenticControlPlane:
                 "work_graph_digest": primary_plan.graph.digest,
                 "selected_agent_digests": list(primary_plan.selected_agent_digests),
                 "candidate_count": len(candidates),
+                "candidate_generation_count": 2 if repair_used else len(candidates),
+                "validation_repair_used": repair_used,
+                "validation_repair_reason_code": (
+                    repair_diagnostic.get("validation_reason_code")
+                    if repair_diagnostic is not None
+                    else None
+                ),
+                "rejected_candidate_content_digest": (
+                    primary.validation.content_digest if repair_used else None
+                ),
                 "candidates": [
                     {
                         "candidate_id": item.candidate_id,
@@ -1986,9 +2147,10 @@ class AgenticControlPlane:
         except CandidateValidationFailure as exc:
             diagnostic = dict(exc.diagnostic_evidence)
             logger.warning(
-                "parallax_candidate_validation_failed candidate=%s stage=%s timed_out=%s",
+                "parallax_candidate_validation_failed candidate=%s stage=%s reason=%s timed_out=%s",
                 diagnostic.get("candidate_id"),
                 diagnostic.get("failed_stage"),
+                diagnostic.get("validation_reason_code"),
                 diagnostic.get("timed_out") is True,
             )
             raise ImplementationGenerationFailure(

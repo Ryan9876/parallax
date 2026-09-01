@@ -36,6 +36,7 @@ from .patching import (
 from .service import EngineeringRunService, RunOperationResult
 from .source_context import BoundedSourceContextSelector, SourceContextError
 from .state_machine import RevisionConflict
+from .static_web_validator import STATIC_WEB_VALIDATION_REASON_CODES
 from .work_spec_binding import acceptance_map, work_specification_contract, work_specification_digest
 
 
@@ -717,6 +718,7 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         "validation_profile_id",
         "validation_profile_digest",
         "candidate_content_digest",
+        "validation_reason_code",
         "candidate_is_canonical_lineage",
         "accepts_source_lineage",
         "source_lineage_accepted",
@@ -818,6 +820,12 @@ def _bounded_implementation_failure_evidence(value: object) -> dict[str, object]
         ):
             raise ValueError("candidate validation diagnostics contain an invalid bounded identity")
         normalized_failure[key] = field
+
+    if "validation_reason_code" in raw:
+        reason_code = raw["validation_reason_code"]
+        if reason_code not in STATIC_WEB_VALIDATION_REASON_CODES:
+            raise ValueError("candidate validation diagnostics contain an invalid fixed validator reason")
+        normalized_failure["validation_reason_code"] = reason_code
 
     if "validation_profile_digest" in raw:
         digest = raw["validation_profile_digest"]

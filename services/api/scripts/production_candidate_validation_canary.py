@@ -71,7 +71,8 @@ def main() -> None:
     result = run_canary()
     print(
         "Production candidate-validation canary: PASS "
-        f"(profile={result.validation_profile_id}; stages=BUILD,TEST,VERIFY; "
+        "(contract=static-web-v1; binding=GREENFIELD_STATIC_WEB; ecosystem=static-web; "
+        f"profile={result.validation_profile_id}; stages=BUILD,TEST,VERIFY; "
         f"candidate_digest={result.content_digest})"
     )
 

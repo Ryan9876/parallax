@@ -1,0 +1,98 @@
+{
+  "architecture_decisions": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "work_items": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "validations": [
+    "5.1 Closed static-web validation reason contract",
+    "AC-01: validate protected requirement \u2014 The workstream records exact production evidence that P2-V0.23.31 reached real disposable candidate BUILD and failed `candidate-primary stage=BUILD timed_out=False` while execution-contract verification, source lineage, sandbox infrastructure, and production health remained valid.",
+    "AC-02: validate protected requirement \u2014 Tests prove only an exact one-line fixed static-web reason under ecosystem `static-web` can populate `validation_reason_code`; unknown, multiline, arbitrary, or other-ecosystem output cannot.",
+    "AC-03: validate protected requirement \u2014 Tests prove one admitted fixed reason survives `candidate_validation_failure`, while unknown codes, raw output fields, true authority claims, malformed fields, and arbitrary additions are rejected/dropped.",
+    "AC-04: validate protected requirement \u2014 Only BUILD/TEST/VERIFY failures with one repairable fixed static-web reason authorize replacement. Non-repairable/infrastructure reasons terminate without replacement generation.",
+    "AC-05: validate protected requirement \u2014 A repairable primary rejection consumes the existing alternative candidate capacity and never creates a third candidate or expands model, final validator-repair, timeout, hidden-retry, or autonomy ceilings.",
+    "AC-06: validate protected requirement \u2014 The replacement receives only original authoritative request/source context plus fixed server-authored guidance with failed stage, admitted reason, contract/binding/ecosystem/profile identity. Rejected candidate source and raw validator output are absent.",
+    "AC-07: validate protected requirement \u2014 The complete replacement is applied to authoritative base, re-runs SafeImplementationEngine and real disposable BUILD/TEST/VERIFY from scratch, then passes existing independent evaluation/routing. A second validation rejection is terminal with no third generation.",
+    "AC-08: validate protected requirement \u2014 Tests prove primary static-web validation rejection -> bounded replacement -> validation success, plus non-repairable rejection, replacement rejection, no-third-candidate, no-authority, and no-raw-output cases.",
+    "AC-09: validate protected requirement \u2014 The exact release again runs the immutable static-web fixture through real `VercelCandidateValidationExecutor` BUILD/TEST/VERIFY before publication and logs `contract=static-web-v1`, `binding=GREENFIELD_STATIC_WEB`, `ecosystem=static-web`, profile ID, stages, and immutable digest.",
+    "AC-10: validate protected requirement \u2014 Mandatory DSPy spec preparation, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green.",
+    "AC-11: validate protected requirement \u2014 The exact merged application source reaches READY only after the real static-web canary succeeds; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal runtime verification is clean.",
+    "AC-12: validate protected requirement \u2014 Only after AC-11, retry Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact marker-free work through the signed-in product path. It must survive the prior terminal primary BUILD rejection through bounded replacement and complete canonical IMPLEMENT acceptance/advance, or expose a genuinely later bounded blocker. Repeating the same un-repaired primary BUILD failure does not pass."
+  ],
+  "risks": [
+    "5.1 Closed static-web validation reason contract"
+  ],
+  "spec_id": "P2-V0.23.32",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Authenticated P2-V0.23.31 evidence is recorded",
+      "protected_requirement": "The workstream records exact production evidence that P2-V0.23.31 reached real disposable candidate BUILD and failed `candidate-primary stage=BUILD timed_out=False` while execution-contract verification, source lineage, sandbox infrastructure, and production health remained valid."
+    },
+    {
+      "id": "AC-02",
+      "title": "Fixed reason extraction is closed",
+      "protected_requirement": "Tests prove only an exact one-line fixed static-web reason under ecosystem `static-web` can populate `validation_reason_code`; unknown, multiline, arbitrary, or other-ecosystem output cannot."
+    },
+    {
+      "id": "AC-03",
+      "title": "Durable diagnostics remain sanitized",
+      "protected_requirement": "Tests prove one admitted fixed reason survives `candidate_validation_failure`, while unknown codes, raw output fields, true authority claims, malformed fields, and arbitrary additions are rejected/dropped."
+    },
+    {
+      "id": "AC-04",
+      "title": "Repair eligibility is bounded",
+      "protected_requirement": "Only BUILD/TEST/VERIFY failures with one repairable fixed static-web reason authorize replacement. Non-repairable/infrastructure reasons terminate without replacement generation."
+    },
+    {
+      "id": "AC-05",
+      "title": "Existing second candidate slot is reused",
+      "protected_requirement": "A repairable primary rejection consumes the existing alternative candidate capacity and never creates a third candidate or expands model, final validator-repair, timeout, hidden-retry, or autonomy ceilings."
+    },
+    {
+      "id": "AC-06",
+      "title": "Replacement guidance is closed and source-free",
+      "protected_requirement": "The replacement receives only original authoritative request/source context plus fixed server-authored guidance with failed stage, admitted reason, contract/binding/ecosystem/profile identity. Rejected candidate source and raw validator output are absent."
+    },
+    {
+      "id": "AC-07",
+      "title": "Replacement restarts from authoritative base and preserves evaluation",
+      "protected_requirement": "The complete replacement is applied to authoritative base, re-runs SafeImplementationEngine and real disposable BUILD/TEST/VERIFY from scratch, then passes existing independent evaluation/routing. A second validation rejection is terminal with no third generation."
+    },
+    {
+      "id": "AC-08",
+      "title": "Deterministic recovery regressions pass",
+      "protected_requirement": "Tests prove primary static-web validation rejection -> bounded replacement -> validation success, plus non-repairable rejection, replacement rejection, no-third-candidate, no-authority, and no-raw-output cases."
+    },
+    {
+      "id": "AC-09",
+      "title": "Production canary identity is explicit and real",
+      "protected_requirement": "The exact release again runs the immutable static-web fixture through real `VercelCandidateValidationExecutor` BUILD/TEST/VERIFY before publication and logs `contract=static-web-v1`, `binding=GREENFIELD_STATIC_WEB`, `ecosystem=static-web`, profile ID, stages, and immutable digest."
+    },
+    {
+      "id": "AC-10",
+      "title": "Protected release gates pass",
+      "protected_requirement": "Mandatory DSPy spec preparation, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green."
+    },
+    {
+      "id": "AC-11",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "The exact merged application source reaches READY only after the real static-web canary succeeds; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal runtime verification is clean."
+    },
+    {
+      "id": "AC-12",
+      "title": "One authenticated real-path retry proves outcome",
+      "protected_requirement": "Only after AC-11, retry Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` or equivalent exact marker-free work through the signed-in product path. It must survive the prior terminal primary BUILD rejection through bounded replacement and complete canonical IMPLEMENT acceptance/advance, or expose a genuinely later bounded blocker. Repeating the same un-repaired primary BUILD failure does not pass."
+    }
+  ],
+  "critique": [
+    ":\n- **Candidate**: BUILD/TEST/VERIFY\n- **Reason**: The candidate is rejected due to a `parallax_candidate_validation_failed` error.\n- **Fixed Reason**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC_WEB_INDEX_REQUIRED`\n- **Reason Code**: `STATIC"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
