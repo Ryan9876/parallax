@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import sessionmaker
 
+from parallax_api.code.agentic_runtime_live import LiveAgenticControlPlane
 from parallax_api.code.autonomy import AutonomyCoordinator
 from parallax_api.code.implementation_runtime import ProtectedImplementationRuntime, RunProjectBinding
 from parallax_api.code.lineage_persistence import InMemoryImmutableObjectStore, InMemoryLineageMetadataStore
@@ -104,7 +105,9 @@ class ReconstructingLineageExecutor:
     def __init__(self, allocator: ProjectWorkspaceAllocator):
         self.allocator = allocator
 
-    def execute_on_lineage(self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str):
+    def execute_on_lineage(
+        self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str, execution_contract
+    ):
         workspace = self.allocator.reconstruct(ProjectRunIdentity(project_ref, run_id), source_lineage_ref)
         try:
             lineage = workspace.lineage
@@ -349,6 +352,7 @@ class RuntimeFactory:
             NeverLegacyExecutor(),
             implementation_runtime=implementation,
             lineage_executor=ReconstructingLineageExecutor(allocator),
+            plan_runtime=LiveAgenticControlPlane(service, allocator),
         )
         adapter = RuntimeAppBuilderEvidenceAdapter(
             session,

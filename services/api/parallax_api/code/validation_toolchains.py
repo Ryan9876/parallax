@@ -5,6 +5,7 @@ from enum import StrEnum
 from hashlib import sha256
 import json
 from pathlib import Path, PurePosixPath
+import re
 
 from .domain import WorkflowStage
 from .execution import ExecutionPolicyError, ExecutionSpec
@@ -157,6 +158,76 @@ class ExecutionContract:
             "target": self.target,
         }
         return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionContractIdentity:
+    """Persisted PLAN identity for one closed-catalog execution contract."""
+
+    contract_id: str
+    binding_reason: str
+    target: str | None
+    contract_digest: str
+    validation_profile_id: str
+    validation_profile_digest: str
+
+    @classmethod
+    def from_evidence(cls, evidence: dict[str, object]) -> "ExecutionContractIdentity":
+        contract_id = evidence.get("execution_contract_id")
+        binding_reason = evidence.get("execution_contract_binding_reason")
+        target = evidence.get("execution_contract_target")
+        contract_digest = evidence.get("execution_contract_digest")
+        validation_profile_id = evidence.get("validation_profile_id")
+        validation_profile_digest = evidence.get("validation_profile_digest")
+        if (
+            not isinstance(contract_id, str)
+            or not contract_id
+            or not isinstance(binding_reason, str)
+            or not binding_reason
+            or (target is not None and not isinstance(target, str))
+            or not isinstance(contract_digest, str)
+            or _SHA256_RE.fullmatch(contract_digest) is None
+            or not isinstance(validation_profile_id, str)
+            or not validation_profile_id
+            or not isinstance(validation_profile_digest, str)
+            or _SHA256_RE.fullmatch(validation_profile_digest) is None
+        ):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        return cls(
+            contract_id=contract_id,
+            binding_reason=binding_reason,
+            target=target,
+            contract_digest=contract_digest,
+            validation_profile_id=validation_profile_id,
+            validation_profile_digest=validation_profile_digest,
+        )
+
+    @classmethod
+    def from_contract(cls, contract: ExecutionContract) -> "ExecutionContractIdentity":
+        if not isinstance(contract, ExecutionContract):
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        return cls(
+            contract_id=contract.contract_id.value,
+            binding_reason=contract.binding_reason.value,
+            target=contract.target,
+            contract_digest=contract.digest,
+            validation_profile_id=contract.validation_profile.profile_id.value,
+            validation_profile_digest=contract.validation_profile.digest,
+        )
+
+    def resolve(self) -> ExecutionContract:
+        contract = resolve_execution_contract(
+            self.contract_id,
+            binding_reason=self.binding_reason,
+            target=self.target,
+        )
+        expected = self.from_contract(contract)
+        if self != expected:
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        return contract
 
 
 def _safe_relative(path: Path, root: Path) -> str:
@@ -415,6 +486,7 @@ __all__ = [
     "ExecutionBindingReason",
     "ExecutionContract",
     "ExecutionContractCode",
+    "ExecutionContractIdentity",
     "PreparationCommand",
     "ValidationProfile",
     "ValidationProfileCode",

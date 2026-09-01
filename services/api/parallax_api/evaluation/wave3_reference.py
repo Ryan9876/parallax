@@ -193,35 +193,13 @@ class ProtectedWave3ReferenceAppHarness:
         if not operator_ref or len(operator_ref) > 128 or any(ord(ch) < 33 for ch in operator_ref):
             raise ValueError("operator_ref must be a bounded opaque identity")
 
-        # Process 1: protected PLAN and canonical Project binding.
+        # Process 1: resolve canonical Project binding. Bootstrap precedes PLAN
+        # because PLAN binds execution authority to the exact accepted lineage.
         context = self.runtime_factory.open()
         try:
             run = context.service.get(run_id)
-            if WorkflowStage(run.state) is WorkflowStage.PLAN:
-                acceptance = sorted(item["id"] for item in context.service.acceptance_map_for_run(run))
-                planned = context.service.complete_stage(
-                    run_id=run.id,
-                    stage=WorkflowStage.PLAN,
-                    operation_key=f"{operation_key}:plan",
-                    expected_revision=run.revision,
-                    passed=True,
-                    evidence={
-                        "acceptance_ids_covered": acceptance,
-                        "work_items": [
-                            {"acceptance_id": item, "action": "satisfy protected Wave 3 reference acceptance"}
-                            for item in acceptance
-                        ],
-                        "validation_checks": [
-                            {"acceptance_id": item, "check": "verify protected Wave 3 reference acceptance"}
-                            for item in acceptance
-                        ],
-                        "reference_harness": "P2-V0.16.5",
-                    },
-                    program_id="protected-wave3-reference-plan-v0.16.5",
-                )
-                run = planned.run
-            if WorkflowStage(run.state) is not WorkflowStage.IMPLEMENT:
-                raise ReferenceLoopError("Wave 3 reference run must enter IMPLEMENT after protected PLAN")
+            if WorkflowStage(run.state) is not WorkflowStage.PLAN:
+                raise ReferenceLoopError("Wave 3 reference run must begin at protected PLAN")
             project_id = run.project_id
             if not isinstance(project_id, str) or not project_id:
                 raise ReferenceLoopError("Wave 3 reference run lacks canonical Project identity")
@@ -250,7 +228,31 @@ class ProtectedWave3ReferenceAppHarness:
         if replayed_initial != initial_lineage:
             raise ReferenceLoopError("repository bootstrap retry changed accepted initial lineage")
 
-        # Process 2: typed IMPLEMENT mutation.
+        # Process 2: bind the execution contract through the configured
+        # server-owned PLAN runtime, then enter IMPLEMENT.
+        context = self.runtime_factory.open()
+        try:
+            run = context.service.get(run_id)
+            plan_runtime = context.autonomy.plan_runtime
+            if plan_runtime is None:
+                raise ReferenceLoopError("Wave 3 reference runtime lacks PLAN-bound execution-contract authority")
+            plan_key = f"{operation_key}:plan"
+            evidence = plan_runtime.plan(run=run, operation_key=plan_key)
+            planned = context.service.complete_stage(
+                run_id=run.id,
+                stage=WorkflowStage.PLAN,
+                operation_key=plan_key,
+                expected_revision=run.revision,
+                passed=True,
+                evidence=evidence,
+                program_id=plan_runtime.program_id,
+            )
+            if WorkflowStage(planned.run.state) is not WorkflowStage.IMPLEMENT:
+                raise ReferenceLoopError("Wave 3 reference run must enter IMPLEMENT after protected PLAN")
+        finally:
+            context.close()
+
+        # Process 3: typed IMPLEMENT mutation.
         context = self.runtime_factory.open()
         implementation: ImplementationRuntimeResult
         try:

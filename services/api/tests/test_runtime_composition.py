@@ -18,6 +18,7 @@ from parallax_api.code.runtime_composition import (
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
 from parallax_api.code.workspace_lineage import ProjectRunIdentity, SourceLineageStore, SourcePackage
+from parallax_api.code.validation_toolchains import bind_execution_contract
 from parallax_api.db import Base, make_engine
 from parallax_api.intelligence.implementation_generation import GeneratedSourcePatch, ImplementationProposal
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
@@ -75,10 +76,12 @@ class LegacyExecutor:
 
 class LineageExecutor:
     def __init__(self):
-        self.calls: list[tuple[WorkflowStage, str, str, str]] = []
+        self.calls: list[tuple[WorkflowStage, str, str, str, object]] = []
 
-    def execute_on_lineage(self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str):
-        self.calls.append((spec.stage, project_ref, run_id, source_lineage_ref))
+    def execute_on_lineage(
+        self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str, execution_contract
+    ):
+        self.calls.append((spec.stage, project_ref, run_id, source_lineage_ref, execution_contract))
         return {
             "tool_id": spec.tool_id,
             "exit_code": 0,
@@ -91,6 +94,47 @@ class LineageExecutor:
             "persistent": False,
             "project_ref": "spoofed-project",
             "source_lineage_ref": "spoofed-lineage",
+        }
+
+
+class ContractPlanRuntime:
+    program_id = "test-plan-bound-execution-contract"
+
+    def __init__(self, service, allocator):
+        self.service = service
+        self.allocator = allocator
+
+    def plan(self, *, run, operation_key):
+        identity = ProjectRunIdentity(project_id=run.project_id, run_id=run.id)
+        lineage = self.allocator.current_lineage(identity)
+        workspace = self.allocator.reconstruct(identity, lineage.lineage_id)
+        try:
+            contract = bind_execution_contract(workspace.path)
+        finally:
+            self.allocator.cleanup(workspace)
+        acceptance_ids = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
+        return {
+            "project_id": run.project_id,
+            "run_id": run.id,
+            "work_specification_id": run.work_specification_id,
+            "work_specification_revision": run.work_specification_revision,
+            "work_specification_digest": run.work_specification_digest,
+            "base_source_lineage_ref": lineage.lineage_id,
+            "execution_contract_id": contract.contract_id.value,
+            "execution_contract_binding_reason": contract.binding_reason.value,
+            "execution_contract_target": contract.target,
+            "execution_contract_digest": contract.digest,
+            "validation_profile_id": contract.validation_profile.profile_id.value,
+            "validation_profile_digest": contract.validation_profile.digest,
+            "acceptance_ids_covered": acceptance_ids,
+            "work_items": [
+                {"acceptance_id": acceptance_id, "action": "satisfy protected acceptance criterion"}
+                for acceptance_id in acceptance_ids
+            ],
+            "validation_checks": [
+                {"acceptance_id": acceptance_id, "check": "verify protected acceptance criterion"}
+                for acceptance_id in acceptance_ids
+            ],
         }
 
 
@@ -288,6 +332,7 @@ def test_composed_runtime_uses_one_accepted_lineage_for_implement_build_test_ver
             legacy,
             lineage_executor=lineage_executor,
         )
+        runtime.coordinator.plan_runtime = ContractPlanRuntime(service, allocator)
         runtime.implementation_runtime.generator = FixedGenerator(proposal_for_value_change())
 
         result = runtime.run(
@@ -309,6 +354,7 @@ def test_composed_runtime_uses_one_accepted_lineage_for_implement_build_test_ver
         assert all(item[1] == project.id for item in lineage_executor.calls)
         assert all(item[2] == run.id for item in lineage_executor.calls)
         assert all(item[3] == accepted.lineage_id for item in lineage_executor.calls)
+        assert all(item[4].contract_id.value == "static-web-v1" for item in lineage_executor.calls)
 
         for attempt in result.run.attempts:
             if attempt.stage in {"BUILD", "TEST", "VERIFY"} and attempt.status == "PASSED":

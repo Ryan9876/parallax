@@ -95,6 +95,7 @@ class LineageExecutor:
         project_ref: str,
         run_id: str,
         source_lineage_ref: str,
+        execution_contract,
     ):
         self.calls.append((spec.stage, source_lineage_ref))
         return {
@@ -339,6 +340,7 @@ def test_selected_candidate_still_uses_existing_safe_mutation_lineage_and_later_
             legacy,
             lineage_executor=lineage_executor,
         )
+        runtime.coordinator.plan_runtime = live_control(service, allocator)
         selected = SelectedCandidateGenerator(
             proposal_for_value_change(["AC-01", "AC-02"])
         )

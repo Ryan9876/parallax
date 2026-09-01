@@ -8,6 +8,12 @@ from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.execution import ExecutionSpec
 from parallax_api.code.lineage_sandbox_execution import SameLineageVercelSandboxExecutor
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
+from parallax_api.code.validation_toolchains import (
+    ExecutionBindingReason,
+    ExecutionContract,
+    ExecutionContractCode,
+    resolve_execution_contract,
+)
 from parallax_api.code.workspace_allocator import MaterializedWorkspace
 from parallax_api.code.workspace_lineage import LineageFile, ProjectRunIdentity, SourceLineage
 
@@ -16,6 +22,16 @@ PROJECT_ID = "11111111-1111-1111-1111-111111111111"
 RUN_ID = "22222222-2222-2222-2222-222222222222"
 LINEAGE_ID = "src:" + "a" * 64
 SNAPSHOT_ID = "snap_test-offline-runtime"
+PYTHON_CONTRACT = resolve_execution_contract(
+    ExecutionContractCode.PARALLAX_PYTHON.value,
+    binding_reason=ExecutionBindingReason.EXISTING_PARALLAX_PYTHON.value,
+    target=None,
+)
+STATIC_WEB_CONTRACT = resolve_execution_contract(
+    ExecutionContractCode.STATIC_WEB.value,
+    binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB.value,
+    target=None,
+)
 
 
 class FakeAllocator:
@@ -119,18 +135,19 @@ class FakeSandboxModule:
         return Context(self.instance)
 
 
-def workspace_fixture(tmp_path, *, files=None):
+def workspace_fixture(tmp_path, *, files=None, established_python=True):
     root = tmp_path / "lease"
     root.mkdir(parents=True)
     files = dict(files or {
         "README.md": b"hello\n",
         "src/app.py": b"value = 2\n",
     })
-    files.setdefault("services/api/pyproject.toml", b"[project]\nname='parallax-api'\n")
-    files.setdefault("services/api/parallax_api/__init__.py", b"")
-    files.setdefault("services/api/tests/test_code_execution_kernel.py", b"")
-    files.setdefault("services/api/tests/test_code_autonomy.py", b"")
-    files.setdefault("scripts/.profile-fixture", b"")
+    if established_python:
+        files.setdefault("services/api/pyproject.toml", b"[project]\nname='parallax-api'\n")
+        files.setdefault("services/api/parallax_api/__init__.py", b"")
+        files.setdefault("services/api/tests/test_code_execution_kernel.py", b"")
+        files.setdefault("services/api/tests/test_code_autonomy.py", b"")
+        files.setdefault("scripts/.profile-fixture", b"")
     entries = []
     for path, content in sorted(files.items()):
         target = root / path
@@ -160,8 +177,9 @@ def executor_fixture(
     cleanup_error=False,
     current_snapshot_id=SNAPSHOT_ID,
     files=None,
+    established_python=True,
 ):
-    workspace, files = workspace_fixture(tmp_path, files=files)
+    workspace, files = workspace_fixture(tmp_path, files=files, established_python=established_python)
     allocator = FakeAllocator(workspace, cleanup_error=cleanup_error)
     filesystem = FakeFilesystem(fail_write=fail_write)
     instance = FakeSandboxInstance(filesystem, current_snapshot_id=current_snapshot_id)
@@ -184,6 +202,7 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
 
     assert evidence["protected_success"] is True
@@ -222,6 +241,95 @@ def test_same_lineage_executor_transfers_exact_source_to_pinned_deny_all_snapsho
     assert kwargs["cwd"] == "/vercel/sandbox"
 
 
+def test_plan_bound_static_web_executes_marker_free_lineage_and_transfers_server_validator(tmp_path):
+    files = {
+        "index.html": b"<!doctype html><link rel='stylesheet' href='styles.css'><script src='app.js'></script>\n",
+        "styles.css": b"body { color: #172024; }\n",
+        "app.js": b"document.body.dataset.ready = 'true';\n",
+    }
+    executor, allocator, filesystem, instance, sandbox, expected = executor_fixture(
+        tmp_path,
+        files=files,
+        established_python=False,
+    )
+    spec = ProtectedCommandRegistry().spec_for(WorkflowStage.BUILD, operation_key="build:static-web")
+
+    evidence = executor.execute_on_lineage(
+        spec,
+        project_ref=PROJECT_ID,
+        run_id=RUN_ID,
+        source_lineage_ref=LINEAGE_ID,
+        execution_contract=STATIC_WEB_CONTRACT,
+    )
+
+    assert evidence["protected_success"] is True
+    assert evidence["execution_contract_id"] == "static-web-v1"
+    assert evidence["execution_contract_digest"] == STATIC_WEB_CONTRACT.digest
+    assert evidence["validation_profile_id"] == "node-v1"
+    assert len(allocator.reconstruct_calls) == 1
+    assert len(sandbox.create_calls) == 1
+    assert filesystem.batch_cwds == ["/vercel/sandbox", "/vercel/parallax-validator"]
+    assert {path: data for path, data, _ in filesystem.batch_flushes[0]} == expected
+    assert filesystem.batch_flushes[1][0][0] == "static_web_validator.py"
+    command, args, _ = instance.process_calls[0]
+    assert command == "python"
+    assert args[0] == "/vercel/parallax-validator/static_web_validator.py"
+    assert args[1:] == ["BUILD", "/vercel/sandbox"]
+
+
+def test_static_web_contract_cannot_be_reclassified_by_generated_source_markers(tmp_path):
+    files = {
+        "index.html": b"<!doctype html><script src='app.js'></script>\n",
+        "app.js": b"console.log('bounded');\n",
+        "package.json": b'{"scripts":{"build":"echo untrusted"}}\n',
+        "requirements.txt": b"untrusted-package\n",
+        "Untrusted.csproj": b"<Project />\n",
+    }
+    executor, _, _, instance, _, _ = executor_fixture(
+        tmp_path,
+        files=files,
+        established_python=False,
+    )
+    spec = ProtectedCommandRegistry().spec_for(WorkflowStage.TEST, operation_key="test:static-drift")
+
+    evidence = executor.execute_on_lineage(
+        spec,
+        project_ref=PROJECT_ID,
+        run_id=RUN_ID,
+        source_lineage_ref=LINEAGE_ID,
+        execution_contract=STATIC_WEB_CONTRACT,
+    )
+
+    assert evidence["protected_success"] is True
+    command, args, _ = instance.process_calls[0]
+    assert command == "python"
+    assert args == ["/vercel/parallax-validator/static_web_validator.py", "TEST", "/vercel/sandbox"]
+
+
+def test_forged_execution_contract_fails_before_lineage_materialization(tmp_path):
+    executor, allocator, _, instance, sandbox, _ = executor_fixture(tmp_path)
+    forged = ExecutionContract(
+        contract_id=ExecutionContractCode.STATIC_WEB,
+        binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB,
+        validation_profile=PYTHON_CONTRACT.validation_profile,
+    )
+    spec = ProtectedCommandRegistry().spec_for(WorkflowStage.BUILD, operation_key="build:forged-contract")
+
+    evidence = executor.execute_on_lineage(
+        spec,
+        project_ref=PROJECT_ID,
+        run_id=RUN_ID,
+        source_lineage_ref=LINEAGE_ID,
+        execution_contract=forged,
+    )
+
+    assert evidence["protected_success"] is False
+    assert evidence["execution_contract_reason"] == "EXECUTION_CONTRACT_DRIFT"
+    assert allocator.reconstruct_calls == []
+    assert sandbox.create_calls == []
+    assert instance.process_calls == []
+
+
 def test_large_lineage_uses_one_bounded_batch_upload(tmp_path):
     files = {
         f"src/package/file_{index:03d}.py": f"VALUE = {index}\n".encode("utf-8")
@@ -235,6 +343,7 @@ def test_large_lineage_uses_one_bounded_batch_upload(tmp_path):
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
 
     assert evidence["protected_success"] is True
@@ -260,6 +369,7 @@ def test_same_lineage_executor_fails_closed_when_snapshot_identity_does_not_matc
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
 
     assert evidence["protected_success"] is False
@@ -292,6 +402,7 @@ def test_same_lineage_executor_rejects_unregistered_spec_before_materialization(
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
     assert evidence["protected_success"] is False
     assert allocator.reconstruct_calls == []
@@ -316,6 +427,7 @@ def test_same_lineage_executor_fails_closed_on_corrupt_reconstructed_source(tmp_
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
     assert evidence["protected_success"] is False
     assert evidence["lineage_source_transfer"] is False
@@ -330,6 +442,7 @@ def test_source_transfer_failure_is_non_success_and_cleans_lease(tmp_path):
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
     assert evidence["protected_success"] is False
     assert evidence["lineage_source_transfer"] is False
@@ -349,6 +462,7 @@ def test_cleanup_failure_cannot_leave_successful_execution_evidence(tmp_path):
         project_ref=PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
     assert instance.process_calls
     assert evidence["protected_success"] is False
@@ -364,6 +478,7 @@ def test_wrong_project_or_lineage_identity_cannot_be_substituted(tmp_path):
         project_ref="project:" + PROJECT_ID,
         run_id=RUN_ID,
         source_lineage_ref=LINEAGE_ID,
+        execution_contract=PYTHON_CONTRACT,
     )
     assert evidence["protected_success"] is False
     assert allocator.reconstruct_calls == []
