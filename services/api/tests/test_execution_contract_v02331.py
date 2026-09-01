@@ -24,6 +24,11 @@ from parallax_api.code.validation_toolchains import (
 )
 
 
+_PROJECT_ID = "11111111-1111-4111-8111-111111111111"
+_RUN_ID = "22222222-2222-4222-8222-222222222222"
+_SPEC_ID = "33333333-3333-4333-8333-333333333333"
+
+
 class _Service:
     @staticmethod
     def acceptance_map_for_run(run):
@@ -61,9 +66,9 @@ class _UnusedCandidateValidator:
 
 def _run():
     return SimpleNamespace(
-        id="run-1",
-        project_id="project-1",
-        work_specification_id="spec-1",
+        id=_RUN_ID,
+        project_id=_PROJECT_ID,
+        work_specification_id=_SPEC_ID,
         work_specification_revision=1,
         work_specification_digest="b" * 64,
     )
@@ -166,6 +171,11 @@ def test_execution_contract_drift_uses_fixed_sanitized_reason_code():
 
 def test_production_canary_requires_exact_build_test_verify_success():
     module = _load_canary_module()
+    successful_stage = {
+        "protected_success": True,
+        "candidate_is_canonical_lineage": False,
+        "accepts_source_lineage": False,
+    }
     good = CandidateValidationResult(
         content_digest="a" * 64,
         file_count=3,
@@ -173,7 +183,7 @@ def test_production_canary_requires_exact_build_test_verify_success():
         validation_profile_id=ValidationProfileCode.NODE.value,
         validation_profile_digest="b" * 64,
         stage_evidence=tuple(
-            (stage, {"protected_success": True})
+            (stage, dict(successful_stage))
             for stage in ("BUILD", "TEST", "VERIFY")
         ),
     )
@@ -185,7 +195,7 @@ def test_production_canary_requires_exact_build_test_verify_success():
         total_bytes=10,
         validation_profile_id=ValidationProfileCode.NODE.value,
         validation_profile_digest="b" * 64,
-        stage_evidence=(("BUILD", {"protected_success": True}),),
+        stage_evidence=(("BUILD", dict(successful_stage)),),
     )
     with pytest.raises(RuntimeError, match="all protected stages"):
         module._require_full_success(incomplete)
