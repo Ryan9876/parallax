@@ -122,6 +122,7 @@ class FakeLineageExecutor:
         project_ref: str,
         run_id: str,
         source_lineage_ref: str,
+        execution_contract,
     ):
         self.calls.append((spec, project_ref, run_id, source_lineage_ref))
         return execution_evidence(spec)
@@ -504,7 +505,7 @@ def test_autonomy_stops_at_build_without_same_lineage_executor(tmp_path: Path):
         session.close()
 
 
-def test_lineage_aware_executor_receives_exact_accepted_lineage_for_build_test_verify(tmp_path: Path):
+def test_same_lineage_execution_fails_closed_without_plan_bound_contract_evidence(tmp_path: Path):
     session, service, conversations, work_specs = service_for(tmp_path, "autonomy-lineage.db")
     workspace = tmp_path / "autonomy-lineage-workspace"
     workspace.mkdir()
@@ -529,32 +530,25 @@ def test_lineage_aware_executor_receives_exact_accepted_lineage_for_build_test_v
             operation_key="auto-lineage",
             expected_revision=run.revision,
         )
-        assert result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED
-        assert result.run.state == "REVIEW"
+        assert result.stop_reason is AutonomyStopReason.EXECUTION_FAILED
+        assert result.run.state == "FAILED"
         assert [item.stage for item in result.steps] == [
             "EXECUTOR",
             "PLAN",
             "IMPLEMENT",
             "BUILD",
-            "TEST",
-            "VERIFY",
         ]
         assert target.read_text(encoding="utf-8") == "value = 2\n"
         assert executor.specs == []
-        assert [call[0].stage for call in lineage_executor.calls] == [
-            WorkflowStage.BUILD,
-            WorkflowStage.TEST,
-            WorkflowStage.VERIFY,
-        ]
-        assert all(call[1] == PROJECT_REF for call in lineage_executor.calls)
-        assert all(call[2] == run.id for call in lineage_executor.calls)
-        assert all(call[3] == "lineage-next" for call in lineage_executor.calls)
-        for attempt in result.run.attempts:
-            if attempt.stage in {"BUILD", "TEST", "VERIFY"} and attempt.status == "PASSED":
-                evidence = json.loads(attempt.evidence_json)
-                assert evidence["project_ref"] == PROJECT_REF
-                assert evidence["source_lineage_ref"] == "lineage-next"
-                assert evidence["lineage_bound_execution"] is True
+        assert lineage_executor.calls == []
+        build = next(item for item in result.run.attempts if item.stage == "BUILD")
+        evidence = json.loads(build.evidence_json)
+        assert evidence["execution_contract_reason"] == "EXECUTION_CONTRACT_DRIFT"
+        assert evidence["lineage_source_transfer"] is False
+        assert evidence["mutation_applied"] is False
+        assert evidence["source_lineage_accepted"] is False
+        assert evidence["production_deployed"] is False
+        assert evidence["review_completed"] is False
     finally:
         session.close()
 

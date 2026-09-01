@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from hashlib import sha256
 import json
 from typing import Protocol
 
@@ -13,6 +14,12 @@ from .run_events import RunEventError
 from .sandbox_execution import ProtectedCommandRegistry
 from .service import EngineeringRunService
 from .state_machine import RevisionConflict
+from .validation_toolchains import (
+    ExecutionContract,
+    ExecutionContractIdentity,
+    ValidationProfileError,
+    ValidationProfileReason,
+)
 
 
 class AutonomousExecutor(Protocol):
@@ -29,6 +36,7 @@ class LineageAwareAutonomousExecutor(Protocol):
         project_ref: str,
         run_id: str,
         source_lineage_ref: str,
+        execution_contract: ExecutionContract,
     ) -> dict[str, object]: ...
 
 
@@ -79,7 +87,9 @@ class AutonomyResult:
 @dataclass(frozen=True, slots=True)
 class _AcceptedImplementationLineage:
     project_ref: str
+    base_source_lineage_ref: str
     source_lineage_ref: str
+    attempt_index: int
 
 
 class AutonomyCoordinator:
@@ -337,26 +347,37 @@ class AutonomyCoordinator:
             if stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
                 stage_key = self._stage_key(operation_key, stage, run.revision)
                 spec = self.registry.spec_for(stage, operation_key=stage_key)
-                accepted_lineage = self._accepted_implementation_lineage(run)
-                if accepted_lineage is not None:
+                try:
+                    accepted_lineage = self._accepted_implementation_lineage(run)
+                except ValidationProfileError as exc:
+                    evidence = self._execution_contract_failure_evidence(spec, exc.code)
+                else:
+                    evidence = None
+                if evidence is None and accepted_lineage is not None:
                     if self.lineage_executor is None:
                         return AutonomyResult(
                             run=run,
                             stop_reason=AutonomyStopReason.LINEAGE_EXECUTOR_REQUIRED,
                             steps=tuple(steps),
                         )
-                    evidence = self.lineage_executor.execute_on_lineage(
-                        spec,
-                        project_ref=accepted_lineage.project_ref,
-                        run_id=run.id,
-                        source_lineage_ref=accepted_lineage.source_lineage_ref,
-                    )
+                    try:
+                        execution_contract = self._plan_bound_execution_contract(run, accepted_lineage)
+                    except ValidationProfileError as exc:
+                        evidence = self._execution_contract_failure_evidence(spec, exc.code)
+                    else:
+                        evidence = self.lineage_executor.execute_on_lineage(
+                            spec,
+                            project_ref=accepted_lineage.project_ref,
+                            run_id=run.id,
+                            source_lineage_ref=accepted_lineage.source_lineage_ref,
+                            execution_contract=execution_contract,
+                        )
                     # These identities are server-owned. Any executor-provided
                     # values are overwritten rather than trusted.
                     evidence["project_ref"] = accepted_lineage.project_ref
                     evidence["source_lineage_ref"] = accepted_lineage.source_lineage_ref
                     evidence["lineage_bound_execution"] = True
-                else:
+                elif evidence is None:
                     # Wave 1 / pre-lineage runs preserve their existing executor
                     # behavior. #61 only tightens runs that accepted IMPLEMENT
                     # lineage evidence.
@@ -418,22 +439,93 @@ class AutonomyCoordinator:
 
     @staticmethod
     def _accepted_implementation_lineage(run: EngineeringRun) -> _AcceptedImplementationLineage | None:
-        for attempt in reversed(run.attempts):
+        for attempt_index in range(len(run.attempts) - 1, -1, -1):
+            attempt = run.attempts[attempt_index]
             if attempt.stage != WorkflowStage.IMPLEMENT.value or attempt.status != "PASSED":
                 continue
             try:
                 evidence = json.loads(attempt.evidence_json)
-            except (TypeError, json.JSONDecodeError):
-                return None
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT) from exc
             project_ref = evidence.get("project_ref")
+            base_source_lineage_ref = evidence.get("base_source_lineage_ref")
             source_lineage_ref = evidence.get("source_lineage_ref")
-            if isinstance(project_ref, str) and project_ref and isinstance(source_lineage_ref, str) and source_lineage_ref:
+            if project_ref is None and base_source_lineage_ref is None and source_lineage_ref is None:
+                # Historical pre-lineage IMPLEMENT evidence retains its legacy
+                # executor path. A partially present lineage envelope is drift.
+                return None
+            if (
+                isinstance(project_ref, str)
+                and project_ref
+                and isinstance(base_source_lineage_ref, str)
+                and base_source_lineage_ref
+                and isinstance(source_lineage_ref, str)
+                and source_lineage_ref
+            ):
                 return _AcceptedImplementationLineage(
                     project_ref=project_ref,
+                    base_source_lineage_ref=base_source_lineage_ref,
                     source_lineage_ref=source_lineage_ref,
+                    attempt_index=attempt_index,
                 )
-            return None
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
         return None
+
+    @staticmethod
+    def _plan_bound_execution_contract(
+        run: EngineeringRun,
+        lineage: _AcceptedImplementationLineage,
+    ) -> ExecutionContract:
+        if lineage.project_ref != run.project_id:
+            raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+        for attempt in reversed(run.attempts[: lineage.attempt_index]):
+            if attempt.stage != WorkflowStage.PLAN.value or attempt.status != "PASSED":
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json)
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT) from exc
+            if not isinstance(evidence, dict):
+                raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+            expected = {
+                "project_id": run.project_id,
+                "run_id": run.id,
+                "work_specification_id": run.work_specification_id,
+                "work_specification_revision": run.work_specification_revision,
+                "work_specification_digest": run.work_specification_digest,
+                "base_source_lineage_ref": lineage.base_source_lineage_ref,
+            }
+            if any(evidence.get(key) != value for key, value in expected.items()):
+                raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_DRIFT)
+            return ExecutionContractIdentity.from_evidence(evidence).resolve()
+        raise ValidationProfileError(ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE)
+
+    @staticmethod
+    def _execution_contract_failure_evidence(
+        spec: ExecutionSpec,
+        reason: ValidationProfileReason,
+    ) -> dict[str, object]:
+        code = reason.value
+        return {
+            "tool_id": spec.tool_id,
+            "exit_code": None,
+            "duration_ms": 0,
+            "stdout_excerpt": "",
+            "stderr_excerpt": code,
+            "stderr_digest": sha256(code.encode("utf-8")).hexdigest(),
+            "protected_success": False,
+            "executor": "same-lineage-contract-admission",
+            "network_policy": "not-created",
+            "persistent": False,
+            "execution_contract_reason": code,
+            "lineage_source_transfer": False,
+            "execution_snapshot_verified": False,
+            "mutation_applied": False,
+            "source_lineage_accepted": False,
+            "git_mutated": False,
+            "production_deployed": False,
+            "review_completed": False,
+        }
 
     @staticmethod
     def _stop_reason(stage: WorkflowStage) -> AutonomyStopReason | None:

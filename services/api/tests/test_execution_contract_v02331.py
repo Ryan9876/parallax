@@ -16,6 +16,7 @@ from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.validation_toolchains import (
     ExecutionBindingReason,
     ExecutionContractCode,
+    ExecutionContractIdentity,
     ValidationProfileCode,
     ValidationProfileError,
     ValidationProfileReason,
@@ -167,6 +168,74 @@ def test_execution_contract_drift_uses_fixed_sanitized_reason_code():
     assert "static-web" not in str(diagnostic)
     assert diagnostic["source_lineage_accepted"] is False
     assert diagnostic["production_deployed"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("execution_contract_id", "unknown-v1"),
+        ("execution_contract_binding_reason", "UNKNOWN_BINDING"),
+        ("execution_contract_target", "App.csproj"),
+        ("execution_contract_digest", "0" * 64),
+        ("validation_profile_id", "python-v1"),
+        ("validation_profile_digest", "0" * 64),
+    ],
+)
+def test_persisted_execution_contract_identity_rejects_each_drifted_field(field, value):
+    contract = resolve_execution_contract(
+        ExecutionContractCode.STATIC_WEB.value,
+        binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB.value,
+        target=None,
+    )
+    evidence = {
+        "execution_contract_id": contract.contract_id.value,
+        "execution_contract_binding_reason": contract.binding_reason.value,
+        "execution_contract_target": contract.target,
+        "execution_contract_digest": contract.digest,
+        "validation_profile_id": contract.validation_profile.profile_id.value,
+        "validation_profile_digest": contract.validation_profile.digest,
+    }
+    evidence[field] = value
+
+    with pytest.raises(ValidationProfileError) as captured:
+        ExecutionContractIdentity.from_evidence(evidence).resolve()
+
+    assert captured.value.code in {
+        ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+        ValidationProfileReason.EXECUTION_CONTRACT_UNAVAILABLE,
+    }
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "execution_contract_id",
+        "execution_contract_binding_reason",
+        "execution_contract_digest",
+        "validation_profile_id",
+        "validation_profile_digest",
+    ],
+)
+def test_persisted_execution_contract_identity_fails_closed_when_required_field_missing(field):
+    contract = resolve_execution_contract(
+        ExecutionContractCode.STATIC_WEB.value,
+        binding_reason=ExecutionBindingReason.GREENFIELD_STATIC_WEB.value,
+        target=None,
+    )
+    evidence = {
+        "execution_contract_id": contract.contract_id.value,
+        "execution_contract_binding_reason": contract.binding_reason.value,
+        "execution_contract_target": contract.target,
+        "execution_contract_digest": contract.digest,
+        "validation_profile_id": contract.validation_profile.profile_id.value,
+        "validation_profile_digest": contract.validation_profile.digest,
+    }
+    del evidence[field]
+
+    with pytest.raises(ValidationProfileError) as captured:
+        ExecutionContractIdentity.from_evidence(evidence).resolve()
+
+    assert captured.value.code is ValidationProfileReason.EXECUTION_CONTRACT_DRIFT
 
 
 def test_production_canary_requires_exact_build_test_verify_success():

@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from parallax_api.code.agentic_runtime_live import LiveAgenticControlPlane
 from parallax_api.code.autonomy import AutonomyCoordinator
 from parallax_api.code.implementation_runtime import ProtectedImplementationRuntime, RunProjectBinding
 from parallax_api.code.runtime_composition import AllocatorWorkspaceLineageGateway
@@ -116,7 +117,9 @@ class ReconstructingLineageExecutor:
         self.allocator = allocator
         self.calls: list[tuple[str, str, str]] = []
 
-    def execute_on_lineage(self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str):
+    def execute_on_lineage(
+        self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str, execution_contract
+    ):
         self.calls.append((project_ref, run_id, source_lineage_ref))
         identity = ProjectRunIdentity(project_ref, run_id)
         workspace = self.allocator.reconstruct(identity, source_lineage_ref)
@@ -382,6 +385,7 @@ class TestRuntimeFactory:
             NeverLegacyExecutor(),
             implementation_runtime=implementation,
             lineage_executor=ReconstructingLineageExecutor(allocator),
+            plan_runtime=LiveAgenticControlPlane(service, allocator),
         )
         adapter = RuntimeAppBuilderEvidenceAdapter(
             session,

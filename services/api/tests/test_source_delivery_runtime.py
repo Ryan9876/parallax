@@ -48,7 +48,7 @@ class FakeExecutor:
 
 
 class FakeLineageExecutor:
-    def execute_on_lineage(self, spec, *, project_ref, run_id, source_lineage_ref):
+    def execute_on_lineage(self, spec, *, project_ref, run_id, source_lineage_ref, execution_contract):
         return {}
 
 

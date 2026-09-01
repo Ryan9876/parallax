@@ -24,6 +24,7 @@ from parallax_api.code.autonomous_correction import (
     ProtectedQualityVector,
     normalize_failure,
 )
+from parallax_api.code.agentic_runtime_live import LiveAgenticControlPlane
 from parallax_api.code.autonomy import AutonomyCoordinator
 from parallax_api.code.governed_skills import (
     CapabilitySnapshot,
@@ -501,6 +502,11 @@ class PythonServiceSourceProvider:
             files={
                 "app.py": INITIAL_SOURCE.encode("utf-8"),
                 "pyproject.toml": PYPROJECT.encode("utf-8"),
+                "services/api/pyproject.toml": b"[project]\nname='wave5-reference'\n",
+                "services/api/parallax_api/__init__.py": b"",
+                "services/api/tests/test_code_execution_kernel.py": b"",
+                "services/api/tests/test_code_autonomy.py": b"",
+                "scripts/.profile-fixture": b"",
             },
         )
 
@@ -542,7 +548,9 @@ class ReconstructingLineageExecutor:
     def __init__(self, allocator: ProjectWorkspaceAllocator):
         self.allocator = allocator
 
-    def execute_on_lineage(self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str):
+    def execute_on_lineage(
+        self, spec, *, project_ref: str, run_id: str, source_lineage_ref: str, execution_contract
+    ):
         identity = ProjectRunIdentity(project_ref, run_id)
         workspace = self.allocator.reconstruct(identity, source_lineage_ref)
         try:
@@ -585,7 +593,15 @@ class FakeGitHubPublishClient:
 
     def commit_files(self, repository_ref, branch_name, expected_parent_revision, lineage, files):
         self.counters["commit"] += 1
-        assert {item.path for item in files} == {"app.py", "pyproject.toml"}
+        assert {item.path for item in files} == {
+            "app.py",
+            "pyproject.toml",
+            "services/api/pyproject.toml",
+            "services/api/parallax_api/__init__.py",
+            "services/api/tests/test_code_execution_kernel.py",
+            "services/api/tests/test_code_autonomy.py",
+            "scripts/.profile-fixture",
+        }
         revision = sha256(f"{lineage.lineage_id}:{lineage.content_digest}".encode()).hexdigest()[:40]
         return GitHubCommitResult(
             repository_ref,
@@ -804,6 +820,7 @@ class TestRuntimeFactory:
             NeverLegacyExecutor(),
             implementation_runtime=implementation,
             lineage_executor=ReconstructingLineageExecutor(allocator),
+            plan_runtime=LiveAgenticControlPlane(service, allocator),
         )
         adapter = RuntimeAppBuilderEvidenceAdapter(
             session,

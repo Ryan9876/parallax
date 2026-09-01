@@ -97,35 +97,14 @@ class ProtectedReferenceAppHarness:
         if not operator_ref or len(operator_ref) > 128 or any(ord(ch) < 33 for ch in operator_ref):
             raise ValueError("operator_ref must be a bounded opaque identity")
 
-        # Request/runtime composition 1: protected PLAN and canonical Project binding.
+        # Request/runtime composition 1: resolve canonical Project binding. The
+        # initial accepted lineage is bootstrapped before PLAN because PLAN now
+        # binds the immutable execution contract from that exact lineage.
         context = self.runtime_factory.open()
         try:
             run = context.service.get(run_id)
-            if WorkflowStage(run.state) is WorkflowStage.PLAN:
-                acceptance = sorted(item["id"] for item in context.service.acceptance_map_for_run(run))
-                planned = context.service.complete_stage(
-                    run_id=run.id,
-                    stage=WorkflowStage.PLAN,
-                    operation_key=f"{operation_key}:plan",
-                    expected_revision=run.revision,
-                    passed=True,
-                    evidence={
-                        "acceptance_ids_covered": acceptance,
-                        "work_items": [
-                            {"acceptance_id": item, "action": "satisfy protected reference acceptance"}
-                            for item in acceptance
-                        ],
-                        "validation_checks": [
-                            {"acceptance_id": item, "check": "verify protected reference acceptance"}
-                            for item in acceptance
-                        ],
-                        "reference_harness": "P2-V0.15.10",
-                    },
-                    program_id="protected-reference-plan-v0.15.10",
-                )
-                run = planned.run
-            if WorkflowStage(run.state) is not WorkflowStage.IMPLEMENT:
-                raise ReferenceLoopError("reference run must enter IMPLEMENT after protected PLAN")
+            if WorkflowStage(run.state) is not WorkflowStage.PLAN:
+                raise ReferenceLoopError("reference run must begin at protected PLAN")
             project_id = run.project_id
             if not isinstance(project_id, str) or not project_id:
                 raise ReferenceLoopError("reference run lacks canonical Project identity")
@@ -151,7 +130,31 @@ class ProtectedReferenceAppHarness:
         if replayed_initial != initial_lineage:
             raise ReferenceLoopError("repository bootstrap retry changed accepted initial lineage")
 
-        # Request/runtime composition 2: typed generation -> safe mutation -> durable lineage.
+        # Request/runtime composition 2: bind the exact execution contract at
+        # protected PLAN through the configured server-owned plan runtime.
+        context = self.runtime_factory.open()
+        try:
+            run = context.service.get(run_id)
+            plan_runtime = context.autonomy.plan_runtime
+            if plan_runtime is None:
+                raise ReferenceLoopError("reference runtime lacks PLAN-bound execution-contract authority")
+            plan_key = f"{operation_key}:plan"
+            evidence = plan_runtime.plan(run=run, operation_key=plan_key)
+            planned = context.service.complete_stage(
+                run_id=run.id,
+                stage=WorkflowStage.PLAN,
+                operation_key=plan_key,
+                expected_revision=run.revision,
+                passed=True,
+                evidence=evidence,
+                program_id=plan_runtime.program_id,
+            )
+            if WorkflowStage(planned.run.state) is not WorkflowStage.IMPLEMENT:
+                raise ReferenceLoopError("reference run must enter IMPLEMENT after protected PLAN")
+        finally:
+            context.close()
+
+        # Request/runtime composition 3: typed generation -> safe mutation -> durable lineage.
         context = self.runtime_factory.open()
         implementation: ImplementationRuntimeResult
         try:
@@ -167,7 +170,7 @@ class ProtectedReferenceAppHarness:
         finally:
             context.close()
 
-        # Request/runtime composition 3: exact IMPLEMENT replay must not mutate again.
+        # Request/runtime composition 4: exact IMPLEMENT replay must not mutate again.
         context = self.runtime_factory.open()
         try:
             current = context.service.get(run_id)
@@ -191,7 +194,7 @@ class ProtectedReferenceAppHarness:
         finally:
             context.close()
 
-        # Request/runtime composition 4: resume, exact-lineage BUILD/TEST/VERIFY.
+        # Request/runtime composition 5: resume, exact-lineage BUILD/TEST/VERIFY.
         context = self.runtime_factory.open()
         try:
             paused = context.service.get(run_id)
@@ -231,7 +234,7 @@ class ProtectedReferenceAppHarness:
         ):
             raise ReferenceLoopError("verified-source publication retry was not idempotent")
 
-        # Request/runtime composition 5: derive observable evidence from durable facts.
+        # Request/runtime composition 6: derive observable evidence from durable facts.
         context = self.runtime_factory.open()
         try:
             snapshot = context.evidence_adapter.snapshot(run_id)

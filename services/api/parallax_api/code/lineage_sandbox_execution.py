@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import os
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 import time
 
 from parallax_api.execution_environment import execution_snapshot_id_for_profile
@@ -16,7 +16,12 @@ from .sandbox_execution import (
     _bounded_evidence,
     _sanitized_provider_error,
 )
-from .validation_toolchains import select_validation_profile
+from .validation_toolchains import (
+    ExecutionContract,
+    ExecutionContractIdentity,
+    ValidationProfile,
+    ValidationProfileError,
+)
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import ProjectRunIdentity, SourceLineage
 
@@ -161,6 +166,20 @@ class SameLineageVercelSandboxExecutor:
             for path, content in files:
                 batch.write_bytes(path, content)
 
+    @staticmethod
+    def _transfer_server_validator(instance: object, profile: ValidationProfile) -> None:
+        if profile.ecosystem != "static-web":
+            return
+        source = Path(__file__).with_name("static_web_validator.py")
+        if source.is_symlink() or not source.is_file():
+            raise SameLineageExecutionError("server-owned static-web validator is unavailable")
+        filesystem = getattr(instance, "fs", None)
+        if filesystem is None:
+            raise SameLineageExecutionError("sandbox filesystem API is unavailable")
+        filesystem.mkdir("parallax-validator", cwd="/vercel", recursive=True)
+        with filesystem.batch(cwd="/vercel/parallax-validator") as batch:
+            batch.write_bytes("static_web_validator.py", source.read_bytes())
+
     def _validate_caller_stage_spec(self, spec: ExecutionSpec) -> None:
         """Reject caller-shaped command drift before any lineage materialization.
 
@@ -181,6 +200,7 @@ class SameLineageVercelSandboxExecutor:
         project_ref: str,
         run_id: str,
         source_lineage_ref: str,
+        execution_contract: ExecutionContract,
     ) -> dict[str, object]:
         started = time.monotonic()
         workspace: MaterializedWorkspace | None = None
@@ -188,6 +208,8 @@ class SameLineageVercelSandboxExecutor:
         execution_spec = spec
         validation_profile_id: str | None = None
         validation_profile_digest: str | None = None
+        execution_contract_id: str | None = None
+        execution_contract_digest: str | None = None
         selected_snapshot_id: str | None = None
         cleanup_error: Exception | None = None
         preparation_evidence: dict[str, object] = {
@@ -197,6 +219,9 @@ class SameLineageVercelSandboxExecutor:
         }
         try:
             self._validate_caller_stage_spec(spec)
+            contract = ExecutionContractIdentity.from_contract(execution_contract).resolve()
+            execution_contract_id = contract.contract_id.value
+            execution_contract_digest = contract.digest
             identity = self._identity(project_ref, run_id)
             if not isinstance(source_lineage_ref, str) or not source_lineage_ref:
                 raise SameLineageExecutionError("accepted source lineage identity is required")
@@ -207,7 +232,7 @@ class SameLineageVercelSandboxExecutor:
                 identity=identity,
                 lineage_id=source_lineage_ref,
             )
-            profile = select_validation_profile(workspace.path)
+            profile = contract.validation_profile
             validation_profile_id = profile.profile_id.value
             validation_profile_digest = profile.digest
             try:
@@ -248,6 +273,7 @@ class SameLineageVercelSandboxExecutor:
                     if restored_snapshot_id != selected_snapshot_id:
                         raise SameLineageExecutionError("sandbox did not restore the profile-qualified execution snapshot")
                     self._transfer_source(instance, files)
+                    self._transfer_server_validator(instance, profile)
                     preparation_evidence = run_dependency_preparation(
                         instance,
                         NetworkPolicy,
@@ -284,6 +310,8 @@ class SameLineageVercelSandboxExecutor:
                     "execution_snapshot_verified": True,
                     "validation_profile_id": validation_profile_id,
                     "validation_profile_digest": validation_profile_digest,
+                    "execution_contract_id": execution_contract_id,
+                    "execution_contract_digest": execution_contract_digest,
                     "execution_working_directory": self._sandbox_cwd(execution_spec.working_directory),
                     **preparation_evidence,
                 }
@@ -304,8 +332,12 @@ class SameLineageVercelSandboxExecutor:
                 "execution_snapshot_verified": False,
                 "validation_profile_id": validation_profile_id,
                 "validation_profile_digest": validation_profile_digest,
+                "execution_contract_id": execution_contract_id,
+                "execution_contract_digest": execution_contract_digest,
                 **preparation_evidence,
             }
+            if isinstance(exc, ValidationProfileError):
+                failure_details["execution_contract_reason"] = exc.code.value
             if selected_snapshot_id is not None:
                 failure_details["execution_snapshot_id"] = selected_snapshot_id
             evidence.update(failure_details)

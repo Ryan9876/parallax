@@ -19,6 +19,8 @@ _GATEWAY_CREDENTIAL_ENV = (
 _GATEWAY_MODEL_PREFIX = "vercel_ai_gateway/"
 _HOSTED_MODEL_TIMEOUT_SECONDS = 60
 _HOSTED_MODEL_NUM_RETRIES = 0
+_LOCAL_DEFAULT_MAX_TOKENS = 384
+_LOCAL_SPEC_COMPILER_MAX_TOKENS = 640
 _REQUEST_GATEWAY_CREDENTIAL: ContextVar[str | None] = ContextVar(
     "parallax_request_gateway_credential",
     default=None,
@@ -92,7 +94,7 @@ def request_model_gateway_credential(credential: str | None) -> Iterator[None]:
         _REQUEST_GATEWAY_CREDENTIAL.reset(token)
 
 
-def build_lm(model: str):
+def build_lm(model: str, *, local_max_tokens: int = _LOCAL_DEFAULT_MAX_TOKENS):
     """Build a DSPy LM with canonical identity and a bounded transport boundary.
 
     Explicit DSPY endpoint settings remain deliberate operator/development
@@ -106,6 +108,9 @@ def build_lm(model: str):
     authority. Production cannot silently fall back to direct OpenAI or a local
     endpoint.
     """
+
+    if not isinstance(local_max_tokens, int) or local_max_tokens <= 0:
+        raise ValueError("local_max_tokens must be a positive integer")
 
     dspy = _dspy()
     api_base = os.getenv("DSPY_API_BASE")
@@ -160,7 +165,7 @@ def build_lm(model: str):
         # not the plan-quality authority. A small non-zero temperature avoids
         # the deterministic repetition loops seen with tiny CPU-only models.
         kwargs["temperature"] = 0.15
-        kwargs["max_tokens"] = 384
+        kwargs["max_tokens"] = local_max_tokens
         kwargs["num_retries"] = 1
     return dspy.LM(model, **kwargs)
 
@@ -279,7 +284,10 @@ def build_spec_compiler(model: str):
                 desc="Exactly 2 concise material risk-and-mitigation items, one sentence each. Do not repeat."
             )
 
-    lm = build_lm(model)
+    lm = build_lm(
+        model,
+        local_max_tokens=_LOCAL_SPEC_COMPILER_MAX_TOKENS if _local_development() else _LOCAL_DEFAULT_MAX_TOKENS,
+    )
     # Predict is deliberate here. Structured outputs are the contract; extra
     # chain-of-thought text only makes small development LMs less reliable.
     program = dspy.Predict(CompileSpec)
