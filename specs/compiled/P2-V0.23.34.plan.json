@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "One execution authority from PLAN through VERIFY"
+  ],
+  "work_items": [
+    "Protected PLAN already materializes the exact current accepted source lineage, binds one closed-catalog `ExecutionContract`, and persists its server-owned identity. That binding remains authoritative for the Engineering Run until an already-governed human-authorized PLAN refresh creates a new authoritative PLAN. Successful IMPLEMENT may create a new accepted source lineage, but it does not create a new execution contract or authorize source-shape reclassification. For an Engineering Run with accepted IMPLEMENT lineage, BUILD/TEST/VERIFY therefore require two independent authoritative references: 1. accepted source-lineage identity \u2014 determines exactly which source bytes execute; 2. PLAN-bound contract identity \u2014 determines exactly how those bytes execute. Neither may be inferred from the other after IMPLEMENT."
+  ],
+  "validations": [
+    "Tests prove contract ID, binding reason, target, contract digest, validation-profile ID, and validation-profile digest must all match the server-resolved closed-catalog contract exactly.",
+    "AC-01: validate protected requirement \u2014 The authoritative record identifies exact deployment `dpl_6ahCYmgKUyaFCZJVAEB2cMfQNGMD`, QA run `33506848853` / job `99852814534`, Engineering Run `c7c6a645-aa4e-4440-b4d3-19ff1bbc8a82`, successful IMPLEMENT/source-lineage acceptance, and later `AUTONOMOUS_BUILD_FAILED`, closing #546 without claiming end-to-end success.",
+    "AC-02: validate protected requirement \u2014 For accepted IMPLEMENT lineage, BUILD/TEST/VERIFY receives the exact bounded execution-contract identity from authoritative successful PLAN evidence and no longer selects execution authority from post-IMPLEMENT source shape.",
+    "AC-03: validate protected requirement \u2014 Tests prove contract ID, binding reason, target, contract digest, validation-profile ID, and validation-profile digest must all equal the server-resolved closed-catalog contract. Missing, malformed, unknown, or drifted identity fails closed.",
+    "AC-04: validate protected requirement \u2014 A deterministic regression reproduces post-IMPLEMENT source containing root `index.html`, `styles.css`, and `app.js` without generic ecosystem markers and proves a valid PLAN-bound `static-web-v1` contract reaches the existing server-owned static-web BUILD command instead of `UNSUPPORTED_VALIDATION_ECOSYSTEM`.",
+    "AC-05: validate protected requirement \u2014 Tests prove adding `package.json`, Python markers, .NET project markers, or conflicting source-shape signals after PLAN cannot switch a `static-web-v1` same-lineage run to Node/Python/.NET commands or snapshots.",
+    "AC-06: validate protected requirement \u2014 Tests prove wrong Project/run/lineage identity, file-set mismatch, symlink/special-file presence, byte/SHA mismatch, or aggregate lineage mismatch still fails before protected execution. Contract correctness cannot bypass source-lineage verification.",
+    "AC-07: validate protected requirement \u2014 Focused regressions prove existing governed Python and .NET PLAN contracts resolve to the same profile/target/snapshot/preparation/command behavior and do not gain new authority.",
+    "AC-08: validate protected requirement \u2014 Tests prove source-free snapshot verification, dependency preparation, validation-network lock, registered command policy, timeout, bounded evidence, and cleanup behavior remain authoritative after contract resolution.",
+    "AC-09: validate protected requirement \u2014 Tests prove invalid contract evidence cannot persist raw exception text, source/generated content, provider payloads, filesystem roots, environment values, credentials, or true mutation/lineage/Git/deployment/REVIEW authority claims.",
+    "AC-10: validate protected requirement \u2014 SpecCritic/SpecCompiler evidence for this exact spec, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green.",
+    "AC-11: validate protected requirement \u2014 After exact merged API source reaches production `READY`, the real static-web candidate canary passes, `/health` and `/ready` are HTTP 200, and runtime verification is clean, rerun the authenticated marker-free QA path. Same-lineage BUILD must consume the persisted `static-web-v1` contract and advance to TEST/VERIFY/REVIEW or expose a genuinely later bounded blocker. Recurrence of source-shape `UNSUPPORTED_VALIDATION_ECOSYSTEM` or equivalent post-IMPLEMENT contract re-inference does not pass."
+  ],
+  "risks": [
+    "Exact accepted-lineage Project/run identity, file set, byte size, per-file SHA-256, aggregate lineage evidence, sandbox source transfer, snapshot restoration, and cleanup verification remain mandatory."
+  ],
+  "spec_id": "P2-V0.23.34",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "P2-V0.23.33 production acceptance is reconciled",
+      "protected_requirement": "The authoritative record identifies exact deployment `dpl_6ahCYmgKUyaFCZJVAEB2cMfQNGMD`, QA run `33506848853` / job `99852814534`, Engineering Run `c7c6a645-aa4e-4440-b4d3-19ff1bbc8a82`, successful IMPLEMENT/source-lineage acceptance, and later `AUTONOMOUS_BUILD_FAILED`, closing #546 without claiming end-to-end success."
+    },
+    {
+      "id": "AC-02",
+      "title": "Same-lineage execution consumes PLAN-bound contract identity",
+      "protected_requirement": "For accepted IMPLEMENT lineage, BUILD/TEST/VERIFY receives the exact bounded execution-contract identity from authoritative successful PLAN evidence and no longer selects execution authority from post-IMPLEMENT source shape."
+    },
+    {
+      "id": "AC-03",
+      "title": "Closed-catalog identity is verified exactly",
+      "protected_requirement": "Tests prove contract ID, binding reason, target, contract digest, validation-profile ID, and validation-profile digest must all equal the server-resolved closed-catalog contract. Missing, malformed, unknown, or drifted identity fails closed."
+    },
+    {
+      "id": "AC-04",
+      "title": "Marker-free static BUILD no longer fails from source-shape re-inference",
+      "protected_requirement": "A deterministic regression reproduces post-IMPLEMENT source containing root `index.html`, `styles.css`, and `app.js` without generic ecosystem markers and proves a valid PLAN-bound `static-web-v1` contract reaches the existing server-owned static-web BUILD command instead of `UNSUPPORTED_VALIDATION_ECOSYSTEM`."
+    },
+    {
+      "id": "AC-05",
+      "title": "Static source cannot upgrade its own execution authority",
+      "protected_requirement": "Tests prove adding `package.json`, Python markers, .NET project markers, or conflicting source-shape signals after PLAN cannot switch a `static-web-v1` same-lineage run to Node/Python/.NET commands or snapshots."
+    },
+    {
+      "id": "AC-06",
+      "title": "Exact accepted lineage remains mandatory",
+      "protected_requirement": "Tests prove wrong Project/run/lineage identity, file-set mismatch, symlink/special-file presence, byte/SHA mismatch, or aggregate lineage mismatch still fails before protected execution. Contract correctness cannot bypass source-lineage verification."
+    },
+    {
+      "id": "AC-07",
+      "title": "Python and .NET behavior is preserved",
+      "protected_requirement": "Focused regressions prove existing governed Python and .NET PLAN contracts resolve to the same profile/target/snapshot/preparation/command behavior and do not gain new authority."
+    },
+    {
+      "id": "AC-08",
+      "title": "Sandbox execution controls remain unchanged",
+      "protected_requirement": "Tests prove source-free snapshot verification, dependency preparation, validation-network lock, registered command policy, timeout, bounded evidence, and cleanup behavior remain authoritative after contract resolution."
+    },
+    {
+      "id": "AC-09",
+      "title": "Diagnostics remain sanitized and bounded",
+      "protected_requirement": "Tests prove invalid contract evidence cannot persist raw exception text, source/generated content, provider payloads, filesystem roots, environment values, credentials, or true mutation/lineage/Git/deployment/REVIEW authority claims."
+    },
+    {
+      "id": "AC-10",
+      "title": "Protected release gates pass",
+      "protected_requirement": "SpecCritic/SpecCompiler evidence for this exact spec, focused regressions, full API regression, applicable client checks, protected promotion evaluation, Bounded Autonomy, Workstream Spec Validation, and exact-head PR gates are green."
+    },
+    {
+      "id": "AC-11",
+      "title": "Exact deployment and authenticated replay prove the later boundary moved",
+      "protected_requirement": "After exact merged API source reaches production `READY`, the real static-web candidate canary passes, `/health` and `/ready` are HTTP 200, and runtime verification is clean, rerun the authenticated marker-free QA path. Same-lineage BUILD must consume the persisted `static-web-v1` contract and advance to TEST/VERIFY/REVIEW or expose a genuinely later bounded blocker. Recurrence of source-shape `UNSUPPORTED_VALIDATION_ECOSYSTEM` or equivalent post-IMPLEMENT contract re-inference does not pass."
+    }
+  ],
+  "critique": [
+    "The later bounded `AUTONOMOUS_BUILD_FAILED` blocker exposed by authenticated P2-V0.23.33 production acceptance is the legacy post-IMPLEMENT source-shape re-inference that can contradict already-authoritative PLAN execution identity, while preserving exact accepted-lineage verification, closed-catalog execution profiles, source-free execution snapshots, dependency-preparation/network controls, command authority, mutation authority, provider/model/retry limits, Git/deployment/lifecycle authority, and the human REVIEW ceiling."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
