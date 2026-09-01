@@ -1,0 +1,84 @@
+name: P2-V0.23.31 Current State Reconciliation
+
+on:
+  push:
+    branches: [record/p2331-deployment-verification]
+    paths: [.github/workflows/tmp-p2331-current-state.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: record/p2331-deployment-verification
+          fetch-depth: 0
+      - name: Reconcile CURRENT-STATE
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+          old_status = 'P2-V0.23.31 EXPLICIT EXECUTION CONTRACT + END-TO-END ACCEPTANCE REPLAY ACTIVE**'
+          new_status = 'P2-V0.23.31 EXPLICIT EXECUTION CONTRACT + END-TO-END ACCEPTANCE REPLAY PRODUCTION-DEPLOYMENT-VERIFIED / PRE-USER CANDIDATE CANARY VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING**'
+          if old_status not in text:
+              raise SystemExit('P2-V0.23.31 status anchor drifted')
+          text = text.replace(old_status, new_status, 1)
+
+          anchor = '## P2-V0.23.30 — source-anchored candidate validation profile — PRODUCTION-BEHAVIOR-ACCEPTED / LATER BOUNDED BLOCKER EXPOSED\n'
+          if text.count(anchor) != 1:
+              raise SystemExit('P2-V0.23.30 section anchor drifted')
+          section = '''## P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay — PRODUCTION-DEPLOYMENT-VERIFIED / PRE-USER CANDIDATE CANARY VERIFIED / AUTHENTICATED REAL-PATH ACCEPTANCE PENDING
+
+Workstream: #539. Release PR: #541. Governing specification: `P2-V0.23.31`. Architecture: `ARCHITECTURE.md` v3.42.
+
+P2-V0.23.31 replaces source-shape inference as the remaining marker-free greenfield execution authority with one immutable server-owned execution contract bound during protected PLAN to the exact accepted source lineage and work-specification identity. Established Parallax Python and bounded root .NET source retain their governed validation profiles; a marker-free greenfield lineage binds only the narrow `static-web-v1` contract. Generic Python and generic Node source remain fail-closed. The static-web validator is server-owned code outside candidate source, uses only deterministic HTML/local-reference and JavaScript syntax checks, and runs through the existing pinned disposable candidate sandbox. Candidate-authored markers, package scripts, command text, network policy, execution snapshots and validator source cannot change the bound authority. IMPLEMENT verifies the persisted execution contract before generation/candidate validation. Contract/profile admission failures persist only a closed server-owned phase, fixed failure kind and fixed reason-code vocabulary; raw source, generated content, exception/provider payloads and environment material remain excluded.
+
+Validated release and deployment evidence:
+
+- protected P2-V0.23.31 spec-first preparation / DSPy compile-and-verify run `33452271536`: SUCCESS;
+- exact validated release branch head: `a1ce6564076cad7399939266cd9d1cc1b6eb7fe2`;
+- release-branch completion run `33453570435`: SUCCESS, including focused execution-contract regressions, full API regression, compatibility repair, bounded diagnostic admission and architecture v3.42 reconciliation;
+- PR #541 Bounded Autonomy Pilot `33453718040`: SUCCESS;
+- PR #541 Workstream Spec Validation `33453717927`: SUCCESS, including committed protected DSPy plan evidence;
+- PR #541 Parallax P2 CI `33453717932`: SUCCESS, including full API regression, client checks, protected promotion evaluation and DSPy release evidence;
+- merge / exact application source: `27bb6b2af73dbae1809cbb168dc760cf81c977ba`;
+- post-merge Workstream Spec Validation `33453948745`: SUCCESS, including changed-spec protected plan evidence;
+- post-merge Parallax P2 CI `33453948968`: SUCCESS, including full API regression, client checks, protected promotion evaluation and fresh promotion-boundary DSPy SpecCritic/SpecCompiler compilation and verification;
+- production API deployment `dpl_FDuJ3JKRHnvHf14mzJX59cVGasAY`: target production, state `READY`, exact application source `27bb6b2af73dbae1809cbb168dc760cf81c977ba`, canonical alias `parallax-api-tan.vercel.app`;
+- production build preflights passed provider registration/private Blob, exact delivery permission, projected source (697 lineage-eligible files / 7,208,638 UTF-8 bytes), private Blob SDK, lineage composition, agentic runtime, projected bootstrap, execution-snapshot verification, and Engineering Run event schema guard;
+- production candidate-validation canary: PASS under `node-v1`, with exact disposable `BUILD`, `TEST`, and `VERIFY` all protected-successful; immutable candidate digest `f2e8320d210228539bd8c44a9a2d62dccea66d4e7d29f81389b71ba148a483a4`;
+- production `/health`: HTTP 200;
+- production `/ready`: HTTP 200 with database/providers ready and one provider target;
+- exact production deployment warning/error/fatal runtime scan after readiness was clean;
+- backend-only client production attempt `dpl_AHh6NNdySuwEQQd7EzRgW2XokJFd` was canceled/ignored by path-aware deployment logic, so the prior READY client remains authoritative.
+
+The deterministic pre-user acceptance replay has therefore crossed the same real disposable candidate BUILD/TEST/VERIFY substrate that previously required a signed-in user retry to discover post-generation blockers. No Project, Engineering Run, source lineage, Git, delivery, lifecycle, deployment or REVIEW state was mutated by the canary. The remaining P2-V0.23.31 completion boundary is authenticated real-path acceptance: a signed-in retry of Engineering Run `3a1ba66a-5649-42b6-81ee-91684fe06bbc` (or equivalent exact marker-free greenfield work) must enter disposable BUILD/TEST/VERIFY under the persisted execution contract or expose a later bounded blocker. Workstream #539 remains open until that evidence exists.
+
+No generic ecosystem admission, provider/model/credential addition, retry-budget increase, hosted timeout increase, hidden provider retry, model filesystem authority, source-lineage authority expansion, Git/deployment authority expansion, lifecycle-transition authority expansion, automatic REVIEW completion or queue redesign was added.
+
+'''
+          path.write_text(text.replace(anchor, section + anchor, 1), encoding='utf-8')
+          PY
+      - name: Verify authoritative record delta
+        run: |
+          grep -q 'P2-V0.23.31 — explicit execution contract and end-to-end acceptance replay' CURRENT-STATE.md
+          grep -q 'dpl_FDuJ3JKRHnvHf14mzJX59cVGasAY' CURRENT-STATE.md
+          grep -q 'f2e8320d210228539bd8c44a9a2d62dccea66d4e7d29f81389b71ba148a483a4' CURRENT-STATE.md
+          test "$(git diff --name-only | sort)" = 'CURRENT-STATE.md'
+      - name: Commit record and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax State Reconciler'
+          git config user.email 'parallax-state@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git rm .github/workflows/tmp-p2331-current-state.yml
+          git commit -m 'P2-V0.23.31 — record deployment and candidate-canary verification'
+          git push origin HEAD:record/p2331-deployment-verification
