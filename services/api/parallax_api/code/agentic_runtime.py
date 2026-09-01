@@ -1248,6 +1248,43 @@ class AgenticControlPlane:
                 return adapter
         raise AgenticRuntimeError("team plan selected an adapter outside production registry")
 
+    @staticmethod
+    def _assert_candidate_plan_compatible(
+        candidate_plan: TeamPlan,
+        canonical_plan: TeamPlan,
+    ) -> None:
+        if not isinstance(candidate_plan, TeamPlan) or not isinstance(canonical_plan, TeamPlan):
+            raise AgenticRuntimeError("candidate PLAN compatibility requires canonical TeamPlan values")
+        candidate = candidate_plan.identity
+        canonical = canonical_plan.identity
+        protected_fields = (
+            "project_id",
+            "run_id",
+            "work_specification_id",
+            "work_specification_revision",
+            "work_specification_digest",
+            "acceptance_ids",
+            "agent_protocol_version",
+            "policy_digest",
+            "work_graph_digest",
+        )
+        if any(getattr(candidate, field) != getattr(canonical, field) for field in protected_fields):
+            raise AgenticRuntimeError("candidate-local plan drifted from canonical durable PLAN")
+        if candidate_plan.graph.digest != canonical_plan.graph.digest:
+            raise AgenticRuntimeError("candidate-local work graph drifted from canonical durable PLAN")
+        if candidate_plan.limits.as_dict() != canonical_plan.limits.as_dict():
+            raise AgenticRuntimeError("candidate-local orchestration limits drifted from canonical durable PLAN")
+        canonical_roster = {entry.identity_digest for entry in canonical_plan.roster.entries}
+        candidate_roster = {entry.identity_digest for entry in candidate_plan.roster.entries}
+        if not candidate_roster <= canonical_roster:
+            raise AgenticRuntimeError("candidate-local plan introduced an agent outside canonical PLAN admission")
+        if not set(candidate_plan.selected_agent_digests) <= canonical_roster:
+            raise AgenticRuntimeError("candidate-local selected producer is outside canonical PLAN admission")
+        for unit_plan in candidate_plan.unit_plans:
+            canonical_plan.graph.get(unit_plan.work_unit_id)
+            if not set(unit_plan.eligible_agent_digests) <= canonical_roster:
+                raise AgenticRuntimeError("candidate-local work-unit eligibility exceeded canonical PLAN admission")
+
     def _proposal_for_plan(
         self,
         plan: TeamPlan,
@@ -1255,6 +1292,7 @@ class AgenticControlPlane:
         *,
         proposal_validator: Callable[[ImplementationProposal], bool],
         alternative_round: int,
+        canonical_plan: TeamPlan | None = None,
     ) -> tuple[
         ImplementationProposal,
         tuple[AttemptRecord, ...],
@@ -1262,6 +1300,8 @@ class AgenticControlPlane:
         tuple[str, ...],
         tuple[str, ...],
     ]:
+        durable_plan = canonical_plan or plan
+        self._assert_candidate_plan_compatible(plan, durable_plan)
         completed: set[str] = set()
         patches = []
         covered: list[str] = []
@@ -1625,6 +1665,7 @@ class AgenticControlPlane:
                 request,
                 proposal_validator=proposal_validator,
                 alternative_round=alternative_round,
+                canonical_plan=primary_plan,
             )
         with _candidate_admission_phase(candidate_id, "DISPOSABLE_CANDIDATE_VALIDATION"):
             validation = self._candidate_validation(

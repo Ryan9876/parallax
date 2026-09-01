@@ -462,6 +462,7 @@ class LiveAgenticControlPlane(AgenticControlPlane):
         *,
         proposal_validator,
         alternative_round: int,
+        canonical_plan: TeamPlan | None = None,
     ) -> tuple[
         ImplementationProposal,
         tuple[AttemptRecord, ...],
@@ -469,7 +470,9 @@ class LiveAgenticControlPlane(AgenticControlPlane):
         tuple[str, ...],
         tuple[str, ...],
     ]:
-        run = self.service.get(plan.identity.run_id)
+        durable_plan = canonical_plan or plan
+        self._assert_candidate_plan_compatible(plan, durable_plan)
+        run = self.service.get(durable_plan.identity.run_id)
         lineage = self._lineage(run)
         lease = self.worker_bridge.acquire(run_id=run.id)
         generation_by_work_unit = {
@@ -511,7 +514,7 @@ class LiveAgenticControlPlane(AgenticControlPlane):
                     )
                     lease = self.worker_bridge.checkpoint(
                         lease,
-                        plan=plan,
+                        plan=durable_plan,
                         work_unit_id=unit.unit_id,
                         source_lineage_ref=lineage.lineage_id,
                         step="AGENT_DISPATCH",
@@ -569,7 +572,7 @@ class LiveAgenticControlPlane(AgenticControlPlane):
                     task_digests.append(task.digest)
                     lease = self.worker_bridge.checkpoint(
                         lease,
-                        plan=plan,
+                        plan=durable_plan,
                         work_unit_id=unit.unit_id,
                         source_lineage_ref=lineage.lineage_id,
                         step="AGENT_RESULT",
@@ -594,7 +597,7 @@ class LiveAgenticControlPlane(AgenticControlPlane):
                 raise AgenticRuntimeError("combined agent proposal failed exact acceptance validation")
             self.worker_bridge.checkpoint(
                 lease,
-                plan=plan,
+                plan=durable_plan,
                 work_unit_id=last_unit_id,
                 source_lineage_ref=lineage.lineage_id,
                 step="AGENT_PROPOSAL",
