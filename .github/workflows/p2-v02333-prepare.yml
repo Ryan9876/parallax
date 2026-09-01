@@ -36,11 +36,13 @@ jobs:
           if [ -n "$OPENAI_API_KEY" ]; then
             echo 'provider=true' >> "$GITHUB_OUTPUT"
             echo 'DSPY_MODEL=openai/gpt-5.6-sol' >> "$GITHUB_ENV"
+            echo 'DSPY_LOCAL_DEVELOPMENT=0' >> "$GITHUB_ENV"
           else
             echo 'provider=false' >> "$GITHUB_OUTPUT"
             echo 'DSPY_MODEL=ollama_chat/qwen2.5:0.5b' >> "$GITHUB_ENV"
             echo 'DSPY_API_BASE=http://127.0.0.1:11434' >> "$GITHUB_ENV"
             echo 'DSPY_API_KEY=' >> "$GITHUB_ENV"
+            echo 'DSPY_LOCAL_DEVELOPMENT=1' >> "$GITHUB_ENV"
           fi
       - name: Install local DSPy LM
         if: steps.model.outputs.provider == 'false'
