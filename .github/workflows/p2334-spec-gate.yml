@@ -1,0 +1,86 @@
+name: P2-V0.23.34 Protected Spec Gate
+
+on:
+  push:
+    branches:
+      - ws/548-plan-bound-execution-contract
+    paths:
+      - specs/P2-V0.23.34.md
+      - .github/workflows/p2334-spec-gate.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2334-protected-spec-gate
+  cancel-in-progress: false
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/548-plan-bound-execution-contract
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate exact specification contract
+        run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.34.md
+
+      - id: model
+        name: Select provider-backed or local DSPy model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo 'provider=true' >> "$GITHUB_OUTPUT"
+            echo 'DSPY_MODEL=openai/gpt-5.6-sol' >> "$GITHUB_ENV"
+          else
+            echo 'provider=false' >> "$GITHUB_OUTPUT"
+            echo 'DSPY_MODEL=ollama_chat/qwen2.5:0.5b' >> "$GITHUB_ENV"
+            echo 'DSPY_API_BASE=http://127.0.0.1:11434' >> "$GITHUB_ENV"
+            echo 'DSPY_API_KEY=' >> "$GITHUB_ENV"
+            echo 'DSPY_LOCAL_DEVELOPMENT=1' >> "$GITHUB_ENV"
+          fi
+
+      - name: Install local DSPy development LM
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+
+      - name: Compile exact P2-V0.23.34 specification
+        timeout-minutes: 8
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py specs/P2-V0.23.34.md
+
+      - name: Verify authentic compiled plan evidence
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.34.md
+
+      - name: Commit protected plan and remove temporary gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'parallax-spec-compiler'
+          git config user.email 'actions@users.noreply.github.com'
+          git add specs/compiled/P2-V0.23.34.plan.json
+          git rm .github/workflows/p2334-spec-gate.yml
+          git diff --cached --check
+          git commit -m 'Compile P2-V0.23.34 protected DSPy plan'
+          git push origin HEAD:ws/548-plan-bound-execution-contract
