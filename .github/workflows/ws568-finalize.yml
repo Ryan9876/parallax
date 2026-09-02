@@ -59,8 +59,9 @@ jobs:
       - name: Run desktop and mobile REVIEW rework browser smoke
         working-directory: apps/client
         run: node scripts/review-rework-browser-smoke.mjs
-      - name: Push only the fully validated clean release HEAD
+      - name: Restore and push only the fully validated clean release HEAD
         run: |
-          rm -rf apps/client/.tmp-guidance apps/client/.tmp-observability apps/client/.tmp-state apps/client/package-lock.json
+          git reset --hard HEAD
+          git clean -fd
           test -z "$(git status --porcelain)"
           git push origin HEAD:ws/568-review-rework
