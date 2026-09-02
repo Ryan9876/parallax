@@ -1,0 +1,66 @@
+name: WS568 P2-V0.23.41 Spec Gate
+
+on:
+  push:
+    branches:
+      - ws/568-review-rework
+    paths:
+      - specs/P2-V0.23.41.md
+      - .github/workflows/ws568-spec-gate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  spec-gate:
+    runs-on: ubuntu-latest
+    env:
+      SPEC_PATH: specs/P2-V0.23.41.md
+      DSPY_MODEL: ollama_chat/llama3.2:1b
+      DSPY_API_BASE: http://127.0.0.1:11434
+      DSPY_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/568-review-rework
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate spec-only contract
+        run: python scripts/validate_spec.py --spec-only "$SPEC_PATH"
+      - name: Install local DSPy LM
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+      - name: Compile exact specification with DSPy critic and compiler
+        run: python scripts/compile_spec.py "$SPEC_PATH"
+      - name: Strictly validate authentic DSPy evidence
+        run: python scripts/validate_spec.py --require-dspy "$SPEC_PATH"
+      - name: Persist exact compiled plan
+        run: |
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add specs/compiled/P2-V0.23.41.plan.json
+          if git diff --cached --quiet; then
+            echo 'Compiled plan already matches branch.'
+          else
+            git commit -m 'Compile P2-V0.23.41 DSPy plan'
+            git push origin HEAD:ws/568-review-rework
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ws568-p2-v02341-spec-evidence
+          path: |
+            specs/compiled/P2-V0.23.41.plan.json
+            /tmp/ollama.log
+          if-no-files-found: warn
+          retention-days: 14
