@@ -19,7 +19,7 @@ BOOTSTRAP = "a" * 40
 BASELINE = "b" * 40
 BLOB = "c" * 40
 BOOTSTRAP_TREE = "e" * 40
-EMPTY_TREE = "f" * 40
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 OTHER = "9" * 40
 PROVENANCE = "d" * 64
 CONTENT = f"parallax-greenfield-v1\nprovenance={PROVENANCE}\n"
@@ -438,3 +438,88 @@ def test_existing_baseline_with_provider_timestamps_replays_get_only() -> None:
     assert replay.baseline_revision == BASELINE
     assert replay.bootstrap_revision == BOOTSTRAP
     assert set(methods) == {"GET"}
+
+
+
+def test_existing_canonical_empty_tree_replay_omits_provider_tree_get() -> None:
+    methods: list[str] = []
+    requested_paths: list[str] = []
+
+    def exact(request: httpx.Request) -> httpx.Response:
+        methods.append(request.method)
+        path = request.url.path
+        requested_paths.append(path)
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": BASELINE}})
+        if path.endswith(f"/git/commits/{BASELINE}"):
+            payload = _commit(
+                "Finalize Parallax empty greenfield baseline",
+                [{"sha": BOOTSTRAP}],
+                EMPTY_TREE,
+            )
+            payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:01Z"}
+            payload["committer"] = {**ACTOR, "date": "2026-09-02T00:01:01-04:00"}
+            return httpx.Response(200, json=payload)
+        if path.endswith(f"/git/trees/{EMPTY_TREE}"):
+            raise AssertionError("canonical empty tree must not require provider Trees GET during replay")
+        if path.endswith(f"/git/commits/{BOOTSTRAP}"):
+            payload = _commit(
+                "Initialize Parallax greenfield baseline",
+                [],
+                BOOTSTRAP_TREE,
+            )
+            payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}
+            payload["committer"] = {**ACTOR, "date": "2026-09-02T00:01:00-04:00"}
+            return httpx.Response(200, json=payload)
+        if path.endswith(f"/git/trees/{BOOTSTRAP_TREE}"):
+            return _bootstrap_tree()
+        if path.endswith(f"/git/blobs/{BLOB}"):
+            return httpx.Response(
+                200,
+                json={
+                    "encoding": "base64",
+                    "content": base64.b64encode(CONTENT.encode()).decode(),
+                },
+            )
+        raise AssertionError(request.url)
+
+    replay = _client(exact).initialize_empty_baseline(REPOSITORY, PROVENANCE)
+
+    assert replay.initialized is False
+    assert replay.baseline_revision == BASELINE
+    assert replay.bootstrap_revision == BOOTSTRAP
+    assert set(methods) == {"GET"}
+    assert not any(path.endswith(f"/git/trees/{EMPTY_TREE}") for path in requested_paths)
+
+
+def test_existing_baseline_rejects_noncanonical_cleanup_tree_without_normalizing_missing_tree() -> None:
+    noncanonical_tree = OTHER
+    tree_reads = 0
+
+    def mismatch(request: httpx.Request) -> httpx.Response:
+        nonlocal tree_reads
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": BASELINE}})
+        if path.endswith(f"/git/commits/{BASELINE}"):
+            return httpx.Response(
+                200,
+                json=_commit(
+                    "Finalize Parallax empty greenfield baseline",
+                    [{"sha": BOOTSTRAP}],
+                    noncanonical_tree,
+                ),
+            )
+        if path.endswith(f"/git/trees/{noncanonical_tree}"):
+            tree_reads += 1
+            return httpx.Response(404, json={"message": "Not Found"})
+        raise AssertionError(request.url)
+
+    with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):
+        _client(mismatch).initialize_empty_baseline(REPOSITORY, PROVENANCE)
+
+    assert tree_reads == 0

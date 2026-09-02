@@ -29,6 +29,7 @@ _BOOTSTRAP_PATH = ".parallax-greenfield"
 _BOOTSTRAP_VERSION = "parallax-greenfield-v1"
 _BOOTSTRAP_MESSAGE = "Initialize Parallax greenfield baseline"
 _CLEANUP_MESSAGE = "Finalize Parallax empty greenfield baseline"
+_CANONICAL_EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 _ACTOR = {
     "name": "Parallax App Builder",
     "email": "parallax-app-builder@users.noreply.github.com",
@@ -246,8 +247,7 @@ class GreenfieldGitHubClient:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         bootstrap_revision = _text(parents[0].get("sha"))
         cleanup_tree_sha = _text(_dict(cleanup.get("tree")).get("sha"))
-        cleanup_tree = self._tree_payload(repository_ref, cleanup_tree_sha)
-        if _list(cleanup_tree.get("tree")):
+        if cleanup_tree_sha != _CANONICAL_EMPTY_TREE_SHA:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
 
         bootstrap = self._commit(repository_ref, bootstrap_revision)
