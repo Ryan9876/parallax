@@ -1,0 +1,78 @@
+name: P2-V0.23.40 Record Reconciliation
+
+on:
+  push:
+    branches:
+      - records/p2-v0-23-40-production-acceptance
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.event.head_commit.message != 'Record P2-V0.23.40 production acceptance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: records/p2-v0-23-40-production-acceptance
+          fetch-depth: 0
+
+      - name: Reconcile verified production state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CURRENT-STATE.md')
+          text = path.read_text(encoding='utf-8')
+
+          old_status = 'P2-V0.23.40 HONEST STATIC-WEB ACCEPTANCE EVIDENCE IMPLEMENTATION-VALIDATED / PR PENDING'
+          new_status = 'P2-V0.23.40 HONEST STATIC-WEB ACCEPTANCE EVIDENCE PRODUCTION-ACCEPTED / HUMAN REVIEW REQUIRED'
+          if text.count(old_status) != 1:
+              raise SystemExit(f'expected exactly one old status token, found {text.count(old_status)}')
+          text = text.replace(old_status, new_status, 1)
+
+          start_marker = '## P2-V0.23.40 — honest static-web acceptance evidence — IMPLEMENTATION-VALIDATED / PR PENDING\n'
+          end_marker = '## P2-V0.23.39 — canonical empty-tree replay compatibility — PRODUCTION-ACCEPTED / W9-S1 SOURCE DELIVERY SUCCEEDED / HUMAN REVIEW REQUIRED\n'
+          start = text.find(start_marker)
+          end = text.find(end_marker)
+          if start < 0 or end < 0 or end <= start:
+              raise SystemExit('P2-V0.23.40 record boundary not found exactly')
+
+          section = '''## P2-V0.23.40 — honest static-web acceptance evidence — PRODUCTION-ACCEPTED / HUMAN REVIEW REQUIRED
+
+Workstream: #565. Release PR: #566. Parent: #391 / W9-S1. Governing specification: `P2-V0.23.40`. Architecture: `ARCHITECTURE.md` v3.49.
+
+P2-V0.23.40 closes the systemic static-web evidence overclaim exposed by the first real W9-S1 Decision Ledger build. The protected `static-web-v1` execution contract proves bounded structural properties, but structural TEST/VERIFY success is no longer converted into behavioral acceptance proof. PLAN-bound static-web TEST/VERIFY now persist `STRUCTURAL_ONLY`, target the exact protected acceptance map, verify none of those criteria behaviorally, explicitly preserve the full map as unverified, and still stop at human REVIEW. Python/.NET full-verification semantics and existing execution, source-lineage, provider, Git/Preview, lifecycle and REVIEW-completion authority remain unchanged.
+
+Validated release and production evidence:
+
+- refined protected DSPy SpecCritic/SpecCompiler gate `33651595933`: SUCCESS, with the exact compiled plan persisted;
+- serialized bounded implementation validation `33663382152`: SUCCESS, including strict DSPy-plan validation, API compileall, focused P2-V0.23.40 regressions, the full API regression suite and patch hygiene;
+- exact validated semantic head `4f1c1a0956c4d01fb5363c79faa44140d8a60976` and reconciled PR head `03c5d954...`; PR #566 Bounded Autonomy Pilot `33663958142`, Workstream Spec Validation `33663958018`, and Parallax P2 CI `33663958066`: SUCCESS;
+- merge / exact production application source `c31c3c8618a46db99d1403c5340306096cf35727`;
+- post-merge Parallax P2 CI `33664147879` and Workstream Spec Validation `33664147772`: SUCCESS;
+- exact production deployment `dpl_7LzhAbBUUBHKDprMTUTdrgwGU6nk`: READY from that merged source with canonical `parallax-api-tan.vercel.app` alias;
+- production provider, delivery-permission, projected-source, Blob, lineage-composition, agentic-runtime, projected-bootstrap, execution-snapshot, static-web candidate-validation and run-event-schema preflights passed; canonical `/health` returned HTTP 200/ok and `/ready` returned HTTP 200/ready with database/providers ready.
+
+Production acceptance replay `33665556698` / job `100366296330` completed successfully against Engineering Run `4771a9eb-a939-406e-a0bd-01852a72b63b`. The persisted PLAN bound `execution_contract_id=static-web-v1` with `execution_contract_binding_reason=GREENFIELD_STATIC_WEB`. IMPLEMENT and BUILD passed. TEST and VERIFY each passed with the same protected five-criterion acceptance map, persisted `acceptance_verification_scope=STRUCTURAL_ONLY`, `acceptance_ids_verified=[]`, all five IDs in `acceptance_ids_targeted`, and all five IDs in `acceptance_ids_unverified`. The run remained `REVIEW` revision 6 with `last_failure_code=null`, proving structural execution success no longer manufactures behavioral acceptance and human REVIEW remains the completion authority.
+
+The acceptance harness initially encountered `SOURCE_NOT_FOUND` against the intentionally empty QA baseline and a later delivery `BRANCH_NOT_FOUND` while the bounded QA branch was materializing. No Parallax production-code change was made for either condition. After temporary QA fixture/branch materialization, the same bounded run completed through VERIFY and REVIEW. The temporary `parallax-qa1/main` fixture was then removed, restoring the default branch to empty, and `parallax-qa/.github/workflows/production-replay.yml` was restored byte-for-byte to standing blob `e1a619d44ed26075c0c97eb6cf0b5fa931c2c75f`.
+
+Final post-acceptance production scans found no runtime errors and no warning/error/fatal logs on exact deployment `dpl_7LzhAbBUUBHKDprMTUTdrgwGU6nk`. P2-V0.23.40 is therefore production-accepted for truthful static-web acceptance evidence while preserving the existing human REVIEW boundary.
+
+'''
+
+          text = text[:start] + section + text[end:]
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          git diff --check
+          git diff -- CURRENT-STATE.md
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add CURRENT-STATE.md
+          git commit -m 'Record P2-V0.23.40 production acceptance'
+          git push origin HEAD:records/p2-v0-23-40-production-acceptance
