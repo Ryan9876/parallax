@@ -484,6 +484,16 @@ export const api = {
     json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/resume`, {
       method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),
     }),
+  reviewReworkEngineeringRun: (run: EngineeringRunDto, operationKey: string, acceptanceIds: string[], finding: string) =>
+    json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/review-rework`, {
+      method: 'POST',
+      body: JSON.stringify({
+        operation_key: operationKey,
+        expected_revision: run.revision,
+        acceptance_ids: acceptanceIds,
+        finding,
+      }),
+    }),
   cancelEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
     json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/cancel`, {
       method: 'POST', body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),

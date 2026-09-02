@@ -6,6 +6,7 @@ import {
   subscribeEngineeringRunFailures,
 } from '../lib/engineeringRunEvents';
 import { palette } from '../theme';
+import { ReviewReworkPanel } from './ReviewReworkPanel';
 
 const RAW_STAGES = ['SPECIFY', 'PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY', 'REVIEW'];
 const AUTONOMOUS_STAGES = ['PLAN', 'IMPLEMENT', 'BUILD', 'TEST', 'VERIFY'];
@@ -204,13 +205,14 @@ function TechnicalDetails({ run, stopReason, error }: { run: EngineeringRunDto; 
   );
 }
 
-export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCancel }: {
+export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCancel, onRequestChanges }: {
   run: EngineeringRunDto;
   busy: boolean;
   error?: string | null;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
+  onRequestChanges(acceptanceIds: string[], finding: string): void;
   reducedGraphics?: boolean;
 }) {
   const storedFailure = useEngineeringRunFailure(run.conversation_id);
@@ -375,6 +377,10 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
           ) : null}
           {deliveryError ? <Text accessibilityLiveRegion="polite" style={styles.requestError}>{deliveryError}</Text> : null}
         </View>
+      ) : null}
+
+      {run.state === 'REVIEW' ? (
+        <ReviewReworkPanel run={run} busy={busy} onRequestChanges={onRequestChanges} />
       ) : null}
 
       <View style={styles.actions}>
