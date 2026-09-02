@@ -346,6 +346,80 @@ class WorkerExecutionRepository:
             raise RuntimeError("worker execution disappeared after human-resume recovery preparation")
         return refreshed
 
+
+    def prepare_review_rework(
+        self,
+        *,
+        run_id: str,
+        authoritative_source_lineage_ref: str,
+        now: datetime,
+    ) -> EngineeringWorkerExecution | None:
+        if (
+            not isinstance(authoritative_source_lineage_ref, str)
+            or not authoritative_source_lineage_ref.startswith("src:")
+            or len(authoritative_source_lineage_ref) != 68
+            or any(ch not in "0123456789abcdef" for ch in authoritative_source_lineage_ref[4:])
+        ):
+            raise WorkerLeaseConflict("REVIEW rework source lineage identity is invalid")
+        current = self.get_for_run(run_id)
+        if current is None:
+            return None
+        if current.state == WorkerLifecycleState.RECOVERING.value:
+            if (
+                current.lease_owner_id is None
+                and current.lease_expires_at is None
+                and current.checkpoint_json == "{}"
+                and current.current_step is None
+                and current.source_lineage_ref == authoritative_source_lineage_ref
+                and current.last_known_good_lineage_ref == authoritative_source_lineage_ref
+                and current.next_recovery_action == RecoveryAction.REASSIGN.value
+            ):
+                return current
+            raise WorkerLeaseConflict("existing RECOVERING worker does not match REVIEW rework identity")
+        if current.state != WorkerLifecycleState.READY_FOR_INTEGRATION.value:
+            raise WorkerLeaseConflict("REVIEW rework requires an unleased READY_FOR_INTEGRATION worker")
+        if current.lease_owner_id is not None or current.lease_expires_at is not None:
+            raise WorkerLeaseConflict("READY_FOR_INTEGRATION worker must be unleased before REVIEW rework")
+
+        result = self.session.execute(
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == current.id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                    EngineeringWorkerExecution.state == WorkerLifecycleState.READY_FOR_INTEGRATION.value,
+                    EngineeringWorkerExecution.lease_owner_id.is_(None),
+                    EngineeringWorkerExecution.lease_expires_at.is_(None),
+                )
+                .values(
+                    state=WorkerLifecycleState.RECOVERING.value,
+                    checkpoint_json="{}",
+                    checkpoint_revision=current.checkpoint_revision + 1,
+                    current_step=None,
+                    source_lineage_ref=authoritative_source_lineage_ref,
+                    last_known_good_lineage_ref=authoritative_source_lineage_ref,
+                    retry_count=0,
+                    no_progress_count=0,
+                    oscillation_count=0,
+                    progress_fingerprint=None,
+                    previous_progress_fingerprint=None,
+                    stall_classification=None,
+                    blocker_code=None,
+                    next_recovery_action=RecoveryAction.REASSIGN.value,
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
+            )
+        )
+        if result.rowcount != 1:
+            self.session.rollback()
+            raise WorkerLeaseConflict("REVIEW rework worker reset lost a concurrent compare-and-swap race")
+        self.session.commit()
+        refreshed = self.get(current.id)
+        if refreshed is None:
+            raise RuntimeError("worker execution disappeared after REVIEW rework preparation")
+        return refreshed
+
     def reassign(self, *, run_id: str, now: datetime, lease_seconds: int) -> EngineeringWorkerExecution:
         current = self.get_for_run(run_id)
         if current is None:

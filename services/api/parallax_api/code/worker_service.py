@@ -11,6 +11,7 @@ from .run_events import (
     RunEventSubsystem,
     RunEventType,
 )
+from .domain import WorkflowStage
 from .worker_recovery import (
     DEFAULT_LEASE_SECONDS,
     DEFAULT_MAX_NO_PROGRESS,
@@ -381,6 +382,55 @@ class WorkerRecoveryService:
             failure_code=execution.blocker_code if state in {WorkerLifecycleState.FAILED, WorkerLifecycleState.HUMAN_REQUIRED} else None,
         )
         return decision
+
+
+    def prepare_review_rework(
+        self,
+        *,
+        run_id: str,
+        authoritative_source_lineage_ref: str,
+        now: datetime | None = None,
+    ) -> EngineeringWorkerExecution | None:
+        run = self._run(run_id)
+        lineage = validate_lineage_ref(
+            authoritative_source_lineage_ref,
+            field="authoritative_source_lineage_ref",
+        )
+        if run.state != WorkflowStage.PLAN.value:
+            raise WorkerRecoveryError("REVIEW rework worker preparation requires the transitioned PLAN state")
+        context = None
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.REVIEW.value or attempt.status != "RESUMED":
+                continue
+            try:
+                payload = json.loads(attempt.evidence_json or "{}")
+            except json.JSONDecodeError as exc:
+                raise WorkerRecoveryError("durable REVIEW rework evidence is corrupt") from exc
+            if isinstance(payload, dict) and payload.get("review_rework_version") == "review-rework-v1":
+                context = payload
+                break
+        if context is None or context.get("base_source_lineage_ref") != lineage:
+            raise WorkerRecoveryError("worker REVIEW rework source identity lacks matching durable human control")
+
+        before = self.executions.get_for_run(run_id)
+        if before is None:
+            return None
+        before_revision = int(before.revision)
+        execution = self.executions.prepare_review_rework(
+            run_id=run_id,
+            authoritative_source_lineage_ref=lineage,
+            now=_utc(now),
+        )
+        if execution is None:
+            return None
+        if int(execution.revision) != before_revision:
+            self._emit_worker_event(
+                execution,
+                event_key=f"worker:{execution.id}:state:{execution.revision}:REVIEW_REWORK_RECOVERING",
+                outcome=RunEventOutcome.RECOVERING,
+                summary="Explicit human REVIEW rework invalidated the prior selected candidate and re-armed bounded generation.",
+            )
+        return execution
 
     def prepare_human_resume(
         self,

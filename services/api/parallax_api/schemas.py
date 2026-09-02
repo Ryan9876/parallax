@@ -81,6 +81,12 @@ class EngineeringOperation(BaseModel):
     expected_revision: int = Field(ge=0)
 
 
+class EngineeringReviewRework(EngineeringOperation):
+    model_config = ConfigDict(extra="forbid")
+    acceptance_ids: list[str] = Field(min_length=1, max_length=32)
+    finding: str = Field(min_length=1, max_length=1200)
+
+
 class EngineeringAdvance(EngineeringOperation):
     stage: str
     passed: bool

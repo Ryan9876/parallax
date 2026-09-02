@@ -227,6 +227,11 @@ class AutonomyCoordinator:
                             steps=tuple(steps),
                         )
 
+                rework_context = self.service.review_rework_context_for_run(run)
+                if rework_context is not None:
+                    evidence["review_rework_context_digest"] = rework_context.digest
+                    evidence["review_rework_acceptance_ids"] = list(rework_context.acceptance_ids)
+
                 result = self.service.complete_stage(
                     run_id=run.id,
                     stage=WorkflowStage.PLAN,

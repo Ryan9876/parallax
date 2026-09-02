@@ -48,6 +48,7 @@ from ..schemas import (
     EngineeringAutonomyRead,
     EngineeringOperation,
     EngineeringOperationRead,
+    EngineeringReviewRework,
     EngineeringRunActivate,
     EngineeringRunCreate,
     EngineeringRunRead,
@@ -343,6 +344,38 @@ def control(run_id: str, payload: EngineeringOperation, method: str, svc: Engine
         invoke(lambda: getattr(svc, method)(run_id=run_id, **payload.model_dump())),
         svc,
     )
+
+
+
+
+@router.post("/{run_id}/review-rework", response_model=EngineeringOperationRead)
+def review_rework(
+    run_id: str,
+    payload: EngineeringReviewRework,
+    svc: EngineeringRunService = Depends(service),
+):
+    result = invoke(
+        lambda: svc.review_rework(
+            run_id=run_id,
+            operation_key=payload.operation_key,
+            expected_revision=payload.expected_revision,
+            acceptance_ids=payload.acceptance_ids,
+            finding=payload.finding,
+        )
+    )
+    # If a replay arrives after the run already progressed beyond PLAN, never
+    # reset a newer worker/candidate. PLAN is the only safe interrupted boundary.
+    if result.run.state == WorkflowStage.PLAN.value:
+        context = svc.review_rework_context_for_run(result.run)
+        if context is None:
+            raise HTTPException(503, "REVIEW rework context is unavailable after the durable transition")
+        invoke(
+            lambda: worker_recovery_service(svc).prepare_review_rework(
+                run_id=run_id,
+                authoritative_source_lineage_ref=context.base_source_lineage_ref,
+            )
+        )
+    return result_payload(result, svc)
 
 
 @router.post("/{run_id}/pause", response_model=EngineeringOperationRead)

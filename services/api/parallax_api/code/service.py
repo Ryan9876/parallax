@@ -21,6 +21,7 @@ from .run_events import (
 )
 from .state_machine import ProtectedRunPolicy, RevisionConflict, RunTransitionError, SpecBindingError
 from .protected import (
+    ProtectedEvidenceError,
     STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
     validate_execution,
     validate_implementation,
@@ -47,6 +48,15 @@ class RunOperationResult:
     run: EngineeringRun
     attempt_id: str
     replayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewReworkContext:
+    digest: str
+    acceptance_ids: tuple[str, ...]
+    finding: str
+    base_source_lineage_ref: str
+    workspace_digest: str
 
 
 class EngineeringRunService:
@@ -555,6 +565,182 @@ class EngineeringRunService:
                 f"stale engineering run revision: expected {expected_revision}, current {run.revision}"
             )
 
+
+    @staticmethod
+    def _normalize_review_rework_finding(value: str) -> str:
+        if not isinstance(value, str):
+            raise RunTransitionError("REVIEW rework finding must be text")
+        normalized = value.replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not normalized or len(normalized) > 1200:
+            raise RunTransitionError("REVIEW rework finding must contain 1 to 1200 characters")
+        if any(ord(ch) < 32 and ch not in {"\n", "\t"} for ch in normalized):
+            raise RunTransitionError("REVIEW rework finding contains unsupported control characters")
+        return normalized
+
+    @staticmethod
+    def _review_rework_digest(acceptance_ids: tuple[str, ...], finding: str) -> str:
+        payload = {
+            "version": "review-rework-v1",
+            "acceptance_ids": list(acceptance_ids),
+            "finding": finding,
+        }
+        return sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
+
+    @staticmethod
+    def _valid_lineage_ref(value: object) -> bool:
+        return (
+            isinstance(value, str)
+            and value.startswith("src:")
+            and len(value) == 68
+            and all(ch in "0123456789abcdef" for ch in value[4:])
+        )
+
+    @staticmethod
+    def _valid_digest(value: object) -> bool:
+        return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+    def _latest_reviewed_implementation(self, run: EngineeringRun) -> tuple[str, str]:
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.IMPLEMENT.value or attempt.status != AttemptStatus.PASSED.value:
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence is malformed") from exc
+            if not isinstance(evidence, dict):
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence is malformed")
+            if evidence.get("project_ref") != run.project_id or evidence.get("run_id") != run.id:
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence drifted from Project/run identity")
+            lineage = evidence.get("source_lineage_ref")
+            workspace_digest = evidence.get("workspace_digest")
+            if not self._valid_lineage_ref(lineage) or not self._valid_digest(workspace_digest):
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence lacks accepted source identity")
+            return str(lineage), str(workspace_digest)
+        raise RunTransitionError("REVIEW rework requires durable accepted IMPLEMENT evidence")
+
+    def _context_from_rework_attempt(self, attempt) -> ReviewReworkContext:
+        try:
+            evidence = json.loads(attempt.evidence_json or "{}")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RunTransitionError("durable REVIEW rework evidence is malformed") from exc
+        if not isinstance(evidence, dict) or evidence.get("review_rework_version") != "review-rework-v1":
+            raise RunTransitionError("durable REVIEW rework evidence is malformed")
+        raw_ids = evidence.get("acceptance_ids_rework")
+        finding = evidence.get("finding")
+        if not isinstance(raw_ids, list) or not raw_ids or not all(isinstance(item, str) for item in raw_ids):
+            raise RunTransitionError("durable REVIEW rework acceptance identity is malformed")
+        ids = tuple(raw_ids)
+        if ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
+            raise RunTransitionError("durable REVIEW rework acceptance identity is not canonical")
+        normalized = self._normalize_review_rework_finding(finding)
+        digest = evidence.get("review_rework_context_digest")
+        if digest != self._review_rework_digest(ids, normalized):
+            raise RunTransitionError("durable REVIEW rework context digest mismatch")
+        lineage = evidence.get("base_source_lineage_ref")
+        workspace_digest = evidence.get("workspace_digest")
+        if not self._valid_lineage_ref(lineage) or not self._valid_digest(workspace_digest):
+            raise RunTransitionError("durable REVIEW rework source identity is malformed")
+        return ReviewReworkContext(
+            digest=str(digest),
+            acceptance_ids=ids,
+            finding=normalized,
+            base_source_lineage_ref=str(lineage),
+            workspace_digest=str(workspace_digest),
+        )
+
+    def review_rework_context_for_run(self, run: EngineeringRun) -> ReviewReworkContext | None:
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.REVIEW.value or attempt.status != AttemptStatus.RESUMED.value:
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise RunTransitionError("durable REVIEW control evidence is malformed") from exc
+            if isinstance(evidence, dict) and evidence.get("review_rework_version") == "review-rework-v1":
+                return self._context_from_rework_attempt(attempt)
+        return None
+
+    def _validate_plan_rework_context(self, run: EngineeringRun, evidence: dict[str, object]) -> None:
+        context = self.review_rework_context_for_run(run)
+        keys = {"review_rework_context_digest", "review_rework_acceptance_ids"}
+        if context is None:
+            if any(key in evidence for key in keys):
+                raise ProtectedEvidenceError("PLAN asserted REVIEW rework context without durable human control")
+            return
+        if evidence.get("review_rework_context_digest") != context.digest:
+            raise ProtectedEvidenceError("PLAN REVIEW rework context digest is stale")
+        raw_ids = evidence.get("review_rework_acceptance_ids")
+        if not isinstance(raw_ids, list) or raw_ids != list(context.acceptance_ids):
+            raise ProtectedEvidenceError("PLAN REVIEW rework acceptance identity is stale")
+
+    def review_rework(
+        self,
+        *,
+        run_id: str,
+        operation_key: str,
+        expected_revision: int,
+        acceptance_ids: list[str],
+        finding: str,
+    ) -> RunOperationResult:
+        run = self.get(run_id)
+        specification = self._bound_work_specification(run, require_project=self.require_project_binding)
+        existing = self.runs.find_operation(run.id, operation_key)
+        if existing is not None:
+            if existing.stage != WorkflowStage.REVIEW.value or existing.status != AttemptStatus.RESUMED.value:
+                raise RunTransitionError("REVIEW rework operation key is already bound to another operation")
+            self._context_from_rework_attempt(existing)
+            return self._result(RecordedMutation(run=self.get(run.id), attempt=existing, replayed=True))
+
+        self._require_revision(run, expected_revision)
+        try:
+            state = WorkflowStage(run.state)
+        except ValueError as exc:
+            raise RunTransitionError(f"unknown durable run state {run.state}") from exc
+        target = self.policy.validate_review_rework(state)
+        if not run.project_id:
+            raise RunTransitionError("REVIEW rework requires a Project-bound Engineering Run")
+
+        if not isinstance(acceptance_ids, list) or not acceptance_ids or len(acceptance_ids) > 32:
+            raise RunTransitionError("REVIEW rework requires 1 to 32 affected acceptance IDs")
+        if not all(isinstance(item, str) and item for item in acceptance_ids):
+            raise RunTransitionError("REVIEW rework acceptance IDs are malformed")
+        if len(acceptance_ids) != len(set(acceptance_ids)):
+            raise RunTransitionError("REVIEW rework acceptance IDs contain duplicates")
+        required = required_acceptance_ids(specification)
+        if not set(acceptance_ids) <= required:
+            raise RunTransitionError("REVIEW rework references acceptance outside the approved Work Specification")
+        canonical_ids = tuple(sorted(acceptance_ids))
+        normalized_finding = self._normalize_review_rework_finding(finding)
+        lineage, workspace_digest = self._latest_reviewed_implementation(run)
+        digest = self._review_rework_digest(canonical_ids, normalized_finding)
+        evidence = {
+            "review_rework_version": "review-rework-v1",
+            "review_rework_context_digest": digest,
+            "acceptance_ids_rework": list(canonical_ids),
+            "finding": normalized_finding,
+            "project_ref": run.project_id,
+            "run_id": run.id,
+            "base_source_lineage_ref": lineage,
+            "workspace_digest": workspace_digest,
+            "protected_stage_authority": False,
+            "source_mutation": False,
+            "review_completion_authority": False,
+            "production_deployment_authority": False,
+        }
+        mutation = self.runs.record(
+            run,
+            stage=WorkflowStage.REVIEW.value,
+            operation_key=operation_key,
+            status=AttemptStatus.RESUMED.value,
+            next_state=target.value,
+            evidence=evidence,
+            program_id="protected-review-rework-v1",
+            tool_id="human-review-control-v1",
+        )
+        return self._result(mutation)
+
     def acceptance_verification_scope_for_run(self, run: EngineeringRun) -> str | None:
         implementation_index: int | None = None
         base_source_lineage_ref: str | None = None
@@ -669,6 +855,7 @@ class EngineeringRunService:
                 )
             elif stage is WorkflowStage.PLAN:
                 validate_plan(protected, required)
+                self._validate_plan_rework_context(run, protected)
             elif stage is WorkflowStage.IMPLEMENT:
                 validate_implementation(protected)
             elif stage is WorkflowStage.BUILD:
