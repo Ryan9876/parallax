@@ -1,0 +1,74 @@
+name: WS560 P2-V0.23.38 Implementation
+
+on:
+  push:
+    branches:
+      - 'ws/560-greenfield-actor-time'
+    paths:
+      - '.github/workflows/ws560-implementation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/560-greenfield-actor-time
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply bounded timestamp compatibility implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          code_path = Path('services/api/parallax_api/code/greenfield_github.py')
+          code = code_path.read_text()
+          old_import = 'from dataclasses import dataclass\nfrom hashlib import sha256\n'
+          new_import = 'from dataclasses import dataclass\nfrom datetime import datetime\nfrom hashlib import sha256\n'
+          if old_import not in code:
+              raise SystemExit('expected import anchor missing')
+          code = code.replace(old_import, new_import, 1)
+
+          old_verify = '''    @staticmethod\n    def _verify_actor(payload: dict[str, Any]) -> None:\n        for field in ("author", "committer"):\n            actor = _dict(payload.get(field))\n            if any(actor.get(key) != value for key, value in _ACTOR.items()):\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")\n'''
+          new_verify = '''    @staticmethod\n    def _verify_actor(payload: dict[str, Any]) -> None:\n        for field in ("author", "committer"):\n            actor = _dict(payload.get(field))\n            if actor.get("name") != _ACTOR["name"] or actor.get("email") != _ACTOR["email"]:\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")\n\n            raw_date = actor.get("date")\n            if not isinstance(raw_date, str) or not raw_date.strip():\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")\n            try:\n                timestamp = datetime.fromisoformat(raw_date.strip().replace("Z", "+00:00"))\n            except ValueError as exc:\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH") from exc\n            if timestamp.tzinfo is None or timestamp.utcoffset() is None:\n                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")\n'''
+          if old_verify not in code:
+              raise SystemExit('expected actor verification anchor missing')
+          code = code.replace(old_verify, new_verify, 1)
+          code_path.write_text(code)
+
+          test_path = Path('services/api/tests/test_greenfield_github.py')
+          tests = test_path.read_text()
+          marker = 'def test_actor_verification_accepts_provider_owned_offset_aware_timestamps() -> None:'
+          if marker not in tests:
+              tests += '''\n\n\ndef test_actor_verification_accepts_provider_owned_offset_aware_timestamps() -> None:\n    payload = _commit("message", [], EMPTY_TREE)\n    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}\n    payload["committer"] = {**ACTOR, "date": "2026-09-02T00:01:01-04:00"}\n\n    GreenfieldGitHubClient._verify_actor(payload)\n\n\n@pytest.mark.parametrize("field", ["author", "committer"])\n@pytest.mark.parametrize(\n    ("identity_key", "wrong_value"),\n    [\n        ("name", "Other Builder"),\n        ("email", "other@example.com"),\n    ],\n)\ndef test_actor_verification_rejects_identity_drift(\n    field: str,\n    identity_key: str,\n    wrong_value: str,\n) -> None:\n    payload = _commit("message", [], EMPTY_TREE)\n    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}\n    payload["committer"] = {**ACTOR, "date": "2026-09-02T04:01:01+00:00"}\n    payload[field] = {**payload[field], identity_key: wrong_value}\n\n    with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):\n        GreenfieldGitHubClient._verify_actor(payload)\n\n\n@pytest.mark.parametrize(\n    "bad_date",\n    [None, "", 1234, "not-a-timestamp", "2026-09-02T04:01:00"],\n)\n@pytest.mark.parametrize("field", ["author", "committer"])\ndef test_actor_verification_rejects_missing_malformed_or_naive_timestamp(\n    field: str,\n    bad_date: object,\n) -> None:\n    payload = _commit("message", [], EMPTY_TREE)\n    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}\n    payload["committer"] = {**ACTOR, "date": "2026-09-02T04:01:01+00:00"}\n    if bad_date is None:\n        payload[field].pop("date")\n    else:\n        payload[field]["date"] = bad_date\n\n    with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):\n        GreenfieldGitHubClient._verify_actor(payload)\n\n\ndef test_existing_baseline_with_provider_timestamps_replays_get_only() -> None:\n    methods: list[str] = []\n\n    def provider_commit(\n        message: str,\n        parents: list[dict[str, str]],\n        tree_sha: str,\n        author_date: str,\n        committer_date: str,\n    ) -> dict[str, object]:\n        payload = _commit(message, parents, tree_sha)\n        payload["author"] = {**ACTOR, "date": author_date}\n        payload["committer"] = {**ACTOR, "date": committer_date}\n        return payload\n\n    def exact(request: httpx.Request) -> httpx.Response:\n        methods.append(request.method)\n        path = request.url.path\n        if path == "/repos/Ryan9876/empty-target":\n            return _repo()\n        if path.endswith("/git/ref/heads/main"):\n            return httpx.Response(200, json={"object": {"sha": BASELINE}})\n        if path.endswith(f"/git/commits/{BASELINE}"):\n            return httpx.Response(\n                200,\n                json=provider_commit(\n                    "Finalize Parallax empty greenfield baseline",\n                    [{"sha": BOOTSTRAP}],\n                    EMPTY_TREE,\n                    "2026-09-02T04:01:01Z",\n                    "2026-09-02T04:01:01+00:00",\n                ),\n            )\n        if path.endswith(f"/git/trees/{EMPTY_TREE}"):\n            return _empty_tree()\n        if path.endswith(f"/git/commits/{BOOTSTRAP}"):\n            return httpx.Response(\n                200,\n                json=provider_commit(\n                    "Initialize Parallax greenfield baseline",\n                    [],\n                    BOOTSTRAP_TREE,\n                    "2026-09-02T04:01:00Z",\n                    "2026-09-02T00:01:00-04:00",\n                ),\n            )\n        if path.endswith(f"/git/trees/{BOOTSTRAP_TREE}"):\n            return _bootstrap_tree()\n        if path.endswith(f"/git/blobs/{BLOB}"):\n            return httpx.Response(\n                200,\n                json={\n                    "encoding": "base64",\n                    "content": base64.b64encode(CONTENT.encode()).decode(),\n                },\n            )\n        raise AssertionError(request.url)\n\n    replay = _client(exact).initialize_empty_baseline(REPOSITORY, PROVENANCE)\n    assert replay.initialized is False\n    assert replay.baseline_revision == BASELINE\n    assert replay.bootstrap_revision == BOOTSTRAP\n    assert set(methods) == {"GET"}\n'''
+          test_path.write_text(tests)
+          PY
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Validate persisted protected DSPy plan
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.38.md
+      - name: Run focused greenfield regressions
+        run: pytest -q services/api/tests/test_greenfield_github.py
+      - name: Compile API source
+        run: python -m compileall -q services/api/parallax_api
+      - name: Run full API regression
+        run: pytest -q services/api/tests
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/ws560-implementation.yml
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add services/api/parallax_api/code/greenfield_github.py services/api/tests/test_greenfield_github.py .github/workflows/ws560-implementation.yml
+          git diff --cached --check
+          git commit -m 'Implement P2-V0.23.38 provider timestamp compatibility'
+          git push origin HEAD:ws/560-greenfield-actor-time
