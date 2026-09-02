@@ -8,6 +8,13 @@ from typing import Protocol
 from sqlalchemy.orm import Session
 
 from ..code.domain import AttemptStatus, WorkflowStage
+from ..code.protected import STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
+from ..code.validation_toolchains import (
+    ExecutionBindingReason,
+    ExecutionContractCode,
+    ExecutionContractIdentity,
+    ValidationProfileError,
+)
 from ..code.work_spec_binding import required_acceptance_ids, work_specification_digest
 from ..code.workspace_lineage import ProjectRunIdentity, SourceLineage, SourceLineageStore
 from ..models import EngineeringAttempt, EngineeringRun, WorkSpecification
@@ -247,8 +254,17 @@ class RuntimeAppBuilderEvidenceAdapter:
         acceptance = required_acceptance_ids(specification)
         implementation, implementation_payload = self._implementation(run)
         lineage = self._lineage(run, implementation_payload)
+        acceptance_verification_scope = self._acceptance_verification_scope(
+            run, implementation, implementation_payload
+        )
         stages = {
-            stage: self._execution_attempt(run, stage, lineage, acceptance)
+            stage: self._execution_attempt(
+                run,
+                stage,
+                lineage,
+                acceptance,
+                acceptance_verification_scope=acceptance_verification_scope,
+            )
             for stage in (WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY)
         }
         delivery = self._delivery(run, project.repository_ref or "", lineage)
@@ -625,12 +641,61 @@ class RuntimeAppBuilderEvidenceAdapter:
             raise RuntimeEvidenceError("current lineage is not an accepted implementation result")
         return current
 
+    def _acceptance_verification_scope(
+        self,
+        run: EngineeringRun,
+        implementation_attempt: EngineeringAttempt,
+        implementation_payload: dict[str, object],
+    ) -> str | None:
+        try:
+            implementation_index = next(
+                index for index, item in enumerate(run.attempts) if item.id == implementation_attempt.id
+            )
+        except StopIteration as exc:  # pragma: no cover - ORM identity invariant
+            raise RuntimeEvidenceError("accepted IMPLEMENT attempt is not attached to the Engineering Run") from exc
+
+        base_source_lineage_ref = implementation_payload.get("base_source_lineage_ref")
+        if not isinstance(base_source_lineage_ref, str) or not base_source_lineage_ref:
+            raise RuntimeEvidenceError("IMPLEMENT lacks base source-lineage identity")
+
+        for attempt in reversed(run.attempts[:implementation_index]):
+            if attempt.stage != WorkflowStage.PLAN.value or attempt.status != AttemptStatus.PASSED.value:
+                continue
+            evidence = self._payload(attempt)
+            if "execution_contract_id" not in evidence:
+                # Historical reference evidence predating immutable execution
+                # contracts retains its exact full-verification semantics.
+                return None
+            expected = {
+                "project_id": run.project_id,
+                "run_id": run.id,
+                "work_specification_id": run.work_specification_id,
+                "work_specification_revision": run.work_specification_revision,
+                "work_specification_digest": run.work_specification_digest,
+                "base_source_lineage_ref": base_source_lineage_ref,
+            }
+            if any(evidence.get(key) != value for key, value in expected.items()):
+                raise RuntimeEvidenceError("PLAN execution-contract identity does not match accepted run lineage")
+            try:
+                contract = ExecutionContractIdentity.from_evidence(evidence).resolve()
+            except ValidationProfileError as exc:
+                raise RuntimeEvidenceError("PLAN execution-contract identity is invalid or drifted") from exc
+            if (
+                contract.contract_id is ExecutionContractCode.STATIC_WEB
+                and contract.binding_reason is ExecutionBindingReason.GREENFIELD_STATIC_WEB
+            ):
+                return STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
+            return None
+        return None
+
     def _execution_attempt(
         self,
         run: EngineeringRun,
         stage: WorkflowStage,
         lineage: SourceLineage,
         required_acceptance: set[str],
+        *,
+        acceptance_verification_scope: str | None,
     ) -> str:
         attempts = [
             item
@@ -652,12 +717,33 @@ class RuntimeAppBuilderEvidenceAdapter:
             raise RuntimeEvidenceError(f"{stage.value} was not proven against exact accepted lineage")
         if payload.get("fresh_repository_checkout") is not False:
             raise RuntimeEvidenceError(f"{stage.value} used unrelated/fresh repository source")
-        key = "acceptance_ids_targeted" if stage is WorkflowStage.BUILD else "acceptance_ids_verified"
-        raw_acceptance = payload.get(key)
-        if not isinstance(raw_acceptance, list) or set(raw_acceptance) != required_acceptance or len(raw_acceptance) != len(
-            required_acceptance
-        ):
-            raise RuntimeEvidenceError(f"{stage.value} acceptance coverage mismatch")
+
+        def exact_ids(key: str) -> list[str]:
+            raw = payload.get(key)
+            if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+                raise RuntimeEvidenceError(f"{stage.value} acceptance coverage mismatch")
+            if len(raw) != len(set(raw)) or set(raw) != required_acceptance:
+                raise RuntimeEvidenceError(f"{stage.value} acceptance coverage mismatch")
+            return raw
+
+        if stage is WorkflowStage.BUILD:
+            exact_ids("acceptance_ids_targeted")
+            digest_scope = "TARGETED"
+        elif acceptance_verification_scope == STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE:
+            if payload.get("acceptance_verification_scope") != STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE:
+                raise RuntimeEvidenceError(f"{stage.value} structural verification scope mismatch")
+            exact_ids("acceptance_ids_targeted")
+            exact_ids("acceptance_ids_unverified")
+            verified = payload.get("acceptance_ids_verified")
+            if not isinstance(verified, list) or verified:
+                raise RuntimeEvidenceError(f"{stage.value} structural evidence claimed protected acceptance verification")
+            digest_scope = STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
+        else:
+            if payload.get("acceptance_verification_scope") is not None:
+                raise RuntimeEvidenceError(f"{stage.value} unexpected acceptance verification scope")
+            exact_ids("acceptance_ids_verified")
+            digest_scope = "FULL"
+
         return canonical_digest(
             {
                 "stage": stage.value,
@@ -668,6 +754,7 @@ class RuntimeAppBuilderEvidenceAdapter:
                 "source_lineage_ref": lineage.lineage_id,
                 "source_content_digest": lineage.content_digest,
                 "protected_success": True,
+                "acceptance_verification_scope": digest_scope,
                 "acceptance_ids": sorted(required_acceptance),
                 "lineage_bound_execution": True,
                 "lineage_source_transfer": True,

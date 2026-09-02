@@ -364,6 +364,11 @@ def test_composed_runtime_uses_one_accepted_lineage_for_implement_build_test_ver
                 assert evidence["project_ref"] == project.id
                 assert evidence["source_lineage_ref"] == accepted.lineage_id
                 assert evidence["lineage_bound_execution"] is True
+                if attempt.stage in {"TEST", "VERIFY"}:
+                    assert evidence["acceptance_verification_scope"] == "STRUCTURAL_ONLY"
+                    assert evidence["acceptance_ids_targeted"] == ["AC-01", "AC-02"]
+                    assert evidence["acceptance_ids_verified"] == []
+                    assert evidence["acceptance_ids_unverified"] == ["AC-01", "AC-02"]
 
         reconstructed = allocator.reconstruct(identity, accepted.lineage_id)
         try:

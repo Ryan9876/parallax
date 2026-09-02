@@ -10,12 +10,15 @@ from ..models import EngineeringRun
 from .domain import AttemptStatus, WorkflowStage
 from .execution import ExecutionSpec
 from .implementation_runtime import ImplementationRuntimeError, ProtectedImplementationRuntime
+from .protected import STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
 from .run_events import RunEventError
 from .sandbox_execution import ProtectedCommandRegistry
 from .service import EngineeringRunService
 from .state_machine import RevisionConflict
 from .validation_toolchains import (
+    ExecutionBindingReason,
     ExecutionContract,
+    ExecutionContractCode,
     ExecutionContractIdentity,
     ValidationProfileError,
     ValidationProfileReason,
@@ -347,6 +350,7 @@ class AutonomyCoordinator:
             if stage in {WorkflowStage.BUILD, WorkflowStage.TEST, WorkflowStage.VERIFY}:
                 stage_key = self._stage_key(operation_key, stage, run.revision)
                 spec = self.registry.spec_for(stage, operation_key=stage_key)
+                execution_contract: ExecutionContract | None = None
                 try:
                     accepted_lineage = self._accepted_implementation_lineage(run)
                 except ValidationProfileError as exc:
@@ -386,6 +390,15 @@ class AutonomyCoordinator:
                 acceptance_ids = sorted(item["id"] for item in self.service.acceptance_map_for_run(run))
                 if stage is WorkflowStage.BUILD:
                     evidence["acceptance_ids_targeted"] = acceptance_ids
+                elif (
+                    execution_contract is not None
+                    and execution_contract.contract_id is ExecutionContractCode.STATIC_WEB
+                    and execution_contract.binding_reason is ExecutionBindingReason.GREENFIELD_STATIC_WEB
+                ):
+                    evidence["acceptance_verification_scope"] = STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
+                    evidence["acceptance_ids_targeted"] = acceptance_ids
+                    evidence["acceptance_ids_verified"] = []
+                    evidence["acceptance_ids_unverified"] = acceptance_ids
                 else:
                     evidence["acceptance_ids_verified"] = acceptance_ids
 

@@ -500,6 +500,13 @@ def test_reference_app_proves_restart_replay_provider_delivery_evaluation_and_op
         assert len([item for item in run.attempts if item.stage == "TEST" and item.status == "PASSED"]) == 1
         assert len([item for item in run.attempts if item.stage == "VERIFY" and item.status == "PASSED"]) == 1
         assert len([item for item in run.attempts if item.stage == "REVIEW" and item.status == "PASSED"]) == 1
+        for stage in ("TEST", "VERIFY"):
+            attempt = next(item for item in run.attempts if item.stage == stage and item.status == "PASSED")
+            evidence = json.loads(attempt.evidence_json)
+            assert evidence["acceptance_verification_scope"] == "STRUCTURAL_ONLY"
+            assert set(evidence["acceptance_ids_targeted"]) == {"AC-01", "AC-02"}
+            assert evidence["acceptance_ids_verified"] == []
+            assert set(evidence["acceptance_ids_unverified"]) == {"AC-01", "AC-02"}
     finally:
         session.close()
 
@@ -691,5 +698,30 @@ def test_reference_suite_forbidden_production_claim_remains_critical_failure(tmp
         tool_result = next(item for item in report.case_results if item.case_id == "runtime-tool-authority-01")
         assert tool_result.critical_failure is True
         assert "forbidden_present:production-authority" in tool_result.failures
+    finally:
+        context.close()
+
+
+def test_runtime_evidence_rejects_forged_structural_acceptance_claim(tmp_path):
+    Session, factory, _delivery, _project_id, run_id, _result = _run_reference(tmp_path)
+    session = Session()
+    try:
+        run = EngineeringRunRepository(session).get(run_id)
+        assert run is not None
+        test_attempt = next(
+            item for item in run.attempts if item.stage == "TEST" and item.status == "PASSED"
+        )
+        evidence = json.loads(test_attempt.evidence_json)
+        evidence["acceptance_ids_verified"] = ["AC-01"]
+        test_attempt.evidence_json = json.dumps(evidence, sort_keys=True, separators=(",", ":"))
+        session.add(test_attempt)
+        session.commit()
+    finally:
+        session.close()
+
+    context = factory.open()
+    try:
+        with pytest.raises(RuntimeEvidenceError, match="structural evidence claimed"):
+            context.evidence_adapter.snapshot(run_id)
     finally:
         context.close()
