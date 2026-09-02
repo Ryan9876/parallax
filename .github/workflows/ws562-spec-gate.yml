@@ -1,0 +1,56 @@
+name: WS562 P2-V0.23.39 Spec Gate
+
+on:
+  push:
+    branches:
+      - 'ws/562-canonical-empty-tree-replay'
+    paths:
+      - '.github/workflows/ws562-spec-gate.yml'
+      - 'specs/P2-V0.23.39.md'
+
+permissions:
+  contents: write
+
+jobs:
+  spec-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SPEC_PATH: specs/P2-V0.23.39.md
+      DSPY_MODEL: ollama_chat/llama3.2:1b
+      DSPY_API_BASE: http://127.0.0.1:11434
+      DSPY_API_KEY: ''
+      DSPY_LOCAL_DEVELOPMENT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/562-canonical-empty-tree-replay
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - name: Validate protected specification
+        run: python scripts/validate_spec.py --spec-only "$SPEC_PATH"
+      - name: Install local DSPy development LM
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve >/tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; sleep 1; done
+          ollama pull llama3.2:1b
+      - name: Execute SpecCritic and SpecCompiler
+        run: python scripts/compile_spec.py "$SPEC_PATH"
+      - name: Validate protected DSPy plan
+        run: python scripts/validate_spec.py --require-dspy "$SPEC_PATH"
+      - name: Persist exact compiled DSPy plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add specs/compiled/P2-V0.23.39.plan.json
+          git diff --cached --check
+          git commit -m 'Compile P2-V0.23.39 DSPy plan'
+          git push origin HEAD:ws/562-canonical-empty-tree-replay
