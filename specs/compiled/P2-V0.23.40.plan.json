@@ -3,11 +3,11 @@
     "5.1 Structural success and acceptance verification are separate facts"
   ],
   "work_items": [
-    "static-web-v1 BUILD/TEST/VERIFY"
+    "5.2 The admissible evidence mode is derived from durable PLAN authority"
   ],
   "validations": [
-    "acceptance_verification_scope = \"STRUCTURAL_ONLY\"",
-    "AC-01: validate protected requirement \u2014 Tests and authoritative records identify the exact existing behavior: the static-web validator is structural, while autonomy currently stamps the complete acceptance map into TEST/VERIFY `acceptance_ids_verified`.",
+    "5.2 The admissible evidence mode is derived from durable PLAN authority",
+    "AC-01: validate protected requirement \u2014 Tests and authoritative records identify the exact existing behavior: the static-web validator is structural, while autonomy currently stamps the complete acceptance map into TEST/VERIFY `acceptance_ids_verified` and the runtime-evidence adapter assumes that field represents all TEST/VERIFY acceptance coverage.",
     "AC-02: validate protected requirement \u2014 A production-shaped PLAN-bound static-web run with successful TEST records scope `STRUCTURAL_ONLY`, all protected IDs as targeted/unverified, and an empty verified list.",
     "AC-03: validate protected requirement \u2014 The same exact evidence partition is required for successful VERIFY.",
     "AC-04: validate protected requirement \u2014 Tests prove missing, malformed, partial, drifted or non-static PLAN execution-contract identity cannot authorize the structural-only envelope.",
@@ -16,21 +16,22 @@
     "AC-07: validate protected requirement \u2014 Existing full-verification paths continue to require `acceptance_ids_verified` to exactly match the protected acceptance map and existing regressions remain green.",
     "AC-08: validate protected requirement \u2014 A fully successful structural static-web BUILD/TEST/VERIFY sequence reaches REVIEW, not FAILED or COMPLETE, with explicit unverified acceptance evidence and the existing REVIEW-required event/stop semantics.",
     "AC-09: validate protected requirement \u2014 Existing review validation still requires recommendation PASS, exact all acceptance IDs verified and the current implementation workspace digest. Structural TEST/VERIFY evidence alone cannot complete REVIEW.",
-    "AC-10: validate protected requirement \u2014 Run evidence projection/event metadata safely exposes structural scope and verified/unverified counts/IDs where allowed, while existing secret/private-reasoning guards remain intact.",
-    "AC-11: validate protected requirement \u2014 Diff review proves no command, validation profile, execution-contract digest, provider/model/credential/network, source-lineage, Git/Preview, merge, retry, lifecycle, REVIEW-completion or production authority increase.",
-    "AC-12: validate protected requirement \u2014 Spec validation, authentic DSPy SpecCritic/SpecCompiler, strict DSPy plan validation, focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads.",
-    "AC-13: validate protected requirement \u2014 Exact merged source reaches production READY; normal production preflights pass; canonical `/health` and `/ready` return HTTP 200; exact-deployment runtime scans are clean.",
-    "AC-14: validate protected requirement \u2014 After deployment, a safe new static-web run or bounded production-shaped replay proves successful structural TEST/VERIFY no longer records every acceptance criterion as verified and still stops at human REVIEW."
+    "AC-10: validate protected requirement \u2014 The runtime-evidence adapter accepts exact full-verification and exact structural-only TEST/VERIFY envelopes as distinct modes, rejects malformed/mixed envelopes, binds the mode and exact acceptance partition into stage digests, and does not emit a behavioral-acceptance claim from structural-only evidence.",
+    "AC-11: validate protected requirement \u2014 Protected attempt projection safely exposes structural scope and targeted/verified/unverified IDs while existing secret/private-reasoning/provider-payload guards remain intact. Run-event metadata need not duplicate those facts.",
+    "AC-12: validate protected requirement \u2014 Diff review proves no command, validation profile, execution-contract digest, provider/model/credential/network, source-lineage, Git/Preview, merge, retry, lifecycle, REVIEW-completion or production authority increase.",
+    "AC-13: validate protected requirement \u2014 Spec validation, authentic DSPy SpecCritic/SpecCompiler, strict DSPy plan validation, focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads.",
+    "AC-14: validate protected requirement \u2014 Exact merged source reaches production READY; normal production preflights pass; canonical `/health` and `/ready` return HTTP 200; exact-deployment runtime scans are clean.",
+    "AC-15: validate protected requirement \u2014 After deployment, a safe new static-web run or bounded production-shaped replay proves successful structural TEST/VERIFY no longer records every acceptance criterion as verified, downstream evidence preserves the structural-only scope, and the run still stops at human REVIEW."
   ],
   "risks": [
-    "no material risk and mitigation"
+    "5.2 The admissible evidence mode is derived from durable PLAN authority"
   ],
   "spec_id": "P2-V0.23.40",
   "protected_acceptance_map": [
     {
       "id": "AC-01",
       "title": "W9-S1 false-positive evidence is captured as the root cause",
-      "protected_requirement": "Tests and authoritative records identify the exact existing behavior: the static-web validator is structural, while autonomy currently stamps the complete acceptance map into TEST/VERIFY `acceptance_ids_verified`."
+      "protected_requirement": "Tests and authoritative records identify the exact existing behavior: the static-web validator is structural, while autonomy currently stamps the complete acceptance map into TEST/VERIFY `acceptance_ids_verified` and the runtime-evidence adapter assumes that field represents all TEST/VERIFY acceptance coverage."
     },
     {
       "id": "AC-02",
@@ -74,32 +75,37 @@
     },
     {
       "id": "AC-10",
-      "title": "Safe observability exposes verification scope without secrets",
-      "protected_requirement": "Run evidence projection/event metadata safely exposes structural scope and verified/unverified counts/IDs where allowed, while existing secret/private-reasoning guards remain intact."
+      "title": "Runtime evaluation preserves verification scope",
+      "protected_requirement": "The runtime-evidence adapter accepts exact full-verification and exact structural-only TEST/VERIFY envelopes as distinct modes, rejects malformed/mixed envelopes, binds the mode and exact acceptance partition into stage digests, and does not emit a behavioral-acceptance claim from structural-only evidence."
     },
     {
       "id": "AC-11",
+      "title": "Safe observability exposes verification scope without secrets",
+      "protected_requirement": "Protected attempt projection safely exposes structural scope and targeted/verified/unverified IDs while existing secret/private-reasoning/provider-payload guards remain intact. Run-event metadata need not duplicate those facts."
+    },
+    {
+      "id": "AC-12",
       "title": "No execution or lifecycle authority expansion",
       "protected_requirement": "Diff review proves no command, validation profile, execution-contract digest, provider/model/credential/network, source-lineage, Git/Preview, merge, retry, lifecycle, REVIEW-completion or production authority increase."
     },
     {
-      "id": "AC-12",
+      "id": "AC-13",
       "title": "Protected release gates pass",
       "protected_requirement": "Spec validation, authentic DSPy SpecCritic/SpecCompiler, strict DSPy plan validation, focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
     },
     {
-      "id": "AC-13",
+      "id": "AC-14",
       "title": "Production verification preserves existing runtime health",
       "protected_requirement": "Exact merged source reaches production READY; normal production preflights pass; canonical `/health` and `/ready` return HTTP 200; exact-deployment runtime scans are clean."
     },
     {
-      "id": "AC-14",
+      "id": "AC-15",
       "title": "Production-shaped static-web acceptance no longer overclaims",
-      "protected_requirement": "After deployment, a safe new static-web run or bounded production-shaped replay proves successful structural TEST/VERIFY no longer records every acceptance criterion as verified and still stops at human REVIEW."
+      "protected_requirement": "After deployment, a safe new static-web run or bounded production-shaped replay proves successful structural TEST/VERIFY no longer records every acceptance criterion as verified, downstream evidence preserves the structural-only scope, and the run still stops at human REVIEW."
     }
   ],
   "critique": [
-    "The current implementation of the `static-web-v1` application does not meet the requirements outlined in the brief. Specifically, the evidence for structural acceptance is not truthful, and the verification process does not ensure that the static-web command completed successfully against the exact accepted source lineage. The current implementation may still progress to the existing REVIEW boundary because REVIEW is already the human completion authority, but protected execution must not claim behavioral proof it did not produce."
+    "The current implementation of the `static-web-v1` application fails to meet the requirements for a successful static-web run. Specifically, it fails to ensure that the immutable server-owned static-web command completed successfully against the exact accepted source lineage. The current implementation does not provide a durable PLAN authority that can independently inspect the latest passed PLAN attempt for the run, parse the `ExecutionContractIdentity`, resolve it through the existing closed server catalog, and require exact identity equality. This results in the run reaching the `static-web-v1` boundary without being able to produce the desired behavior."
   ],
   "dspy_run": {
     "executed": true,
