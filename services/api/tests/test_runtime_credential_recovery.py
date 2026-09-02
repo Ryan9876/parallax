@@ -209,8 +209,53 @@ def test_runtime_readiness_preflight_reuses_real_exchange_and_exact_scope():
     assert verified == 1
     assert len(connect_calls) == 1
     assert connect_calls[0].url.raw_path == b"/v1/connect/token/github%2Fparallax-runtime"
+    assert json.loads(connect_calls[0].content) == {
+        "subject": {"type": "app"},
+        "authorizationDetails": [
+            {
+                "type": "github_app_installation",
+                "repositories": ["Ryan9876/parallax"],
+                "permissions": ["contents:read", "metadata:read"],
+            }
+        ],
+    }
     assert len(github_calls) == 1
     assert github_calls[0].url.path == "/installation/repositories"
+
+
+def test_runtime_readiness_rejects_broad_derived_credential():
+    provider_reads: list[httpx.Request] = []
+
+    def github_handler(request: httpx.Request) -> httpx.Response:
+        provider_reads.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "total_count": 2,
+                "repositories": [
+                    {"full_name": "Ryan9876/parallax"},
+                    {"full_name": "Ryan9876/parallax-qa1"},
+                ],
+            },
+        )
+
+    with pytest.raises(ProviderClientError, match="CREDENTIAL_SCOPE_MISMATCH"):
+        verify_registered_runtime_github_credentials(
+            RUNTIME_OIDC,
+            preview_targets_json=_targets_json(),
+            connect_transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200,
+                    json={
+                        "token": "github-too-broad-readiness-token",
+                        "expiresAt": _future_expiration(),
+                    },
+                )
+            ),
+            github_transport=httpx.MockTransport(github_handler),
+        )
+
+    assert len(provider_reads) == 1
 
 
 def test_production_source_delivery_injects_request_oidc_into_github_provider(tmp_path, monkeypatch):
