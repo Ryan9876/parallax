@@ -6,10 +6,10 @@ from typing import Mapping
 import httpx
 
 from ..tools.providers import ProviderClientError, ProviderProjectBinding
+from .production_bootstrap import VercelConnectGitHubBootstrapCredentialProvider
 from .production_delivery import (
     ProductionDeliveryConfigurationError,
     RepositoryPreviewTargetResolver,
-    VercelConnectGitHubCredentialProvider,
 )
 
 
@@ -96,9 +96,10 @@ def verify_registered_runtime_github_credentials(
                 repository_ref=target.repository_ref,
             )
         )
-        provider = VercelConnectGitHubCredentialProvider(
+        provider = VercelConnectGitHubBootstrapCredentialProvider(
             registration.github_connector,
             oidc_token=oidc_token,
+            request_delivery_permissions=True,
             transport=connect_transport,
             github_transport=github_transport,
         )
