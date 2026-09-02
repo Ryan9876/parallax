@@ -26,6 +26,7 @@ _REPOSITORY = re.compile(r"^github:([^/\s]+)/([^/\s]+)$")
 _CONNECTOR = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 _SOURCE_PATH = re.compile(r"^[A-Za-z0-9._-](?:[A-Za-z0-9._/ -]{0,238}[A-Za-z0-9._-])?$")
 _ALLOWED_BLOB_MODES = frozenset({"100644", "100755"})
+_REQUIRED_READ_PERMISSIONS = ("contents:read", "metadata:read")
 _PROVIDER_SECRET_PARTS = frozenset({".env", ".env.local", ".env.production", "secrets", "credentials"})
 _LINEAGE_SECRET_FILENAMES = frozenset(
     {"credentials", "credentials.json", "secrets", "secrets.json", "id_rsa", "id_ed25519"}
@@ -151,12 +152,27 @@ def _headers(token: str) -> dict[str, str]:
     }
 
 
-def _connect_token(connector: str, *, oidc: str) -> str:
+def _authorization_details(repository: str) -> list[dict[str, object]]:
+    return [
+        {
+            "type": "github_app_installation",
+            "repositories": [repository],
+            "permissions": list(_REQUIRED_READ_PERMISSIONS),
+        }
+    ]
+
+
+def _connect_token(connector: str, repository: str, *, oidc: str) -> str:
     payload = _json_request(
         Request(
             f"https://api.vercel.com/v1/connect/token/{quote(connector, safe='')}",
             method="POST",
-            data=json.dumps({"subject": {"type": "app"}}).encode(),
+            data=json.dumps(
+                {
+                    "subject": {"type": "app"},
+                    "authorizationDetails": _authorization_details(repository),
+                }
+            ).encode(),
             headers={"Authorization": f"Bearer {oidc}", "Content-Type": "application/json"},
         ),
         label="Vercel Connect projected-source preflight",
@@ -252,8 +268,25 @@ def _validate_contents_payload(payload: object, *, expected_path: str, expected_
 
 def _preflight_target(target: Target, *, oidc: str) -> tuple[int, int]:
     owner, repository = target.repository
-    token = _connect_token(target.github_connector, oidc=oidc)
+    exact_repository = f"{owner}/{repository}"
+    token = _connect_token(target.github_connector, exact_repository, oidc=oidc)
     headers = _headers(token)
+    scope = _json_request(
+        Request("https://api.github.com/installation/repositories?per_page=2", headers=headers),
+        label="GitHub projected-source scoped installation preflight",
+    )
+    repositories = scope.get("repositories") if isinstance(scope, dict) else None
+    if (
+        not isinstance(scope, dict)
+        or scope.get("total_count") != 1
+        or not isinstance(repositories, list)
+        or len(repositories) != 1
+    ):
+        raise RuntimeError("GitHub projected-source credential is not exactly one repository")
+    scoped_repository = repositories[0]
+    full_name = scoped_repository.get("full_name") if isinstance(scoped_repository, dict) else None
+    if not isinstance(full_name, str) or full_name.casefold() != exact_repository.casefold():
+        raise RuntimeError("GitHub projected-source credential does not match registered repository")
     encoded_owner = quote(owner, safe="")
     encoded_repository = quote(repository, safe="")
     branch_payload = _json_request(

@@ -1,0 +1,87 @@
+{
+  "architecture_decisions": [
+    "{Restore exact repository credentials for production deployment}"
+  ],
+  "work_items": [
+    "{Production deployment of P2-V0.23.34 with exact repository credentials}"
+  ],
+  "validations": [
+    "{Verify that `production_provider_preflight.py` requests exact repository credentials and that derived credentials see only the registered repository}",
+    "AC-01: validate protected requirement \u2014 The workstream records both failed exact-source redeploy identities and the precise fail-closed installation-wide token mismatch without claiming an outage, successful redeploy, or W9-S1 completion.",
+    "AC-02: validate protected requirement \u2014 Tests prove `production_provider_preflight.py` sends the exact registered repository and only `contents:read` plus `metadata:read` in Vercel Connect `authorizationDetails` before GitHub reads.",
+    "AC-03: validate protected requirement \u2014 Tests prove a returned credential seeing two repositories, zero repositories, or the wrong repository fails before numeric repository, branch, tree, or Blob verification.",
+    "AC-04: validate protected requirement \u2014 Tests prove projected-source Connect exchange uses the same exact read-scoped request and independently rejects broad/mismatched derived credentials before branch/tree/content reads.",
+    "AC-05: validate protected requirement \u2014 Tests prove `verify_registered_runtime_github_credentials()` requests each registered repository separately with read-only authorization details and accepts only an independently verified exact-one-repository credential.",
+    "AC-06: validate protected requirement \u2014 Deterministic provider fixtures model an installation covering multiple repositories while returning an exact scoped token per request. Provider preflight, projected-source preflight, and readiness succeed only for the requested target; no credential can read or mutate another covered repository.",
+    "AC-07: validate protected requirement \u2014 The exact delivery-permission preflight continues to request only `contents:write`, `metadata:read`, and `pull_requests:write` for one registered repository, with no repository administration, merge, production promotion, domain, environment-variable, or deletion permission.",
+    "AC-08: validate protected requirement \u2014 Focused and full regressions prove numeric repository identity, source path/tree/file/byte bounds, private Blob verification, OIDC validation, secret exclusion, fail-closed provider classification, and no secret persistence remain unchanged.",
+    "AC-09: validate protected requirement \u2014 After exact-head gates and expected-head merge, the corrected API source reaches production READY with all provider, delivery-permission, projected-source, Blob, lineage, runtime, snapshot, and schema preflights green; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal scans are clean.",
+    "AC-10: validate protected requirement \u2014 The protected Decision Ledger replay against the still-empty approved `Ryan9876/parallax-qa1` repository resumes after production verification. It must not recur as installation-wide scope failure, missing Vercel readiness credential, or repository-authorization failure. It advances to REVIEW or records any genuinely later bounded blocker separately."
+  ],
+  "risks": [
+    "{Preserve existing provider boundaries and ensure compatibility with multiple repositories}"
+  ],
+  "spec_id": "P2-V0.23.35",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production failure evidence is preserved accurately",
+      "protected_requirement": "The workstream records both failed exact-source redeploy identities and the precise fail-closed installation-wide token mismatch without claiming an outage, successful redeploy, or W9-S1 completion."
+    },
+    {
+      "id": "AC-02",
+      "title": "Provider preflight requests exact read scope",
+      "protected_requirement": "Tests prove `production_provider_preflight.py` sends the exact registered repository and only `contents:read` plus `metadata:read` in Vercel Connect `authorizationDetails` before GitHub reads."
+    },
+    {
+      "id": "AC-03",
+      "title": "Provider preflight still rejects broad or mismatched tokens",
+      "protected_requirement": "Tests prove a returned credential seeing two repositories, zero repositories, or the wrong repository fails before numeric repository, branch, tree, or Blob verification."
+    },
+    {
+      "id": "AC-04",
+      "title": "Projected-source preflight requests and verifies exact read scope",
+      "protected_requirement": "Tests prove projected-source Connect exchange uses the same exact read-scoped request and independently rejects broad/mismatched derived credentials before branch/tree/content reads."
+    },
+    {
+      "id": "AC-05",
+      "title": "Runtime readiness reuses exact read-scoped bootstrap authority",
+      "protected_requirement": "Tests prove `verify_registered_runtime_github_credentials()` requests each registered repository separately with read-only authorization details and accepts only an independently verified exact-one-repository credential."
+    },
+    {
+      "id": "AC-06",
+      "title": "Multi-repository installation remains compatible and least privileged",
+      "protected_requirement": "Deterministic provider fixtures model an installation covering multiple repositories while returning an exact scoped token per request. Provider preflight, projected-source preflight, and readiness succeed only for the requested target; no credential can read or mutate another covered repository."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing delivery mutation scope is unchanged",
+      "protected_requirement": "The exact delivery-permission preflight continues to request only `contents:write`, `metadata:read`, and `pull_requests:write` for one registered repository, with no repository administration, merge, production promotion, domain, environment-variable, or deletion permission."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing source/storage and credential boundaries remain green",
+      "protected_requirement": "Focused and full regressions prove numeric repository identity, source path/tree/file/byte bounds, private Blob verification, OIDC validation, secret exclusion, fail-closed provider classification, and no secret persistence remain unchanged."
+    },
+    {
+      "id": "AC-09",
+      "title": "Exact production deployment becomes READY",
+      "protected_requirement": "After exact-head gates and expected-head merge, the corrected API source reaches production READY with all provider, delivery-permission, projected-source, Blob, lineage, runtime, snapshot, and schema preflights green; `/health` and `/ready` return HTTP 200 and exact-deployment warning/error/fatal scans are clean."
+    },
+    {
+      "id": "AC-10",
+      "title": "W9-S1 resumes without the corrected boundary recurring",
+      "protected_requirement": "The protected Decision Ledger replay against the still-empty approved `Ryan9876/parallax-qa1` repository resumes after production verification. It must not recur as installation-wide scope failure, missing Vercel readiness credential, or repository-authorization failure. It advances to REVIEW or records any genuinely later bounded blocker separately."
+    }
+  ],
+  "critique": [
+    "The implementation of the Compact Parallax specification has a material risk of not properly separating explicit multi-repository GitHub App installation coverage from exact-one-repository derived runtime credentials across every production build preflight and runtime-readiness check."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
+
