@@ -4,8 +4,7 @@ on:
   push:
     branches: [ws/565-static-web-acceptance-evidence]
     paths:
-      - scripts/tmp_v02340_patch_*.py
-      - .github/workflows/p2-v0-23-40-implementation.yml
+      - scripts/tmp_v02340_ready
 
 permissions:
   contents: write
@@ -29,11 +28,12 @@ jobs:
           python scripts/tmp_v02340_patch_protected.py
           python scripts/tmp_v02340_patch_service.py
           python scripts/tmp_v02340_patch_runtime.py
+          python scripts/tmp_v02340_patch_evaluation.py
           python scripts/tmp_v02340_patch_tests.py
       - name: Compile API
         run: python -m compileall -q services/api/parallax_api services/api/tests
       - name: Run focused P2-V0.23.40 regressions
-        run: pytest -q services/api/tests/test_code_protected_boundaries.py services/api/tests/test_code_autonomy.py services/api/tests/test_runtime_composition.py
+        run: pytest -q services/api/tests/test_code_protected_boundaries.py services/api/tests/test_code_autonomy.py services/api/tests/test_runtime_composition.py services/api/tests/test_app_builder_reference_loop.py
       - name: Run full API regression suite
         run: pytest -q services/api/tests
       - name: Verify patch hygiene
@@ -43,8 +43,8 @@ jobs:
           set -euo pipefail
           git config user.name 'Parallax Release Automation'
           git config user.email 'parallax-release@users.noreply.github.com'
-          git rm .github/workflows/p2-v0-23-40-spec-gate.yml .github/workflows/p2-v0-23-40-implementation.yml scripts/tmp_v02340_patch_protected.py scripts/tmp_v02340_patch_service.py scripts/tmp_v02340_patch_runtime.py scripts/tmp_v02340_patch_tests.py
-          git add services/api/parallax_api/code/protected.py services/api/parallax_api/code/service.py services/api/parallax_api/code/autonomy.py services/api/parallax_api/code/live_observability.py services/api/tests/test_code_protected_boundaries.py services/api/tests/test_code_autonomy.py services/api/tests/test_runtime_composition.py specs/P2-V0.23.40.md specs/compiled/P2-V0.23.40.plan.json
+          git rm .github/workflows/p2-v0-23-40-spec-gate.yml .github/workflows/p2-v0-23-40-implementation.yml scripts/tmp_v02340_patch_protected.py scripts/tmp_v02340_patch_service.py scripts/tmp_v02340_patch_runtime.py scripts/tmp_v02340_patch_evaluation.py scripts/tmp_v02340_patch_tests.py scripts/tmp_v02340_ready
+          git add services/api/parallax_api/code/protected.py services/api/parallax_api/code/service.py services/api/parallax_api/code/autonomy.py services/api/parallax_api/code/live_observability.py services/api/parallax_api/evaluation/runtime_evidence.py services/api/tests/test_code_protected_boundaries.py services/api/tests/test_code_autonomy.py services/api/tests/test_runtime_composition.py services/api/tests/test_app_builder_reference_loop.py specs/P2-V0.23.40.md specs/compiled/P2-V0.23.40.plan.json
           git diff --cached --check
           git commit -m 'Implement P2-V0.23.40 honest static-web acceptance evidence'
           git push
