@@ -1,0 +1,53 @@
+name: WS558 P2-V0.23.37 Spec Gate
+
+on:
+  push:
+    branches:
+      - 'ws/558-greenfield-empty-tree-baseline'
+    paths:
+      - '.github/workflows/ws558-spec-gate.yml'
+      - 'specs/P2-V0.23.37.md'
+
+jobs:
+  spec-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      SPEC_PATH: specs/P2-V0.23.37.md
+      DSPY_MODEL: ollama_chat/llama3.2:1b
+      DSPY_API_BASE: http://127.0.0.1:11434
+      DSPY_API_KEY: ''
+      DSPY_LOCAL_DEVELOPMENT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e 'services/api[dev]'
+      - name: Validate protected specification
+        run: python scripts/validate_spec.py --spec-only "$SPEC_PATH"
+      - name: Install local DSPy development LM
+        shell: bash
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          ollama pull llama3.2:1b
+      - name: Execute SpecCritic and SpecCompiler
+        run: python scripts/compile_spec.py "$SPEC_PATH"
+      - name: Validate protected DSPy plan
+        run: python scripts/validate_spec.py --require-dspy "$SPEC_PATH"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2-v02337-dspy-spec-evidence
+          path: |
+            specs/compiled/P2-V0.23.37.plan.json
+            /tmp/ollama.log
+          if-no-files-found: warn
+          retention-days: 14
