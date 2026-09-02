@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "Deterministic two-commit baseline, zero persistent bootstrap source, exact repository scope, REVIEW-only mutation authority"
+  ],
+  "work_items": [
+    "Contents API remains the one empty-repository bootstrap primitive"
+  ],
+  "validations": [
+    "Preserve the accepted deterministic two-commit baseline, zero persistent bootstrap source, exact repository scope, REVIEW-only mutation authority",
+    "AC-01: validate protected requirement — The authoritative state records exact `.36` merge/deployment/health/readiness evidence, that `TARGET_DISCOVERY_UNBOUNDED` did not recur, and that the later greenfield `PROVIDER_CONFLICT` arose after successful marker creation and Vercel Project readiness. It does not claim W9-S1 completion.",
+    "AC-02: validate protected requirement — A permanent regression models the observed provider behavior: deleting the sole Contents path may return HTTP 200 while subsequent Git ref/commit reads return empty-repository 409. The corrected initializer no longer depends on Contents DELETE to produce the durable cleanup commit.",
+    "AC-03: validate protected requirement — Tests prove truly empty state performs exactly one fixed Contents `PUT` before any Git Database mutation and validates returned root commit/blob plus exact default-ref/root-tree read-back.",
+    "AC-04: validate protected requirement — Tests prove Git tree creation uses the verified bootstrap tree as `base_tree` and one exact `.parallax-greenfield` entry with `sha: null`; returned/read-back cleanup tree is empty. Extra/malformed/truncated tree state fails closed.",
+    "AC-05: validate protected requirement — Tests prove the cleanup commit uses the fixed cleanup message/actor, verified empty tree and exactly one parent equal to the bootstrap root. Wrong parent/tree/message/actor or malformed returned identity fails before ref mutation.",
+    "AC-06: validate protected requirement — Tests prove the canonical default ref must equal bootstrap immediately before update and is patched only to the verified cleanup commit with `force=false`. Ref drift, 409/422 without exact idempotent read-back, wrong final head or any attempted force update fails closed.",
+    "AC-07: validate protected requirement — Tests prove an already-existing exact two-commit baseline is accepted using GET-only verification and no mutation. Unrelated, partial, mismatched or arbitrary empty history is rejected.",
+    "AC-08: validate protected requirement — Focused/full regressions prove positive empty inspection, zero-file root lineage, non-empty implementation, accepted lineage, exact Git branch/commit/PR delivery, Vercel Preview exactness, commit-bearing source paths and source-only delivery remain unchanged outside the corrected initializer.",
+    "AC-09: validate protected requirement — Diff and release review prove no provider/connector/repository coverage addition, no GitHub permission beyond existing delivery authority, no arbitrary Git mutation surface, no force ref update, no direct default-branch accepted-source publication, and no REVIEW/merge/production authority expansion.",
+    "AC-10: validate protected requirement — Protected PR and post-merge gates pass on exact heads; corrected API source reaches production READY; canonical `/health` and `/ready` return HTTP 200; production preflights pass; exact-deployment warning/error/fatal verification reveals no unresolved release blocker.",
+    "AC-11: validate protected requirement — The same frozen W9-S1 Project/Work Specification/Engineering Run is retried where canonical state permits. Exact production evidence proves the baseline no longer fails at the old Contents-delete/ref/cleanup-commit `PROVIDER_CONFLICT`. Successful branch/commit/PR/Preview publication may satisfy the benchmark only up to the unchanged human REVIEW boundary. Any genuinely later independent blocker is recorded separately."
+  ],
+  "risks": [
+    "No permission or authority expansion"
+  ],
+  "spec_id": "P2-V0.23.37",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "P2-V0.23.36 release and replay evidence is recorded accurately",
+      "protected_requirement": "The authoritative state records exact `.36` merge/deployment/health/readiness evidence, that `TARGET_DISCOVERY_UNBOUNDED` did not recur, and that the later greenfield `PROVIDER_CONFLICT` arose after successful marker creation and Vercel Project readiness. It does not claim W9-S1 completion."
+    },
+    {
+      "id": "AC-02",
+      "title": "Provider-realistic last-file behavior is represented",
+      "protected_requirement": "A permanent regression models the observed provider behavior: deleting the sole Contents path may return HTTP 200 while subsequent Git ref/commit reads return empty-repository 409. The corrected initializer no longer depends on Contents DELETE to produce the durable cleanup commit."
+    },
+    {
+      "id": "AC-03",
+      "title": "Empty repository is initialized only by fixed Contents root",
+      "protected_requirement": "Tests prove truly empty state performs exactly one fixed Contents `PUT` before any Git Database mutation and validates returned root commit/blob plus exact default-ref/root-tree read-back."
+    },
+    {
+      "id": "AC-04",
+      "title": "Cleanup tree deletes only the fixed marker",
+      "protected_requirement": "Tests prove Git tree creation uses the verified bootstrap tree as `base_tree` and one exact `.parallax-greenfield` entry with `sha: null`; returned/read-back cleanup tree is empty. Extra/malformed/truncated tree state fails closed."
+    },
+    {
+      "id": "AC-05",
+      "title": "Cleanup commit is deterministic and exact",
+      "protected_requirement": "Tests prove the cleanup commit uses the fixed cleanup message/actor, verified empty tree and exactly one parent equal to the bootstrap root. Wrong parent/tree/message/actor or malformed returned identity fails before ref mutation."
+    },
+    {
+      "id": "AC-06",
+      "title": "Default ref moves only by non-force fast-forward",
+      "protected_requirement": "Tests prove the canonical default ref must equal bootstrap immediately before update and is patched only to the verified cleanup commit with `force=false`. Ref drift, 409/422 without exact idempotent read-back, wrong final head or any attempted force update fails closed."
+    },
+    {
+      "id": "AC-07",
+      "title": "Exact existing baseline replay is read only",
+      "protected_requirement": "Tests prove an already-existing exact two-commit baseline is accepted using GET-only verification and no mutation. Unrelated, partial, mismatched or arbitrary empty history is rejected."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing greenfield and ordinary delivery authority remains green",
+      "protected_requirement": "Focused/full regressions prove positive empty inspection, zero-file root lineage, non-empty implementation, accepted lineage, exact Git branch/commit/PR delivery, Vercel Preview exactness, commit-bearing source paths and source-only delivery remain unchanged outside the corrected initializer."
+    },
+    {
+      "id": "AC-09",
+      "title": "No permission or authority expansion",
+      "protected_requirement": "Diff and release review prove no provider/connector/repository coverage addition, no GitHub permission beyond existing delivery authority, no arbitrary Git mutation surface, no force ref update, no direct default-branch accepted-source publication, and no REVIEW/merge/production authority expansion."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact production release is deployment verified",
+      "protected_requirement": "Protected PR and post-merge gates pass on exact heads; corrected API source reaches production READY; canonical `/health` and `/ready` return HTTP 200; production preflights pass; exact-deployment warning/error/fatal verification reveals no unresolved release blocker."
+    },
+    {
+      "id": "AC-11",
+      "title": "Frozen W9-S1 advances beyond the greenfield conflict",
+      "protected_requirement": "The same frozen W9-S1 Project/Work Specification/Engineering Run is retried where canonical state permits. Exact production evidence proves the baseline no longer fails at the old Contents-delete/ref/cleanup-commit `PROVIDER_CONFLICT`. Successful branch/commit/PR/Preview publication may satisfy the benchmark only up to the unchanged human REVIEW boundary. Any genuinely later independent blocker is recorded separately."
+    }
+  ],
+  "critique": [
+    "The implementation of the Compact Parallax greenfield baseline mechanism in the provided specification contains a material risk of not properly handling the case where the repository is empty."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
