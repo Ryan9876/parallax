@@ -23,23 +23,7 @@ jobs:
           node-version: '22'
       - name: Repair final package test anchor and apply bounded client patch
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/ws568_client_patch.py')
-          text = path.read_text(encoding='utf-8')
-          anchor = '\nreplace_once(\n    "apps/client/package.json",'
-          if anchor not in text:
-              raise SystemExit('package test anchor block was not found')
-          prefix = text.rsplit(anchor, 1)[0]
-          fixed = '''
-replace_once(
-    "apps/client/package.json",
-    'node scripts/test-workflow-guidance.cjs"',
-    'node scripts/test-workflow-guidance.cjs && node scripts/review-rework-contract.mjs"',
-)
-'''
-          path.write_text(prefix + fixed, encoding='utf-8')
-          PY
+          python3 -c 'from pathlib import Path; p=Path("scripts/ws568_client_patch.py"); t=p.read_text(encoding="utf-8"); a="\nreplace_once(\n    \"apps/client/package.json\","; pre=t.rsplit(a,1)[0]; fixed="\nreplace_once(\n    \"apps/client/package.json\",\n    \"node scripts/test-workflow-guidance.cjs\\\"\",\n    \"node scripts/test-workflow-guidance.cjs && node scripts/review-rework-contract.mjs\\\"\",\n)\n"; p.write_text(pre+fixed, encoding="utf-8")'
           python3 scripts/ws568_client_patch.py
       - name: Install client dependencies
         working-directory: apps/client
