@@ -36,7 +36,7 @@ from .source_delivery_composition import SourceDeliveryComposition
 
 ACTION_PROJECT_ENSURE = "project.ensure"
 _ENV_PREVIEW_TARGETS = "PARALLAX_VERCEL_PREVIEW_TARGETS_JSON"
-_MAX_PROJECTS = 100
+_MAX_REPOSITORY_PROJECTS = 2
 _PROJECT_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,99}$")
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 
@@ -226,22 +226,43 @@ class VercelProjectReadinessRestClient:
         )
 
     def _matches(self, *, github_repo_id: int) -> list[dict[str, object]]:
-        response = self._send("GET", "/v9/projects", params={"limit": _MAX_PROJECTS})
+        response = self._send(
+            "GET",
+            "/v9/projects",
+            params={"repoId": github_repo_id, "limit": _MAX_REPOSITORY_PROJECTS},
+        )
         self._raise_status(response)
         payload = self._payload(response)
         projects = payload.get("projects")
         if not isinstance(projects, list):
             raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
         pagination = payload.get("pagination")
-        if isinstance(pagination, dict) and pagination.get("next") not in {None, 0, ""}:
-            raise ProviderClientError("TARGET_DISCOVERY_UNBOUNDED")
+        if not isinstance(pagination, dict) or "next" not in pagination:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+
         matches: list[dict[str, object]] = []
         for item in projects:
             if not isinstance(item, dict):
-                continue
+                raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+            project_id = item.get("id")
+            result_identity = project_id if isinstance(project_id, str) and project_id else None
             link = item.get("link")
-            if isinstance(link, dict) and link.get("type") == "github" and self._repo_id(link.get("repoId")) == github_repo_id:
-                matches.append(item)
+            if not isinstance(link, dict) or link.get("type") != "github":
+                raise ProviderClientError(
+                    "TARGET_REPOSITORY_UNVERIFIED",
+                    result_identity=result_identity,
+                )
+            if self._repo_id(link.get("repoId")) != github_repo_id:
+                raise ProviderClientError(
+                    "TARGET_REPOSITORY_MISMATCH",
+                    result_identity=result_identity,
+                )
+            matches.append(item)
+
+        # Two exact candidates already prove ambiguity. A continuation cursor
+        # cannot make that identity safer or authorize selection.
+        if len(matches) < _MAX_REPOSITORY_PROJECTS and pagination.get("next") not in {None, 0, ""}:
+            raise ProviderClientError("TARGET_DISCOVERY_UNBOUNDED")
         return matches
 
     def _assert_no_production_deployment(self, *, project_id: str) -> None:

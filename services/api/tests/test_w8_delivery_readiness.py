@@ -213,17 +213,13 @@ def test_readiness_reuses_only_exact_numeric_github_repository_match():
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append((request.method, request.url.path))
         if request.url.path == "/v9/projects":
+            assert request.url.params.get("teamId") == TEAM_ID
+            assert request.url.params.get("repoId") == "424242"
+            assert request.url.params.get("limit") == "2"
             return httpx.Response(
                 200,
                 json={
-                    "projects": [
-                        {
-                            "id": "prj_name_only",
-                            "name": "ot-time-px-11111111",
-                            "link": {"type": "github", "repoId": 9},
-                        },
-                        _project_payload(),
-                    ],
+                    "projects": [_project_payload()],
                     "pagination": {"next": None},
                 },
             )
