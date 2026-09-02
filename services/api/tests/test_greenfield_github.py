@@ -321,3 +321,120 @@ def test_existing_exact_baseline_is_replayed_read_only_and_conflict_fails_closed
 
     with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):
         _client(conflict).initialize_empty_baseline(REPOSITORY, PROVENANCE)
+
+
+
+def test_actor_verification_accepts_provider_owned_offset_aware_timestamps() -> None:
+    payload = _commit("message", [], EMPTY_TREE)
+    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}
+    payload["committer"] = {**ACTOR, "date": "2026-09-02T00:01:01-04:00"}
+
+    GreenfieldGitHubClient._verify_actor(payload)
+
+
+@pytest.mark.parametrize("field", ["author", "committer"])
+@pytest.mark.parametrize(
+    ("identity_key", "wrong_value"),
+    [
+        ("name", "Other Builder"),
+        ("email", "other@example.com"),
+    ],
+)
+def test_actor_verification_rejects_identity_drift(
+    field: str,
+    identity_key: str,
+    wrong_value: str,
+) -> None:
+    payload = _commit("message", [], EMPTY_TREE)
+    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}
+    payload["committer"] = {**ACTOR, "date": "2026-09-02T04:01:01+00:00"}
+    payload[field] = {**payload[field], identity_key: wrong_value}
+
+    with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):
+        GreenfieldGitHubClient._verify_actor(payload)
+
+
+@pytest.mark.parametrize(
+    "bad_date",
+    [None, "", 1234, "not-a-timestamp", "2026-09-02T04:01:00"],
+)
+@pytest.mark.parametrize("field", ["author", "committer"])
+def test_actor_verification_rejects_missing_malformed_or_naive_timestamp(
+    field: str,
+    bad_date: object,
+) -> None:
+    payload = _commit("message", [], EMPTY_TREE)
+    payload["author"] = {**ACTOR, "date": "2026-09-02T04:01:00Z"}
+    payload["committer"] = {**ACTOR, "date": "2026-09-02T04:01:01+00:00"}
+    if bad_date is None:
+        payload[field].pop("date")
+    else:
+        payload[field]["date"] = bad_date
+
+    with pytest.raises(ProviderClientError, match="GREENFIELD_BASELINE_MISMATCH"):
+        GreenfieldGitHubClient._verify_actor(payload)
+
+
+def test_existing_baseline_with_provider_timestamps_replays_get_only() -> None:
+    methods: list[str] = []
+
+    def provider_commit(
+        message: str,
+        parents: list[dict[str, str]],
+        tree_sha: str,
+        author_date: str,
+        committer_date: str,
+    ) -> dict[str, object]:
+        payload = _commit(message, parents, tree_sha)
+        payload["author"] = {**ACTOR, "date": author_date}
+        payload["committer"] = {**ACTOR, "date": committer_date}
+        return payload
+
+    def exact(request: httpx.Request) -> httpx.Response:
+        methods.append(request.method)
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": BASELINE}})
+        if path.endswith(f"/git/commits/{BASELINE}"):
+            return httpx.Response(
+                200,
+                json=provider_commit(
+                    "Finalize Parallax empty greenfield baseline",
+                    [{"sha": BOOTSTRAP}],
+                    EMPTY_TREE,
+                    "2026-09-02T04:01:01Z",
+                    "2026-09-02T04:01:01+00:00",
+                ),
+            )
+        if path.endswith(f"/git/trees/{EMPTY_TREE}"):
+            return _empty_tree()
+        if path.endswith(f"/git/commits/{BOOTSTRAP}"):
+            return httpx.Response(
+                200,
+                json=provider_commit(
+                    "Initialize Parallax greenfield baseline",
+                    [],
+                    BOOTSTRAP_TREE,
+                    "2026-09-02T04:01:00Z",
+                    "2026-09-02T00:01:00-04:00",
+                ),
+            )
+        if path.endswith(f"/git/trees/{BOOTSTRAP_TREE}"):
+            return _bootstrap_tree()
+        if path.endswith(f"/git/blobs/{BLOB}"):
+            return httpx.Response(
+                200,
+                json={
+                    "encoding": "base64",
+                    "content": base64.b64encode(CONTENT.encode()).decode(),
+                },
+            )
+        raise AssertionError(request.url)
+
+    replay = _client(exact).initialize_empty_baseline(REPOSITORY, PROVENANCE)
+    assert replay.initialized is False
+    assert replay.baseline_revision == BASELINE
+    assert replay.bootstrap_revision == BOOTSTRAP
+    assert set(methods) == {"GET"}
