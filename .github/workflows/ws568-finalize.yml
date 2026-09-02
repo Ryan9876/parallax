@@ -1,0 +1,67 @@
+name: WS568 P2-V0.23.41 Finalize
+
+on:
+  push:
+    branches:
+      - ws/568-review-rework
+    paths:
+      - .github/workflows/ws568-finalize.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/568-review-rework
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Apply architecture v3.50 finalization
+        run: python scripts/ws568_finalize.py
+      - name: Remove client validation byproducts before release validation
+        run: |
+          git rm -r --ignore-unmatch apps/client/.tmp-guidance apps/client/.tmp-observability apps/client/.tmp-state
+          git rm --ignore-unmatch apps/client/package-lock.json
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Compile API sources
+        run: python -m compileall -q services/api/parallax_api scripts
+      - name: Run full API regression suite
+        run: python -m pytest services/api/tests -q
+      - name: Install client dependencies without lockfile mutation
+        working-directory: apps/client
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Run client state and REVIEW contract suite
+        working-directory: apps/client
+        run: npm run test:state
+      - name: Typecheck client
+        working-directory: apps/client
+        run: npm run typecheck
+      - name: Export web client
+        working-directory: apps/client
+        run: npm run export:web
+      - name: Install Chromium for REVIEW interaction smoke
+        working-directory: apps/client
+        run: npx playwright install --with-deps chromium
+      - name: Run desktop and mobile REVIEW rework browser smoke
+        working-directory: apps/client
+        run: node scripts/review-rework-browser-smoke.mjs
+      - name: Commit validated architecture and clean release branch
+        run: |
+          rm -rf apps/client/.tmp-guidance apps/client/.tmp-observability apps/client/.tmp-state apps/client/package-lock.json
+          git add ARCHITECTURE.md
+          git add -u apps/client
+          git rm -f --ignore-unmatch .github/workflows/ws568-spec-gate.yml .github/workflows/ws568-finalize.yml scripts/ws568_finalize.py
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git commit -m 'Finalize P2-V0.23.41 bounded REVIEW rework'
+          git push origin HEAD:ws/568-review-rework
