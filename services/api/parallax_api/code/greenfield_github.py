@@ -150,7 +150,7 @@ class GreenfieldGitHubClient:
         self._delegate._raise_status(response, not_found="SOURCE_NOT_FOUND")
         return _dict(self._delegate._json(response))
 
-    def _tree(self, repository_ref: str, revision: str) -> tuple[dict[str, Any], ...]:
+    def _tree_payload(self, repository_ref: str, revision: str) -> dict[str, Any]:
         response = self._delegate._send(
             "GET",
             repository_ref,
@@ -161,7 +161,60 @@ class GreenfieldGitHubClient:
         payload = _dict(self._delegate._json(response))
         if payload.get("truncated") is True:
             raise ProviderClientError("SOURCE_TREE_TRUNCATED")
+        _list(payload.get("tree"))
+        return payload
+
+    def _tree(self, repository_ref: str, revision: str) -> tuple[dict[str, Any], ...]:
+        payload = self._tree_payload(repository_ref, revision)
         return tuple(_dict(item) for item in _list(payload.get("tree")))
+
+    def _verify_bootstrap(
+        self,
+        repository_ref: str,
+        default_branch: str,
+        bootstrap_revision: str,
+        returned_blob_sha: str,
+        provenance_digest: str,
+    ) -> str:
+        current = self._default_head(repository_ref, default_branch)
+        if current != bootstrap_revision:
+            raise ProviderClientError("GREENFIELD_INITIALIZATION_CONFLICT")
+
+        bootstrap = self._commit(repository_ref, bootstrap_revision)
+        self._verify_actor(bootstrap)
+        if bootstrap.get("message") != _BOOTSTRAP_MESSAGE or _list(bootstrap.get("parents")):
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+        tree_sha = _text(_dict(bootstrap.get("tree")).get("sha"))
+
+        entries = self._tree(repository_ref, tree_sha)
+        if len(entries) != 1:
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+        entry = entries[0]
+        if (
+            entry.get("path") != _BOOTSTRAP_PATH
+            or entry.get("type") != "blob"
+            or entry.get("mode") != "100644"
+            or entry.get("sha") != returned_blob_sha
+        ):
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
+        expected = _bootstrap_content(provenance_digest)
+        response = self._delegate._send(
+            "GET",
+            repository_ref,
+            f"{self._delegate._repo_path(repository_ref)}/git/blobs/{returned_blob_sha}",
+        )
+        self._delegate._raise_status(response, not_found="SOURCE_NOT_FOUND")
+        blob = _dict(self._delegate._json(response))
+        if blob.get("encoding") != "base64" or not isinstance(blob.get("content"), str):
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+        try:
+            decoded = base64.b64decode("".join(blob["content"].split()), validate=True).decode("utf-8")
+        except Exception as exc:
+            raise ProviderClientError("PROVIDER_INVALID_RESPONSE") from exc
+        if decoded != expected or sha256(decoded.encode("utf-8")).hexdigest() != sha256(expected.encode("utf-8")).hexdigest():
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+        return tree_sha
 
     def _verify_baseline(
         self,
@@ -178,14 +231,17 @@ class GreenfieldGitHubClient:
         if len(parents) != 1 or not isinstance(parents[0], dict):
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         bootstrap_revision = _text(parents[0].get("sha"))
-        if self._tree(repository_ref, baseline_revision):
+        cleanup_tree_sha = _text(_dict(cleanup.get("tree")).get("sha"))
+        cleanup_tree = self._tree_payload(repository_ref, cleanup_tree_sha)
+        if _list(cleanup_tree.get("tree")):
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
 
         bootstrap = self._commit(repository_ref, bootstrap_revision)
         self._verify_actor(bootstrap)
         if bootstrap.get("message") != _BOOTSTRAP_MESSAGE or _list(bootstrap.get("parents")):
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
-        entries = self._tree(repository_ref, bootstrap_revision)
+        bootstrap_tree_sha = _text(_dict(bootstrap.get("tree")).get("sha"))
+        entries = self._tree(repository_ref, bootstrap_tree_sha)
         if len(entries) != 1:
             raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
         entry = entries[0]
@@ -253,22 +309,82 @@ class GreenfieldGitHubClient:
         created = _dict(self._delegate._json(create))
         bootstrap_revision = _text(_dict(created.get("commit")).get("sha"))
         blob_sha = _text(_dict(created.get("content")).get("sha"))
-
-        delete = self._delegate._send(
-            "DELETE",
+        bootstrap_tree_sha = self._verify_bootstrap(
             repository_ref,
-            endpoint,
+            state.default_branch,
+            bootstrap_revision,
+            blob_sha,
+            provenance_digest,
+        )
+
+        tree_response = self._delegate._send(
+            "POST",
+            repository_ref,
+            f"{self._delegate._repo_path(repository_ref)}/git/trees",
             json={
-                "message": _CLEANUP_MESSAGE,
-                "sha": blob_sha,
-                "branch": state.default_branch,
-                "committer": _ACTOR,
-                "author": _ACTOR,
+                "base_tree": bootstrap_tree_sha,
+                "tree": [
+                    {
+                        "path": _BOOTSTRAP_PATH,
+                        "mode": "100644",
+                        "type": "blob",
+                        "sha": None,
+                    }
+                ],
             },
         )
-        self._delegate._raise_status(delete, conflict="GREENFIELD_INITIALIZATION_CONFLICT")
-        deleted = _dict(self._delegate._json(delete))
-        baseline_revision = _text(_dict(deleted.get("commit")).get("sha"))
+        self._delegate._raise_status(tree_response, conflict="GREENFIELD_INITIALIZATION_CONFLICT")
+        cleanup_tree_sha = _text(_dict(self._delegate._json(tree_response)).get("sha"))
+        cleanup_tree = self._tree_payload(repository_ref, cleanup_tree_sha)
+        if _list(cleanup_tree.get("tree")):
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
+        commit_response = self._delegate._send(
+            "POST",
+            repository_ref,
+            f"{self._delegate._repo_path(repository_ref)}/git/commits",
+            json={
+                "message": _CLEANUP_MESSAGE,
+                "tree": cleanup_tree_sha,
+                "parents": [bootstrap_revision],
+                "author": _ACTOR,
+                "committer": _ACTOR,
+            },
+        )
+        self._delegate._raise_status(commit_response, conflict="GREENFIELD_INITIALIZATION_CONFLICT")
+        baseline_revision = _text(_dict(self._delegate._json(commit_response)).get("sha"))
+        cleanup = self._commit(repository_ref, baseline_revision)
+        self._verify_actor(cleanup)
+        if cleanup.get("message") != _CLEANUP_MESSAGE:
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+        parents = _list(cleanup.get("parents"))
+        if len(parents) != 1 or not isinstance(parents[0], dict) or parents[0].get("sha") != bootstrap_revision:
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+        if _text(_dict(cleanup.get("tree")).get("sha")) != cleanup_tree_sha:
+            raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
+        current = self._default_head(repository_ref, state.default_branch)
+        if current != bootstrap_revision:
+            raise ProviderClientError("GREENFIELD_INITIALIZATION_CONFLICT")
+        ref_response = self._delegate._send(
+            "PATCH",
+            repository_ref,
+            (
+                f"{self._delegate._repo_path(repository_ref)}/git/refs/heads/"
+                f"{quote(state.default_branch, safe='/')}"
+            ),
+            json={"sha": baseline_revision, "force": False},
+        )
+        if ref_response.status_code in {409, 422}:
+            final_head = self._default_head(repository_ref, state.default_branch)
+            if final_head != baseline_revision:
+                raise ProviderClientError("GREENFIELD_INITIALIZATION_CONFLICT")
+        else:
+            self._delegate._raise_status(ref_response, conflict="GREENFIELD_INITIALIZATION_CONFLICT")
+            final_head = self._default_head(repository_ref, state.default_branch)
+            if final_head != baseline_revision:
+                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
         result = self._verify_baseline(
             repository_ref,
             state.default_branch,
