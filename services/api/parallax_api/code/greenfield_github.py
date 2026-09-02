@@ -144,8 +144,11 @@ class GreenfieldGitHubClient:
             raw_date = actor.get("date")
             if not isinstance(raw_date, str) or not raw_date.strip():
                 raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+            normalized_date = raw_date.strip()
+            if normalized_date.endswith("Z"):
+                normalized_date = f"{normalized_date[:-1]}+00:00"
             try:
-                timestamp = datetime.fromisoformat(raw_date.strip().replace("Z", "+00:00"))
+                timestamp = datetime.fromisoformat(normalized_date)
             except ValueError as exc:
                 raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH") from exc
             if timestamp.tzinfo is None or timestamp.utcoffset() is None:
