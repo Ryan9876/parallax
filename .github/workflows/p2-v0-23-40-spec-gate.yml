@@ -22,7 +22,7 @@ jobs:
           cache: pip
           cache-dependency-path: services/api/pyproject.toml
       - run: pip install -e 'services/api[dev]'
-      - name: Validate approved specification
+      - name: Validate refined approved specification
         run: python scripts/validate_spec.py --spec-only specs/P2-V0.23.40.md
       - id: model
         name: Select provider-backed or local DSPy model
@@ -64,5 +64,5 @@ jobs:
           git config user.email 'parallax-release@users.noreply.github.com'
           git add specs/compiled/P2-V0.23.40.plan.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Compile P2-V0.23.40 DSPy plan'
+          git commit -m 'Compile refined P2-V0.23.40 DSPy plan'
           git push
