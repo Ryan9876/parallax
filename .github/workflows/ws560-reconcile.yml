@@ -1,17 +1,17 @@
-name: WS560 P2-V0.23.38 Reconcile
+name: WS560 Reconcile
 
 on:
   push:
     branches:
-      - 'ws/560-greenfield-actor-time'
+      - ws/560-greenfield-actor-time
     paths:
-      - '.github/workflows/ws560-reconcile.yml'
+      - .github/workflows/ws560-reconcile.yml
 
 permissions:
   contents: write
 
 jobs:
-  reconcile-and-validate:
+  reconcile:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -22,113 +22,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Reconcile implementation precision and authoritative records
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          code_path = Path('services/api/parallax_api/code/greenfield_github.py')
-          code = code_path.read_text()
-          old = '''            try:\n                timestamp = datetime.fromisoformat(raw_date.strip().replace("Z", "+00:00"))\n            except ValueError as exc:\n'''
-          new = '''            normalized_date = raw_date.strip()\n            if normalized_date.endswith("Z"):\n                normalized_date = f"{normalized_date[:-1]}+00:00"\n            try:\n                timestamp = datetime.fromisoformat(normalized_date)\n            except ValueError as exc:\n'''
-          if old not in code:
-              raise SystemExit('timestamp normalization anchor missing')
-          code_path.write_text(code.replace(old, new, 1))
-
-          architecture_path = Path('ARCHITECTURE.md')
-          architecture = architecture_path.read_text()
-          if 'Version: 3.46\n' not in architecture:
-              raise SystemExit('architecture version anchor missing')
-          architecture = architecture.replace('Version: 3.46\n', 'Version: 3.47\n', 1)
-          heading = '## Version relationship\n\n'
-          if heading not in architecture:
-              raise SystemExit('architecture relationship anchor missing')
-          v347 = (
-              'Architecture v3.47 separates deterministic Parallax greenfield actor identity from provider-owned commit chronology metadata. '
-              'Both bootstrap and cleanup commit read-back must still contain the exact server-owned actor name `Parallax App Builder` and email '
-              '`parallax-app-builder@users.noreply.github.com`; no caller, model, browser, repository content or provider payload can select that identity. '
-              'The returned author and committer `date` values are no longer required to equal the fixed server request preference because authenticated production evidence proves GitHub Contents may normalize them to provider-assigned times. '
-              'Each returned date must nevertheless be a non-empty string that parses as an offset-aware ISO-8601/RFC3339-compatible instant; missing, malformed or timezone-naive chronology fails closed. '
-              'Timestamp values carry no authorization, baseline identity, source-lineage, repository/ref, lifecycle or promotion authority and are never compared to local clock time. '
-              'Exact repository/default-ref binding, fixed actor name/email, commit messages, parent cardinality, tree identity, marker path/type/mode/blob/content/provenance, canonical empty cleanup tree, non-force ref update and GET-only existing-baseline replay remain unchanged. '
-              'Architecture v3.46 remains the durable two-commit empty-tree greenfield baseline foundation.\n\n'
-          )
-          architecture = architecture.replace(heading, heading + v347, 1)
-          architecture_path.write_text(architecture)
-
-          state_path = Path('CURRENT-STATE.md')
-          state = state_path.read_text()
-          old_status = 'P2-V0.23.37 DURABLE EMPTY-TREE GREENFIELD BASELINE VALIDATED / PRODUCTION PENDING**'
-          new_status = 'P2-V0.23.37 DURABLE EMPTY-TREE GREENFIELD BASELINE PRODUCTION-DEPLOYMENT-VERIFIED / LATER PROVIDER-TIMESTAMP BLOCKER EXPOSED / P2-V0.23.38 PROVIDER-OWNED GREENFIELD TIMESTAMP COMPATIBILITY VALIDATED / PR PENDING**'
-          if old_status not in state:
-              raise SystemExit('current-state status anchor missing')
-          state = state.replace(old_status, new_status, 1)
-
-          replacement = '''## P2-V0.23.38 — provider-owned greenfield commit timestamp compatibility — VALIDATED / PR PENDING
-
-Workstream: #560. Parent: #558 / W9-S1. Governing specification: `P2-V0.23.38`. Architecture: `ARCHITECTURE.md` v3.47.
-
-P2-V0.23.38 narrows deterministic greenfield actor verification to authority-bearing identity while treating provider commit chronology as validated metadata. Exact author and committer name/email remain mandatory Parallax-owned constants. Provider-returned dates must be non-empty, parseable and timezone-aware, but they no longer have to equal the fixed server request preference and do not participate in repository, baseline, source-lineage, lifecycle, REVIEW or production authority. Exact message, parent, tree, marker path/type/mode/blob/content/provenance, canonical ref and read-only replay invariants remain unchanged.
-
-Validated pre-PR evidence:
-
-- protected DSPy SpecCritic/SpecCompiler and strict spec gate `33591593213`: SUCCESS;
-- persisted compiled-plan strict gate `33631981887`: SUCCESS;
-- bounded implementation validation `33638093186`: SUCCESS, including strict persisted DSPy-plan validation, focused greenfield regressions, API compileall and full API regression;
-- exact validated implementation commit before record reconciliation: `194a143fe7da3becbdad0e93db9f47c474f79a77`;
-- focused regressions prove different valid provider-owned offset-aware author/committer timestamps are accepted, exact actor name/email drift is rejected, missing/empty/non-string/malformed/timezone-naive dates fail closed, and an existing production-shaped baseline with provider timestamps replays using GET only.
-
-P2-V0.23.38 is **not merged or production-deployed** at this record point. Production acceptance still requires protected PR gates, exact merged-source deployment verification and continuation of frozen W9-S1 beyond the timestamp mismatch under the unchanged human REVIEW boundary.
-
-## P2-V0.23.37 — durable empty-tree greenfield baseline — PRODUCTION-DEPLOYMENT-VERIFIED / LATER PROVIDER-TIMESTAMP BLOCKER EXPOSED
-
-Workstream: #558. Release PR: #559. Governing specification: `P2-V0.23.37`. Architecture: `ARCHITECTURE.md` v3.46.
-
-P2-V0.23.37 preserves the accepted two-commit greenfield baseline but replaces the provider-invalid last-file Contents-delete cleanup mechanism. A truly empty exact repository is initialized only at verified REVIEW through one fixed Contents bootstrap marker; the returned root/ref/commit/tree/blob/provenance is verified; then bounded Git Data creates the exact empty cleanup tree and one-parent cleanup commit and advances only the canonical default ref with `force=false`. Existing exact two-commit replay remains GET-only. No provider permission, arbitrary Git surface, lifecycle authority or REVIEW/production authority is widened.
-
-Release and production evidence:
-
-- pre-implementation protected spec gate `33589695641`: SUCCESS;
-- exact validated PR head `e05f2ca02bd9d27c6dd79095e7e5071830cd7d2d`;
-- PR #559 Bounded Autonomy Pilot `33590436441`, Workstream Spec Validation `33590436324`, and Parallax P2 CI `33590436269`: SUCCESS;
-- merge / exact production application source `50499e2533b1544b8c3644592a9432fc377dece8`;
-- post-merge Workstream Spec Validation `33590940657` and Parallax P2 CI `33590940590`: SUCCESS;
-- production deployment `dpl_6oGmuS1rknofvQjt4eHUuVS1hVBX`: READY from that exact source; normal production preflights, canonical `/health`, canonical `/ready`, and initial runtime error scan passed.
-
-Frozen W9-S1 retry `33591220935` retained Engineering Run `a64d56b7-ad42-42ad-9562-891783363f4a` at REVIEW revision 6. `TARGET_DISCOVERY_UNBOUNDED` and the prior last-file Contents-delete `PROVIDER_CONFLICT` did not recur. Exact provider read-back proved the intended durable two-commit empty baseline: cleanup `b1c8d7102ca0567c20cd2fc05289eba945b01138` has the fixed cleanup message, canonical empty tree and one bootstrap parent; bootstrap `26baea2b20e9a48d1cc7410655337b1a04baaf7f` has the fixed bootstrap message, zero parents and exact `.parallax-greenfield` marker/provenance. The later bounded failure was solely `GREENFIELD_BASELINE_MISMATCH` because GitHub assigned provider timestamps instead of the requested year-2000 timestamp while preserving exact Parallax actor name/email. Source publication therefore did not complete and human REVIEW authority remained unchanged.
-
-'''
-          pattern = re.compile(
-              r'## P2-V0\.23\.37 — durable empty-tree greenfield baseline — VALIDATED / PRODUCTION PENDING\n.*?(?=## P2-V0\.23\.36)',
-              flags=re.DOTALL,
-          )
-          state, count = pattern.subn(replacement, state, count=1)
-          if count != 1:
-              raise SystemExit(f'current-state .37 section replacement count={count}')
-          state_path.write_text(state)
-          PY
-          rm .github/workflows/ws560-spec-gate.yml
+      - name: Apply bounded reconciliation
+        run: python scripts/ws560_reconcile.py
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
-      - name: Validate strict protected specification and DSPy plan
+      - name: Validate protected DSPy plan
         run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.38.md
-      - name: Run focused greenfield regressions
+      - name: Run focused regressions
         run: pytest -q services/api/tests/test_greenfield_github.py
-      - name: Compile API source
+      - name: Compile API
         run: python -m compileall -q services/api/parallax_api
       - name: Run full API regression
         run: pytest -q services/api/tests
-      - name: Commit reconciled validated release candidate
+      - name: Commit validated release candidate
         shell: bash
         run: |
           set -euo pipefail
+          rm .github/workflows/ws560-spec-gate.yml
           rm .github/workflows/ws560-reconcile.yml
+          rm scripts/ws560_reconcile.py
           git config user.name 'Parallax Release Automation'
           git config user.email 'parallax-release@users.noreply.github.com'
-          git add ARCHITECTURE.md CURRENT-STATE.md services/api/parallax_api/code/greenfield_github.py .github/workflows/ws560-spec-gate.yml .github/workflows/ws560-reconcile.yml
+          git add ARCHITECTURE.md CURRENT-STATE.md services/api/parallax_api/code/greenfield_github.py .github/workflows/ws560-spec-gate.yml .github/workflows/ws560-reconcile.yml scripts/ws560_reconcile.py
           git diff --cached --check
           git commit -m 'Reconcile P2-V0.23.38 validated release candidate'
           git push origin HEAD:ws/560-greenfield-actor-time
