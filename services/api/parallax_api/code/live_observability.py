@@ -79,6 +79,8 @@ _ALLOWED_EXECUTION_EVIDENCE = frozenset(
         "acceptance_ids_covered",
         "acceptance_ids_targeted",
         "acceptance_ids_verified",
+        "acceptance_ids_unverified",
+        "acceptance_verification_scope",
     }
 )
 

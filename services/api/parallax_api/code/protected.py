@@ -10,6 +10,7 @@ class ProtectedEvidenceError(ValueError):
 ACCEPTANCE_ID = re.compile(r"\bAC-\d+\b")
 FORBIDDEN_KEYS = {"chain_of_thought", "scratchpad", "reasoning", "secret", "environment"}
 FORBIDDEN_CLAIMS = {"merged", "deployed", "deployment-verified", "production-ready"}
+STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE = "STRUCTURAL_ONLY"
 
 
 def _safe_mapping(payload: dict[str, object]) -> None:
@@ -62,16 +63,38 @@ def validate_implementation(evidence: dict[str, object]) -> None:
         raise ProtectedEvidenceError("IMPLEMENT requires base and resulting workspace identity")
 
 
+def _validate_execution_success(evidence: dict[str, object]) -> None:
+    _safe_mapping(evidence)
+    if evidence.get("protected_success") is not True or evidence.get("exit_code") != 0 or evidence.get("timed_out"):
+        raise ProtectedEvidenceError("execution evidence does not prove protected success")
+
+
 def validate_execution(
     evidence: dict[str, object],
     required_acceptance_ids: set[str],
     *,
     acceptance_key: str,
 ) -> None:
-    _safe_mapping(evidence)
-    if evidence.get("protected_success") is not True or evidence.get("exit_code") != 0 or evidence.get("timed_out"):
-        raise ProtectedEvidenceError("execution evidence does not prove protected success")
+    _validate_execution_success(evidence)
     _exact_acceptance_ids(evidence, acceptance_key, required_acceptance_ids)
+
+
+def validate_structural_execution(
+    evidence: dict[str, object],
+    required_acceptance_ids: set[str],
+) -> None:
+    _validate_execution_success(evidence)
+    if evidence.get("acceptance_verification_scope") != STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE:
+        raise ProtectedEvidenceError("structural execution evidence has an invalid verification scope")
+    _exact_acceptance_ids(evidence, "acceptance_ids_targeted", required_acceptance_ids)
+    _exact_acceptance_ids(evidence, "acceptance_ids_unverified", required_acceptance_ids)
+    verified = evidence.get("acceptance_ids_verified")
+    if not isinstance(verified, list) or not all(isinstance(item, str) for item in verified):
+        raise ProtectedEvidenceError("acceptance_ids_verified must be a list of acceptance IDs")
+    if len(verified) != len(set(verified)):
+        raise ProtectedEvidenceError("acceptance_ids_verified contains duplicate acceptance IDs")
+    if verified:
+        raise ProtectedEvidenceError("structural execution cannot claim protected acceptance verification")
 
 
 def validate_review(evidence: dict[str, object], required_acceptance_ids: set[str], current_workspace_digest: str) -> None:

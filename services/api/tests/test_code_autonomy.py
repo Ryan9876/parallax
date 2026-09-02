@@ -9,6 +9,10 @@ from parallax_api.code.autonomy import AutonomyCoordinator, AutonomyStopReason
 from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.execution import ExecutionPolicyError, ExecutionSpec
 from parallax_api.code.implementation_runtime import ImplementationRuntimeError
+from parallax_api.code.protected import (
+    STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+    ProtectedEvidenceError,
+)
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.state_machine import RevisionConflict
@@ -336,5 +340,42 @@ def test_post_mutation_implementation_failure_stays_fail_closed_without_fabricat
         assert result.run.state == "IMPLEMENT"
         assert [item for item in result.run.attempts if item.stage == "IMPLEMENT"] == []
         assert result.steps[-1].outcome == "FAILED_AFTER_MUTATION"
+    finally:
+        session.close()
+
+
+def test_structural_scope_cannot_be_self_declared_without_static_plan_identity(tmp_path):
+    session, service, conversations, work_specs = service_for(tmp_path, "structural-forgery.db")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        plan = AutonomyCoordinator(service, FakeExecutor()).run(
+            run_id=run.id, operation_key="legacy-plan", expected_revision=run.revision
+        )
+        implemented = service.complete_stage(
+            run_id=run.id, stage=WorkflowStage.IMPLEMENT, operation_key="legacy-implement",
+            expected_revision=plan.run.revision, passed=True, evidence=implementation_evidence(),
+        )
+        build_evidence = FakeExecutor().execute(
+            ExecutionSpec(tool_id="build", stage=WorkflowStage.BUILD, operation_key="legacy-build")
+        )
+        build_evidence["acceptance_ids_targeted"] = ["AC-01", "AC-02"]
+        built = service.complete_stage(
+            run_id=run.id, stage=WorkflowStage.BUILD, operation_key="legacy-build",
+            expected_revision=implemented.run.revision, passed=True, evidence=build_evidence,
+        )
+        forged = FakeExecutor().execute(
+            ExecutionSpec(tool_id="test", stage=WorkflowStage.TEST, operation_key="forged-structural")
+        )
+        forged.update({
+            "acceptance_verification_scope": STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+            "acceptance_ids_targeted": ["AC-01", "AC-02"],
+            "acceptance_ids_verified": [],
+            "acceptance_ids_unverified": ["AC-01", "AC-02"],
+        })
+        with pytest.raises(ProtectedEvidenceError):
+            service.complete_stage(
+                run_id=run.id, stage=WorkflowStage.TEST, operation_key="forged-structural",
+                expected_revision=built.run.revision, passed=True, evidence=forged,
+            )
     finally:
         session.close()

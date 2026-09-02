@@ -4,7 +4,13 @@ import pytest
 
 from parallax_api.code.domain import WorkflowStage
 from parallax_api.code.execution import ExecutionPolicyError, ExecutionResult, ExecutionSpec, RecordedExecutor
-from parallax_api.code.protected import ProtectedEvidenceError, validate_implementation, validate_review
+from parallax_api.code.protected import (
+    STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+    ProtectedEvidenceError,
+    validate_implementation,
+    validate_review,
+    validate_structural_execution,
+)
 from parallax_api.code.workspace import LocalWorkspace, WorkspaceBoundaryError
 
 
@@ -31,3 +37,25 @@ def test_prose_only_implementation_and_stale_review_are_rejected():
         validate_implementation({"summary": "implemented"})
     with pytest.raises(ProtectedEvidenceError):
         validate_review({"recommendation": "PASS", "acceptance_ids_verified": ["AC-01"], "workspace_digest": "old"}, {"AC-01"}, "new")
+
+
+def test_structural_execution_requires_exact_unverified_partition():
+    required = {"AC-01", "AC-02"}
+    evidence = {
+        "protected_success": True,
+        "exit_code": 0,
+        "timed_out": False,
+        "acceptance_verification_scope": STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+        "acceptance_ids_targeted": ["AC-01", "AC-02"],
+        "acceptance_ids_verified": [],
+        "acceptance_ids_unverified": ["AC-01", "AC-02"],
+    }
+    validate_structural_execution(evidence, required)
+    with pytest.raises(ProtectedEvidenceError):
+        validate_structural_execution(dict(evidence, acceptance_ids_verified=["AC-01"]), required)
+    with pytest.raises(ProtectedEvidenceError):
+        validate_structural_execution(dict(evidence, acceptance_ids_unverified=["AC-01"]), required)
+    with pytest.raises(ProtectedEvidenceError):
+        validate_structural_execution(dict(evidence, acceptance_ids_targeted=["AC-01", "AC-01"]), required)
+    with pytest.raises(ProtectedEvidenceError):
+        validate_structural_execution(dict(evidence, acceptance_verification_scope="FULL"), required)

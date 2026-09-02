@@ -21,11 +21,19 @@ from .run_events import (
 )
 from .state_machine import ProtectedRunPolicy, RevisionConflict, RunTransitionError, SpecBindingError
 from .protected import (
+    STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
     validate_execution,
     validate_implementation,
     validate_plan,
     validate_review,
     validate_specification_binding,
+    validate_structural_execution,
+)
+from .validation_toolchains import (
+    ExecutionBindingReason,
+    ExecutionContractCode,
+    ExecutionContractIdentity,
+    ValidationProfileError,
 )
 from .work_spec_binding import acceptance_map, required_acceptance_ids, work_specification_digest
 
@@ -547,6 +555,69 @@ class EngineeringRunService:
                 f"stale engineering run revision: expected {expected_revision}, current {run.revision}"
             )
 
+    def acceptance_verification_scope_for_run(self, run: EngineeringRun) -> str | None:
+        implementation_index: int | None = None
+        base_source_lineage_ref: str | None = None
+        for index in range(len(run.attempts) - 1, -1, -1):
+            attempt = run.attempts[index]
+            if attempt.stage != WorkflowStage.IMPLEMENT.value or attempt.status != AttemptStatus.PASSED.value:
+                continue
+            try:
+                implementation = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError):
+                return None
+            if not isinstance(implementation, dict):
+                return None
+            project_ref = implementation.get("project_ref")
+            base_ref = implementation.get("base_source_lineage_ref")
+            source_ref = implementation.get("source_lineage_ref")
+            if project_ref is None and base_ref is None and source_ref is None:
+                return None
+            if (
+                not isinstance(project_ref, str)
+                or project_ref != run.project_id
+                or not isinstance(base_ref, str)
+                or not base_ref.startswith("src:")
+                or not isinstance(source_ref, str)
+                or not source_ref.startswith("src:")
+            ):
+                return None
+            implementation_index = index
+            base_source_lineage_ref = base_ref
+            break
+        if implementation_index is None or base_source_lineage_ref is None:
+            return None
+        for attempt in reversed(run.attempts[:implementation_index]):
+            if attempt.stage != WorkflowStage.PLAN.value or attempt.status != AttemptStatus.PASSED.value:
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError):
+                return None
+            if not isinstance(evidence, dict):
+                return None
+            expected = {
+                "project_id": run.project_id,
+                "run_id": run.id,
+                "work_specification_id": run.work_specification_id,
+                "work_specification_revision": run.work_specification_revision,
+                "work_specification_digest": run.work_specification_digest,
+                "base_source_lineage_ref": base_source_lineage_ref,
+            }
+            if any(evidence.get(key) != value for key, value in expected.items()):
+                return None
+            try:
+                contract = ExecutionContractIdentity.from_evidence(evidence).resolve()
+            except ValidationProfileError:
+                return None
+            if (
+                contract.contract_id is ExecutionContractCode.STATIC_WEB
+                and contract.binding_reason is ExecutionBindingReason.GREENFIELD_STATIC_WEB
+            ):
+                return STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE
+            return None
+        return None
+
     def complete_stage(
         self,
         *,
@@ -603,7 +674,10 @@ class EngineeringRunService:
             elif stage is WorkflowStage.BUILD:
                 validate_execution(protected, required, acceptance_key="acceptance_ids_targeted")
             elif stage in {WorkflowStage.TEST, WorkflowStage.VERIFY}:
-                validate_execution(protected, required, acceptance_key="acceptance_ids_verified")
+                if self.acceptance_verification_scope_for_run(run) == STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE:
+                    validate_structural_execution(protected, required)
+                else:
+                    validate_execution(protected, required, acceptance_key="acceptance_ids_verified")
             elif stage is WorkflowStage.REVIEW:
                 implementation_attempts = [
                     item for item in run.attempts
