@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "Production READY"
+  ],
+  "work_items": [
+    "Parallax implementation of W9-S1"
+  ],
+  "validations": [
+    "Verification of Vercel team project page filtering",
+    "AC-01: validate protected requirement — The workstream records that P2-V0.23.35 is production READY, W9-S1 reached REVIEW revision 6, and durable event sequence 15 failed specifically at Vercel `project.ensure` with `TARGET_DISCOVERY_UNBOUNDED`. It does not relabel the recoverable public-source evidence as the terminal defect or claim benchmark completion.",
+    "AC-02: validate protected requirement — A permanent test proves the first Vercel discovery request is `GET /v9/projects` scoped to the admitted `teamId`, exact authenticated numeric `repoId`, and `limit=2`. It performs no broad team project enumeration.",
+    "AC-03: validate protected requirement — A filtered response containing zero projects and no continuation cursor reaches the existing one-project creation path with the exact canonical GitHub repository link, then performs authenticated read-back and existing no-production-deployment verification before target admission.",
+    "AC-04: validate protected requirement — A filtered response containing one candidate and no continuation cursor reuses it only after existing authenticated read-back proves exact team and GitHub numeric repository identity. Wrong team, wrong repo ID, malformed link, or missing identity remains fail closed before delivery.",
+    "AC-05: validate protected requirement — A filtered response containing two exact-repository candidates fails with the existing target-ambiguity semantics and performs no project creation or source/deployment mutation. Additional provider pagination cannot convert proven ambiguity into selection.",
+    "AC-06: validate protected requirement — A filtered response containing fewer than two candidates plus a continuation cursor, malformed pagination, or malformed projects cannot prove exact bounded discovery and fails with normalized `TARGET_DISCOVERY_UNBOUNDED`/existing invalid-response semantics. No broad-list fallback occurs.",
+    "AC-07: validate protected requirement — A simulated Vercel project-creation conflict triggers a second `repoId` + `limit=2` discovery, accepts only one exact read-back-verified project, and preserves failure on zero/multiple/ambiguous reconciliation outcomes.",
+    "AC-08: validate protected requirement — Wrong-team read-back, missing team read-back, provider auth denial, deterministic project naming, exact Git identity, production-deployment absence checks, Preview-only publication, GitHub delivery, source lineage, and protected REVIEW regressions pass unchanged.",
+    "AC-09: validate protected requirement — After exact-head protected gates and expected-head merge, the merged source reaches production READY. Exact deployment identity is verified; `/health` and `/ready` are HTTP 200; build/preflight and exact-deployment warning/error/fatal scans are reviewed without an unresolved release blocker.",
+    "AC-10: validate protected requirement — The same frozen W9-S1 benchmark is continued without changing its objective/source fixture. The existing REVIEW-state run is retried where canonical state permits. `TARGET_DISCOVERY_UNBOUNDED` must not recur merely because the Vercel team has unrelated historical projects. If another independent provider/delivery blocker appears, record that exact later blocker separately rather than broadening this workstream.",
+    "AC-11: validate protected requirement — `Ryan9876/parallax-qa1` remains unmodified until the existing verified REVIEW source-delivery path has authority to create branch/commit/PR/Preview state. Public source failure alone never authorizes empty status, and Parallax does not autonomously complete human REVIEW, merge, or production promotion."
+  ],
+  "risks": [
+    "Risk of unfiltered project discovery and potential impact on account readiness"
+  ],
+  "spec_id": "P2-V0.23.36",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Verified production evidence is represented accurately",
+      "protected_requirement": "The workstream records that P2-V0.23.35 is production READY, W9-S1 reached REVIEW revision 6, and durable event sequence 15 failed specifically at Vercel `project.ensure` with `TARGET_DISCOVERY_UNBOUNDED`. It does not relabel the recoverable public-source evidence as the terminal defect or claim benchmark completion."
+    },
+    {
+      "id": "AC-02",
+      "title": "Discovery requests exact repository filter and strict bound",
+      "protected_requirement": "A permanent test proves the first Vercel discovery request is `GET /v9/projects` scoped to the admitted `teamId`, exact authenticated numeric `repoId`, and `limit=2`. It performs no broad team project enumeration."
+    },
+    {
+      "id": "AC-03",
+      "title": "Zero candidates preserve bounded provisioning",
+      "protected_requirement": "A filtered response containing zero projects and no continuation cursor reaches the existing one-project creation path with the exact canonical GitHub repository link, then performs authenticated read-back and existing no-production-deployment verification before target admission."
+    },
+    {
+      "id": "AC-04",
+      "title": "One candidate preserves exact reuse verification",
+      "protected_requirement": "A filtered response containing one candidate and no continuation cursor reuses it only after existing authenticated read-back proves exact team and GitHub numeric repository identity. Wrong team, wrong repo ID, malformed link, or missing identity remains fail closed before delivery."
+    },
+    {
+      "id": "AC-05",
+      "title": "Two candidates fail closed as ambiguity",
+      "protected_requirement": "A filtered response containing two exact-repository candidates fails with the existing target-ambiguity semantics and performs no project creation or source/deployment mutation. Additional provider pagination cannot convert proven ambiguity into selection."
+    },
+    {
+      "id": "AC-06",
+      "title": "Incomplete filtered discovery remains fail closed",
+      "protected_requirement": "A filtered response containing fewer than two candidates plus a continuation cursor, malformed pagination, or malformed projects cannot prove exact bounded discovery and fails with normalized `TARGET_DISCOVERY_UNBOUNDED`/existing invalid-response semantics. No broad-list fallback occurs."
+    },
+    {
+      "id": "AC-07",
+      "title": "Conflict reconciliation uses the same exact filter",
+      "protected_requirement": "A simulated Vercel project-creation conflict triggers a second `repoId` + `limit=2` discovery, accepts only one exact read-back-verified project, and preserves failure on zero/multiple/ambiguous reconciliation outcomes."
+    },
+    {
+      "id": "AC-08",
+      "title": "Existing provider and authority regressions remain green",
+      "protected_requirement": "Wrong-team read-back, missing team read-back, provider auth denial, deterministic project naming, exact Git identity, production-deployment absence checks, Preview-only publication, GitHub delivery, source lineage, and protected REVIEW regressions pass unchanged."
+    },
+    {
+      "id": "AC-09",
+      "title": "Exact production deployment is healthy",
+      "protected_requirement": "After exact-head protected gates and expected-head merge, the merged source reaches production READY. Exact deployment identity is verified; `/health` and `/ready` are HTTP 200; build/preflight and exact-deployment warning/error/fatal scans are reviewed without an unresolved release blocker."
+    },
+    {
+      "id": "AC-10",
+      "title": "Frozen W9-S1 advances beyond the current blocker",
+      "protected_requirement": "The same frozen W9-S1 benchmark is continued without changing its objective/source fixture. The existing REVIEW-state run is retried where canonical state permits. `TARGET_DISCOVERY_UNBOUNDED` must not recur merely because the Vercel team has unrelated historical projects. If another independent provider/delivery blocker appears, record that exact later blocker separately rather than broadening this workstream."
+    },
+    {
+      "id": "AC-11",
+      "title": "Greenfield and human-control boundaries remain unchanged",
+      "protected_requirement": "`Ryan9876/parallax-qa1` remains unmodified until the existing verified REVIEW source-delivery path has authority to create branch/commit/PR/Preview state. Public source failure alone never authorizes empty status, and Parallax does not autonomously complete human REVIEW, merge, or production promotion."
+    }
+  ],
+  "critique": [
+    "The implementation of the Compact Parallax specification does not accurately remove the verified W9-S1 Preview-target readiness blocker without broadening provider authority."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
