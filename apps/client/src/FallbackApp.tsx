@@ -199,6 +199,7 @@ export default function FallbackApp() {
               onPause={() => void engineering.pause()}
               onResume={() => void engineering.resume()}
               onCancel={() => void engineering.cancel()}
+              onRequestChanges={(acceptanceIds, finding) => void engineering.requestReviewRework(acceptanceIds, finding)}
             />
           )}
 

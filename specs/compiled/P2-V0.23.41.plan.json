@@ -1,0 +1,128 @@
+{
+  "architecture_decisions": [
+    "Revised Review rework mechanism ensures bounded correction control within an already-approved Work Specification.",
+    "Removed existing Run Transition and Worker Reset to prevent replaying the same operation."
+  ],
+  "work_items": [
+    "Revised Review rework mechanism ensures bounded correction control within an already-approved Work Specification.",
+    "Removed existing Run Transition and Worker Reset to prevent replaying the same operation."
+  ],
+  "validations": [
+    "Revised Review rework mechanism ensures bounded correction control within an already-approved Work Specification.",
+    "Removed existing Run Transition and Worker Reset to prevent replaying the same operation.",
+    "AC-01: validate protected requirement \u2014 An authenticated request with the exact current revision can transition a Project-bound run from REVIEW to PLAN. The same request is rejected from every other state and ordinary `resume()` behavior is unchanged.",
+    "AC-02: validate protected requirement \u2014 The request rejects empty/over-limit finding text, unknown acceptance IDs, malformed nested data, duplicate affected IDs, an empty/over-limit affected-ID set and any acceptance reference outside the immutable run acceptance map.",
+    "AC-03: validate protected requirement \u2014 The transition requires the latest successful IMPLEMENT evidence and records its exact accepted source-lineage/workspace identity. The new PLAN resolves that same lineage as its base; no cross-run/default-branch source substitution is admitted.",
+    "AC-04: validate protected requirement \u2014 Equivalent canonical findings produce the same bounded SHA-256 rework-context digest; changed finding text or affected acceptance IDs changes the digest. The latest PLAN persists and independently verifies the exact current digest.",
+    "AC-05: validate protected requirement \u2014 The rework IMPLEMENT request includes bounded server-owned correction guidance plus the unchanged approved contract and protected source context. Findings do not bypass typed generation, proposal safety, disposable validation, independent evaluation, SafeImplementationEngine or lineage acceptance.",
+    "AC-06: validate protected requirement \u2014 A prior `READY_FOR_INTEGRATION` worker/candidate artifact is reset through the explicit rework preparation path. The old plan/candidate checkpoint cannot satisfy `selected_candidate_artifact()` for replacement IMPLEMENT.",
+    "AC-07: validate protected requirement \u2014 The reset requires an unleased exact-run worker and exact reviewed accepted lineage, uses the existing RECOVERING/REASSIGNED lifecycle, is idempotent for an already-prepared matching rework, and rejects active leases, unrelated terminal states or lineage drift.",
+    "AC-08: validate protected requirement \u2014 If the run transition commits before worker preparation, repeating the same operation does not create another transition and successfully completes only the pending worker preparation when safe.",
+    "AC-09: validate protected requirement \u2014 After rework, PLAN/IMPLEMENT/BUILD/TEST/VERIFY use the new cycle's latest successful PLAN and accepted implementation lineage. Earlier passing attempts cannot authorize stale execution or REVIEW completion.",
+    "AC-10: validate protected requirement \u2014 Reworked static-web TEST/VERIFY still use P2-V0.23.40 `STRUCTURAL_ONLY` evidence with empty verified acceptance IDs and return to REVIEW rather than COMPLETE.",
+    "AC-11: validate protected requirement \u2014 The endpoint cannot amend the Work Specification or add acceptance criteria. Material objective changes continue to require the existing `SPEC_AMENDMENT`/draft/approval path.",
+    "AC-12: validate protected requirement \u2014 At REVIEW on desktop/web and the compact mobile flow, an authenticated user can select one or more existing acceptance criteria, enter bounded correction text, and explicitly request changes. Successful submission displays the new run state and hands the returned PLAN revision into the existing bounded autonomous continuation path. Empty input, no selection, server rejection and retryable failure remain recoverable and accessible; no hidden API-only operator step is required for the normal correction workflow.",
+    "AC-13: validate protected requirement \u2014 Diff and protected tests prove no new model/provider/credential/network/command/execution-profile/Git/Preview/merge/production/automatic-REVIEW authority and no cross-run source-lineage authority.",
+    "AC-14: validate protected requirement \u2014 Spec validation, authentic DSPy SpecCritic/SpecCompiler, strict compiled-plan validation, focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads.",
+    "AC-15: validate protected requirement \u2014 Exact merged API source reaches production READY; normal production preflights, `/health`, `/ready` and exact-deployment runtime scans pass.",
+    "AC-16: validate protected requirement \u2014 After deployment, the frozen Decision Ledger run accepts bounded REVIEW findings for the observed import-safety and automated-test defects, regenerates from its existing accepted candidate lineage through the protected path, reruns normal validation, and returns to human REVIEW. Any subsequent independent application defect is recorded separately rather than hidden."
+  ],
+  "risks": [
+    "Revised Review rework mechanism ensures bounded correction control within an already-approved Work Specification.",
+    "Removed existing Run Transition and Worker Reset to prevent replaying the same operation."
+  ],
+  "spec_id": "P2-V0.23.41",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact REVIEW-only transition",
+      "protected_requirement": "An authenticated request with the exact current revision can transition a Project-bound run from REVIEW to PLAN. The same request is rejected from every other state and ordinary `resume()` behavior is unchanged."
+    },
+    {
+      "id": "AC-02",
+      "title": "Finding context is bounded and acceptance-linked",
+      "protected_requirement": "The request rejects empty/over-limit finding text, unknown acceptance IDs, malformed nested data, duplicate affected IDs, an empty/over-limit affected-ID set and any acceptance reference outside the immutable run acceptance map."
+    },
+    {
+      "id": "AC-03",
+      "title": "Same-run source continuity is exact",
+      "protected_requirement": "The transition requires the latest successful IMPLEMENT evidence and records its exact accepted source-lineage/workspace identity. The new PLAN resolves that same lineage as its base; no cross-run/default-branch source substitution is admitted."
+    },
+    {
+      "id": "AC-04",
+      "title": "Rework context has deterministic identity",
+      "protected_requirement": "Equivalent canonical findings produce the same bounded SHA-256 rework-context digest; changed finding text or affected acceptance IDs changes the digest. The latest PLAN persists and independently verifies the exact current digest."
+    },
+    {
+      "id": "AC-05",
+      "title": "Findings reach implementation generation safely",
+      "protected_requirement": "The rework IMPLEMENT request includes bounded server-owned correction guidance plus the unchanged approved contract and protected source context. Findings do not bypass typed generation, proposal safety, disposable validation, independent evaluation, SafeImplementationEngine or lineage acceptance."
+    },
+    {
+      "id": "AC-06",
+      "title": "Old selected candidate cannot replay",
+      "protected_requirement": "A prior `READY_FOR_INTEGRATION` worker/candidate artifact is reset through the explicit rework preparation path. The old plan/candidate checkpoint cannot satisfy `selected_candidate_artifact()` for replacement IMPLEMENT."
+    },
+    {
+      "id": "AC-07",
+      "title": "Worker re-arm is narrow and idempotent",
+      "protected_requirement": "The reset requires an unleased exact-run worker and exact reviewed accepted lineage, uses the existing RECOVERING/REASSIGNED lifecycle, is idempotent for an already-prepared matching rework, and rejects active leases, unrelated terminal states or lineage drift."
+    },
+    {
+      "id": "AC-08",
+      "title": "Interrupted rework request is replay-safe",
+      "protected_requirement": "If the run transition commits before worker preparation, repeating the same operation does not create another transition and successfully completes only the pending worker preparation when safe."
+    },
+    {
+      "id": "AC-09",
+      "title": "Fresh correction cycle uses latest evidence",
+      "protected_requirement": "After rework, PLAN/IMPLEMENT/BUILD/TEST/VERIFY use the new cycle's latest successful PLAN and accepted implementation lineage. Earlier passing attempts cannot authorize stale execution or REVIEW completion."
+    },
+    {
+      "id": "AC-10",
+      "title": "Static-web evidence truthfulness remains unchanged",
+      "protected_requirement": "Reworked static-web TEST/VERIFY still use P2-V0.23.40 `STRUCTURAL_ONLY` evidence with empty verified acceptance IDs and return to REVIEW rather than COMPLETE."
+    },
+    {
+      "id": "AC-11",
+      "title": "No material-scope bypass",
+      "protected_requirement": "The endpoint cannot amend the Work Specification or add acceptance criteria. Material objective changes continue to require the existing `SPEC_AMENDMENT`/draft/approval path."
+    },
+    {
+      "id": "AC-12",
+      "title": "Ordinary client workflow exposes REVIEW rework",
+      "protected_requirement": "At REVIEW on desktop/web and the compact mobile flow, an authenticated user can select one or more existing acceptance criteria, enter bounded correction text, and explicitly request changes. Successful submission displays the new run state and hands the returned PLAN revision into the existing bounded autonomous continuation path. Empty input, no selection, server rejection and retryable failure remain recoverable and accessible; no hidden API-only operator step is required for the normal correction workflow."
+    },
+    {
+      "id": "AC-13",
+      "title": "No authority expansion",
+      "protected_requirement": "Diff and protected tests prove no new model/provider/credential/network/command/execution-profile/Git/Preview/merge/production/automatic-REVIEW authority and no cross-run source-lineage authority."
+    },
+    {
+      "id": "AC-14",
+      "title": "Protected release gates pass",
+      "protected_requirement": "Spec validation, authentic DSPy SpecCritic/SpecCompiler, strict compiled-plan validation, focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
+    },
+    {
+      "id": "AC-15",
+      "title": "Production runtime remains healthy",
+      "protected_requirement": "Exact merged API source reaches production READY; normal production preflights, `/health`, `/ready` and exact-deployment runtime scans pass."
+    },
+    {
+      "id": "AC-16",
+      "title": "W9-S1 real correction is proven",
+      "protected_requirement": "After deployment, the frozen Decision Ledger run accepts bounded REVIEW findings for the observed import-safety and automated-test defects, regenerates from its existing accepted candidate lineage through the protected path, reruns normal validation, and returns to human REVIEW. Any subsequent independent application defect is recorded separately rather than hidden."
+    }
+  ],
+  "critique": [
+    "RECOVERING -> REASSIGNED",
+    "RECOVERING -> REWORKING",
+    "RECOVERING -> REASIGNED"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/llama3.2:1b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": false
+  }
+}

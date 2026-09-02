@@ -1173,6 +1173,15 @@ class AgenticControlPlane:
             "routing_policy_digest": self.routing_policy.digest,
             "competition_policy_digest": self.competition_policy.digest,
         }
+        rework_context = self.service.review_rework_context_for_run(run)
+        if rework_context is not None:
+            expected["review_rework_context_digest"] = rework_context.digest
+            expected["review_rework_acceptance_ids"] = list(rework_context.acceptance_ids)
+        elif "review_rework_context_digest" in evidence or "review_rework_acceptance_ids" in evidence:
+            raise ValidationProfileError(
+                ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                "persisted agentic PLAN asserted REVIEW rework context without durable human control",
+            )
         for key, value in expected.items():
             if evidence.get(key) != value:
                 raise ValidationProfileError(

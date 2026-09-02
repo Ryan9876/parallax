@@ -267,6 +267,72 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     }
   }, [applyAutonomyResult, busy, clearFailure, recordFailure, run]);
 
+
+  const requestReviewRework = React.useCallback(async (acceptanceIds: string[], finding: string) => {
+    if (!run || busy || run.state !== 'REVIEW') return;
+    const reviewed = run;
+    const operationKey = `review-rework-${reviewed.id}-${reviewed.revision}-${Date.now()}`;
+    const normalizedIds = [...acceptanceIds].sort();
+    const normalizedFinding = finding.trim();
+    if (!normalizedIds.length || !normalizedFinding) return;
+
+    setBusy(true);
+    clearFailure();
+    try {
+      let result: { run: EngineeringRunDto };
+      try {
+        result = await api.reviewReworkEngineeringRun(
+          reviewed,
+          operationKey,
+          normalizedIds,
+          normalizedFinding,
+        );
+      } catch (firstError) {
+        // REVIEW rework spans the durable run transition and the worker reset.
+        // If the first request advanced the exact run to PLAN before returning
+        // an error, replay the same operation key once so only the pending
+        // worker preparation can complete. Never invent a new correction op.
+        const latest = conversationId ? await api.latestEngineeringRun(conversationId).catch(() => null) : null;
+        if (
+          !latest
+          || latest.id !== reviewed.id
+          || latest.revision <= reviewed.revision
+          || latest.state !== 'PLAN'
+        ) {
+          throw firstError;
+        }
+        setRun(latest);
+        result = await api.reviewReworkEngineeringRun(
+          reviewed,
+          operationKey,
+          normalizedIds,
+          normalizedFinding,
+        );
+      }
+
+      const reworked = result.run;
+      setRun(reworked);
+      clearFailure();
+      if (!canContinueEngineeringRunAutonomously(reworked)) return;
+      try {
+        await applyAutonomyResult(reworked, automaticAutonomyOperationKey(reworked));
+      } catch (caught) {
+        recordFailure(
+          caught instanceof Error ? caught.message : 'Autonomous Code run failed after REVIEW rework.',
+          reworked.id,
+          caught instanceof EngineeringAutonomyError ? caught.code : null,
+        );
+      }
+    } catch (caught) {
+      recordFailure(
+        caught instanceof Error ? caught.message : 'REVIEW changes could not be requested.',
+        reviewed.id,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [applyAutonomyResult, busy, clearFailure, conversationId, recordFailure, run]);
+
   const continueRun = React.useCallback(async () => {
     if (!run) return;
     if (canContinueEngineeringRunAutonomously(run)) {
@@ -296,6 +362,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     // and then immediately continue the newly resumed revision autonomously.
     resume: continueRun,
     cancel: () => mutate('cancel'),
+    requestReviewRework,
     runAutonomously,
   };
 }

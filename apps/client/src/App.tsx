@@ -639,11 +639,12 @@ export default function App() {
                   specification={mobileSpecification}
                   run={mode === 'code' ? mobileRun : null}
                   canDraft={mobileCanDraftWorkSpecification && mode === 'code'}
-                  busy={workSpecification.busy}
-                  error={workSpecification.error}
+                  busy={workSpecification.busy || engineering.busy}
+                  error={workSpecification.error || engineering.error}
                   onCaptureSpecification={() => void workSpecification.draft()}
                   onReviewSpecification={() => mobileSpecification && setMobileDetail('specification')}
                   onOpenDetails={() => mobileRun && setMobileDetail('live-build')}
+                  onRequestChanges={(acceptanceIds, finding) => void engineering.requestReviewRework(acceptanceIds, finding)}
                 />
               ) : null}
 
@@ -745,6 +746,7 @@ export default function App() {
                       onPause={() => void engineering.pause()}
                       onResume={() => void engineering.resume()}
                       onCancel={() => void engineering.cancel()}
+                      onRequestChanges={(acceptanceIds, finding) => void engineering.requestReviewRework(acceptanceIds, finding)}
                     />
                   ) : null}
                 </View>

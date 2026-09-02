@@ -315,13 +315,23 @@ class ProtectedImplementationRuntime:
         except SourceContextError as exc:
             raise ImplementationContractError("protected source context could not be established") from exc
 
+        generation_constraints = tuple(str(item) for item in contract["constraints"])
+        rework_context = self.service.review_rework_context_for_run(run)
+        if rework_context is not None:
+            correction = (
+                "Server-owned REVIEW correction context. Keep the approved Work Specification unchanged. "
+                f"Affected acceptance IDs: {', '.join(rework_context.acceptance_ids)}. "
+                f"Human finding: {rework_context.finding}"
+            )
+            generation_constraints = (*generation_constraints, correction)
+
         request = ImplementationGenerationRequest(
             work_specification_id=specification.id,
             work_specification_revision=specification.revision,
             work_specification_digest=run.work_specification_digest or "",
             title=str(contract["title"]),
             objective=str(contract["objective"]),
-            constraints=tuple(str(item) for item in contract["constraints"]),
+            constraints=generation_constraints,
             acceptance=tuple(
                 AcceptanceRequirement(id=item["id"], text=item["text"])
                 for item in acceptance

@@ -72,6 +72,11 @@ class ProtectedRunPolicy:
             return WorkflowStage.PLAN
         return resume_stage
 
+    def validate_review_rework(self, state: WorkflowStage) -> WorkflowStage:
+        if state is not WorkflowStage.REVIEW:
+            raise RunTransitionError("REVIEW rework requires the exact human REVIEW boundary")
+        return WorkflowStage.PLAN
+
     def validate_control(self, state: WorkflowStage) -> None:
         if state in {WorkflowStage.COMPLETE, WorkflowStage.CANCELLED, WorkflowStage.SPEC_AMENDMENT}:
             raise RunTransitionError(f"run in terminal state {state.value} cannot be mutated")

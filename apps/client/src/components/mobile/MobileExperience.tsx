@@ -8,6 +8,7 @@ import {
 } from '../../lib/engineeringRunEvents';
 import { palette } from '../../theme';
 import { ParallaxLogo } from '../ParallaxLogo';
+import { ReviewReworkPanel } from '../ReviewReworkPanel';
 import { useProjectCompatibility } from '../ProjectCompatibilityGate';
 
 export type MobileDestination = 'chat' | 'build' | 'project';
@@ -433,9 +434,10 @@ type BuildWorkspaceProps = {
   onCaptureSpecification(): void;
   onReviewSpecification(): void;
   onOpenDetails(): void;
+  onRequestChanges(acceptanceIds: string[], finding: string): void;
 };
 
-export function MobileBuildWorkspace({ specification, run, canDraft, busy, error, onCaptureSpecification, onReviewSpecification, onOpenDetails }: BuildWorkspaceProps) {
+export function MobileBuildWorkspace({ specification, run, canDraft, busy, error, onCaptureSpecification, onReviewSpecification, onOpenDetails, onRequestChanges }: BuildWorkspaceProps) {
   const runFailure = useEngineeringRunFailure(run?.conversation_id);
   const effectiveError = runFailure?.message ?? error;
   const currentIndex = currentJourneyIndex(specification, run);
@@ -508,6 +510,10 @@ export function MobileBuildWorkspace({ specification, run, canDraft, busy, error
           </TouchableOpacity>
         ) : null}
       </View>
+
+      {run?.state === 'REVIEW' ? (
+        <ReviewReworkPanel run={run} busy={busy} onRequestChanges={onRequestChanges} />
+      ) : null}
 
       <View style={styles.lifecycleCard}>
         <Text style={styles.detailLabel}>THE JOURNEY</Text>
