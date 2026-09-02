@@ -1,0 +1,84 @@
+name: WS568 Amend Product Scope
+
+on:
+  push:
+    branches:
+      - ws/568-review-rework
+    paths:
+      - .github/workflows/ws568-amend-product-scope.yml
+
+permissions:
+  contents: write
+
+jobs:
+  amend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/568-review-rework
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Add ordinary user REVIEW-rework workflow to the spec
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('specs/P2-V0.23.41.md')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one spec anchor, found {text.count(old)}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '- `services/api/parallax_api/schemas.py`\n  - add a bounded REVIEW-rework request contract with `operation_key`, `expected_revision`, and one or more findings;\n  - each finding binds exactly one existing acceptance ID to normalized bounded plain text;\n  - forbid unknown fields and reject empty, duplicate or malformed findings.\n',
+              '- `services/api/parallax_api/schemas.py`\n  - add a bounded REVIEW-rework request contract with `operation_key`, `expected_revision`, one normalized bounded plain-text finding, and a non-empty set of affected acceptance IDs;\n  - forbid unknown fields and reject empty/malformed text, duplicate acceptance IDs or an over-limit affected-ID set.\n'
+          )
+
+          replace_once(
+              '- `services/api/parallax_api/code/implementation_runtime.py`\n  - append the bounded current REVIEW findings as server-owned correction context to the implementation-generation request for the rework cycle;\n  - findings remain non-authoritative instructions constrained by the immutable Work Specification, exact acceptance map, current protected source context, SafeImplementationEngine and candidate validation.\n- focused API/state/worker/agentic/implementation tests proving transition, idempotency, source continuity, stale-candidate invalidation, bounded finding validation, plan binding and unchanged authority ceilings.\n',
+              '- `services/api/parallax_api/code/implementation_runtime.py`\n  - append the bounded current REVIEW finding as server-owned correction context to the implementation-generation request for the rework cycle;\n  - the finding remains non-authoritative instruction constrained by the immutable Work Specification, exact acceptance map, current protected source context, SafeImplementationEngine and candidate validation.\n- `apps/client/src/lib/api.ts`, `apps/client/src/hooks/useEngineeringRun.ts`, `apps/client/src/components/EngineeringRunStatus.tsx`, `apps/client/src/components/mobile/MobileExperience.tsx`, and narrow App/Fallback wiring as needed\n  - expose REVIEW rework through the ordinary authenticated client;\n  - at REVIEW, let the user select one or more of the run\'s existing acceptance criteria, enter what needs to change, and explicitly submit `Request changes`;\n  - after the server returns the new PLAN revision, immediately reuse the existing bounded autonomous continuation path;\n  - preserve usable keyboard/touch targets, accessible labels, mobile/desktop behavior and plain-language status/error handling.\n- focused API/state/worker/agentic/implementation and client tests proving transition, idempotency, source continuity, stale-candidate invalidation, bounded finding validation, plan binding, user-visible correction flow and unchanged authority ceilings.\n'
+          )
+
+          replace_once(
+              'Each request contains one or more findings with:\n\n- one acceptance ID;\n- one trimmed non-empty plain-text finding;\n- bounded count and bounded per-finding length.\n\nEvery acceptance ID must belong to the run\'s immutable protected acceptance map. Duplicate acceptance-ID/finding pairs, unknown IDs, empty text, hidden-reasoning fields or arbitrary nested payloads are rejected before mutation.\n\nThe server canonicalizes the ordered finding envelope and computes a deterministic SHA-256 rework-context digest. The observable context may contain only acceptance IDs and bounded finding text.',
+              'Each request contains exactly one trimmed non-empty bounded plain-text finding plus one or more affected acceptance IDs. The affected IDs are canonicalized as a unique deterministic set.\n\nEvery affected acceptance ID must belong to the run\'s immutable protected acceptance map. Duplicate IDs, unknown IDs, empty text, hidden-reasoning fields or arbitrary nested payloads are rejected before mutation.\n\nThe server canonicalizes the affected-ID set plus finding text and computes a deterministic SHA-256 rework-context digest. The observable context may contain only acceptance IDs and bounded finding text.'
+          )
+
+          replace_once(
+              '### AC-02 Findings are bounded and acceptance-linked\nThe request rejects empty findings, unknown acceptance IDs, malformed nested data, duplicate exact findings, over-limit counts/text and any acceptance reference outside the immutable run acceptance map.\n',
+              '### AC-02 Finding context is bounded and acceptance-linked\nThe request rejects empty/over-limit finding text, unknown acceptance IDs, malformed nested data, duplicate affected IDs, an empty/over-limit affected-ID set and any acceptance reference outside the immutable run acceptance map.\n'
+          )
+
+          replace_once(
+              '### AC-11 No material-scope bypass\nThe endpoint cannot amend the Work Specification or add acceptance criteria. Material objective changes continue to require the existing `SPEC_AMENDMENT`/draft/approval path.\n\n### AC-12 No authority expansion\n',
+              '### AC-11 No material-scope bypass\nThe endpoint cannot amend the Work Specification or add acceptance criteria. Material objective changes continue to require the existing `SPEC_AMENDMENT`/draft/approval path.\n\n### AC-12 Ordinary client workflow exposes REVIEW rework\nAt REVIEW on desktop/web and the compact mobile flow, an authenticated user can select one or more existing acceptance criteria, enter bounded correction text, and explicitly request changes. Successful submission displays the new run state and hands the returned PLAN revision into the existing bounded autonomous continuation path. Empty input, no selection, server rejection and retryable failure remain recoverable and accessible; no hidden API-only operator step is required for the normal correction workflow.\n\n### AC-13 No authority expansion\n'
+          )
+          replace_once('### AC-13 Protected release gates pass\n', '### AC-14 Protected release gates pass\n')
+          replace_once('### AC-14 Production runtime remains healthy\n', '### AC-15 Production runtime remains healthy\n')
+          replace_once('### AC-15 W9-S1 real correction is proven\n', '### AC-16 W9-S1 real correction is proven\n')
+
+          replace_once(
+              '- focused state/service/route/worker/agentic/implementation tests pass;\n- full applicable API and protected release gates pass;\n',
+              '- focused state/service/route/worker/agentic/implementation and REVIEW-rework client tests pass;\n- client typecheck/export and applicable mobile/desktop interaction smoke pass;\n- full applicable API/client and protected release gates pass;\n'
+          )
+
+          replace_once(
+              'A fifth risk is non-atomic run/worker persistence creating a stranded rework. The mitigation is idempotent run transition plus independently retryable exact worker preparation under the same operation identity.\n',
+              'A fifth risk is non-atomic run/worker persistence creating a stranded rework. The mitigation is idempotent run transition plus independently retryable exact worker preparation under the same operation identity.\n\nA sixth risk is implementing a technically valid API that ordinary users cannot reach. The mitigation is explicit desktop/web and compact-mobile REVIEW UI using only the run\'s existing acceptance map and the same authenticated API/control path used by the benchmark.\n'
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit amended authoritative spec and remove this one-shot harness
+        run: |
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add specs/P2-V0.23.41.md
+          git rm .github/workflows/ws568-amend-product-scope.yml
+          git commit -m 'Add user-visible P2-V0.23.41 review rework scope'
+          git push origin HEAD:ws/568-review-rework
