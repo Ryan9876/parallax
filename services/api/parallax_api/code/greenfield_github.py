@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import sha256
 from typing import Any
 from urllib.parse import quote
@@ -137,7 +138,17 @@ class GreenfieldGitHubClient:
     def _verify_actor(payload: dict[str, Any]) -> None:
         for field in ("author", "committer"):
             actor = _dict(payload.get(field))
-            if any(actor.get(key) != value for key, value in _ACTOR.items()):
+            if actor.get("name") != _ACTOR["name"] or actor.get("email") != _ACTOR["email"]:
+                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+
+            raw_date = actor.get("date")
+            if not isinstance(raw_date, str) or not raw_date.strip():
+                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
+            try:
+                timestamp = datetime.fromisoformat(raw_date.strip().replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH") from exc
+            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
                 raise ProviderClientError("GREENFIELD_BASELINE_MISMATCH")
 
     def _commit(self, repository_ref: str, revision: str) -> dict[str, Any]:
