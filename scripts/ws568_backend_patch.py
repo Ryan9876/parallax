@@ -1,0 +1,846 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected one anchor, found {count}: {old[:100]!r}")
+    p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+# Request contract.
+replace_once(
+    "services/api/parallax_api/schemas.py",
+    """class EngineeringOperation(BaseModel):
+    operation_key: str = Field(min_length=1, max_length=160)
+    expected_revision: int = Field(ge=0)
+
+
+class EngineeringAdvance(EngineeringOperation):
+""",
+    """class EngineeringOperation(BaseModel):
+    operation_key: str = Field(min_length=1, max_length=160)
+    expected_revision: int = Field(ge=0)
+
+
+class EngineeringReviewRework(EngineeringOperation):
+    model_config = ConfigDict(extra=\"forbid\")
+    acceptance_ids: list[str] = Field(min_length=1, max_length=32)
+    finding: str = Field(min_length=1, max_length=1200)
+
+
+class EngineeringAdvance(EngineeringOperation):
+""",
+)
+
+# Protected state transition stays separate from ordinary resume.
+replace_once(
+    "services/api/parallax_api/code/state_machine.py",
+    """        return resume_stage
+
+    def validate_control(self, state: WorkflowStage) -> None:
+""",
+    """        return resume_stage
+
+    def validate_review_rework(self, state: WorkflowStage) -> WorkflowStage:
+        if state is not WorkflowStage.REVIEW:
+            raise RunTransitionError(\"REVIEW rework requires the exact human REVIEW boundary\")
+        return WorkflowStage.PLAN
+
+    def validate_control(self, state: WorkflowStage) -> None:
+""",
+)
+
+# Service-owned bounded context and transition.
+replace_once(
+    "services/api/parallax_api/code/service.py",
+    """from .protected import (
+    STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+""",
+    """from .protected import (
+    ProtectedEvidenceError,
+    STRUCTURAL_ACCEPTANCE_VERIFICATION_SCOPE,
+""",
+)
+replace_once(
+    "services/api/parallax_api/code/service.py",
+    """class RunOperationResult:
+    run: EngineeringRun
+    attempt_id: str
+    replayed: bool
+
+
+class EngineeringRunService:
+""",
+    """class RunOperationResult:
+    run: EngineeringRun
+    attempt_id: str
+    replayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewReworkContext:
+    digest: str
+    acceptance_ids: tuple[str, ...]
+    finding: str
+    base_source_lineage_ref: str
+    workspace_digest: str
+
+
+class EngineeringRunService:
+""",
+)
+
+service_methods = '''
+    @staticmethod
+    def _normalize_review_rework_finding(value: str) -> str:
+        if not isinstance(value, str):
+            raise RunTransitionError("REVIEW rework finding must be text")
+        normalized = value.replace("\\r\\n", "\\n").replace("\\r", "\\n").strip()
+        if not normalized or len(normalized) > 1200:
+            raise RunTransitionError("REVIEW rework finding must contain 1 to 1200 characters")
+        if any(ord(ch) < 32 and ch not in {"\\n", "\\t"} for ch in normalized):
+            raise RunTransitionError("REVIEW rework finding contains unsupported control characters")
+        return normalized
+
+    @staticmethod
+    def _review_rework_digest(acceptance_ids: tuple[str, ...], finding: str) -> str:
+        payload = {
+            "version": "review-rework-v1",
+            "acceptance_ids": list(acceptance_ids),
+            "finding": finding,
+        }
+        return sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
+
+    @staticmethod
+    def _valid_lineage_ref(value: object) -> bool:
+        return (
+            isinstance(value, str)
+            and value.startswith("src:")
+            and len(value) == 68
+            and all(ch in "0123456789abcdef" for ch in value[4:])
+        )
+
+    @staticmethod
+    def _valid_digest(value: object) -> bool:
+        return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+    def _latest_reviewed_implementation(self, run: EngineeringRun) -> tuple[str, str]:
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.IMPLEMENT.value or attempt.status != AttemptStatus.PASSED.value:
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence is malformed") from exc
+            if not isinstance(evidence, dict):
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence is malformed")
+            if evidence.get("project_ref") != run.project_id or evidence.get("run_id") != run.id:
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence drifted from Project/run identity")
+            lineage = evidence.get("source_lineage_ref")
+            workspace_digest = evidence.get("workspace_digest")
+            if not self._valid_lineage_ref(lineage) or not self._valid_digest(workspace_digest):
+                raise RunTransitionError("latest reviewed IMPLEMENT evidence lacks accepted source identity")
+            return str(lineage), str(workspace_digest)
+        raise RunTransitionError("REVIEW rework requires durable accepted IMPLEMENT evidence")
+
+    def _context_from_rework_attempt(self, attempt) -> ReviewReworkContext:
+        try:
+            evidence = json.loads(attempt.evidence_json or "{}")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RunTransitionError("durable REVIEW rework evidence is malformed") from exc
+        if not isinstance(evidence, dict) or evidence.get("review_rework_version") != "review-rework-v1":
+            raise RunTransitionError("durable REVIEW rework evidence is malformed")
+        raw_ids = evidence.get("acceptance_ids_rework")
+        finding = evidence.get("finding")
+        if not isinstance(raw_ids, list) or not raw_ids or not all(isinstance(item, str) for item in raw_ids):
+            raise RunTransitionError("durable REVIEW rework acceptance identity is malformed")
+        ids = tuple(raw_ids)
+        if ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
+            raise RunTransitionError("durable REVIEW rework acceptance identity is not canonical")
+        normalized = self._normalize_review_rework_finding(finding)
+        digest = evidence.get("review_rework_context_digest")
+        if digest != self._review_rework_digest(ids, normalized):
+            raise RunTransitionError("durable REVIEW rework context digest mismatch")
+        lineage = evidence.get("base_source_lineage_ref")
+        workspace_digest = evidence.get("workspace_digest")
+        if not self._valid_lineage_ref(lineage) or not self._valid_digest(workspace_digest):
+            raise RunTransitionError("durable REVIEW rework source identity is malformed")
+        return ReviewReworkContext(
+            digest=str(digest),
+            acceptance_ids=ids,
+            finding=normalized,
+            base_source_lineage_ref=str(lineage),
+            workspace_digest=str(workspace_digest),
+        )
+
+    def review_rework_context_for_run(self, run: EngineeringRun) -> ReviewReworkContext | None:
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.REVIEW.value or attempt.status != AttemptStatus.RESUMED.value:
+                continue
+            try:
+                evidence = json.loads(attempt.evidence_json or "{}")
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise RunTransitionError("durable REVIEW control evidence is malformed") from exc
+            if isinstance(evidence, dict) and evidence.get("review_rework_version") == "review-rework-v1":
+                return self._context_from_rework_attempt(attempt)
+        return None
+
+    def _validate_plan_rework_context(self, run: EngineeringRun, evidence: dict[str, object]) -> None:
+        context = self.review_rework_context_for_run(run)
+        keys = {"review_rework_context_digest", "review_rework_acceptance_ids"}
+        if context is None:
+            if any(key in evidence for key in keys):
+                raise ProtectedEvidenceError("PLAN asserted REVIEW rework context without durable human control")
+            return
+        if evidence.get("review_rework_context_digest") != context.digest:
+            raise ProtectedEvidenceError("PLAN REVIEW rework context digest is stale")
+        raw_ids = evidence.get("review_rework_acceptance_ids")
+        if not isinstance(raw_ids, list) or raw_ids != list(context.acceptance_ids):
+            raise ProtectedEvidenceError("PLAN REVIEW rework acceptance identity is stale")
+
+    def review_rework(
+        self,
+        *,
+        run_id: str,
+        operation_key: str,
+        expected_revision: int,
+        acceptance_ids: list[str],
+        finding: str,
+    ) -> RunOperationResult:
+        run = self.get(run_id)
+        specification = self._bound_work_specification(run, require_project=self.require_project_binding)
+        existing = self.runs.find_operation(run.id, operation_key)
+        if existing is not None:
+            if existing.stage != WorkflowStage.REVIEW.value or existing.status != AttemptStatus.RESUMED.value:
+                raise RunTransitionError("REVIEW rework operation key is already bound to another operation")
+            self._context_from_rework_attempt(existing)
+            return self._result(RecordedMutation(run=self.get(run.id), attempt=existing, replayed=True))
+
+        self._require_revision(run, expected_revision)
+        try:
+            state = WorkflowStage(run.state)
+        except ValueError as exc:
+            raise RunTransitionError(f"unknown durable run state {run.state}") from exc
+        target = self.policy.validate_review_rework(state)
+        if not run.project_id:
+            raise RunTransitionError("REVIEW rework requires a Project-bound Engineering Run")
+
+        if not isinstance(acceptance_ids, list) or not acceptance_ids or len(acceptance_ids) > 32:
+            raise RunTransitionError("REVIEW rework requires 1 to 32 affected acceptance IDs")
+        if not all(isinstance(item, str) and item for item in acceptance_ids):
+            raise RunTransitionError("REVIEW rework acceptance IDs are malformed")
+        if len(acceptance_ids) != len(set(acceptance_ids)):
+            raise RunTransitionError("REVIEW rework acceptance IDs contain duplicates")
+        required = required_acceptance_ids(specification)
+        if not set(acceptance_ids) <= required:
+            raise RunTransitionError("REVIEW rework references acceptance outside the approved Work Specification")
+        canonical_ids = tuple(sorted(acceptance_ids))
+        normalized_finding = self._normalize_review_rework_finding(finding)
+        lineage, workspace_digest = self._latest_reviewed_implementation(run)
+        digest = self._review_rework_digest(canonical_ids, normalized_finding)
+        evidence = {
+            "review_rework_version": "review-rework-v1",
+            "review_rework_context_digest": digest,
+            "acceptance_ids_rework": list(canonical_ids),
+            "finding": normalized_finding,
+            "project_ref": run.project_id,
+            "run_id": run.id,
+            "base_source_lineage_ref": lineage,
+            "workspace_digest": workspace_digest,
+            "protected_stage_authority": False,
+            "source_mutation": False,
+            "review_completion_authority": False,
+            "production_deployment_authority": False,
+        }
+        mutation = self.runs.record(
+            run,
+            stage=WorkflowStage.REVIEW.value,
+            operation_key=operation_key,
+            status=AttemptStatus.RESUMED.value,
+            next_state=target.value,
+            evidence=evidence,
+            program_id="protected-review-rework-v1",
+            tool_id="human-review-control-v1",
+        )
+        return self._result(mutation)
+
+'''
+replace_once(
+    "services/api/parallax_api/code/service.py",
+    """    def acceptance_verification_scope_for_run(self, run: EngineeringRun) -> str | None:
+""",
+    service_methods + """    def acceptance_verification_scope_for_run(self, run: EngineeringRun) -> str | None:
+""",
+)
+replace_once(
+    "services/api/parallax_api/code/service.py",
+    """            elif stage is WorkflowStage.PLAN:
+                validate_plan(protected, required)
+""",
+    """            elif stage is WorkflowStage.PLAN:
+                validate_plan(protected, required)
+                self._validate_plan_rework_context(run, protected)
+""",
+)
+
+# Autonomy writes server-owned rework identity onto any fresh PLAN.
+replace_once(
+    "services/api/parallax_api/code/autonomy.py",
+    """                result = self.service.complete_stage(
+                    run_id=run.id,
+                    stage=WorkflowStage.PLAN,
+""",
+    """                rework_context = self.service.review_rework_context_for_run(run)
+                if rework_context is not None:
+                    evidence["review_rework_context_digest"] = rework_context.digest
+                    evidence["review_rework_acceptance_ids"] = list(rework_context.acceptance_ids)
+
+                result = self.service.complete_stage(
+                    run_id=run.id,
+                    stage=WorkflowStage.PLAN,
+""",
+)
+
+# Agentic PLAN consumption independently authenticates that context.
+replace_once(
+    "services/api/parallax_api/code/agentic_runtime.py",
+    """        for key, value in expected.items():
+            if evidence.get(key) != value:
+""",
+    """        rework_context = self.service.review_rework_context_for_run(run)
+        if rework_context is not None:
+            expected["review_rework_context_digest"] = rework_context.digest
+            expected["review_rework_acceptance_ids"] = list(rework_context.acceptance_ids)
+        elif "review_rework_context_digest" in evidence or "review_rework_acceptance_ids" in evidence:
+            raise ValidationProfileError(
+                ValidationProfileReason.EXECUTION_CONTRACT_DRIFT,
+                "persisted agentic PLAN asserted REVIEW rework context without durable human control",
+            )
+        for key, value in expected.items():
+            if evidence.get(key) != value:
+""",
+)
+
+# Implementation generation sees the bounded correction as context, never mutation authority.
+replace_once(
+    "services/api/parallax_api/code/implementation_runtime.py",
+    """        request = ImplementationGenerationRequest(
+            work_specification_id=specification.id,
+            work_specification_revision=specification.revision,
+            work_specification_digest=run.work_specification_digest or "",
+            title=str(contract["title"]),
+            objective=str(contract["objective"]),
+            constraints=tuple(str(item) for item in contract["constraints"]),
+""",
+    """        generation_constraints = tuple(str(item) for item in contract["constraints"])
+        rework_context = self.service.review_rework_context_for_run(run)
+        if rework_context is not None:
+            correction = (
+                "Server-owned REVIEW correction context. Keep the approved Work Specification unchanged. "
+                f"Affected acceptance IDs: {', '.join(rework_context.acceptance_ids)}. "
+                f"Human finding: {rework_context.finding}"
+            )
+            generation_constraints = (*generation_constraints, correction)
+
+        request = ImplementationGenerationRequest(
+            work_specification_id=specification.id,
+            work_specification_revision=specification.revision,
+            work_specification_digest=run.work_specification_digest or "",
+            title=str(contract["title"]),
+            objective=str(contract["objective"]),
+            constraints=generation_constraints,
+""",
+)
+
+# Worker reset is an explicit terminal-state exception, not ordinary acquisition.
+worker_repo_method = '''
+    def prepare_review_rework(
+        self,
+        *,
+        run_id: str,
+        authoritative_source_lineage_ref: str,
+        now: datetime,
+    ) -> EngineeringWorkerExecution | None:
+        if (
+            not isinstance(authoritative_source_lineage_ref, str)
+            or not authoritative_source_lineage_ref.startswith("src:")
+            or len(authoritative_source_lineage_ref) != 68
+            or any(ch not in "0123456789abcdef" for ch in authoritative_source_lineage_ref[4:])
+        ):
+            raise WorkerLeaseConflict("REVIEW rework source lineage identity is invalid")
+        current = self.get_for_run(run_id)
+        if current is None:
+            return None
+        if current.state == WorkerLifecycleState.RECOVERING.value:
+            if (
+                current.lease_owner_id is None
+                and current.lease_expires_at is None
+                and current.checkpoint_json == "{}"
+                and current.current_step is None
+                and current.source_lineage_ref == authoritative_source_lineage_ref
+                and current.last_known_good_lineage_ref == authoritative_source_lineage_ref
+                and current.next_recovery_action == RecoveryAction.REASSIGN.value
+            ):
+                return current
+            raise WorkerLeaseConflict("existing RECOVERING worker does not match REVIEW rework identity")
+        if current.state != WorkerLifecycleState.READY_FOR_INTEGRATION.value:
+            raise WorkerLeaseConflict("REVIEW rework requires an unleased READY_FOR_INTEGRATION worker")
+        if current.lease_owner_id is not None or current.lease_expires_at is not None:
+            raise WorkerLeaseConflict("READY_FOR_INTEGRATION worker must be unleased before REVIEW rework")
+
+        result = self.session.execute(
+            _cas(
+                update(EngineeringWorkerExecution)
+                .where(
+                    EngineeringWorkerExecution.id == current.id,
+                    EngineeringWorkerExecution.revision == current.revision,
+                    EngineeringWorkerExecution.state == WorkerLifecycleState.READY_FOR_INTEGRATION.value,
+                    EngineeringWorkerExecution.lease_owner_id.is_(None),
+                    EngineeringWorkerExecution.lease_expires_at.is_(None),
+                )
+                .values(
+                    state=WorkerLifecycleState.RECOVERING.value,
+                    checkpoint_json="{}",
+                    checkpoint_revision=current.checkpoint_revision + 1,
+                    current_step=None,
+                    source_lineage_ref=authoritative_source_lineage_ref,
+                    last_known_good_lineage_ref=authoritative_source_lineage_ref,
+                    retry_count=0,
+                    no_progress_count=0,
+                    oscillation_count=0,
+                    progress_fingerprint=None,
+                    previous_progress_fingerprint=None,
+                    stall_classification=None,
+                    blocker_code=None,
+                    next_recovery_action=RecoveryAction.REASSIGN.value,
+                    revision=current.revision + 1,
+                    updated_at=now,
+                )
+            )
+        )
+        if result.rowcount != 1:
+            self.session.rollback()
+            raise WorkerLeaseConflict("REVIEW rework worker reset lost a concurrent compare-and-swap race")
+        self.session.commit()
+        refreshed = self.get(current.id)
+        if refreshed is None:
+            raise RuntimeError("worker execution disappeared after REVIEW rework preparation")
+        return refreshed
+
+'''
+replace_once(
+    "services/api/parallax_api/repositories/worker_executions.py",
+    """    def reassign(self, *, run_id: str, now: datetime, lease_seconds: int) -> EngineeringWorkerExecution:
+""",
+    worker_repo_method + """    def reassign(self, *, run_id: str, now: datetime, lease_seconds: int) -> EngineeringWorkerExecution:
+""",
+)
+
+worker_service_method = '''
+    def prepare_review_rework(
+        self,
+        *,
+        run_id: str,
+        authoritative_source_lineage_ref: str,
+        now: datetime | None = None,
+    ) -> EngineeringWorkerExecution | None:
+        run = self._run(run_id)
+        lineage = validate_lineage_ref(
+            authoritative_source_lineage_ref,
+            field="authoritative_source_lineage_ref",
+        )
+        if run.state != WorkflowStage.PLAN.value:
+            raise WorkerRecoveryError("REVIEW rework worker preparation requires the transitioned PLAN state")
+        context = None
+        for attempt in reversed(run.attempts):
+            if attempt.stage != WorkflowStage.REVIEW.value or attempt.status != "RESUMED":
+                continue
+            try:
+                payload = json.loads(attempt.evidence_json or "{}")
+            except json.JSONDecodeError as exc:
+                raise WorkerRecoveryError("durable REVIEW rework evidence is corrupt") from exc
+            if isinstance(payload, dict) and payload.get("review_rework_version") == "review-rework-v1":
+                context = payload
+                break
+        if context is None or context.get("base_source_lineage_ref") != lineage:
+            raise WorkerRecoveryError("worker REVIEW rework source identity lacks matching durable human control")
+
+        before = self.executions.get_for_run(run_id)
+        if before is None:
+            return None
+        before_revision = int(before.revision)
+        execution = self.executions.prepare_review_rework(
+            run_id=run_id,
+            authoritative_source_lineage_ref=lineage,
+            now=_utc(now),
+        )
+        if execution is None:
+            return None
+        if int(execution.revision) != before_revision:
+            self._emit_worker_event(
+                execution,
+                event_key=f"worker:{execution.id}:state:{execution.revision}:REVIEW_REWORK_RECOVERING",
+                outcome=RunEventOutcome.RECOVERING,
+                summary="Explicit human REVIEW rework invalidated the prior selected candidate and re-armed bounded generation.",
+            )
+        return execution
+
+'''
+replace_once(
+    "services/api/parallax_api/code/worker_service.py",
+    """    def prepare_human_resume(
+""",
+    worker_service_method + """    def prepare_human_resume(
+""",
+)
+replace_once(
+    "services/api/parallax_api/code/worker_service.py",
+    """from .worker_recovery import (
+""",
+    """from .domain import WorkflowStage
+from .worker_recovery import (
+""",
+)
+
+# Authenticated route composes the run transition with replay-safe worker preparation.
+replace_once(
+    "services/api/parallax_api/routes/engineering_runs.py",
+    """    EngineeringOperationRead,
+    EngineeringRunActivate,
+""",
+    """    EngineeringOperationRead,
+    EngineeringReviewRework,
+    EngineeringRunActivate,
+""",
+)
+route_method = '''
+
+@router.post("/{run_id}/review-rework", response_model=EngineeringOperationRead)
+def review_rework(
+    run_id: str,
+    payload: EngineeringReviewRework,
+    svc: EngineeringRunService = Depends(service),
+):
+    result = invoke(
+        lambda: svc.review_rework(
+            run_id=run_id,
+            operation_key=payload.operation_key,
+            expected_revision=payload.expected_revision,
+            acceptance_ids=payload.acceptance_ids,
+            finding=payload.finding,
+        )
+    )
+    # If a replay arrives after the run already progressed beyond PLAN, never
+    # reset a newer worker/candidate. PLAN is the only safe interrupted boundary.
+    if result.run.state == WorkflowStage.PLAN.value:
+        context = svc.review_rework_context_for_run(result.run)
+        if context is None:
+            raise HTTPException(503, "REVIEW rework context is unavailable after the durable transition")
+        invoke(
+            lambda: worker_recovery_service(svc).prepare_review_rework(
+                run_id=run_id,
+                authoritative_source_lineage_ref=context.base_source_lineage_ref,
+            )
+        )
+    return result_payload(result, svc)
+'''
+replace_once(
+    "services/api/parallax_api/routes/engineering_runs.py",
+    """@router.post("/{run_id}/pause", response_model=EngineeringOperationRead)
+def pause""",
+    route_method + """
+
+@router.post("/{run_id}/pause", response_model=EngineeringOperationRead)
+def pause""",
+)
+
+# Focused protected regressions.
+Path("services/api/tests/test_review_rework_v02341.py").write_text(
+    '''from __future__ import annotations
+
+import pytest
+from pydantic import ValidationError
+from sqlalchemy.orm import sessionmaker
+
+from parallax_api.code.domain import AttemptStatus, WorkflowStage
+from parallax_api.code.protected import ProtectedEvidenceError
+from parallax_api.code.service import EngineeringRunService
+from parallax_api.code.state_machine import RunTransitionError
+from parallax_api.code.worker_recovery import RecoveryAction, WorkerCheckpoint, WorkerLifecycleState
+from parallax_api.code.worker_service import WorkerRecoveryService
+from parallax_api.db import Base, make_engine
+from parallax_api.intelligence.work_specification import WorkSpecificationDraft
+from parallax_api.projects.repository import ProjectRepository
+from parallax_api.repositories.conversations import ConversationRepository
+from parallax_api.repositories.engineering_runs import EngineeringRunRepository
+from parallax_api.repositories.worker_executions import WorkerExecutionRepository
+from parallax_api.repositories.work_specifications import WorkSpecificationRepository
+from parallax_api.schemas import EngineeringReviewRework
+from parallax_api.services.conversations import ConversationService
+
+OWNER = "owner-review-rework"
+OLD_LINEAGE = "src:" + "1" * 64
+REVIEWED_LINEAGE = "src:" + "2" * 64
+WORKSPACE_DIGEST = "3" * 64
+
+
+def _session(tmp_path):
+    engine = make_engine(f"sqlite:///{tmp_path / 'review-rework.db'}")
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, expire_on_commit=False)
+
+
+def _fixture(tmp_path):
+    Session = _session(tmp_path)
+    session = Session()
+    projects = ProjectRepository(session)
+    project = projects.create(
+        owner_subject=OWNER,
+        slug="review-rework",
+        name="Review Rework",
+        description=None,
+        repository_ref=None,
+    )
+    conversations = ConversationRepository(session)
+    conversation = ConversationService(
+        conversations,
+        projects,
+        owner_subject=OWNER,
+        require_project_binding=True,
+        active_spec_id="P2-V0.23.41",
+    ).create("code", project.id)
+    work_specs = WorkSpecificationRepository(session)
+    draft = work_specs.create_draft(
+        conversation_id=conversation.id,
+        draft=WorkSpecificationDraft(
+            title="Review rework contract",
+            objective="Correct an accepted candidate without widening scope.",
+            constraints=["Preserve human REVIEW."],
+            acceptance_criteria=["Import fails safely.", "Automated tests cover core behavior."],
+            risks=[],
+            open_questions=[],
+            confidence=0.99,
+            program_version="review-rework-test",
+        ),
+        model_id="test-model",
+    )
+    specification = work_specs.approve(draft)
+    service = EngineeringRunService(
+        EngineeringRunRepository(session),
+        conversations,
+        work_specs,
+        projects,
+        owner_subject=OWNER,
+        require_project_binding=True,
+    )
+    run = service.activate_run(
+        conversation_id=conversation.id,
+        work_specification_id=specification.id,
+    )
+    run = service.runs.record(
+        run,
+        stage=WorkflowStage.IMPLEMENT.value,
+        operation_key="fixture-implement",
+        status=AttemptStatus.PASSED.value,
+        next_state=WorkflowStage.REVIEW.value,
+        evidence={
+            "project_ref": project.id,
+            "run_id": run.id,
+            "base_source_lineage_ref": OLD_LINEAGE,
+            "source_lineage_ref": REVIEWED_LINEAGE,
+            "workspace_digest": WORKSPACE_DIGEST,
+            "artifacts": [{"path": "index.html", "sha256": "4" * 64, "size": 1}],
+        },
+    ).run
+    return session, service, run
+
+
+def _ready_worker(session, run):
+    workers = WorkerRecoveryService(WorkerExecutionRepository(session), EngineeringRunRepository(session))
+    lease = workers.acquire(run_id=run.id)
+    ready = workers.checkpoint(
+        lease,
+        WorkerCheckpoint(
+            project_id=run.project_id,
+            run_id=run.id,
+            work_specification_id=run.work_specification_id,
+            work_specification_revision=run.work_specification_revision,
+            work_specification_digest=run.work_specification_digest,
+            plan_ref="agentic-plan:test",
+            current_step="CANDIDATE_SELECTED",
+            source_lineage_ref=OLD_LINEAGE,
+            last_known_good_lineage_ref=OLD_LINEAGE,
+            evidence_refs=("candidate:" + "5" * 64,),
+        ),
+        authoritative_source_lineage_ref=OLD_LINEAGE,
+        state=WorkerLifecycleState.READY_FOR_INTEGRATION,
+    )
+    assert ready.execution.state == WorkerLifecycleState.READY_FOR_INTEGRATION.value
+    return workers
+
+
+def test_review_rework_schema_is_bounded_and_forbids_unknown_fields():
+    with pytest.raises(ValidationError):
+        EngineeringReviewRework.model_validate({
+            "operation_key": "rework",
+            "expected_revision": 1,
+            "acceptance_ids": ["AC-01"],
+            "finding": "fix it",
+            "source_lineage_ref": REVIEWED_LINEAGE,
+        })
+    with pytest.raises(ValidationError):
+        EngineeringReviewRework.model_validate({
+            "operation_key": "rework",
+            "expected_revision": 1,
+            "acceptance_ids": [],
+            "finding": "fix it",
+        })
+
+
+def test_review_rework_is_review_only_acceptance_linked_and_idempotent(tmp_path):
+    session, service, run = _fixture(tmp_path)
+    try:
+        ids = [item["id"] for item in service.acceptance_map_for_run(run)]
+        with pytest.raises(RunTransitionError, match="duplicates"):
+            service.review_rework(
+                run_id=run.id,
+                operation_key="duplicate",
+                expected_revision=run.revision,
+                acceptance_ids=[ids[0], ids[0]],
+                finding="Fix import safety.",
+            )
+        with pytest.raises(RunTransitionError, match="outside"):
+            service.review_rework(
+                run_id=run.id,
+                operation_key="unknown",
+                expected_revision=run.revision,
+                acceptance_ids=["AC-99"],
+                finding="Fix import safety.",
+            )
+        with pytest.raises(RunTransitionError, match="1 to 1200"):
+            service.review_rework(
+                run_id=run.id,
+                operation_key="blank",
+                expected_revision=run.revision,
+                acceptance_ids=[ids[0]],
+                finding="   ",
+            )
+
+        original_revision = run.revision
+        result = service.review_rework(
+            run_id=run.id,
+            operation_key="human-review-rework",
+            expected_revision=original_revision,
+            acceptance_ids=[ids[1], ids[0]],
+            finding="  Fix invalid import handling and add the required automated coverage.  ",
+        )
+        assert result.run.state == WorkflowStage.PLAN.value
+        assert result.run.revision == original_revision + 1
+        context = service.review_rework_context_for_run(result.run)
+        assert context is not None
+        assert context.acceptance_ids == tuple(sorted(ids))
+        assert context.finding == "Fix invalid import handling and add the required automated coverage."
+        assert context.base_source_lineage_ref == REVIEWED_LINEAGE
+        assert context.workspace_digest == WORKSPACE_DIGEST
+        assert len(context.digest) == 64
+
+        replay = service.review_rework(
+            run_id=run.id,
+            operation_key="human-review-rework",
+            expected_revision=original_revision,
+            acceptance_ids=[ids[0]],
+            finding="ignored on operation replay",
+        )
+        assert replay.replayed is True
+        assert replay.attempt_id == result.attempt_id
+        assert replay.run.revision == result.run.revision
+
+        with pytest.raises(RunTransitionError, match="REVIEW rework requires"):
+            service.review_rework(
+                run_id=run.id,
+                operation_key="second-operation",
+                expected_revision=result.run.revision,
+                acceptance_ids=[ids[0]],
+                finding="Cannot start a second rework from PLAN.",
+            )
+    finally:
+        session.close()
+
+
+def test_rework_plan_requires_exact_current_context_and_worker_reset_invalidates_candidate(tmp_path):
+    session, service, run = _fixture(tmp_path)
+    try:
+        workers = _ready_worker(session, run)
+        ids = [item["id"] for item in service.acceptance_map_for_run(run)]
+        transition = service.review_rework(
+            run_id=run.id,
+            operation_key="human-review-rework",
+            expected_revision=run.revision,
+            acceptance_ids=ids,
+            finding="Fix the two REVIEW findings.",
+        )
+        context = service.review_rework_context_for_run(transition.run)
+        assert context is not None
+
+        prepared = workers.prepare_review_rework(
+            run_id=run.id,
+            authoritative_source_lineage_ref=context.base_source_lineage_ref,
+        )
+        assert prepared is not None
+        assert prepared.state == WorkerLifecycleState.RECOVERING.value
+        assert prepared.checkpoint_json == "{}"
+        assert prepared.current_step is None
+        assert prepared.source_lineage_ref == REVIEWED_LINEAGE
+        assert prepared.last_known_good_lineage_ref == REVIEWED_LINEAGE
+        assert prepared.next_recovery_action == RecoveryAction.REASSIGN.value
+        assert prepared.lease_owner_id is None and prepared.lease_expires_at is None
+        prepared_revision = prepared.revision
+        replayed_prepare = workers.prepare_review_rework(
+            run_id=run.id,
+            authoritative_source_lineage_ref=context.base_source_lineage_ref,
+        )
+        assert replayed_prepare is not None and replayed_prepare.revision == prepared_revision
+
+        basic_plan = {
+            "acceptance_ids_covered": sorted(ids),
+            "work_items": [{"acceptance_id": value, "action": "correct reviewed behavior"} for value in sorted(ids)],
+            "validation_checks": [{"acceptance_id": value, "check": "revalidate reviewed behavior"} for value in sorted(ids)],
+            "planner": "test",
+            "executor_preflight": "passed",
+        }
+        with pytest.raises(ProtectedEvidenceError, match="context digest"):
+            service.complete_stage(
+                run_id=run.id,
+                stage=WorkflowStage.PLAN,
+                operation_key="stale-rework-plan",
+                expected_revision=transition.run.revision,
+                passed=True,
+                evidence=basic_plan,
+            )
+
+        good_plan = {
+            **basic_plan,
+            "review_rework_context_digest": context.digest,
+            "review_rework_acceptance_ids": list(context.acceptance_ids),
+        }
+        accepted = service.complete_stage(
+            run_id=run.id,
+            stage=WorkflowStage.PLAN,
+            operation_key="fresh-rework-plan",
+            expected_revision=transition.run.revision,
+            passed=True,
+            evidence=good_plan,
+        )
+        assert accepted.run.state == WorkflowStage.IMPLEMENT.value
+    finally:
+        session.close()
+''',
+    encoding="utf-8",
+)
