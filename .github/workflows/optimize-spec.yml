@@ -50,6 +50,7 @@ jobs:
             echo "DSPY_MODEL=ollama_chat/llama3.2:1b" >> "$GITHUB_ENV"
             echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "$GITHUB_ENV"
             echo "DSPY_API_KEY=" >> "$GITHUB_ENV"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "$GITHUB_ENV"
             echo '{"executed":false,"reason":"starting credential-free local DSPy compiler"}' > specs/compiled/dspy-run-status.json
           fi
 
@@ -68,6 +69,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/compile_spec.py "$SPEC_PATH"
+
+      - name: Validate compiled DSPy plan
+        run: python scripts/validate_spec.py --require-dspy "$SPEC_PATH"
 
       - name: Optimize SpecCompiler with MIPROv2
         if: steps.credentials.outputs.provider == 'true'
