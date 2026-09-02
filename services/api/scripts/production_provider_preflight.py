@@ -25,6 +25,7 @@ _REPOSITORY = re.compile(r"^github:([^/\s]+)/([^/\s]+)$")
 _SOURCE_PATH = re.compile(r"^[A-Za-z0-9._-](?:[A-Za-z0-9._/ -]{0,238}[A-Za-z0-9._-])?$")
 _ALLOWED_BLOB_MODES = frozenset({"100644", "100755"})
 _ALLOWED_TREE_MODE = "040000"
+_REQUIRED_READ_PERMISSIONS = ("contents:read", "metadata:read")
 _BLOB_CANARY_CONTENT = b"parallax-production-runtime-preflight-v1\n"
 _BLOB_API = "https://vercel.com/api/blob"
 
@@ -148,13 +149,30 @@ def _github_headers(token: str) -> dict[str, str]:
     }
 
 
+def _authorization_details(repository: str) -> list[dict[str, object]]:
+    return [
+        {
+            "type": "github_app_installation",
+            "repositories": [repository],
+            "permissions": list(_REQUIRED_READ_PERMISSIONS),
+        }
+    ]
+
+
 def _connect_token(target: Target, *, oidc: str) -> str:
     connector = quote(target.github_connector, safe="")
+    owner, repository = target.repository
+    exact_repository = f"{owner}/{repository}"
     payload = _json_request(
         Request(
             f"https://api.vercel.com/v1/connect/token/{connector}",
             method="POST",
-            data=json.dumps({"subject": {"type": "app"}}).encode(),
+            data=json.dumps(
+                {
+                    "subject": {"type": "app"},
+                    "authorizationDetails": _authorization_details(exact_repository),
+                }
+            ).encode(),
             headers={
                 "Authorization": f"Bearer {oidc}",
                 "Content-Type": "application/json",
