@@ -1,0 +1,143 @@
+name: WS580 P2-V0.23.43 Implementation
+
+on:
+  push:
+    branches:
+      - ws/580-lineage-scoped-delivery-branch
+    paths:
+      - .github/workflows/ws580-implementation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/580-lineage-scoped-delivery-branch
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Re-prove protected spec-first gate
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.43.md
+      - name: Apply bounded lineage-scoped publication implementation and regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one occurrence, found {count}: {old!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          source = Path('services/api/parallax_api/code/source_delivery_composition.py')
+          replace_once(
+              source,
+              'from .workspace_lineage import (\n    LineageIdentityError,',
+              'from .workspace_lineage import (\n    LINEAGE_PATTERN,\n    LineageIdentityError,',
+          )
+          replace_once(
+              source,
+              'class VerifiedDeliveryError(SourceDeliveryCompositionError):\n    pass\n\n\nclass DurableSourceAllocator(Protocol):',
+              '''class VerifiedDeliveryError(SourceDeliveryCompositionError):\n    pass\n\n\ndef publication_branch_name(identity: ProjectRunIdentity, lineage_id: str) -> str:\n    \"\"\"Return the canonical bounded publication ref for one exact accepted lineage.\"\"\"\n\n    if not isinstance(identity, ProjectRunIdentity):\n        raise VerifiedDeliveryError(\"canonical Project/run identity is required for publication branch derivation\")\n    if not isinstance(lineage_id, str) or LINEAGE_PATTERN.fullmatch(lineage_id) is None:\n        raise VerifiedDeliveryError(\"accepted source lineage identity is invalid for publication branch derivation\")\n    return f\"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}-{lineage_id[4:]}\"\n\n\nclass DurableSourceAllocator(Protocol):''',
+          )
+          replace_once(
+              source,
+              '        branch_name = f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}"\n',
+              '        branch_name = publication_branch_name(identity, accepted.lineage_id)\n',
+          )
+
+          greenfield = Path('services/api/parallax_api/code/greenfield_composition.py')
+          replace_once(
+              greenfield,
+              '    VerifiedLineageDelivery,\n)',
+              '    VerifiedLineageDelivery,\n    publication_branch_name,\n)',
+          )
+          replace_once(
+              greenfield,
+              '        branch_name = f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}"\n',
+              '        branch_name = publication_branch_name(identity, accepted.lineage_id)\n',
+          )
+
+          tests = Path('services/api/tests/test_source_delivery_composition.py')
+          replace_once(
+              tests,
+              '    VerifiedLineageDelivery,\n)',
+              '    VerifiedLineageDelivery,\n    publication_branch_name,\n)',
+          )
+          replace_once(
+              tests,
+              '        self.committed_files = ()\n',
+              '        self.committed_files = ()\n        self.last_branch: str | None = None\n',
+          )
+          replace_once(
+              tests,
+              '        assert base_revision == ROOT_REVISION\n        value = GitHubBranchResult(REPOSITORY_REF, branch_name, base_revision, base_revision)\n',
+              '        assert base_revision == ROOT_REVISION\n        self.last_branch = branch_name\n        value = GitHubBranchResult(REPOSITORY_REF, branch_name, base_revision, base_revision)\n',
+          )
+          replace_once(
+              tests,
+              '        branch = f"parallax/{binding.project_ref[:8]}-{self.run_id[:8]}"\n        value = GitHubPullRequestResult(\n',
+              '        branch = self.last_branch\n        assert branch is not None\n        value = GitHubPullRequestResult(\n',
+          )
+          replace_once(
+              tests,
+              '    assert result.lineage_id == accepted.lineage_id\n    assert result.content_digest == accepted.content_digest\n',
+              '    assert result.lineage_id == accepted.lineage_id\n    assert result.content_digest == accepted.content_digest\n    assert result.branch_name == publication_branch_name(ProjectRunIdentity(project_id, run_id), accepted.lineage_id)\n',
+          )
+          with tests.open('a', encoding='utf-8') as handle:
+              handle.write('''\n\ndef test_publication_branch_name_uses_full_lineage_identity_and_fails_closed() -> None:\n    project_id, run_id = str(uuid4()), str(uuid4())\n    identity = ProjectRunIdentity(project_id, run_id)\n    first = \"src:\" + \"a\" * 64\n    second = \"src:\" + \"b\" * 64\n\n    first_branch = publication_branch_name(identity, first)\n    assert first_branch == f\"parallax/{project_id[:8]}-{run_id[:8]}-{first[4:]}\"\n    assert publication_branch_name(identity, first) == first_branch\n    assert publication_branch_name(identity, second) != first_branch\n    assert publication_branch_name(identity, second).startswith(f\"parallax/{project_id[:8]}-{run_id[:8]}-\")\n\n    malformed = (None, \"\", \"src:\" + \"a\" * 63, \"src:\" + \"A\" * 64, \"src:\" + \"g\" * 64, \"sha:\" + \"a\" * 64)\n    for value in malformed:\n        with pytest.raises(VerifiedDeliveryError, match=\"lineage identity\"):\n            publication_branch_name(identity, value)  # type: ignore[arg-type]\n    with pytest.raises(VerifiedDeliveryError, match=\"Project/run identity\"):\n        publication_branch_name(SimpleNamespace(project_id=project_id, run_id=run_id), first)  # type: ignore[arg-type]\n\n\ndef test_same_run_replacement_lineages_publish_to_distinct_branches_and_preserve_prior_record(tmp_path) -> None:\n    project_id, run_id = str(uuid4()), str(uuid4())\n    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(tmp_path, project_id, run_id)\n    bootstrap.ensure(run, operation_key=\"bootstrap\")\n    identity = ProjectRunIdentity(project_id, run_id)\n    first_lineage = _accept_implementation(allocator, identity)\n    records = MemoryDeliveryRecordStore()\n    delivery = _delivery(allocator, binding, github, FakeVercelActions(), project_id, records=records)\n\n    first = delivery.deliver(_review_run(project_id, run_id, first_lineage), operation_key=\"deliver:first\")\n\n    workspace = allocator.resolve(identity)\n    try:\n        (workspace.path / \"app.py\").write_text(\"value = 3\\n\", encoding=\"utf-8\")\n        second_lineage = allocator.accept_implementation(\n            workspace, expected_parent_lineage_id=workspace.lineage.lineage_id\n        )\n    finally:\n        allocator.cleanup(workspace)\n\n    second = delivery.deliver(_review_run(project_id, run_id, second_lineage), operation_key=\"deliver:second\")\n\n    assert first.branch_name == publication_branch_name(identity, first_lineage.lineage_id)\n    assert second.branch_name == publication_branch_name(identity, second_lineage.lineage_id)\n    assert first.branch_name != second.branch_name\n    assert records.records[(run_id, first_lineage.lineage_id)][\"branch_name\"] == first.branch_name\n    assert records.records[(run_id, second_lineage.lineage_id)][\"branch_name\"] == second.branch_name\n    assert github.mutations.count(\"branch.create\") == 2\n    assert github.mutations.count(\"commit.write\") == 2\n    assert github.mutations.count(\"pull_request.create\") == 2\n''')
+          PY
+      - name: Run focused publication and greenfield regressions before architecture update
+        run: |
+          pytest -q \
+            services/api/tests/test_source_delivery_composition.py \
+            services/api/tests/test_greenfield_commit_bearing_delivery.py \
+            services/api/tests/test_app_builder_source_delivery_bridge.py
+      - name: Advance durable architecture record only after focused semantic validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ARCHITECTURE.md')
+          text = path.read_text(encoding='utf-8')
+          if text.count('Version: 3.51') != 1:
+              raise SystemExit('expected exact Architecture v3.51 baseline')
+          text = text.replace('Version: 3.51', 'Version: 3.52', 1)
+          marker = '## Version relationship\n\n'
+          if text.count(marker) != 1:
+              raise SystemExit('expected one Version relationship marker')
+          paragraph = (
+              'Architecture v3.52 makes new accepted-source publication branch identity exact-lineage scoped while preserving historical delivery replay. '
+              'For one canonical Project/run and exact accepted `src:<64hex>` lineage, both ordinary and greenfield REVIEW delivery now derive the server-owned feature branch as '
+              '`parallax/{project8}-{run8}-{lineage64}` using the complete lowercase lineage digest. Exact durable delivery records remain authoritative before provider mutation and continue replaying their stored historical branch names, including pre-v3.52 run-scoped refs. '
+              'A different accepted lineage in the same Engineering Run therefore receives a distinct deterministic branch while prior branches, pull requests and Previews remain untouched. An unexpected pre-existing computed branch still fails through the existing provider conflict/read-back boundary; no suffixing, adoption, force update, deletion or history rewrite is introduced. '
+              'P2-V0.23.42 repository-state classification, accepted-lineage authority, provider credentials/actions, default-branch restrictions, Preview ceiling, merge/production boundaries and human REVIEW completion authority are unchanged. Architecture v3.51 remains the commit-bearing-empty repository compatibility foundation.\n\n'
+          )
+          path.write_text(text.replace(marker, marker + paragraph, 1), encoding='utf-8')
+          PY
+      - name: Run full applicable API regression and compile gates
+        run: |
+          pytest -q services/api/tests
+          python -m compileall -q services/api/parallax_api
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.43.md
+      - name: Persist validated semantic implementation
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add \
+            services/api/parallax_api/code/source_delivery_composition.py \
+            services/api/parallax_api/code/greenfield_composition.py \
+            services/api/tests/test_source_delivery_composition.py \
+            ARCHITECTURE.md
+          git diff --cached --check
+          git commit -m 'P2-V0.23.43 lineage-scope publication branch identity'
+          git push origin HEAD:ws/580-lineage-scoped-delivery-branch
