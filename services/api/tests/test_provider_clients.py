@@ -25,6 +25,7 @@ BASE = "0" * 40
 COMMIT = "1" * 40
 TREE = "2" * 40
 BLOB = "3" * 40
+UPDATED_TREE = "4" * 40
 UPDATED_BLOB = "5" * 40
 LINEAGE = AcceptedSourceLineage(
     PROJECT_ID,
@@ -92,13 +93,15 @@ class GitHubHappyTransport:
         if request.method == "GET" and path in {
             f"/repos/acme/example-app/git/trees/{BASE}",
             f"/repos/acme/example-app/git/trees/{COMMIT}",
+            f"/repos/acme/example-app/git/trees/{TREE}",
+            f"/repos/acme/example-app/git/trees/{UPDATED_TREE}",
         }:
-            is_commit = path.endswith(COMMIT)
+            is_commit = path.endswith(COMMIT) or path.endswith(UPDATED_TREE)
             content = b"print('updated')\n" if is_commit else b"print('hello')\n"
             return httpx.Response(
                 200,
                 json={
-                    "sha": "4" * 40 if is_commit else TREE,
+                    "sha": UPDATED_TREE if is_commit else TREE,
                     "truncated": False,
                     "tree": [
                         {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40 if is_commit else TREE},
@@ -143,7 +146,7 @@ class GitHubHappyTransport:
             body = _request_json(request)
             assert body["base_tree"] == TREE
             assert body["tree"][0]["path"] == "src/app.py"
-            return httpx.Response(201, json={"sha": "4" * 40})
+            return httpx.Response(201, json={"sha": UPDATED_TREE})
         if request.method == "POST" and path == "/repos/acme/example-app/git/commits":
             self.commit_posts += 1
             body = _request_json(request)
@@ -162,7 +165,7 @@ class GitHubHappyTransport:
                 json={
                     "sha": COMMIT,
                     "message": GitHubRestProviderClient._lineage_message(LINEAGE),
-                    "tree": {"sha": "4" * 40},
+                    "tree": {"sha": UPDATED_TREE},
                     "parents": [{"sha": BASE}],
                 },
             )
@@ -565,12 +568,12 @@ class GitHubForgedReplayTransport(GitHubHappyTransport):
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if (
             request.method == "GET"
-            and request.url.path == f"/repos/acme/example-app/git/trees/{COMMIT}"
+            and request.url.path == f"/repos/acme/example-app/git/trees/{UPDATED_TREE}"
         ):
             return httpx.Response(
                 200,
                 json={
-                    "sha": "4" * 40,
+                    "sha": UPDATED_TREE,
                     "truncated": False,
                     "tree": [
                         {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40},
@@ -611,3 +614,96 @@ def test_github_lineage_replay_rejects_same_message_parent_with_extra_tree_delta
             (_commit_file(),),
         )
     assert handler.commit_posts == 0
+
+
+
+class GitHubExactReplayTreeIdentityTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+        self.commit_sha_tree_reads: list[str] = []
+        self.tree_sha_reads: list[str] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and path in {
+            f"/repos/acme/example-app/git/trees/{BASE}",
+            f"/repos/acme/example-app/git/trees/{COMMIT}",
+        }:
+            self.commit_sha_tree_reads.append(path)
+            return httpx.Response(404, json={"message": "tree object not found"})
+        if request.method == "GET" and path in {
+            f"/repos/acme/example-app/git/trees/{TREE}",
+            f"/repos/acme/example-app/git/trees/{UPDATED_TREE}",
+        }:
+            self.tree_sha_reads.append(path)
+        return super().__call__(request)
+
+
+def test_github_exact_lineage_replay_resolves_commit_tree_identities() -> None:
+    handler = GitHubExactReplayTreeIdentityTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    replay = client.commit_files(
+        REPOSITORY_REF,
+        "parallax/run-1",
+        BASE,
+        LINEAGE,
+        (_commit_file(),),
+    )
+
+    assert replay.commit_revision == COMMIT
+    assert handler.commit_posts == 0
+    assert handler.commit_sha_tree_reads == []
+    assert handler.tree_sha_reads == [
+        f"/repos/acme/example-app/git/trees/{TREE}",
+        f"/repos/acme/example-app/git/trees/{UPDATED_TREE}",
+    ]
+
+
+class GitHubMalformedReplayTreeIdentityTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+        self.tree_reads = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and path == f"/repos/acme/example-app/git/commits/{COMMIT}":
+            return httpx.Response(
+                200,
+                json={
+                    "sha": COMMIT,
+                    "message": GitHubRestProviderClient._lineage_message(LINEAGE),
+                    "tree": {},
+                    "parents": [{"sha": BASE}],
+                },
+            )
+        if request.method == "GET" and "/git/trees/" in path:
+            self.tree_reads += 1
+        return super().__call__(request)
+
+
+def test_github_exact_lineage_replay_rejects_malformed_commit_tree_identity() -> None:
+    handler = GitHubMalformedReplayTreeIdentityTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    with pytest.raises(ProviderClientError, match="PROVIDER_INVALID_RESPONSE"):
+        client.commit_files(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            BASE,
+            LINEAGE,
+            (_commit_file(),),
+        )
+
+    assert handler.commit_posts == 0
+    assert handler.tree_reads == 0
