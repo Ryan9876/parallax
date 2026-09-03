@@ -1,0 +1,56 @@
+name: WS580 P2-V0.23.43 Implementation
+
+on:
+  push:
+    branches:
+      - ws/580-lineage-scoped-delivery-branch
+    paths:
+      - scripts/ws580_implement.py
+      - .github/workflows/ws580-implement.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/580-lineage-scoped-delivery-branch
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Require exact amended DSPy plan before semantics
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.43.md
+      - name: Apply bounded semantic patch
+        run: python scripts/ws580_implement.py
+      - name: Compile Python sources
+        run: python -m compileall -q services/api/parallax_api services/api/tests
+      - name: Run focused source-delivery regressions
+        run: >-
+          pytest -q
+          services/api/tests/test_source_delivery_composition.py
+          services/api/tests/test_greenfield_commit_bearing_delivery.py
+          services/api/tests/test_app_builder_source_delivery_bridge.py
+      - name: Run full API regression suite
+        run: pytest -q services/api/tests
+      - name: Check patch hygiene
+        run: git diff --check
+      - name: Commit validated semantic implementation and remove harnesses
+        run: |
+          set -euo pipefail
+          rm -f scripts/ws580_implement.py
+          rm -f .github/workflows/ws580-implement.yml
+          rm -f .github/workflows/ws580-spec-gate.yml
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No semantic diff to commit' >&2; exit 1; }
+          git commit -m 'Implement P2-V0.23.43 lineage-scoped publication identity'
+          git push origin HEAD:ws/580-lineage-scoped-delivery-branch
