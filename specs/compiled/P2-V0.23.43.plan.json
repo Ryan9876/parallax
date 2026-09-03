@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10\n- AC-11\n- AC-12"
+  ],
+  "work_items": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10\n- AC-11\n- AC-12"
+  ],
+  "validations": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10\n- AC-11\n- AC-12"
+  ],
+  "risks": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10\n- AC-11\n- AC-12"
+  ],
+  "spec_id": "P2-V0.23.43",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical branch derivation is exact",
+      "protected_requirement": "For canonical Project/run identity and accepted lineage `src:<64hex>`, the helper returns exactly `parallax/{project8}-{run8}-{lineage64}` using all 64 lineage hexadecimal characters."
+    },
+    {
+      "id": "AC-02",
+      "title": "Malformed identity fails closed",
+      "protected_requirement": "Malformed Project identity, run identity, missing/invalid `src:` lineage prefix, non-hex lineage data, or wrong lineage length cannot produce a publication branch."
+    },
+    {
+      "id": "AC-03",
+      "title": "Ordinary delivery uses shared lineage branch",
+      "protected_requirement": "`VerifiedLineageDelivery` publishes an accepted lineage on the shared canonical lineage-scoped branch and preserves all existing repository/commit/PR/Preview verification."
+    },
+    {
+      "id": "AC-04",
+      "title": "Greenfield delivery uses the same shared lineage branch",
+      "protected_requirement": "`GreenfieldVerifiedLineageDelivery` uses the identical helper and format after its existing P2-V0.23.42 delivery-base classification. No greenfield-specific branch naming remains."
+    },
+    {
+      "id": "AC-05",
+      "title": "Same-run replacement receives a distinct branch",
+      "protected_requirement": "Two valid accepted lineages for the same Project/run deterministically derive distinct branch names while retaining identical Project/run prefixes."
+    },
+    {
+      "id": "AC-06",
+      "title": "Prior branch is untouched",
+      "protected_requirement": "Publishing the replacement lineage performs no mutation/delete/force update against the earlier lineage's existing branch, PR or Preview."
+    },
+    {
+      "id": "AC-07",
+      "title": "Durable replay is unchanged",
+      "protected_requirement": "If the exact accepted lineage already has a durable delivery record, delivery returns that record before branch creation and preserves the stored historical branch identity."
+    },
+    {
+      "id": "AC-08",
+      "title": "Unexpected computed branch conflict remains fail-closed",
+      "protected_requirement": "If the canonical lineage-scoped branch exists unexpectedly without exact durable delivery-record authority, provider conflict remains a hard failure. No automatic reuse or alternate branch is attempted."
+    },
+    {
+      "id": "AC-09",
+      "title": "Delivery records remain exact lineage authority",
+      "protected_requirement": "Record keys, accepted lineage/content digests, exact Git commit/PR/Preview read-back and replay semantics remain lineage-bound and unchanged except that a newly persisted result records the canonical lineage-scoped branch."
+    },
+    {
+      "id": "AC-10",
+      "title": "No authority expansion",
+      "protected_requirement": "Diff/tests prove no provider/model/credential/network/command/execution-profile/retry/source-lineage/force-ref/default-branch/merge/production/automatic-REVIEW authority expansion."
+    },
+    {
+      "id": "AC-11",
+      "title": "Protected release gates pass",
+      "protected_requirement": "The exact spec passes validation plus authentic DSPy SpecCritic/SpecCompiler and strict compiled-plan validation before semantic implementation. Focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
+    },
+    {
+      "id": "AC-12",
+      "title": "Production acceptance",
+      "protected_requirement": "The exact merged API source reaches production READY with normal preflights, `/health` and `/ready` HTTP 200 and reviewed exact-deployment runtime scans. Frozen W9-S1 run `a64d56b7-ad42-42ad-9562-891783363f4a` at REVIEW revision 12 retries publication of replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809`. The retry must: - not recur `GREENFIELD_BASELINE_MISMATCH`; - not recur `BRANCH_CONFLICT` against prior branch `parallax/0e20392b-a64d56b7`; - create/read a new canonical lineage-scoped feature branch for the replacement lineage; - create/read the exact replacement-lineage commit and a new GitHub PR; - create/read a READY Vercel Preview or existing bounded READY-equivalent result under normal delivery semantics; - preserve the original branch and QA PR #1 unchanged; - leave the Engineering Run at human REVIEW revision 12 with `last_failure_code=null`. Any genuinely later independent blocker is recorded separately rather than weakening this boundary."
+    }
+  ],
+  "critique": [
+    "The source-publication identity defect exposed after P2-V0.23.42 successfully admitted an ordinary commit-bearing empty repository. Distinct accepted source lineages in the same Engineering Run must receive distinct deterministic feature branches so bounded REVIEW rework can publish a replacement candidate without rewriting, deleting, or reusing the branch that represents an earlier reviewed lineage. The change must be shared by ordinary and greenfield accepted-source delivery, preserve exact durable delivery replay for an already-published lineage, and leave every prior branch, pull request, Preview, default branch, merge boundary, and human REVIEW decision untouched."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
