@@ -367,15 +367,20 @@ class GitHubRestProviderClient(GitHubProviderClient):
         self._raise_status(response, not_found="SOURCE_NOT_FOUND")
         return _dict(self._json(response))
 
+    @staticmethod
+    def _commit_tree_revision(payload: dict[str, Any]) -> str:
+        tree_payload = _dict(payload.get("tree"))
+        return _string(tree_payload.get("sha"))
+
     def _blob_tree_snapshot(
         self,
         repository_ref: str,
-        revision: str,
+        tree_revision: str,
     ) -> dict[str, tuple[str, str, int]]:
         response = self._send(
             "GET",
             repository_ref,
-            f"{self._repo_path(repository_ref)}/git/trees/{quote(revision, safe='')}",
+            f"{self._repo_path(repository_ref)}/git/trees/{quote(tree_revision, safe='')}",
             params={"recursive": "1"},
         )
         self._raise_status(response, not_found="SOURCE_NOT_FOUND")
@@ -422,11 +427,20 @@ class GitHubRestProviderClient(GitHubProviderClient):
         ):
             return False
 
-        parent_tree = self._blob_tree_snapshot(
+        parent_payload = self._commit_payload(
             repository_ref,
             expected_parent_revision,
         )
-        replay_tree = self._blob_tree_snapshot(repository_ref, revision)
+        parent_tree_revision = self._commit_tree_revision(parent_payload)
+        replay_tree_revision = self._commit_tree_revision(payload)
+        parent_tree = self._blob_tree_snapshot(
+            repository_ref,
+            parent_tree_revision,
+        )
+        replay_tree = self._blob_tree_snapshot(
+            repository_ref,
+            replay_tree_revision,
+        )
         expected = {item.path: item for item in files}
         changed_paths = {
             path
