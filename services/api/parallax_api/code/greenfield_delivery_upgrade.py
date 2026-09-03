@@ -7,6 +7,7 @@ from ..tools.registry import ToolCapabilityRegistry
 from .greenfield_composition import GreenfieldVerifiedLineageDelivery
 from .greenfield_github import (
     ACTION_REPOSITORY_INITIALIZE_EMPTY,
+    ACTION_REPOSITORY_INSPECT,
     GreenfieldGitHubActions,
     GreenfieldGitHubClient,
 )
@@ -47,6 +48,7 @@ def upgrade_greenfield_delivery(
                 project_ref=project_id,
                 tool=GITHUB_TOOL,
                 actions=(
+                    ToolActionPolicy(ACTION_REPOSITORY_INSPECT, ToolConsequence.READ),
                     ToolActionPolicy(
                         ACTION_REPOSITORY_INITIALIZE_EMPTY,
                         ToolConsequence.MUTATE,

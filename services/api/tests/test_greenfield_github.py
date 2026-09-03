@@ -523,3 +523,102 @@ def test_existing_baseline_rejects_noncanonical_cleanup_tree_without_normalizing
         _client(mismatch).initialize_empty_baseline(REPOSITORY, PROVENANCE)
 
     assert tree_reads == 0
+
+
+
+def test_commit_bearing_empty_inspection_is_stable_and_exact() -> None:
+    head = "f" * 40
+    ref_reads = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal ref_reads
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            ref_reads += 1
+            return httpx.Response(200, json={"object": {"sha": head}})
+        if path.endswith(f"/git/commits/{head}"):
+            return httpx.Response(
+                200,
+                json={"message": "Ordinary empty commit", "parents": [{"sha": OTHER}], "tree": {"sha": EMPTY_TREE}},
+            )
+        raise AssertionError((request.method, request.url))
+
+    result = _client(handler).inspect_repository(REPOSITORY)
+    assert ref_reads == 2
+    assert result.is_empty is False
+    assert result.is_commit_bearing_empty is True
+    assert result.is_canonical_baseline_candidate is False
+    assert result.head_revision == head
+    assert result.head_tree_revision == EMPTY_TREE
+    assert result.head_message == "Ordinary empty commit"
+
+
+def test_canonical_cleanup_message_is_preserved_as_strict_baseline_candidate() -> None:
+    ref_reads = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal ref_reads
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            ref_reads += 1
+            return httpx.Response(200, json={"object": {"sha": BASELINE}})
+        if path.endswith(f"/git/commits/{BASELINE}"):
+            return httpx.Response(
+                200,
+                json=_commit("Finalize Parallax empty greenfield baseline", [{"sha": BOOTSTRAP}], EMPTY_TREE),
+            )
+        raise AssertionError((request.method, request.url))
+
+    result = _client(handler).inspect_repository(REPOSITORY)
+    assert ref_reads == 2
+    assert result.is_commit_bearing_empty is True
+    assert result.is_canonical_baseline_candidate is True
+
+
+def test_commit_bearing_inspection_fails_closed_when_default_ref_moves() -> None:
+    ref_reads = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal ref_reads
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            ref_reads += 1
+            revision = BASELINE if ref_reads == 1 else OTHER
+            return httpx.Response(200, json={"object": {"sha": revision}})
+        if path.endswith(f"/git/commits/{BASELINE}"):
+            return httpx.Response(
+                200,
+                json={"message": "Ordinary empty commit", "parents": [], "tree": {"sha": EMPTY_TREE}},
+            )
+        raise AssertionError((request.method, request.url))
+
+    with pytest.raises(ProviderClientError, match="GREENFIELD_INITIALIZATION_CONFLICT"):
+        _client(handler).inspect_repository(REPOSITORY)
+
+
+def test_commit_bearing_nonempty_inspection_remains_distinct() -> None:
+    head = "f" * 40
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/repos/Ryan9876/empty-target":
+            return _repo()
+        if path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": head}})
+        if path.endswith(f"/git/commits/{head}"):
+            return httpx.Response(
+                200,
+                json={"message": "Repository now has source", "parents": [], "tree": {"sha": OTHER}},
+            )
+        raise AssertionError((request.method, request.url))
+
+    result = _client(handler).inspect_repository(REPOSITORY)
+    assert result.is_empty is False
+    assert result.is_commit_bearing_empty is False
+    assert result.head_tree_revision == OTHER
