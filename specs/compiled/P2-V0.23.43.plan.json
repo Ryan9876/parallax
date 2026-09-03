@@ -1,0 +1,120 @@
+{
+  "architecture_decisions": [
+    "AC-01"
+  ],
+  "work_items": [
+    "AC-01"
+  ],
+  "validations": [
+    "VerifiedLineageDelivery",
+    "AC-02: validate protected requirement \u2014 Malformed Project identity, run identity, missing/invalid `src:` lineage prefix, non-hex lineage data, or wrong lineage length cannot produce a publication branch.",
+    "AC-03: validate protected requirement \u2014 `VerifiedLineageDelivery` publishes an accepted lineage on the shared canonical lineage-scoped branch and preserves all existing repository/commit/PR/Preview verification.",
+    "AC-04: validate protected requirement \u2014 `GreenfieldVerifiedLineageDelivery` uses the identical helper and format after its existing P2-V0.23.42 delivery-base classification. No greenfield-specific branch naming remains.",
+    "AC-05: validate protected requirement \u2014 Two valid accepted lineages for the same Project/run deterministically derive distinct branch names while retaining identical Project/run prefixes.",
+    "AC-06: validate protected requirement \u2014 Publishing the replacement lineage performs no mutation/delete/force update against the earlier lineage's existing branch, PR or Preview.",
+    "AC-08: validate protected requirement \u2014 If the exact accepted lineage already has a durable delivery record, delivery returns that record before branch creation and preserves the stored historical branch identity. Exact replay creates no new `SOURCE_DELIVERY` attempt and no provider call.",
+    "AC-09: validate protected requirement \u2014 New same-run delivery records use monotonically increasing positive `SOURCE_DELIVERY` attempt numbers and satisfy existing database uniqueness without changing Engineering Run lifecycle revision/state.",
+    "AC-10: validate protected requirement \u2014 Same-lineage concurrent insert resolves as exact replay when payloads match. Different-lineage attempt-number contention may retry only the database insert once after recomputing the next stage attempt number; no provider action repeats. Any unresolved or payload conflict fails closed.",
+    "AC-11: validate protected requirement \u2014 If the canonical lineage-scoped branch exists unexpectedly without exact durable delivery-record authority, provider conflict remains a hard failure. No automatic reuse or alternate branch is attempted.",
+    "AC-12: validate protected requirement \u2014 Record keys, accepted lineage/content digests, exact Git commit/PR/Preview read-back and replay semantics remain lineage-bound and unchanged except that newly persisted results record the canonical lineage-scoped branch and distinct stage attempt number.",
+    "AC-13: validate protected requirement \u2014 A pre-P2-V0.23.43 durable record containing a run-scoped branch name still decodes and replays unchanged. The release performs no historical record migration or branch rename.",
+    "AC-14: validate protected requirement \u2014 Diff/tests prove no provider/model/credential/network/command/execution-profile/provider-retry/source-lineage/force-ref/default-branch/merge/production/automatic-REVIEW authority expansion.",
+    "AC-15: validate protected requirement \u2014 The exact amended spec passes validation plus authentic DSPy SpecCritic/SpecCompiler and strict compiled-plan validation before semantic implementation. Focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads.",
+    "AC-16: validate protected requirement \u2014 The exact merged API source reaches production READY with normal preflights, `/health` and `/ready` HTTP 200 and reviewed exact-deployment runtime scans. Frozen W9-S1 run `a64d56b7-ad42-42ad-9562-891783363f4a` at REVIEW revision 12 retries publication of replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809`. The retry must: - not recur `GREENFIELD_BASELINE_MISMATCH`; - not recur `BRANCH_CONFLICT` against prior branch `parallax/0e20392b-a64d56b7`; - create/read a new canonical lineage-scoped feature branch for the replacement lineage; - create/read the exact replacement-lineage commit and a new GitHub PR; - create/read a READY Vercel Preview or existing bounded READY-equivalent result under normal delivery semantics; - persist a distinct exact durable `SOURCE_DELIVERY` record for the replacement lineage without conflicting with the earlier lineage's record; - preserve the original branch and QA PR #1 unchanged; - leave the Engineering Run at human REVIEW revision 12 with `last_failure_code=null`. Any genuinely later independent blocker is recorded separately rather than weakening this boundary."
+  ],
+  "risks": [
+    "AC-07"
+  ],
+  "spec_id": "P2-V0.23.43",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Canonical branch derivation is exact",
+      "protected_requirement": "For canonical Project/run identity and accepted lineage `src:<64hex>`, the helper returns exactly `parallax/{project8}-{run8}-{lineage64}` using all 64 lineage hexadecimal characters."
+    },
+    {
+      "id": "AC-02",
+      "title": "Malformed identity fails closed",
+      "protected_requirement": "Malformed Project identity, run identity, missing/invalid `src:` lineage prefix, non-hex lineage data, or wrong lineage length cannot produce a publication branch."
+    },
+    {
+      "id": "AC-03",
+      "title": "Ordinary delivery uses shared lineage branch",
+      "protected_requirement": "`VerifiedLineageDelivery` publishes an accepted lineage on the shared canonical lineage-scoped branch and preserves all existing repository/commit/PR/Preview verification."
+    },
+    {
+      "id": "AC-04",
+      "title": "Greenfield delivery uses the same shared lineage branch",
+      "protected_requirement": "`GreenfieldVerifiedLineageDelivery` uses the identical helper and format after its existing P2-V0.23.42 delivery-base classification. No greenfield-specific branch naming remains."
+    },
+    {
+      "id": "AC-05",
+      "title": "Same-run replacement receives a distinct branch",
+      "protected_requirement": "Two valid accepted lineages for the same Project/run deterministically derive distinct branch names while retaining identical Project/run prefixes."
+    },
+    {
+      "id": "AC-06",
+      "title": "Prior provider delivery is untouched",
+      "protected_requirement": "Publishing the replacement lineage performs no mutation/delete/force update against the earlier lineage's existing branch, PR or Preview."
+    },
+    {
+      "id": "AC-07",
+      "title": "Same-run durable records are lineage scoped",
+      "protected_requirement": "A run may persist one exact `SOURCE_DELIVERY` record for the first accepted lineage and another exact record for a later accepted lineage. Their operation keys and attempt numbers differ, while both records remain resolvable by exact lineage."
+    },
+    {
+      "id": "AC-08",
+      "title": "Exact durable replay is unchanged",
+      "protected_requirement": "If the exact accepted lineage already has a durable delivery record, delivery returns that record before branch creation and preserves the stored historical branch identity. Exact replay creates no new `SOURCE_DELIVERY` attempt and no provider call."
+    },
+    {
+      "id": "AC-09",
+      "title": "Durable stage attempt numbering is valid",
+      "protected_requirement": "New same-run delivery records use monotonically increasing positive `SOURCE_DELIVERY` attempt numbers and satisfy existing database uniqueness without changing Engineering Run lifecycle revision/state."
+    },
+    {
+      "id": "AC-10",
+      "title": "Bounded persistence concurrency fails safely",
+      "protected_requirement": "Same-lineage concurrent insert resolves as exact replay when payloads match. Different-lineage attempt-number contention may retry only the database insert once after recomputing the next stage attempt number; no provider action repeats. Any unresolved or payload conflict fails closed."
+    },
+    {
+      "id": "AC-11",
+      "title": "Unexpected computed branch conflict remains fail-closed",
+      "protected_requirement": "If the canonical lineage-scoped branch exists unexpectedly without exact durable delivery-record authority, provider conflict remains a hard failure. No automatic reuse or alternate branch is attempted."
+    },
+    {
+      "id": "AC-12",
+      "title": "Delivery records remain exact lineage authority",
+      "protected_requirement": "Record keys, accepted lineage/content digests, exact Git commit/PR/Preview read-back and replay semantics remain lineage-bound and unchanged except that newly persisted results record the canonical lineage-scoped branch and distinct stage attempt number."
+    },
+    {
+      "id": "AC-13",
+      "title": "Historical record compatibility",
+      "protected_requirement": "A pre-P2-V0.23.43 durable record containing a run-scoped branch name still decodes and replays unchanged. The release performs no historical record migration or branch rename."
+    },
+    {
+      "id": "AC-14",
+      "title": "No authority expansion",
+      "protected_requirement": "Diff/tests prove no provider/model/credential/network/command/execution-profile/provider-retry/source-lineage/force-ref/default-branch/merge/production/automatic-REVIEW authority expansion."
+    },
+    {
+      "id": "AC-15",
+      "title": "Protected release gates pass",
+      "protected_requirement": "The exact amended spec passes validation plus authentic DSPy SpecCritic/SpecCompiler and strict compiled-plan validation before semantic implementation. Focused tests, full API regression, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
+    },
+    {
+      "id": "AC-16",
+      "title": "Production acceptance",
+      "protected_requirement": "The exact merged API source reaches production READY with normal preflights, `/health` and `/ready` HTTP 200 and reviewed exact-deployment runtime scans. Frozen W9-S1 run `a64d56b7-ad42-42ad-9562-891783363f4a` at REVIEW revision 12 retries publication of replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809`. The retry must: - not recur `GREENFIELD_BASELINE_MISMATCH`; - not recur `BRANCH_CONFLICT` against prior branch `parallax/0e20392b-a64d56b7`; - create/read a new canonical lineage-scoped feature branch for the replacement lineage; - create/read the exact replacement-lineage commit and a new GitHub PR; - create/read a READY Vercel Preview or existing bounded READY-equivalent result under normal delivery semantics; - persist a distinct exact durable `SOURCE_DELIVERY` record for the replacement lineage without conflicting with the earlier lineage's record; - preserve the original branch and QA PR #1 unchanged; - leave the Engineering Run at human REVIEW revision 12 with `last_failure_code=null`. Any genuinely later independent blocker is recorded separately rather than weakening this boundary."
+    }
+  ],
+  "critique": [
+    "The same-run source-publication identity defect exposed after P2-V0.23.42 successfully admitted an ordinary commit-bearing empty repository. Distinct accepted source lineages in the same Engineering Run must receive distinct deterministic feature branches and distinct durable `SOURCE_DELIVERY` ledger records so bounded REVIEW rework can publish a replacement candidate without rewriting, deleting, reusing, or conflicting with the publication identity of an earlier reviewed lineage. The change must be shared by ordinary and greenfield accepted-source delivery, preserve exact durable delivery replay for every already-published lineage, and leave every prior branch, pull request, Preview, default branch, merge boundary, and human REVIEW decision untouched."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

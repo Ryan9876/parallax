@@ -5,6 +5,7 @@ apps/client/public/canvaskit.wasm
 __pycache__/
 *.pyc
 .pytest_cache/
+*.egg-info/
 .venv/
 .env*
 .vercel/

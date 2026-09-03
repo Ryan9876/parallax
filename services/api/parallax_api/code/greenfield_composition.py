@@ -31,6 +31,7 @@ from .source_delivery_composition import (
     VerifiedDeliveryError,
     VerifiedDeliveryResult,
     VerifiedLineageDelivery,
+    publication_branch_name,
 )
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import LineageIdentityError, LineageNotFoundError, ProjectRunIdentity, SourceLineage
@@ -275,7 +276,7 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             lineage_id=accepted.lineage_id,
             content_digest=accepted.content_digest,
         )
-        branch_name = f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}"
+        branch_name = publication_branch_name(identity, accepted.lineage_id)
         branch = self.github.create_branch(
             binding,
             self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),
