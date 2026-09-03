@@ -34,6 +34,7 @@ from ..tools.providers import (
     GitHubCommitFile,
     GitHubProviderActions,
     ProviderActionEvidence,
+    ProviderActionFailed,
     ProviderActionState,
     ProviderInvocation,
     ProviderProjectBinding,
@@ -754,6 +755,58 @@ class VerifiedLineageDelivery:
         return self.invocations.for_action(tool=tool, action=action, operation_key=operation_key)
 
     @staticmethod
+    def _provider_failure_code(error: ProviderActionFailed) -> str | None:
+        code = error.audit.result_code or error.evidence.result_status
+        return code if isinstance(code, str) and code else None
+
+    def _publish_branch_commit(
+        self,
+        *,
+        binding: ProviderProjectBinding,
+        delivery_key: str,
+        branch_name: str,
+        base_revision: str,
+        lineage: AcceptedSourceLineage,
+        files: tuple[GitHubCommitFile, ...],
+        actions: list[ProviderActionAuditPair],
+    ):
+        try:
+            branch = self.github.create_branch(
+                binding,
+                self._invocation(
+                    GITHUB_TOOL,
+                    ACTION_BRANCH_CREATE,
+                    f"{delivery_key}:branch",
+                ),
+                branch_name=branch_name,
+                base_revision=base_revision,
+            )
+        except ProviderActionFailed as exc:
+            if self._provider_failure_code(exc) != "BRANCH_CONFLICT":
+                raise
+            # A previous partial attempt may already have advanced the exact
+            # canonical branch. The existing commit action remains the only
+            # authority allowed to prove that head is the exact accepted
+            # Parallax lineage commit with the exact expected parent.
+        else:
+            actions.append(self._paired(branch))
+
+        commit = self.github.commit_accepted_lineage(
+            binding,
+            self._invocation(
+                GITHUB_TOOL,
+                ACTION_COMMIT_WRITE,
+                f"{delivery_key}:commit",
+            ),
+            branch_name=branch_name,
+            expected_parent_revision=base_revision,
+            lineage=lineage,
+            files=files,
+        )
+        actions.append(self._paired(commit))
+        return commit
+
+    @staticmethod
     def _paired(result: object) -> ProviderActionAuditPair:
         evidence = getattr(result, "evidence", None)
         audit = getattr(result, "audit", None)
@@ -937,22 +990,15 @@ class VerifiedLineageDelivery:
             content_digest=accepted.content_digest,
         )
         branch_name = publication_branch_name(identity, accepted.lineage_id)
-        branch = self.github.create_branch(
-            binding,
-            self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),
+        commit = self._publish_branch_commit(
+            binding=binding,
+            delivery_key=delivery_key,
             branch_name=branch_name,
             base_revision=repository.value.head_revision,
-        )
-        actions.append(self._paired(branch))
-        commit = self.github.commit_accepted_lineage(
-            binding,
-            self._invocation(GITHUB_TOOL, ACTION_COMMIT_WRITE, f"{delivery_key}:commit"),
-            branch_name=branch_name,
-            expected_parent_revision=repository.value.head_revision,
             lineage=lineage,
             files=files,
+            actions=actions,
         )
-        actions.append(self._paired(commit))
         pull_request = self.github.create_pull_request(
             binding,
             self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_CREATE, f"{delivery_key}:pr-create"),

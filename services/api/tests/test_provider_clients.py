@@ -25,6 +25,7 @@ BASE = "0" * 40
 COMMIT = "1" * 40
 TREE = "2" * 40
 BLOB = "3" * 40
+UPDATED_BLOB = "5" * 40
 LINEAGE = AcceptedSourceLineage(
     PROJECT_ID,
     RUN_ID,
@@ -88,20 +89,35 @@ class GitHubHappyTransport:
             return httpx.Response(200, json={"full_name": "acme/example-app", "default_branch": "main"})
         if request.method == "GET" and path == "/repos/acme/example-app/git/ref/heads/main":
             return httpx.Response(200, json=self._ref(BASE, "main"))
-        if request.method == "GET" and path == f"/repos/acme/example-app/git/trees/{BASE}":
+        if request.method == "GET" and path in {
+            f"/repos/acme/example-app/git/trees/{BASE}",
+            f"/repos/acme/example-app/git/trees/{COMMIT}",
+        }:
+            is_commit = path.endswith(COMMIT)
+            content = b"print('updated')\n" if is_commit else b"print('hello')\n"
             return httpx.Response(
                 200,
                 json={
-                    "sha": TREE,
+                    "sha": "4" * 40 if is_commit else TREE,
                     "truncated": False,
                     "tree": [
-                        {"path": "src", "mode": "040000", "type": "tree", "sha": TREE},
-                        {"path": "src/app.py", "mode": "100644", "type": "blob", "sha": BLOB, "size": 15},
+                        {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40 if is_commit else TREE},
+                        {
+                            "path": "src/app.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": UPDATED_BLOB if is_commit else BLOB,
+                            "size": len(content),
+                        },
                     ],
                 },
             )
         if request.method == "GET" and path == "/repos/acme/example-app/contents/src/app.py":
-            content = b"print('hello')\n"
+            content = (
+                b"print('updated')\n"
+                if request.url.params.get("ref") == COMMIT
+                else b"print('hello')\n"
+            )
             return httpx.Response(
                 200,
                 json={
@@ -403,3 +419,195 @@ def test_vercel_replay_rejects_existing_non_preview_deployment() -> None:
             LINEAGE,
         )
     assert handler.create_posts == 0
+
+
+OTHER_HEAD = "9" * 40
+
+
+class GitHubStaleRefTransport(GitHubHappyTransport):
+    def __init__(
+        self,
+        *,
+        stale_after_patch_reads: int = 1,
+        unexpected_after_patch: bool = False,
+    ) -> None:
+        super().__init__()
+        self.branch_ref_reads = 0
+        self.stale_after_patch_reads = stale_after_patch_reads
+        self.unexpected_after_patch = unexpected_after_patch
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        branch_path = "/repos/acme/example-app/git/ref/heads/parallax/run-1"
+        if request.method == "GET" and path == branch_path:
+            self.branch_ref_reads += 1
+            if self.branch_ref_reads == 2:
+                # GitHub acknowledged branch creation but the exact ref is not
+                # visible to the immediately following commit-stage read.
+                return httpx.Response(404, json={"message": "not found"})
+            if self.branch_ref_reads >= 3:
+                if self.unexpected_after_patch and self.branch_ref_reads == 3:
+                    return httpx.Response(200, json=self._ref(OTHER_HEAD, "parallax/run-1"))
+                if self.branch_ref_reads < 3 + self.stale_after_patch_reads:
+                    # GitHub acknowledged the non-force PATCH but this read
+                    # still returns the exact prior branch head.
+                    return httpx.Response(200, json=self._ref(BASE, "parallax/run-1"))
+        return super().__call__(request)
+
+
+def _commit_file() -> GitHubCommitFile:
+    content = "print('updated')\n"
+    return GitHubCommitFile(
+        "src/app.py",
+        content,
+        __import__("hashlib").sha256(content.encode()).hexdigest(),
+    )
+
+
+def test_github_ref_mutation_acknowledgements_bridge_only_immediate_stale_reads() -> None:
+    handler = GitHubStaleRefTransport(stale_after_patch_reads=2)
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.resolve_repository(REPOSITORY_REF).head_revision == BASE
+    assert client.create_branch(REPOSITORY_REF, "parallax/run-1", BASE).head_revision == BASE
+    commit = client.commit_files(
+        REPOSITORY_REF,
+        "parallax/run-1",
+        BASE,
+        LINEAGE,
+        (_commit_file(),),
+    )
+    assert commit.commit_revision == COMMIT
+
+    created = client.create_pull_request(
+        REPOSITORY_REF,
+        "parallax/run-1",
+        COMMIT,
+        "main",
+        "Parallax change",
+        "bounded body",
+    )
+    assert created.number == 42
+
+    # The acknowledgement was consumed by the first stale read. A second
+    # identical stale provider view cannot inherit or replay that authority.
+    with pytest.raises(ProviderClientError, match="STALE_HEAD"):
+        client.create_pull_request(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            COMMIT,
+            "main",
+            "Parallax change",
+            "bounded body",
+        )
+
+
+def test_github_ref_mutation_acknowledgement_never_masks_unexpected_head() -> None:
+    handler = GitHubStaleRefTransport(unexpected_after_patch=True)
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.resolve_repository(REPOSITORY_REF).head_revision == BASE
+    client.create_branch(REPOSITORY_REF, "parallax/run-1", BASE)
+    client.commit_files(
+        REPOSITORY_REF,
+        "parallax/run-1",
+        BASE,
+        LINEAGE,
+        (_commit_file(),),
+    )
+
+    with pytest.raises(ProviderClientError, match="STALE_HEAD"):
+        client.create_pull_request(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            COMMIT,
+            "main",
+            "Parallax change",
+            "bounded body",
+        )
+    assert handler.pull_posts == 0
+
+
+def test_github_ref_mutation_acknowledgements_do_not_cross_repository_resolution() -> None:
+    handler = GitHubStaleRefTransport(stale_after_patch_reads=2)
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    client.resolve_repository(REPOSITORY_REF)
+    client.create_branch(REPOSITORY_REF, "parallax/run-1", BASE)
+    # A fresh repository resolution is the delivery-sequence boundary and
+    # discards the one-shot branch-create acknowledgement.
+    client.resolve_repository(REPOSITORY_REF)
+    with pytest.raises(ProviderClientError, match="BRANCH_NOT_FOUND"):
+        client.commit_files(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            BASE,
+            LINEAGE,
+            (_commit_file(),),
+        )
+
+
+
+class GitHubForgedReplayTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if (
+            request.method == "GET"
+            and request.url.path == f"/repos/acme/example-app/git/trees/{COMMIT}"
+        ):
+            return httpx.Response(
+                200,
+                json={
+                    "sha": "4" * 40,
+                    "truncated": False,
+                    "tree": [
+                        {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40},
+                        {
+                            "path": "src/app.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": UPDATED_BLOB,
+                            "size": len(b"print('updated')\\n"),
+                        },
+                        {
+                            "path": "src/extra.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": "7" * 40,
+                            "size": 5,
+                        },
+                    ],
+                },
+            )
+        return super().__call__(request)
+
+
+def test_github_lineage_replay_rejects_same_message_parent_with_extra_tree_delta() -> None:
+    handler = GitHubForgedReplayTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    with pytest.raises(ProviderClientError, match="STALE_PARENT"):
+        client.commit_files(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            BASE,
+            LINEAGE,
+            (_commit_file(),),
+        )
+    assert handler.commit_posts == 0

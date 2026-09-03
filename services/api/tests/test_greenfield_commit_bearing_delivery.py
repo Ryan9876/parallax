@@ -6,7 +6,7 @@ import pytest
 
 from parallax_api.code.greenfield_composition import GreenfieldVerifiedLineageDelivery
 from parallax_api.code.greenfield_github import GreenfieldRepositoryInspection
-from parallax_api.code.source_delivery_composition import VerifiedDeliveryError
+from parallax_api.code.source_delivery_composition import VerifiedDeliveryError, VerifiedLineageDelivery
 
 
 REPOSITORY = "github:Ryan9876/empty-target"
@@ -107,3 +107,16 @@ def test_true_empty_still_requires_initializer() -> None:
     assert (branch, revision) == ("main", HEAD)
     assert greenfield.calls == ["inspect", "initialize"]
     assert len(actions) == 2
+
+
+
+def test_greenfield_delivery_uses_shared_partial_publication_recovery_helper() -> None:
+    assert (
+        GreenfieldVerifiedLineageDelivery._publish_branch_commit
+        is VerifiedLineageDelivery._publish_branch_commit
+    )
+    import inspect
+
+    assert "_publish_branch_commit(" in inspect.getsource(
+        GreenfieldVerifiedLineageDelivery.deliver
+    )
