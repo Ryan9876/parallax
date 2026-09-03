@@ -20,6 +20,8 @@ from .github import (
     GitHubRepositoryState,
     GitHubTreeEntry,
     GitHubTreeResult,
+    MAX_COMMIT_FILE_BYTES,
+    MAX_TREE_ENTRIES,
 )
 
 
@@ -365,22 +367,93 @@ class GitHubRestProviderClient(GitHubProviderClient):
         self._raise_status(response, not_found="SOURCE_NOT_FOUND")
         return _dict(self._json(response))
 
+    def _blob_tree_snapshot(
+        self,
+        repository_ref: str,
+        revision: str,
+    ) -> dict[str, tuple[str, str, int]]:
+        response = self._send(
+            "GET",
+            repository_ref,
+            f"{self._repo_path(repository_ref)}/git/trees/{quote(revision, safe='')}",
+            params={"recursive": "1"},
+        )
+        self._raise_status(response, not_found="SOURCE_NOT_FOUND")
+        payload = _dict(self._json(response))
+        if payload.get("truncated") is True:
+            raise ProviderClientError("SOURCE_TREE_TRUNCATED")
+        raw_entries = _list(payload.get("tree"))
+        if len(raw_entries) > MAX_TREE_ENTRIES:
+            raise ProviderClientError("SOURCE_TREE_TOO_LARGE")
+
+        snapshot: dict[str, tuple[str, str, int]] = {}
+        for raw in raw_entries:
+            item = _dict(raw)
+            entry_type = item.get("type")
+            mode = item.get("mode")
+            if entry_type == "tree" and mode == _ALLOWED_TREE_MODE:
+                continue
+            if entry_type != "blob" or mode not in _ALLOWED_BLOB_MODES:
+                raise ProviderClientError("UNSUPPORTED_SOURCE_ENTRY")
+            path = _string(item.get("path"))
+            object_revision = _string(item.get("sha"))
+            size = item.get("size")
+            if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+                raise ProviderClientError("PROVIDER_INVALID_RESPONSE")
+            snapshot[path] = (mode, object_revision, size)
+        return snapshot
+
     def _is_lineage_replay(
         self,
         repository_ref: str,
         revision: str,
         expected_parent_revision: str,
         lineage: AcceptedSourceLineage,
+        files: tuple[GitHubCommitFile, ...],
     ) -> bool:
         payload = self._commit_payload(repository_ref, revision)
         if payload.get("message") != self._lineage_message(lineage):
             return False
         parents = _list(payload.get("parents"))
-        return (
+        if not (
             len(parents) == 1
             and isinstance(parents[0], dict)
             and parents[0].get("sha") == expected_parent_revision
+        ):
+            return False
+
+        parent_tree = self._blob_tree_snapshot(
+            repository_ref,
+            expected_parent_revision,
         )
+        replay_tree = self._blob_tree_snapshot(repository_ref, revision)
+        expected = {item.path: item for item in files}
+        changed_paths = {
+            path
+            for path in parent_tree.keys() | replay_tree.keys()
+            if parent_tree.get(path) != replay_tree.get(path)
+        }
+        if changed_paths != set(expected):
+            return False
+
+        for path, item in expected.items():
+            entry = replay_tree.get(path)
+            encoded = item.content.encode("utf-8")
+            if (
+                entry is None
+                or entry[0] != "100644"
+                or entry[2] != len(encoded)
+            ):
+                return False
+            replay_file = self.read_file(
+                repository_ref,
+                revision,
+                path,
+                max_bytes=MAX_COMMIT_FILE_BYTES,
+            )
+            if replay_file.content_sha256 != item.content_sha256:
+                return False
+        return True
 
     def commit_files(
         self,
@@ -404,6 +477,7 @@ class GitHubRestProviderClient(GitHubProviderClient):
                 current,
                 expected_parent_revision,
                 lineage,
+                files,
             ):
                 return GitHubCommitResult(
                     repository_ref,
