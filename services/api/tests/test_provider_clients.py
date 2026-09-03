@@ -25,6 +25,7 @@ BASE = "0" * 40
 COMMIT = "1" * 40
 TREE = "2" * 40
 BLOB = "3" * 40
+UPDATED_BLOB = "5" * 40
 LINEAGE = AcceptedSourceLineage(
     PROJECT_ID,
     RUN_ID,
@@ -88,20 +89,35 @@ class GitHubHappyTransport:
             return httpx.Response(200, json={"full_name": "acme/example-app", "default_branch": "main"})
         if request.method == "GET" and path == "/repos/acme/example-app/git/ref/heads/main":
             return httpx.Response(200, json=self._ref(BASE, "main"))
-        if request.method == "GET" and path == f"/repos/acme/example-app/git/trees/{BASE}":
+        if request.method == "GET" and path in {
+            f"/repos/acme/example-app/git/trees/{BASE}",
+            f"/repos/acme/example-app/git/trees/{COMMIT}",
+        }:
+            is_commit = path.endswith(COMMIT)
+            content = b"print('updated')\n" if is_commit else b"print('hello')\n"
             return httpx.Response(
                 200,
                 json={
-                    "sha": TREE,
+                    "sha": "4" * 40 if is_commit else TREE,
                     "truncated": False,
                     "tree": [
-                        {"path": "src", "mode": "040000", "type": "tree", "sha": TREE},
-                        {"path": "src/app.py", "mode": "100644", "type": "blob", "sha": BLOB, "size": 15},
+                        {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40 if is_commit else TREE},
+                        {
+                            "path": "src/app.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": UPDATED_BLOB if is_commit else BLOB,
+                            "size": len(content),
+                        },
                     ],
                 },
             )
         if request.method == "GET" and path == "/repos/acme/example-app/contents/src/app.py":
-            content = b"print('hello')\n"
+            content = (
+                b"print('updated')\n"
+                if request.url.params.get("ref") == COMMIT
+                else b"print('hello')\n"
+            )
             return httpx.Response(
                 200,
                 json={
@@ -538,3 +554,60 @@ def test_github_ref_mutation_acknowledgements_do_not_cross_repository_resolution
             LINEAGE,
             (_commit_file(),),
         )
+
+
+
+class GitHubForgedReplayTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if (
+            request.method == "GET"
+            and request.url.path == f"/repos/acme/example-app/git/trees/{COMMIT}"
+        ):
+            return httpx.Response(
+                200,
+                json={
+                    "sha": "4" * 40,
+                    "truncated": False,
+                    "tree": [
+                        {"path": "src", "mode": "040000", "type": "tree", "sha": "6" * 40},
+                        {
+                            "path": "src/app.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": UPDATED_BLOB,
+                            "size": len(b"print('updated')\\n"),
+                        },
+                        {
+                            "path": "src/extra.py",
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": "7" * 40,
+                            "size": 5,
+                        },
+                    ],
+                },
+            )
+        return super().__call__(request)
+
+
+def test_github_lineage_replay_rejects_same_message_parent_with_extra_tree_delta() -> None:
+    handler = GitHubForgedReplayTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    with pytest.raises(ProviderClientError, match="STALE_PARENT"):
+        client.commit_files(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            BASE,
+            LINEAGE,
+            (_commit_file(),),
+        )
+    assert handler.commit_posts == 0
