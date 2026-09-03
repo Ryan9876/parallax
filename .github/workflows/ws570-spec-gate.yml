@@ -1,0 +1,78 @@
+name: WS570 P2-V0.23.42 Spec Gate
+
+on:
+  push:
+    branches:
+      - ws/570-commit-bearing-empty
+    paths:
+      - specs/P2-V0.23.42.md
+      - .github/workflows/ws570-spec-gate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ws570-p2-v0-23-42-spec-gate
+  cancel-in-progress: true
+
+jobs:
+  spec-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/570-commit-bearing-empty
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - id: model
+        name: Select provider-backed or local DSPy model
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "${OPENAI_API_KEY}" ]; then
+            echo "provider=true" >> "${GITHUB_OUTPUT}"
+            echo "DSPY_MODEL=openai/gpt-5.6-sol" >> "${GITHUB_ENV}"
+          else
+            echo "provider=false" >> "${GITHUB_OUTPUT}"
+            echo "DSPY_MODEL=ollama_chat/qwen2.5:0.5b" >> "${GITHUB_ENV}"
+            echo "DSPY_API_BASE=http://127.0.0.1:11434" >> "${GITHUB_ENV}"
+            echo "DSPY_API_KEY=" >> "${GITHUB_ENV}"
+            echo "DSPY_LOCAL_DEVELOPMENT=1" >> "${GITHUB_ENV}"
+          fi
+      - name: Install local DSPy gate LM
+        if: steps.model.outputs.provider == 'false'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:0.5b
+      - name: Validate exact specification contract
+        run: python scripts/validate_spec.py specs/P2-V0.23.42.md
+      - name: Compile exact specification through DSPy
+        timeout-minutes: 10
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/compile_spec.py specs/P2-V0.23.42.md
+      - name: Require authentic compiled DSPy evidence
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.42.md
+      - name: Persist compiled plan on worker branch
+        run: |
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add specs/compiled/P2-V0.23.42.plan.json
+          if git diff --cached --quiet; then
+            echo 'Compiled plan already current'
+            exit 0
+          fi
+          git commit -m 'Compile P2-V0.23.42 DSPy plan'
+          git push origin HEAD:ws/570-commit-bearing-empty
