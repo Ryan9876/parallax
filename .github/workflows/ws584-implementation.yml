@@ -1,0 +1,64 @@
+name: WS584 P2-V0.23.45 Implementation
+
+on:
+  push:
+    branches:
+      - ws/584-commit-tree-identity-replay
+    paths:
+      - .github/workflows/ws584-implementation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/584-commit-tree-identity-replay
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Re-prove protected spec-first gate
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.45.md
+      - name: Run focused commit-tree replay regressions
+        run: pytest -q services/api/tests/test_provider_clients.py
+      - name: Run full API regression and compile gate
+        run: |
+          pytest -q services/api/tests
+          python -m compileall -q services/api/parallax_api
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.45.md
+      - name: Advance Architecture v3.54 after semantic validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("ARCHITECTURE.md")
+          text = path.read_text(encoding="utf-8")
+          if text.count("Version: 3.53") != 1:
+              raise SystemExit("expected exact Architecture v3.53 baseline")
+          text = text.replace("Version: 3.53", "Version: 3.54", 1)
+          marker = "## Version relationship\n\n"
+          if text.count(marker) != 1:
+              raise SystemExit("expected one Version relationship marker")
+          paragraph = (
+              "Architecture v3.54 corrects the exact partial-publication replay verifier's Git object identity handling without changing the v3.53 recovery authority model. "
+              "When an existing canonical lineage branch is already at a candidate Parallax lineage commit, the authenticated GitHub client reads the exact candidate commit object and exact expected-parent commit object, structurally validates each commit's non-empty tree.sha, and uses only those resolved tree object identities for bounded recursive tree snapshots. "
+              "Replay adoption still requires the deterministic Parallax lineage message, exactly one expected parent, the exact accepted changed-blob path set, supported modes, exact byte sizes, and exact accepted content digests. A missing or malformed commit tree identity fails closed as PROVIDER_INVALID_RESPONSE, while an extra, missing or different tree delta remains a stale-parent conflict. "
+              "No generic source-tree semantics, one-shot ref acknowledgement, provider permission, credential, mutation, retry, branch, default-branch, Preview, merge, production or human REVIEW boundary changes. Architecture v3.53 remains the bounded partial-publication recovery foundation.\n\n"
+          )
+          path.write_text(text.replace(marker, marker + paragraph, 1), encoding="utf-8")
+          PY
+      - name: Persist validated architecture record
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add ARCHITECTURE.md
+          git diff --cached --check
+          git commit -m 'Document P2-V0.23.45 exact commit tree identity'
+          git push origin HEAD:ws/584-commit-tree-identity-replay
