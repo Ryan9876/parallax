@@ -1,9 +1,11 @@
 # Parallax 2.0 Architecture
 
-Version: 3.54
+Version: 3.55
 Status: Authoritative
 
 ## Version relationship
+
+Architecture v3.55 reuses the established v3.48 universal canonical Git empty-tree compatibility rule inside exact partial-publication replay. After v3.54 resolves exact parent/replay commits to structurally validated tree.sha identities, the GitHub replay snapshot boundary may synthesize an empty snapshot only when the resolved tree identity equals the universal canonical Git empty-tree SHA 4b825dc642cb6eb9a060e54bf8d69288fbee4904. That exact identity requires no Trees GET because authenticated production evidence already proves GitHub may return 404 for the canonical empty-tree object even when a verified commit references it. Every non-canonical tree identity still requires the bounded provider Trees GET, and any non-canonical 404 remains SOURCE_NOT_FOUND. All deterministic lineage message, expected-parent, changed-path, supported-mode, exact-size, accepted-content-digest, one-shot ref acknowledgement, non-force mutation, Preview-only and human REVIEW boundaries remain unchanged. Architecture v3.54 remains the exact commit-to-tree identity foundation and v3.48 remains the canonical-empty provider-compatibility foundation.
 
 Architecture v3.54 corrects the exact partial-publication replay verifier's Git object identity handling without changing the v3.53 recovery authority model. When an existing canonical lineage branch is already at a candidate Parallax lineage commit, the authenticated GitHub client reads the exact candidate commit object and exact expected-parent commit object, structurally validates each commit's non-empty tree.sha, and uses only those resolved tree object identities for bounded recursive tree snapshots. Replay adoption still requires the deterministic Parallax lineage message, exactly one expected parent, the exact accepted changed-blob path set, supported modes, exact byte sizes, and exact accepted content digests. A missing or malformed commit tree identity fails closed as PROVIDER_INVALID_RESPONSE, while an extra, missing or different tree delta remains a stale-parent conflict. No generic source-tree semantics, one-shot ref acknowledgement, provider permission, credential, mutation, retry, branch, default-branch, Preview, merge, production or human REVIEW boundary changes. Architecture v3.53 remains the bounded partial-publication recovery foundation.
 
