@@ -26,8 +26,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -e 'services/api[dev]'
-      - name: Validate exact specification
-        run: python scripts/validate_spec.py "$SPEC_PATH"
+      - name: Validate exact specification contract before compile
+        run: python scripts/validate_spec.py --spec-only "$SPEC_PATH"
       - id: credentials
         name: Select authentic DSPy model
         env:
