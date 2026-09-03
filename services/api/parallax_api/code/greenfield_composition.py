@@ -277,22 +277,15 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             content_digest=accepted.content_digest,
         )
         branch_name = publication_branch_name(identity, accepted.lineage_id)
-        branch = self.github.create_branch(
-            binding,
-            self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),
+        commit = self._publish_branch_commit(
+            binding=binding,
+            delivery_key=delivery_key,
             branch_name=branch_name,
             base_revision=base_revision,
-        )
-        actions.append(self._paired(branch))
-        commit = self.github.commit_accepted_lineage(
-            binding,
-            self._invocation(GITHUB_TOOL, ACTION_COMMIT_WRITE, f"{delivery_key}:commit"),
-            branch_name=branch_name,
-            expected_parent_revision=base_revision,
             lineage=lineage,
             files=files,
+            actions=actions,
         )
-        actions.append(self._paired(commit))
         pull_request = self.github.create_pull_request(
             binding,
             self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_CREATE, f"{delivery_key}:pr-create"),

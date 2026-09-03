@@ -51,6 +51,7 @@ from parallax_api.tools.providers import (
     GitHubTreeEntry,
     GitHubTreeResult,
     ProviderActionEvidence,
+    ProviderActionFailed,
     ProviderActionState,
     ProviderProjectBinding,
     VercelPreviewResult,
@@ -118,6 +119,46 @@ def _action_success(binding: ProviderProjectBinding, *, provider: str, action: s
         result_identity=result_identity,
     )
     return ProviderActionSuccess(value=value, evidence=provider_evidence, audit=audit)
+
+
+def _action_failure(
+    binding: ProviderProjectBinding,
+    *,
+    provider: str,
+    action: str,
+    result_code: str,
+    source_revision: str | None = None,
+    result_identity: str | None = None,
+) -> ProviderActionFailed:
+    evidence = ProviderActionEvidence(
+        provider=provider,
+        action=action,
+        state=ProviderActionState.FAILED,
+        project_ref=binding.project_ref,
+        repository_identity_digest=binding.repository_identity_digest,
+        source_revision=source_revision,
+        result_identity=result_identity,
+        result_status=result_code,
+    )
+    request_id = f"request:{uuid4().hex}"
+    audit = ToolAuditRecord(
+        request_id=request_id,
+        capability_id=f"cap:test-{provider}",
+        project_ref=binding.project_ref,
+        tool=provider,
+        action=action,
+        actor_ref="actor:test-runtime",
+        consequence=ToolConsequence.MUTATE,
+        authority_allowed=True,
+        outcome=ToolOutcome.FAILED,
+        deny_reason=None,
+        approval_id=None,
+        request_digest=sha256(f"{request_id}|{provider}|{action}".encode()).hexdigest(),
+        result_digest=sha256(f"{result_code}|{result_identity or ''}".encode()).hexdigest(),
+        result_code=result_code,
+        result_identity=result_identity,
+    )
+    return ProviderActionFailed(evidence=evidence, audit=audit)
 
 
 class MemoryDeliveryRecordStore:
@@ -993,3 +1034,103 @@ def test_durable_delivery_store_fails_after_one_unresolved_attempt_number_retry(
         assert repository.find_operation(run_id, records.operation_key(target_lineage)) is None
         refreshed = repository.get(run_id)
         assert refreshed is not None and refreshed.state == "REVIEW" and refreshed.revision == 12
+
+
+class BranchConflictReplayGitHubActions(FakeGitHubActions):
+    def create_branch(self, binding, invocation, *, branch_name, base_revision):
+        self.calls.append("branch.create")
+        assert base_revision == ROOT_REVISION
+        self.last_branch = branch_name
+        raise _action_failure(
+            binding,
+            provider="github",
+            action="branch.create",
+            result_code="BRANCH_CONFLICT",
+            source_revision=base_revision,
+            result_identity=branch_name,
+        )
+
+
+class BranchConflictMismatchGitHubActions(BranchConflictReplayGitHubActions):
+    def commit_accepted_lineage(
+        self,
+        binding,
+        invocation,
+        *,
+        branch_name,
+        expected_parent_revision,
+        lineage,
+        files,
+    ):
+        self.calls.append("commit.write")
+        raise _action_failure(
+            binding,
+            provider="github",
+            action="commit.write",
+            result_code="STALE_PARENT",
+            source_revision=expected_parent_revision,
+            result_identity=branch_name,
+        )
+
+
+def test_exact_partial_commit_recovers_after_branch_conflict_without_relabeling_failure(tmp_path) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    binding = ProviderProjectBinding(project_id, REPOSITORY_REF)
+    github = BranchConflictReplayGitHubActions(binding)
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(
+        tmp_path,
+        project_id,
+        run_id,
+        github=github,
+    )
+    bootstrap.ensure(run, operation_key="bootstrap")
+    identity = ProjectRunIdentity(project_id, run_id)
+    accepted = _accept_implementation(allocator, identity)
+    records = MemoryDeliveryRecordStore()
+    delivery = _delivery(
+        allocator,
+        binding,
+        github,
+        FakeVercelActions(),
+        project_id,
+        records=records,
+    )
+
+    result = delivery.deliver(
+        _review_run(project_id, run_id, accepted),
+        operation_key="deliver:partial-replay",
+    )
+
+    assert result.lineage_id == accepted.lineage_id
+    assert result.branch_name == publication_branch_name(identity, accepted.lineage_id)
+    successful_actions = tuple(pair.evidence.action for pair in result.actions)
+    assert "branch.create" not in successful_actions
+    assert "commit.write" in successful_actions
+    assert "pull_request.create" in successful_actions
+    assert "preview.create" in successful_actions
+    assert records.load(run_id=run_id, lineage_id=accepted.lineage_id) is not None
+
+
+def test_arbitrary_partial_branch_head_remains_fail_closed(tmp_path) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    binding = ProviderProjectBinding(project_id, REPOSITORY_REF)
+    github = BranchConflictMismatchGitHubActions(binding)
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(
+        tmp_path,
+        project_id,
+        run_id,
+        github=github,
+    )
+    bootstrap.ensure(run, operation_key="bootstrap")
+    identity = ProjectRunIdentity(project_id, run_id)
+    accepted = _accept_implementation(allocator, identity)
+    vercel = FakeVercelActions()
+    delivery = _delivery(allocator, binding, github, vercel, project_id)
+
+    with pytest.raises(ProviderActionFailed) as failed:
+        delivery.deliver(
+            _review_run(project_id, run_id, accepted),
+            operation_key="deliver:partial-mismatch",
+        )
+    assert failed.value.audit.result_code == "STALE_PARENT"
+    assert vercel.calls == []
