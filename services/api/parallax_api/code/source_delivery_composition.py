@@ -44,6 +44,7 @@ from ..tools.providers import (
 from .domain import AttemptStatus, WorkflowStage
 from .workspace_allocator import MaterializedWorkspace
 from .workspace_lineage import (
+    LINEAGE_PATTERN,
     LineageIdentityError,
     LineageNotFoundError,
     ProjectRunIdentity,
@@ -77,6 +78,16 @@ class SourceBootstrapError(SourceDeliveryCompositionError):
 
 class VerifiedDeliveryError(SourceDeliveryCompositionError):
     pass
+
+
+def publication_branch_name(identity: ProjectRunIdentity, lineage_id: str) -> str:
+    """Return the canonical bounded publication ref for one exact accepted lineage."""
+
+    if not isinstance(identity, ProjectRunIdentity):
+        raise VerifiedDeliveryError("canonical Project/run identity is required for publication branch derivation")
+    if not isinstance(lineage_id, str) or LINEAGE_PATTERN.fullmatch(lineage_id) is None:
+        raise VerifiedDeliveryError("accepted source lineage identity is invalid for publication branch derivation")
+    return f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}-{lineage_id[4:]}"
 
 
 class DurableSourceAllocator(Protocol):
@@ -909,7 +920,7 @@ class VerifiedLineageDelivery:
             lineage_id=accepted.lineage_id,
             content_digest=accepted.content_digest,
         )
-        branch_name = f"parallax/{identity.project_id[:8]}-{identity.run_id[:8]}"
+        branch_name = publication_branch_name(identity, accepted.lineage_id)
         branch = self.github.create_branch(
             binding,
             self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),

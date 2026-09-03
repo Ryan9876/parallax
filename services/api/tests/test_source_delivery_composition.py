@@ -22,6 +22,7 @@ from parallax_api.code.source_delivery_composition import (
     SourceBootstrapError,
     VerifiedDeliveryError,
     VerifiedLineageDelivery,
+    publication_branch_name,
 )
 from parallax_api.code.workspace_allocator import ProjectWorkspaceAllocator
 from parallax_api.code.workspace_lineage import (
@@ -161,6 +162,7 @@ class FakeGitHubActions:
         self.calls: list[str] = []
         self.mutations: list[str] = []
         self.committed_files = ()
+        self.last_branch: str | None = None
 
     def resolve_repository(self, binding, invocation):
         self.calls.append("repository.resolve")
@@ -212,6 +214,7 @@ class FakeGitHubActions:
         self.calls.append("branch.create")
         self.mutations.append("branch.create")
         assert base_revision == ROOT_REVISION
+        self.last_branch = branch_name
         value = GitHubBranchResult(REPOSITORY_REF, branch_name, base_revision, base_revision)
         return _action_success(
             binding,
@@ -294,7 +297,8 @@ class FakeGitHubActions:
     def read_pull_request(self, binding, invocation, *, number):
         self.calls.append("pull_request.read")
         self.mutations.append("pull_request.read")
-        branch = f"parallax/{binding.project_ref[:8]}-{self.run_id[:8]}"
+        branch = self.last_branch
+        assert branch is not None
         value = GitHubPullRequestResult(
             REPOSITORY_REF,
             number,
@@ -533,6 +537,7 @@ def test_verified_delivery_publishes_only_exact_current_lineage_delta_and_previe
 
     assert result.lineage_id == accepted.lineage_id
     assert result.content_digest == accepted.content_digest
+    assert result.branch_name == publication_branch_name(ProjectRunIdentity(project_id, run_id), accepted.lineage_id)
     assert result.commit_revision == COMMIT_REVISION
     assert result.preview_status == "READY"
     assert result.replayed is False
@@ -778,3 +783,55 @@ def test_invocation_factory_allows_only_fixed_github_and_preview_actions():
         factory.for_action(tool="vercel", action="production.promote", operation_key="op")
     with pytest.raises(ValueError):
         factory.for_action(tool="http", action="request", operation_key="op")
+
+
+def test_publication_branch_name_uses_full_lineage_identity_and_fails_closed() -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    identity = ProjectRunIdentity(project_id, run_id)
+    first = "src:" + "a" * 64
+    second = "src:" + "b" * 64
+
+    first_branch = publication_branch_name(identity, first)
+    assert first_branch == f"parallax/{project_id[:8]}-{run_id[:8]}-{first[4:]}"
+    assert publication_branch_name(identity, first) == first_branch
+    assert publication_branch_name(identity, second) != first_branch
+    assert publication_branch_name(identity, second).startswith(f"parallax/{project_id[:8]}-{run_id[:8]}-")
+
+    malformed = (None, "", "src:" + "a" * 63, "src:" + "A" * 64, "src:" + "g" * 64, "sha:" + "a" * 64)
+    for value in malformed:
+        with pytest.raises(VerifiedDeliveryError, match="lineage identity"):
+            publication_branch_name(identity, value)  # type: ignore[arg-type]
+    with pytest.raises(VerifiedDeliveryError, match="Project/run identity"):
+        publication_branch_name(SimpleNamespace(project_id=project_id, run_id=run_id), first)  # type: ignore[arg-type]
+
+
+def test_same_run_replacement_lineages_publish_to_distinct_branches_and_preserve_prior_record(tmp_path) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(tmp_path, project_id, run_id)
+    bootstrap.ensure(run, operation_key="bootstrap")
+    identity = ProjectRunIdentity(project_id, run_id)
+    first_lineage = _accept_implementation(allocator, identity)
+    records = MemoryDeliveryRecordStore()
+    delivery = _delivery(allocator, binding, github, FakeVercelActions(), project_id, records=records)
+
+    first = delivery.deliver(_review_run(project_id, run_id, first_lineage), operation_key="deliver:first")
+
+    workspace = allocator.resolve(identity)
+    try:
+        (workspace.path / "app.py").write_text("value = 3\n", encoding="utf-8")
+        second_lineage = allocator.accept_implementation(
+            workspace, expected_parent_lineage_id=workspace.lineage.lineage_id
+        )
+    finally:
+        allocator.cleanup(workspace)
+
+    second = delivery.deliver(_review_run(project_id, run_id, second_lineage), operation_key="deliver:second")
+
+    assert first.branch_name == publication_branch_name(identity, first_lineage.lineage_id)
+    assert second.branch_name == publication_branch_name(identity, second_lineage.lineage_id)
+    assert first.branch_name != second.branch_name
+    assert records.records[(run_id, first_lineage.lineage_id)]["branch_name"] == first.branch_name
+    assert records.records[(run_id, second_lineage.lineage_id)]["branch_name"] == second.branch_name
+    assert github.mutations.count("branch.create") == 2
+    assert github.mutations.count("commit.write") == 2
+    assert github.mutations.count("pull_request.create") == 2
