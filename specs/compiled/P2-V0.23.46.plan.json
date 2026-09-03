@@ -1,0 +1,92 @@
+{
+  "architecture_decisions": [
+    "P2-V0.23.46"
+  ],
+  "work_items": [
+    "Compact Parallax implementation brief"
+  ],
+  "validations": [
+    "No validation checks applied",
+    "AC-01: validate protected requirement \u2014 Tests and architecture explicitly bind P2-V0.23.46 to the P2-V0.23.39 / Architecture v3.48 canonical empty-tree contract rather than creating a broader missing-tree rule.",
+    "AC-02: validate protected requirement \u2014 An existing exact lineage commit whose exact expected parent commit resolves to canonical empty-tree SHA verifies against an empty parent snapshot without issuing `GET /git/trees/4b825dc...`.",
+    "AC-03: validate protected requirement \u2014 With canonical empty parent and a replay tree containing exactly the accepted changed files, replay returns the existing commit without new Git mutation.",
+    "AC-04: validate protected requirement \u2014 A non-canonical tree SHA returning 404 remains `SOURCE_NOT_FOUND`; no empty normalization occurs.",
+    "AC-05: validate protected requirement \u2014 Valid lineage message/parent plus extra, missing or different replay tree content remains rejected.",
+    "AC-06: validate protected requirement \u2014 Missing/malformed commit `tree.sha` remains `PROVIDER_INVALID_RESPONSE`.",
+    "AC-07: validate protected requirement \u2014 P2-V0.23.44 ref-acknowledgement and clean create-tree/commit/non-force-ref-update tests remain green.",
+    "AC-08: validate protected requirement \u2014 Focused provider tests, full API regression, Python compilation, strict DSPy evidence, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads.",
+    "AC-09: validate protected requirement \u2014 Exact merged source reaches production READY with normal preflights; `/health` and `/ready` return HTTP 200; exact deployment runtime scan is reviewed.",
+    "AC-10: validate protected requirement \u2014 Frozen Engineering Run `a64d56b7-ad42-42ad-9562-891783363f4a` remains REVIEW revision 12 and replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809` completes bounded source delivery: - existing canonical replacement branch is reused without reset/delete/force update; - partial commit `54d2d28880e1cfdcaf9632bb342049821a5a6be1` is verified/reused if still current; - exact replacement GitHub PR is created/read; - bounded Vercel Preview is created/read; - distinct exact durable `SOURCE_DELIVERY` succeeds; - prior branch `parallax/0e20392b-a64d56b7` and QA PR #1 remain unchanged; - no prior greenfield/branch/source/tree/provider blocker remains; - run stays REVIEW revision 12 with `last_failure_code=null`.",
+    "AC-11: validate protected requirement \u2014 `ARCHITECTURE.md` advances only after semantic validation. `CURRENT-STATE.md` advances only after deployment and frozen acceptance. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` remain unchanged unless durable subject matter changes."
+  ],
+  "risks": [
+    "No material risk and mitigation applied"
+  ],
+  "spec_id": "P2-V0.23.46",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Existing canonical-empty rule is reused",
+      "protected_requirement": "Tests and architecture explicitly bind P2-V0.23.46 to the P2-V0.23.39 / Architecture v3.48 canonical empty-tree contract rather than creating a broader missing-tree rule."
+    },
+    {
+      "id": "AC-02",
+      "title": "Canonical parent replay succeeds without Trees GET",
+      "protected_requirement": "An existing exact lineage commit whose exact expected parent commit resolves to canonical empty-tree SHA verifies against an empty parent snapshot without issuing `GET /git/trees/4b825dc...`."
+    },
+    {
+      "id": "AC-03",
+      "title": "Exact replay content proof still succeeds",
+      "protected_requirement": "With canonical empty parent and a replay tree containing exactly the accepted changed files, replay returns the existing commit without new Git mutation."
+    },
+    {
+      "id": "AC-04",
+      "title": "Non-canonical missing tree fails",
+      "protected_requirement": "A non-canonical tree SHA returning 404 remains `SOURCE_NOT_FOUND`; no empty normalization occurs."
+    },
+    {
+      "id": "AC-05",
+      "title": "Forged delta remains rejected",
+      "protected_requirement": "Valid lineage message/parent plus extra, missing or different replay tree content remains rejected."
+    },
+    {
+      "id": "AC-06",
+      "title": "Malformed commit tree identity remains rejected",
+      "protected_requirement": "Missing/malformed commit `tree.sha` remains `PROVIDER_INVALID_RESPONSE`."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing ref/write behavior remains",
+      "protected_requirement": "P2-V0.23.44 ref-acknowledgement and clean create-tree/commit/non-force-ref-update tests remain green."
+    },
+    {
+      "id": "AC-08",
+      "title": "Full protected regression passes",
+      "protected_requirement": "Focused provider tests, full API regression, Python compilation, strict DSPy evidence, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
+    },
+    {
+      "id": "AC-09",
+      "title": "Exact production deployment is verified",
+      "protected_requirement": "Exact merged source reaches production READY with normal preflights; `/health` and `/ready` return HTTP 200; exact deployment runtime scan is reviewed."
+    },
+    {
+      "id": "AC-10",
+      "title": "Frozen W9-S1 acceptance succeeds",
+      "protected_requirement": "Frozen Engineering Run `a64d56b7-ad42-42ad-9562-891783363f4a` remains REVIEW revision 12 and replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809` completes bounded source delivery: - existing canonical replacement branch is reused without reset/delete/force update; - partial commit `54d2d28880e1cfdcaf9632bb342049821a5a6be1` is verified/reused if still current; - exact replacement GitHub PR is created/read; - bounded Vercel Preview is created/read; - distinct exact durable `SOURCE_DELIVERY` succeeds; - prior branch `parallax/0e20392b-a64d56b7` and QA PR #1 remain unchanged; - no prior greenfield/branch/source/tree/provider blocker remains; - run stays REVIEW revision 12 with `last_failure_code=null`."
+    },
+    {
+      "id": "AC-11",
+      "title": "Authoritative records remain truthful",
+      "protected_requirement": "`ARCHITECTURE.md` advances only after semantic validation. `CURRENT-STATE.md` advances only after deployment and frozen acceptance. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` remain unchanged unless durable subject matter changes."
+    }
+  ],
+  "critique": [
+    "(4b825dc642cb6eb9a060e54bf8d69288fbee4904): No material issues identified."
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

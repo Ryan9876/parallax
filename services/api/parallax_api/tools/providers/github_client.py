@@ -34,6 +34,7 @@ _COMMIT_ACTOR = {
 }
 _ALLOWED_BLOB_MODES = frozenset({"100644", "100755"})
 _ALLOWED_TREE_MODE = "040000"
+_CANONICAL_EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 
 def _repository_parts(repository_ref: str) -> tuple[str, str]:
@@ -377,6 +378,12 @@ class GitHubRestProviderClient(GitHubProviderClient):
         repository_ref: str,
         tree_revision: str,
     ) -> dict[str, tuple[str, str, int]]:
+        # Git's canonical empty tree has a universal immutable identity. GitHub
+        # may not materialize it through the Trees API even when a verified
+        # commit references it, so only this exact SHA can be resolved locally.
+        if tree_revision == _CANONICAL_EMPTY_TREE_SHA:
+            return {}
+
         response = self._send(
             "GET",
             repository_ref,
