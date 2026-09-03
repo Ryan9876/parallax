@@ -65,16 +65,32 @@ class GreenfieldRepositoryInspection:
     repository_ref: str
     default_branch: str
     head_revision: str | None
+    head_tree_revision: str | None = None
+    head_message: str | None = None
 
     def __post_init__(self) -> None:
         require_repository_ref(self.repository_ref)
         require_source_revision(self.default_branch, field="default_branch")
-        if self.head_revision is not None:
-            require_source_revision(self.head_revision, field="head_revision")
+        if self.head_revision is None:
+            if self.head_tree_revision is not None or self.head_message is not None:
+                raise ValueError("empty repository inspection cannot carry head metadata")
+            return
+        require_source_revision(self.head_revision, field="head_revision")
+        require_source_revision(self.head_tree_revision or "", field="head_tree_revision")
+        if not isinstance(self.head_message, str) or not self.head_message:
+            raise ValueError("commit-bearing repository inspection requires head_message")
 
     @property
     def is_empty(self) -> bool:
         return self.head_revision is None
+
+    @property
+    def is_commit_bearing_empty(self) -> bool:
+        return self.head_revision is not None and self.head_tree_revision == _CANONICAL_EMPTY_TREE_SHA
+
+    @property
+    def is_canonical_baseline_candidate(self) -> bool:
+        return self.head_revision is not None and self.head_message == _CLEANUP_MESSAGE
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +149,23 @@ class GreenfieldGitHubClient:
             raise ProviderClientError("REPOSITORY_MISMATCH")
         default_branch = _text(payload.get("default_branch"))
         head = self._default_head(repository_ref, default_branch)
-        return GreenfieldRepositoryInspection(repository_ref, default_branch, head)
+        if head is None:
+            return GreenfieldRepositoryInspection(repository_ref, default_branch, None)
+
+        commit = self._commit(repository_ref, head)
+        message = _text(commit.get("message"))
+        _list(commit.get("parents"))
+        tree_revision = _text(_dict(commit.get("tree")).get("sha"))
+        stable_head = self._default_head(repository_ref, default_branch)
+        if stable_head != head:
+            raise ProviderClientError("GREENFIELD_INITIALIZATION_CONFLICT")
+        return GreenfieldRepositoryInspection(
+            repository_ref,
+            default_branch,
+            head,
+            tree_revision,
+            message,
+        )
 
     @staticmethod
     def _verify_actor(payload: dict[str, Any]) -> None:

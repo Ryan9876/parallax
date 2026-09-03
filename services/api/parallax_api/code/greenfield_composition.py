@@ -192,6 +192,43 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             lineage = self._reconstruct_lineage(identity, parent)
         raise VerifiedDeliveryError("source lineage ancestry exceeds protected traversal bound")
 
+    def _delivery_base(
+        self,
+        *,
+        binding,
+        delivery_key: str,
+        provenance_digest: str,
+    ) -> tuple[str, str, list[ProviderActionAuditPair]]:
+        inspected = self.greenfield.inspect_repository(
+            binding,
+            _invocation(
+                self.github_capability_id,
+                ACTION_REPOSITORY_INSPECT,
+                f"{delivery_key}:greenfield-inspect",
+            ),
+        )
+        actions: list[ProviderActionAuditPair] = [self._paired(inspected)]
+        state = inspected.value
+        if state.is_empty or state.is_canonical_baseline_candidate:
+            baseline = self.greenfield.initialize_empty_baseline(
+                binding,
+                _invocation(
+                    self.github_capability_id,
+                    ACTION_REPOSITORY_INITIALIZE_EMPTY,
+                    f"{delivery_key}:greenfield-baseline",
+                ),
+                provenance_digest=provenance_digest,
+            )
+            actions.append(self._paired(baseline))
+            return baseline.value.default_branch, baseline.value.baseline_revision, actions
+        if state.is_commit_bearing_empty:
+            if state.head_revision is None:
+                raise VerifiedDeliveryError("commit-bearing empty repository is missing its exact head")
+            return state.default_branch, state.head_revision, actions
+        raise VerifiedDeliveryError(
+            "greenfield repository default branch became non-empty before accepted-source publication"
+        )
+
     def deliver(self, run: EngineeringRun, *, operation_key: str) -> VerifiedDeliveryResult:
         if not isinstance(operation_key, str) or not operation_key.strip():
             raise VerifiedDeliveryError("delivery operation key is required")
@@ -221,18 +258,13 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
         provenance_digest = sha256(
             f"{identity.project_id}|{identity.run_id}|{root.lineage_id}|{root.source_ref_digest}".encode("utf-8")
         ).hexdigest()
-        baseline = self.greenfield.initialize_empty_baseline(
-            binding,
-            _invocation(
-                self.github_capability_id,
-                ACTION_REPOSITORY_INITIALIZE_EMPTY,
-                f"{delivery_key}:greenfield-baseline",
-            ),
+        base_branch, base_revision, actions = self._delivery_base(
+            binding=binding,
+            delivery_key=delivery_key,
             provenance_digest=provenance_digest,
         )
-        actions: list[ProviderActionAuditPair] = [self._paired(baseline)]
         expected_root_digest = sha256(
-            greenfield_source_ref(binding.repository_ref, baseline.value.default_branch).encode("utf-8")
+            greenfield_source_ref(binding.repository_ref, base_branch).encode("utf-8")
         ).hexdigest()
         if expected_root_digest != root.source_ref_digest:
             raise VerifiedDeliveryError("greenfield repository identity changed after durable lineage bootstrap")
@@ -248,14 +280,14 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             binding,
             self._invocation(GITHUB_TOOL, ACTION_BRANCH_CREATE, f"{delivery_key}:branch"),
             branch_name=branch_name,
-            base_revision=baseline.value.baseline_revision,
+            base_revision=base_revision,
         )
         actions.append(self._paired(branch))
         commit = self.github.commit_accepted_lineage(
             binding,
             self._invocation(GITHUB_TOOL, ACTION_COMMIT_WRITE, f"{delivery_key}:commit"),
             branch_name=branch_name,
-            expected_parent_revision=baseline.value.baseline_revision,
+            expected_parent_revision=base_revision,
             lineage=lineage,
             files=files,
         )
@@ -265,7 +297,7 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             self._invocation(GITHUB_TOOL, ACTION_PULL_REQUEST_CREATE, f"{delivery_key}:pr-create"),
             head_branch=branch_name,
             expected_head_revision=commit.value.commit_revision,
-            base_branch=baseline.value.default_branch,
+            base_branch=base_branch,
             lineage=lineage,
             title="Parallax verified app-builder change",
             body=(
@@ -284,7 +316,7 @@ class GreenfieldVerifiedLineageDelivery(VerifiedLineageDelivery):
             read_pull_request.value.state != "OPEN"
             or read_pull_request.value.head_branch != branch_name
             or read_pull_request.value.head_revision != commit.value.commit_revision
-            or read_pull_request.value.base_branch != baseline.value.default_branch
+            or read_pull_request.value.base_branch != base_branch
         ):
             raise VerifiedDeliveryError("GitHub pull request read-back did not match exact verified source")
 
