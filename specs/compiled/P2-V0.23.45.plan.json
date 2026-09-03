@@ -1,0 +1,86 @@
+{
+  "architecture_decisions": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10\n- AC-11\n- AC-12"
+  ],
+  "work_items": [
+    "- Focused tests reproduce that commit SHA and tree SHA are distinct and prove replay snapshots use the commit object's tree SHA."
+  ],
+  "validations": [
+    "- No validation needed."
+  ],
+  "risks": [
+    "- No material risk and mitigation required."
+  ],
+  "spec_id": "P2-V0.23.45",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Production root cause is encoded",
+      "protected_requirement": "Focused tests reproduce that commit SHA and tree SHA are distinct and prove replay snapshots use the commit object's tree SHA."
+    },
+    {
+      "id": "AC-02",
+      "title": "Exact replay succeeds",
+      "protected_requirement": "An existing canonical branch at the exact accepted Parallax lineage commit with the exact expected parent and exact accepted tree delta returns the existing commit without new Git tree/commit/ref mutation."
+    },
+    {
+      "id": "AC-03",
+      "title": "Parent tree identity is exact",
+      "protected_requirement": "Parent replay comparison reads the exact `tree.sha` from the exact expected parent commit payload."
+    },
+    {
+      "id": "AC-04",
+      "title": "Replay tree identity is exact",
+      "protected_requirement": "Candidate replay comparison reads the exact `tree.sha` from the exact replay commit payload."
+    },
+    {
+      "id": "AC-05",
+      "title": "Malformed tree identity fails closed",
+      "protected_requirement": "Missing or malformed commit tree identity fails as `PROVIDER_INVALID_RESPONSE` before any adoption."
+    },
+    {
+      "id": "AC-06",
+      "title": "Forged tree delta remains rejected",
+      "protected_requirement": "A candidate with valid lineage message and parent but extra/missing/different tree delta is not adopted."
+    },
+    {
+      "id": "AC-07",
+      "title": "Existing ref propagation behavior remains",
+      "protected_requirement": "P2-V0.23.44 one-shot exact ref mutation acknowledgement tests remain green."
+    },
+    {
+      "id": "AC-08",
+      "title": "Clean write path remains",
+      "protected_requirement": "Ordinary create-tree/create-commit/non-force-ref-update behavior remains green and unchanged in authority."
+    },
+    {
+      "id": "AC-09",
+      "title": "Full regression passes",
+      "protected_requirement": "Focused provider tests, full API regression, Python compilation, strict spec/DSPy validation, Bounded Autonomy, Workstream Spec Validation and P2 CI pass on exact reviewed heads."
+    },
+    {
+      "id": "AC-10",
+      "title": "Exact production deployment is verified",
+      "protected_requirement": "The exact merged source reaches production READY with normal preflights, `/health` and `/ready` HTTP 200, and exact-deployment warning/error/fatal scan reviewed."
+    },
+    {
+      "id": "AC-11",
+      "title": "Frozen W9-S1 acceptance succeeds",
+      "protected_requirement": "Frozen run `a64d56b7-ad42-42ad-9562-891783363f4a` remains REVIEW revision 12 with `last_failure_code=null` and replacement lineage `src:001736ab731e243956cf78ede7a0087d2b81595f1008568850eac1e9acc3e809`. Acceptance must prove: - existing canonical replacement branch is reconciled without reset/delete/force update; - exact partial commit `54d2d28880e1cfdcaf9632bb342049821a5a6be1` is verified/reused if still current; - a new exact GitHub PR is created/read for the replacement lineage; - a bounded Vercel Preview is created/read under existing semantics; - a distinct exact durable `SOURCE_DELIVERY` record is persisted for replacement lineage; - prior branch `parallax/0e20392b-a64d56b7` and QA PR #1 remain unchanged; - no `GREENFIELD_BASELINE_MISMATCH`, `BRANCH_NOT_FOUND`, `SOURCE_MISMATCH`, `BRANCH_CONFLICT`, replay-tree `SOURCE_NOT_FOUND` or provider conflict remains as the stop; - the Engineering Run remains at human REVIEW revision 12."
+    },
+    {
+      "id": "AC-12",
+      "title": "Authoritative records are truthful",
+      "protected_requirement": "`ARCHITECTURE.md` advances only after validated semantic change. `CURRENT-STATE.md` advances only after exact deployment and frozen W9-S1 acceptance. `DESIGN-SYSTEM.md` and `PROJECT-CONSTITUTION.md` remain unchanged unless their durable subject matter changes."
+    }
+  ],
+  "critique": [
+    "(none)"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
