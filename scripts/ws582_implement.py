@@ -567,12 +567,12 @@ class BranchConflictMismatchGitHubActions(BranchConflictReplayGitHubActions):
         )
 
 
-def test_exact_partial_commit_recovers_after_branch_conflict_without_relabeling_failure() -> None:
+def test_exact_partial_commit_recovers_after_branch_conflict_without_relabeling_failure(tmp_path) -> None:
     project_id, run_id = str(uuid4()), str(uuid4())
     binding = ProviderProjectBinding(project_id, REPOSITORY_REF)
     github = BranchConflictReplayGitHubActions(binding)
     bootstrap, allocator, _, github, run, _, _, binding = _bootstrap(
-        tmp_path := __import__("pathlib").Path(pytest.ensuretemp("partial-replay")),
+        tmp_path,
         project_id,
         run_id,
         github=github,
