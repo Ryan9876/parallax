@@ -835,3 +835,161 @@ def test_same_run_replacement_lineages_publish_to_distinct_branches_and_preserve
     assert github.mutations.count("branch.create") == 2
     assert github.mutations.count("commit.write") == 2
     assert github.mutations.count("pull_request.create") == 2
+
+
+def test_durable_delivery_store_persists_multiple_same_run_lineages_without_run_transition(tmp_path) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    first_lineage = "src:" + "1" * 64
+    second_lineage = "src:" + "2" * 64
+    engine = make_engine(f"sqlite:///{tmp_path / 'same-run-delivery.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as session:
+        session.add(
+            EngineeringRun(
+                id=run_id,
+                conversation_id=str(uuid4()),
+                spec_id="P2-V0.23.43",
+                project_id=project_id,
+                state="REVIEW",
+                revision=12,
+            )
+        )
+        session.commit()
+        repository = EngineeringRunRepository(session)
+        records = EngineeringAttemptDeliveryRecordStore(repository)
+        run = repository.get(run_id)
+        assert run is not None
+        first_payload = {"project_id": project_id, "run_id": run_id, "lineage_id": first_lineage, "branch_name": "legacy-branch"}
+        second_payload = {"project_id": project_id, "run_id": run_id, "lineage_id": second_lineage, "branch_name": "replacement-branch"}
+
+        stored_first, replayed_first = records.persist(run=run, lineage_id=first_lineage, payload=first_payload)
+        stored_second, replayed_second = records.persist(run=run, lineage_id=second_lineage, payload=second_payload)
+        exact_replay, replayed_exact = records.persist(run=run, lineage_id=first_lineage, payload=first_payload)
+
+        assert stored_first == first_payload and replayed_first is False
+        assert stored_second == second_payload and replayed_second is False
+        assert exact_replay == first_payload and replayed_exact is True
+        first_attempt = repository.find_operation(run_id, records.operation_key(first_lineage))
+        second_attempt = repository.find_operation(run_id, records.operation_key(second_lineage))
+        assert first_attempt is not None and first_attempt.attempt_number == 1
+        assert second_attempt is not None and second_attempt.attempt_number == 2
+        assert first_attempt.operation_key != second_attempt.operation_key
+        assert records.load(run_id=run_id, lineage_id=first_lineage) == first_payload
+        assert records.load(run_id=run_id, lineage_id=second_lineage) == second_payload
+        refreshed = repository.get(run_id)
+        assert refreshed is not None and refreshed.state == "REVIEW" and refreshed.revision == 12
+
+
+def test_durable_delivery_store_retries_only_database_attempt_number_collision_once(tmp_path, monkeypatch) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    existing_lineage = "src:" + "3" * 64
+    target_lineage = "src:" + "4" * 64
+    engine = make_engine(f"sqlite:///{tmp_path / 'delivery-race.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as session:
+        session.add(
+            EngineeringRun(
+                id=run_id,
+                conversation_id=str(uuid4()),
+                spec_id="P2-V0.23.43",
+                project_id=project_id,
+                state="REVIEW",
+                revision=12,
+            )
+        )
+        session.add(
+            EngineeringAttempt(
+                run_id=run_id,
+                stage="SOURCE_DELIVERY",
+                attempt_number=1,
+                operation_key=EngineeringAttemptDeliveryRecordStore.operation_key(existing_lineage),
+                status="RECORDED",
+                evidence_json=json.dumps({"project_id": project_id, "run_id": run_id, "lineage_id": existing_lineage}),
+            )
+        )
+        session.commit()
+        repository = EngineeringRunRepository(session)
+        records = EngineeringAttemptDeliveryRecordStore(repository)
+        run = repository.get(run_id)
+        assert run is not None
+        payload = {"project_id": project_id, "run_id": run_id, "lineage_id": target_lineage, "branch_name": "target"}
+
+        original_scalar = session.scalar
+        max_reads = 0
+
+        def stale_once(statement, *args, **kwargs):
+            nonlocal max_reads
+            rendered = str(statement)
+            if "max(engineering_attempts.attempt_number)" in rendered:
+                max_reads += 1
+                if max_reads == 1:
+                    return 0
+            return original_scalar(statement, *args, **kwargs)
+
+        monkeypatch.setattr(session, "scalar", stale_once)
+        stored, replayed = records.persist(run=run, lineage_id=target_lineage, payload=payload)
+
+        assert stored == payload and replayed is False
+        target_attempt = repository.find_operation(run_id, records.operation_key(target_lineage))
+        assert target_attempt is not None and target_attempt.attempt_number == 2
+        assert max_reads == 2
+        refreshed = repository.get(run_id)
+        assert refreshed is not None and refreshed.state == "REVIEW" and refreshed.revision == 12
+
+
+def test_durable_delivery_store_fails_after_one_unresolved_attempt_number_retry(tmp_path, monkeypatch) -> None:
+    project_id, run_id = str(uuid4()), str(uuid4())
+    target_lineage = "src:" + "7" * 64
+    engine = make_engine(f"sqlite:///{tmp_path / 'delivery-race-fail.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as session:
+        session.add(
+            EngineeringRun(
+                id=run_id,
+                conversation_id=str(uuid4()),
+                spec_id="P2-V0.23.43",
+                project_id=project_id,
+                state="REVIEW",
+                revision=12,
+            )
+        )
+        for number, digit in ((1, "5"), (2, "6")):
+            lineage = "src:" + digit * 64
+            session.add(
+                EngineeringAttempt(
+                    run_id=run_id,
+                    stage="SOURCE_DELIVERY",
+                    attempt_number=number,
+                    operation_key=EngineeringAttemptDeliveryRecordStore.operation_key(lineage),
+                    status="RECORDED",
+                    evidence_json=json.dumps({"project_id": project_id, "run_id": run_id, "lineage_id": lineage}),
+                )
+            )
+        session.commit()
+        repository = EngineeringRunRepository(session)
+        records = EngineeringAttemptDeliveryRecordStore(repository)
+        run = repository.get(run_id)
+        assert run is not None
+        payload = {"project_id": project_id, "run_id": run_id, "lineage_id": target_lineage, "branch_name": "target"}
+
+        original_scalar = session.scalar
+        forced = iter((0, 1))
+
+        def two_stale_reads(statement, *args, **kwargs):
+            rendered = str(statement)
+            if "max(engineering_attempts.attempt_number)" in rendered:
+                return next(forced)
+            return original_scalar(statement, *args, **kwargs)
+
+        monkeypatch.setattr(session, "scalar", two_stale_reads)
+        with pytest.raises(VerifiedDeliveryError, match="concurrent durable delivery record conflicted"):
+            records.persist(run=run, lineage_id=target_lineage, payload=payload)
+        assert repository.find_operation(run_id, records.operation_key(target_lineage)) is None
+        refreshed = repository.get(run_id)
+        assert refreshed is not None and refreshed.state == "REVIEW" and refreshed.revision == 12

@@ -6,7 +6,7 @@ import json
 from pathlib import PurePosixPath
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from ..models import EngineeringAttempt, EngineeringRun, utcnow
@@ -625,36 +625,52 @@ class EngineeringAttemptDeliveryRecordStore:
                 raise VerifiedDeliveryError("conflicting durable delivery record already exists")
             return existing, True
 
-        conflicting = self.repository.session.scalar(
-            select(EngineeringAttempt).where(
-                EngineeringAttempt.run_id == run.id,
-                EngineeringAttempt.stage == _DELIVERY_RECORD_STAGE,
+        operation_key = self.operation_key(lineage_id)
+        for insert_index in range(2):
+            current = self.repository.session.scalar(
+                select(func.max(EngineeringAttempt.attempt_number)).where(
+                    EngineeringAttempt.run_id == run.id,
+                    EngineeringAttempt.stage == _DELIVERY_RECORD_STAGE,
+                )
             )
-        )
-        if conflicting is not None:
-            raise VerifiedDeliveryError("Engineering Run already has a different durable delivery record")
-
-        attempt = EngineeringAttempt(
-            run_id=run.id,
-            stage=_DELIVERY_RECORD_STAGE,
-            attempt_number=1,
-            operation_key=self.operation_key(lineage_id),
-            status=_DELIVERY_RECORD_STATUS,
-            program_id=_DELIVERY_RECORD_PROGRAM,
-            tool_id=_DELIVERY_RECORD_TOOL,
-            evidence_json=encoded,
-            completed_at=utcnow(),
-        )
-        try:
-            self.repository.session.add(attempt)
-            self.repository.session.commit()
-        except IntegrityError as exc:
-            self.repository.session.rollback()
-            replay = self.load(run_id=run.id, lineage_id=lineage_id)
-            if replay is None or self._canonical(replay) != encoded:
+            attempt_number = int(current or 0) + 1
+            attempt = EngineeringAttempt(
+                run_id=run.id,
+                stage=_DELIVERY_RECORD_STAGE,
+                attempt_number=attempt_number,
+                operation_key=operation_key,
+                status=_DELIVERY_RECORD_STATUS,
+                program_id=_DELIVERY_RECORD_PROGRAM,
+                tool_id=_DELIVERY_RECORD_TOOL,
+                evidence_json=encoded,
+                completed_at=utcnow(),
+            )
+            try:
+                self.repository.session.add(attempt)
+                self.repository.session.commit()
+                return payload, False
+            except IntegrityError as exc:
+                self.repository.session.rollback()
+                replay = self.load(run_id=run.id, lineage_id=lineage_id)
+                if replay is not None:
+                    if self._canonical(replay) != encoded:
+                        raise VerifiedDeliveryError("conflicting durable delivery record already exists") from exc
+                    return replay, True
+                claimed_attempt = self.repository.session.scalar(
+                    select(EngineeringAttempt).where(
+                        EngineeringAttempt.run_id == run.id,
+                        EngineeringAttempt.stage == _DELIVERY_RECORD_STAGE,
+                        EngineeringAttempt.attempt_number == attempt_number,
+                    )
+                )
+                if (
+                    insert_index == 0
+                    and claimed_attempt is not None
+                    and claimed_attempt.operation_key != operation_key
+                ):
+                    continue
                 raise VerifiedDeliveryError("concurrent durable delivery record conflicted") from exc
-            return replay, True
-        return payload, False
+        raise VerifiedDeliveryError("concurrent durable delivery record conflicted")
 
 
 class VerifiedLineageDelivery:
