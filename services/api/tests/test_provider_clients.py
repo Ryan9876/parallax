@@ -27,6 +27,8 @@ TREE = "2" * 40
 BLOB = "3" * 40
 UPDATED_TREE = "4" * 40
 UPDATED_BLOB = "5" * 40
+CANONICAL_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+MISSING_TREE = "8" * 40
 LINEAGE = AcceptedSourceLineage(
     PROJECT_ID,
     RUN_ID,
@@ -707,3 +709,94 @@ def test_github_exact_lineage_replay_rejects_malformed_commit_tree_identity() ->
 
     assert handler.commit_posts == 0
     assert handler.tree_reads == 0
+
+
+
+class GitHubCanonicalEmptyParentReplayTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+        self.empty_tree_reads = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and path == f"/repos/acme/example-app/git/commits/{BASE}":
+            return httpx.Response(
+                200,
+                json={
+                    "sha": BASE,
+                    "message": "base",
+                    "tree": {"sha": CANONICAL_EMPTY_TREE},
+                    "parents": [],
+                },
+            )
+        if request.method == "GET" and path == f"/repos/acme/example-app/git/trees/{CANONICAL_EMPTY_TREE}":
+            self.empty_tree_reads += 1
+            return httpx.Response(404, json={"message": "canonical empty tree not materialized"})
+        return super().__call__(request)
+
+
+def test_github_exact_lineage_replay_uses_canonical_empty_parent_without_tree_get() -> None:
+    handler = GitHubCanonicalEmptyParentReplayTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    replay = client.commit_files(
+        REPOSITORY_REF,
+        "parallax/run-1",
+        BASE,
+        LINEAGE,
+        (_commit_file(),),
+    )
+
+    assert replay.commit_revision == COMMIT
+    assert handler.commit_posts == 0
+    assert handler.empty_tree_reads == 0
+
+
+class GitHubMissingNonCanonicalParentTreeTransport(GitHubHappyTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.branch_head = COMMIT
+        self.missing_tree_reads = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and path == f"/repos/acme/example-app/git/commits/{BASE}":
+            return httpx.Response(
+                200,
+                json={
+                    "sha": BASE,
+                    "message": "base",
+                    "tree": {"sha": MISSING_TREE},
+                    "parents": [],
+                },
+            )
+        if request.method == "GET" and path == f"/repos/acme/example-app/git/trees/{MISSING_TREE}":
+            self.missing_tree_reads += 1
+            return httpx.Response(404, json={"message": "missing tree"})
+        return super().__call__(request)
+
+
+def test_github_exact_lineage_replay_does_not_normalize_noncanonical_missing_tree() -> None:
+    handler = GitHubMissingNonCanonicalParentTreeTransport()
+    client = GitHubRestProviderClient(
+        GitHubCredentials(),
+        transport=httpx.MockTransport(handler),
+    )
+    client.resolve_repository(REPOSITORY_REF)
+
+    with pytest.raises(ProviderClientError, match="SOURCE_NOT_FOUND"):
+        client.commit_files(
+            REPOSITORY_REF,
+            "parallax/run-1",
+            BASE,
+            LINEAGE,
+            (_commit_file(),),
+        )
+
+    assert handler.commit_posts == 0
+    assert handler.missing_tree_reads == 1
