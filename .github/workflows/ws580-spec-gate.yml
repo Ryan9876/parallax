@@ -29,7 +29,7 @@ jobs:
       - name: Install API development dependencies
         run: pip install -e 'services/api[dev]'
       - name: Validate specification structure
-        run: python scripts/validate_spec.py "$SPEC_PATH"
+        run: python scripts/validate_spec.py --spec-only "$SPEC_PATH"
       - name: Install and start local DSPy model
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
