@@ -1,0 +1,81 @@
+name: WS582 P2-V0.23.44 Implementation
+
+on:
+  push:
+    branches:
+      - ws/582-partial-github-publication-recovery
+    paths:
+      - .github/workflows/ws582-implementation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/582-partial-github-publication-recovery
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Re-prove protected spec-first gate
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.44.md
+      - name: Apply bounded partial-publication recovery implementation
+        run: python scripts/ws582_implement.py
+      - name: Run focused provider and delivery regressions
+        run: |
+          pytest -q \
+            services/api/tests/test_provider_clients.py \
+            services/api/tests/test_source_delivery_composition.py \
+            services/api/tests/test_greenfield_commit_bearing_delivery.py \
+            services/api/tests/test_app_builder_source_delivery_bridge.py
+      - name: Advance architecture only after focused semantic validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("ARCHITECTURE.md")
+          text = path.read_text(encoding="utf-8")
+          if text.count("Version: 3.52") != 1:
+              raise SystemExit("expected exact Architecture v3.52 baseline")
+          text = text.replace("Version: 3.52", "Version: 3.53", 1)
+          marker = "## Version relationship\n\n"
+          if text.count(marker) != 1:
+              raise SystemExit("expected one Version relationship marker")
+          paragraph = (
+              "Architecture v3.53 adds bounded recovery for exact GitHub partial publication without widening source or provider authority. "
+              "The authenticated concrete GitHub client may retain one process-local, one-shot acknowledgement only after GitHub returns a structurally verified successful exact ref mutation response. "
+              "That acknowledgement is scoped to one exact repository and canonical lineage branch, records the exact prior and new heads, is consumed by the immediately following exact branch-head check, and may bridge only an absent read or the exact prior head; any third head remains authoritative and fails closed. "
+              "Successful branch creation can therefore survive immediate ref invisibility, and a successful non-force commit ref PATCH can survive one immediate stale prior-head read before PR creation, without sleeps, polling, mutation retries, force updates or alternate refs. "
+              "Across process/request boundaries no acknowledgement survives. If a previous partial attempt already advanced the canonical lineage branch, branch creation still reports conflict; ordinary and greenfield delivery share one recovery helper that proceeds only through the existing accepted-lineage commit action, whose deterministic Parallax commit message and exact expected parent must prove an exact lineage replay before PR/Preview delivery can continue. "
+              "Arbitrary branch heads, different lineages or different parents remain conflicts, failed branch actions are not relabeled as successful durable delivery evidence, and exact SOURCE_DELIVERY durable replay remains first authority. "
+              "P2-V0.23.43 canonical lineage-scoped branch naming and multi-record delivery ledger, P2-V0.23.42 greenfield classification, provider permissions/credentials, non-force mutation, Preview-only ceiling, default-branch protection, merge/production boundaries and human REVIEW authority remain unchanged. Architecture v3.52 remains the lineage-scoped publication-identity foundation.\n\n"
+          )
+          path.write_text(text.replace(marker, marker + paragraph, 1), encoding="utf-8")
+          PY
+      - name: Run full API regression and compile/spec gates
+        run: |
+          pytest -q services/api/tests
+          python -m compileall -q services/api/parallax_api
+          python scripts/validate_spec.py --require-dspy specs/P2-V0.23.44.md
+      - name: Persist validated semantic implementation
+        run: |
+          set -euo pipefail
+          git config user.name 'Parallax Release Automation'
+          git config user.email 'parallax-release@users.noreply.github.com'
+          git add \
+            services/api/parallax_api/tools/providers/github_client.py \
+            services/api/parallax_api/code/source_delivery_composition.py \
+            services/api/parallax_api/code/greenfield_composition.py \
+            services/api/tests/test_provider_clients.py \
+            services/api/tests/test_source_delivery_composition.py \
+            services/api/tests/test_greenfield_commit_bearing_delivery.py \
+            ARCHITECTURE.md
+          git diff --cached --check
+          git commit -m 'P2-V0.23.44 recover exact partial GitHub publication'
+          git push origin HEAD:ws/582-partial-github-publication-recovery
