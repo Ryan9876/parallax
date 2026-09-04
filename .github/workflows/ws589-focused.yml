@@ -1,0 +1,40 @@
+name: WS589 P2-V0.23.47 Focused Implementation
+
+on:
+  push:
+    branches:
+      - ws/589-behavioral-verification-plan
+    paths:
+      - .github/workflows/ws589-focused.yml
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ws/589-behavioral-verification-plan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install API development dependencies
+        run: pip install -e 'services/api[dev]'
+      - name: Re-prove spec-first gate
+        run: python scripts/validate_spec.py --require-dspy specs/P2-V0.23.47.md
+      - name: Run focused behavioral plan tests
+        run: pytest -q services/api/tests/test_behavioral_verification_plans.py
+      - name: Compile API
+        run: python -m compileall -q services/api/parallax_api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/client/package-lock.json
+      - name: Install client dependencies
+        run: npm ci --prefix apps/client
+      - name: Typecheck client
+        run: npm --prefix apps/client run typecheck
