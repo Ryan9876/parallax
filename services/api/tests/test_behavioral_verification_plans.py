@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from parallax_api.code.work_spec_binding import work_specification_digest
@@ -34,6 +36,13 @@ from parallax_api.services.conversations import ConversationService
 from parallax_api.services.work_specifications import WorkSpecificationService
 from parallax_api.routes import work_specifications as work_spec_routes
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
+
+
+SCRIPTS_ROOT = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+
+import production_behavioral_plan_schema_guard as behavioral_schema_guard
 
 
 def _specification(*, status: str = "APPROVED") -> WorkSpecification:
@@ -408,4 +417,37 @@ def test_behavioral_plan_routes_expose_only_server_generated_draft_and_explicit_
     assert approved.status_code == 200
     assert approved.json()["status"] == "APPROVED"
     assert approved.json()["approved_at"] is not None
+
+def test_behavioral_plan_schema_guard_skips_nonproduction_without_database(monkeypatch, capsys) -> None:
+    monkeypatch.setenv("VERCEL_ENV", "preview")
+
+    def unexpected_engine(*args, **kwargs):
+        raise AssertionError("non-production behavioral plan guard must not touch the production database")
+
+    monkeypatch.setattr(behavioral_schema_guard, "make_engine", unexpected_engine)
+    behavioral_schema_guard.main()
+    assert "SKIP" in capsys.readouterr().out
+
+
+def test_behavioral_plan_schema_guard_blocks_missing_production_table(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    engine = create_engine(f"sqlite:///{tmp_path / 'missing-plan-table.db'}", future=True)
+    monkeypatch.setattr(behavioral_schema_guard, "make_engine", lambda **kwargs: engine)
+
+    with pytest.raises(SystemExit) as blocked:
+        behavioral_schema_guard.main()
+
+    assert blocked.value.code == 1
+    assert "BLOCK" in capsys.readouterr().err
+
+
+def test_behavioral_plan_schema_guard_accepts_present_production_table(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    engine = create_engine(f"sqlite:///{tmp_path / 'present-plan-table.db'}", future=True)
+    with engine.begin() as connection:
+        connection.execute(text("create table behavioral_verification_plans (id varchar(36) primary key)"))
+    monkeypatch.setattr(behavioral_schema_guard, "make_engine", lambda **kwargs: engine)
+
+    behavioral_schema_guard.main()
+    assert "PASS" in capsys.readouterr().out
 
