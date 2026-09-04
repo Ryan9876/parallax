@@ -4,8 +4,10 @@ import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from datetime import datetime, timezone
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
@@ -22,6 +24,7 @@ from parallax_api.intelligence.behavioral_verification_plan import (
     compile_behavioral_plan,
     validate_persisted_behavioral_plan,
 )
+from parallax_api.main import create_app
 from parallax_api.models import WorkSpecification
 from parallax_api.repositories.behavioral_verification_plans import BehavioralVerificationPlanRepository
 from parallax_api.repositories.conversations import ConversationRepository
@@ -29,6 +32,7 @@ from parallax_api.repositories.work_specifications import WorkSpecificationRepos
 from parallax_api.services.behavioral_verification_plans import BehavioralVerificationPlanService
 from parallax_api.services.conversations import ConversationService
 from parallax_api.services.work_specifications import WorkSpecificationService
+from parallax_api.routes import work_specifications as work_spec_routes
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
 
 
@@ -323,3 +327,85 @@ def test_behavioral_plan_migration_is_additive_guarded_and_private() -> None:
     assert "octet_length(plan_json) <= 32000" in sql
     assert "enable row level security" in sql
     assert "revoke all on table behavioral_verification_plans from anon, authenticated" in sql
+
+def test_behavioral_plan_routes_expose_only_server_generated_draft_and_explicit_approval() -> None:
+    now = datetime(2026, 9, 3, tzinfo=timezone.utc)
+    specification = _specification()
+    payload = compile_behavioral_plan(specification, _proposal(), plan_revision=1)
+    stored = SimpleNamespace(
+        id="33333333-3333-4333-8333-333333333333",
+        work_specification_id=specification.id,
+        work_specification_revision=specification.revision,
+        work_specification_digest=work_specification_digest(specification),
+        revision=1,
+        status="DRAFT",
+        plan_digest=behavioral_plan_digest(payload),
+        program_version="behavioral-test",
+        model_id="test-model",
+        created_at=now,
+        updated_at=now,
+        approved_at=None,
+    )
+
+    class FakeService:
+        def approved_specification(self, specification_id):
+            assert specification_id == specification.id
+            return specification
+
+        def latest(self, specification_id):
+            assert specification_id == specification.id
+            return stored
+
+        def create_draft(self, specification_id, generation):
+            assert specification_id == specification.id
+            assert generation.proposal == _proposal()
+            return stored
+
+        def approve(self, plan_id):
+            assert plan_id == stored.id
+            stored.status = "APPROVED"
+            stored.approved_at = now
+            return stored
+
+        def validated_payload(self, plan, *, specification=None):
+            assert plan is stored
+            return payload
+
+    class FakeCoordinator:
+        async def draft(self, bound_specification):
+            assert bound_specification is specification
+            return BehavioralVerificationPlanGeneration(
+                proposal=_proposal(),
+                model="test-model",
+                program_version="behavioral-test",
+            )
+
+    app = create_app(create_schema=False)
+    fake_service = FakeService()
+    app.dependency_overrides[work_spec_routes.behavioral_plan_service] = lambda: fake_service
+    app.dependency_overrides[work_spec_routes.behavioral_plan_coordinator] = lambda: FakeCoordinator()
+    client = TestClient(app)
+
+    latest = client.get(
+        f"/v1/work-specifications/{specification.id}/behavioral-verification-plan",
+        headers={"Authorization": "Bearer test"},
+    )
+    assert latest.status_code == 200
+    assert latest.json()["status"] == "DRAFT"
+    assert [item["acceptance_id"] for item in latest.json()["criteria"]] == ["AC-01", "AC-02"]
+
+    drafted = client.post(
+        f"/v1/work-specifications/{specification.id}/behavioral-verification-plan/draft",
+        headers={"Authorization": "Bearer test"},
+    )
+    assert drafted.status_code == 200
+    assert drafted.json()["plan_digest"] == stored.plan_digest
+
+    approved = client.post(
+        f"/v1/behavioral-verification-plans/{stored.id}/approve",
+        headers={"Authorization": "Bearer test"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "APPROVED"
+    assert approved.json()["approved_at"] is not None
+
