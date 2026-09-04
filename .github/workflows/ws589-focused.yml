@@ -1,5 +1,5 @@
 name: WS589 P2-V0.23.47 Focused Implementation
-# Re-run against the repository's native client install contract.
+# Re-run with route, schema-guard, and client smoke coverage.
 
 on:
   push:
@@ -39,3 +39,6 @@ jobs:
       - name: Typecheck client
         working-directory: apps/client
         run: npm run typecheck
+      - name: Behavioral plan client smoke
+        working-directory: apps/client
+        run: node scripts/behavioral-verification-plan-smoke.mjs
