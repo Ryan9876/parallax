@@ -61,6 +61,50 @@ export type WorkSpecificationDto = {
   approved_at: string | null;
 };
 
+export type BehavioralVerificationTargetDto = {
+  kind: 'ROLE' | 'LABEL' | 'TEST_ID' | 'TEXT';
+  value: string;
+};
+
+export type BehavioralVerificationActionDto = {
+  kind: 'NAVIGATE' | 'WAIT_FOR' | 'ASSERT_VISIBLE' | 'ASSERT_ABSENT' | 'CLICK' | 'FILL' | 'SELECT' | 'ASSERT_PATH' | 'ASSERT_LAYOUT' | 'SCREENSHOT';
+  path: string | null;
+  target: BehavioralVerificationTargetDto | null;
+  value: string | null;
+  checkpoint: string | null;
+};
+
+export type BehavioralVerificationWorkflowDto = {
+  workflow_id: string;
+  version: number;
+  viewport_ids: string[];
+  timeout_ms: number;
+  actions: BehavioralVerificationActionDto[];
+};
+
+export type BehavioralVerificationCriterionDto = {
+  acceptance_id: string;
+  acceptance_text: string;
+  mode: 'BROWSER' | 'HUMAN_ONLY';
+  workflow: BehavioralVerificationWorkflowDto | null;
+};
+
+export type BehavioralVerificationPlanDto = {
+  id: string;
+  work_specification_id: string;
+  work_specification_revision: number;
+  work_specification_digest: string;
+  revision: number;
+  status: 'DRAFT' | 'APPROVED' | 'SUPERSEDED';
+  plan_digest: string;
+  criteria: BehavioralVerificationCriterionDto[];
+  program_version: string;
+  model_id: string | null;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+};
+
 export type ResponsePhase =
   | 'THINKING'
   | 'RESPONDING'
@@ -459,6 +503,16 @@ export const api = {
     }),
   approveWorkSpecification: (specificationId: string) =>
     json<WorkSpecificationDto>(`/v1/work-specifications/${specificationId}/approve`, {
+      method: 'POST',
+    }),
+  latestBehavioralVerificationPlan: (specificationId: string) =>
+    json<BehavioralVerificationPlanDto | null>(`/v1/work-specifications/${specificationId}/behavioral-verification-plan`),
+  draftBehavioralVerificationPlan: (specificationId: string) =>
+    json<BehavioralVerificationPlanDto>(`/v1/work-specifications/${specificationId}/behavioral-verification-plan/draft`, {
+      method: 'POST',
+    }),
+  approveBehavioralVerificationPlan: (planId: string) =>
+    json<BehavioralVerificationPlanDto>(`/v1/behavioral-verification-plans/${planId}/approve`, {
       method: 'POST',
     }),
   resumeApprovedScope: (conversationId: string) =>
