@@ -101,6 +101,43 @@ class WorkSpecification(Base):
     conversation: Mapped[Conversation] = relationship(back_populates="work_specifications")
 
 
+class BehavioralVerificationPlan(Base):
+    __tablename__ = "behavioral_verification_plans"
+    __table_args__ = (
+        UniqueConstraint(
+            "work_specification_id",
+            "revision",
+            name="uq_behavioral_plan_spec_revision",
+        ),
+        CheckConstraint("revision > 0", name="ck_behavioral_plan_revision_positive"),
+        CheckConstraint(
+            "work_specification_revision > 0",
+            name="ck_behavioral_plan_spec_revision_positive",
+        ),
+        CheckConstraint(
+            "status IN ('DRAFT', 'APPROVED', 'SUPERSEDED')",
+            name="ck_behavioral_plan_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    work_specification_id: Mapped[str] = mapped_column(
+        ForeignKey("work_specifications.id", ondelete="CASCADE"),
+        index=True,
+    )
+    work_specification_revision: Mapped[int] = mapped_column(Integer)
+    work_specification_digest: Mapped[str] = mapped_column(String(64))
+    revision: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24), default="DRAFT", index=True)
+    plan_json: Mapped[str] = mapped_column(Text)
+    plan_digest: Mapped[str] = mapped_column(String(64))
+    program_version: Mapped[str] = mapped_column(String(100))
+    model_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class EngineeringRun(Base):
     __tablename__ = "engineering_runs"
 
