@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -145,8 +146,7 @@ def test_behavioral_plan_digest_is_canonical() -> None:
     assert behavioral_plan_digest(payload) == behavioral_plan_digest(reordered)
 
 
-@pytest.mark.asyncio
-async def test_coordinator_input_is_only_work_spec_acceptance_map_and_fixed_browser_vocabulary(monkeypatch) -> None:
+def test_coordinator_input_is_only_work_spec_acceptance_map_and_fixed_browser_vocabulary(monkeypatch) -> None:
     captured: dict[str, str] = {}
 
     class FakeProgram:
@@ -172,7 +172,9 @@ async def test_coordinator_input_is_only_work_spec_acceptance_map_and_fixed_brow
     import parallax_api.intelligence.behavioral_verification_plan as module
 
     monkeypatch.setattr(module, "DspyBehavioralVerificationPlanProgram", FakeProgram)
-    generation = await BehavioralVerificationPlanCoordinator(router=FakeRouter()).draft(_specification())
+    generation = asyncio.run(
+        BehavioralVerificationPlanCoordinator(router=FakeRouter()).draft(_specification())
+    )
     assert generation.proposal == _proposal()
     assert set(captured) == {"specification_json", "acceptance_json", "vocabulary_json"}
     specification_payload = json.loads(captured["specification_json"])
