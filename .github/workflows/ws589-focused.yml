@@ -1,5 +1,5 @@
 name: WS589 P2-V0.23.47 Focused Implementation
-# Re-run after focused test correction.
+# Re-run against the repository's native client install contract.
 
 on:
   push:
@@ -32,10 +32,10 @@ jobs:
         run: python -m compileall -q services/api/parallax_api
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: apps/client/package-lock.json
+          node-version: '22.16.0'
       - name: Install client dependencies
-        run: npm ci --prefix apps/client
+        working-directory: apps/client
+        run: npm install --no-audit --no-fund
       - name: Typecheck client
-        run: npm --prefix apps/client run typecheck
+        working-directory: apps/client
+        run: npm run typecheck
