@@ -47,9 +47,13 @@ Validation and deployment evidence:
 - API canonical alias: `parallax-api-tan.vercel.app`;
 - API `/health`: HTTP 200 / `{"status":"ok","service":"parallax-api","version":"0.1.0"}`;
 - API `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`, provider target count `1`;
-- API exact-deployment runtime logs confirm GET `/health` 200 and GET `/ready` 200 after cutover;
+- API post-cutover probes confirm GET `/health` 200 and GET `/ready` 200 after the production migration;
 - client production deployment: `dpl_HFmjw42dU989cMwVsBT3gEHvJdQk`, exact source `06deab55e1a05585d8f76b224d3cec63a0b60f50`, **READY**;
 - client canonical alias remains `parallax-lew7.vercel.app`;
+- production database: Supabase `Parallax 2.0` / `kjyenifnfjqnzfgshpwg`, PostgreSQL 17;
+- production migration `20260908145730` / `p0240_persistence_indexes`: **APPLIED** through governed Supabase migration history;
+- exact production indexes verified after migration: `ix_engineering_runs_conversation_updated`, `ix_engineering_runs_binding_updated`, `ix_engineering_runs_project_updated`, and `ix_engineering_attempts_run_status_stage`;
+- post-migration `/ready`: HTTP 200 with database `ok` and providers `ok`;
 - Vercel post-cutover runtime error clusters: **none found** for either API or client in the bounded verification window.
 
 Production deployment build preflights passed on the exact application merge for provider registration, exact repository-scoped delivery permission, projected source, private Blob read/write, durable lineage composition, agentic runtime, projected bootstrap, execution snapshots, static-web candidate validation, Engineering Run event schema, and Behavioral Verification Plan schema before Vercel admitted the API deployment.
@@ -74,6 +78,7 @@ Current deployment-verified production API release:
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
 - deployment state: `READY`;
+- production migration: `20260908145730` / `p0240_persistence_indexes`, exact four additive indexes verified;
 - `/health`: HTTP 200 / `ok`;
 - `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`, provider target count 1;
 - unauthenticated REVIEW delivery-status route: HTTP 401 / `Authentication required`;
