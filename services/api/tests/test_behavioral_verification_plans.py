@@ -24,6 +24,7 @@ from parallax_api.intelligence.behavioral_verification_plan import (
     BehavioralVerificationPlanGeneration,
     behavioral_plan_digest,
     compile_behavioral_plan,
+    normalize_generated_behavioral_plan,
     validate_persisted_behavioral_plan,
 )
 from parallax_api.main import create_app
@@ -148,6 +149,116 @@ def test_behavioral_plan_browser_vocabulary_rejects_arbitrary_url_and_human_work
             viewport_ids=["desktop-1440"],
             actions=[BehavioralActionProposal(kind="SCREENSHOT", checkpoint="bad")],
         )
+
+
+def _expected_acceptance() -> list[dict[str, str]]:
+    return [
+        {"id": "AC-01", "text": "The page shows the decision ledger heading and current entries."},
+        {"id": "AC-02", "text": "The operator can filter visible entries without losing the full list."},
+    ]
+
+
+def test_generated_behavioral_plan_normalization_preserves_valid_browser_and_strips_human_authority() -> None:
+    raw = _proposal().model_dump(mode="json")
+    raw["criteria"][1]["viewport_ids"] = ["desktop-1440"]
+    raw["criteria"][1]["actions"] = [
+        {"kind": "NAVIGATE", "path": "https://untrusted.example/"},
+    ]
+
+    normalized = normalize_generated_behavioral_plan(raw, _expected_acceptance())
+
+    assert normalized.criteria[0] == _proposal().criteria[0]
+    assert normalized.criteria[1].mode is BehavioralVerificationMode.HUMAN_ONLY
+    assert normalized.criteria[1].viewport_ids == []
+    assert normalized.criteria[1].actions == []
+
+
+def test_generated_behavioral_plan_invalid_browser_downgrades_only_that_criterion() -> None:
+    raw = _proposal().model_dump(mode="json")
+    raw["criteria"][0]["actions"] = [
+        {"kind": "NAVIGATE", "path": "https://untrusted.example/"},
+        {"kind": "ASSERT_PATH", "path": "/"},
+        {"kind": "SCREENSHOT", "checkpoint": "ledger"},
+    ]
+    raw["criteria"][1] = {
+        "acceptance_id": "AC-02",
+        "mode": "BROWSER",
+        "viewport_ids": ["desktop-1440"],
+        "actions": [
+            {"kind": "NAVIGATE", "path": "/"},
+            {
+                "kind": "ASSERT_VISIBLE",
+                "target_kind": "TEXT",
+                "target_value": "Filter",
+            },
+            {"kind": "SCREENSHOT", "checkpoint": "filter"},
+        ],
+    }
+
+    normalized = normalize_generated_behavioral_plan(raw, _expected_acceptance())
+
+    assert normalized.criteria[0].mode is BehavioralVerificationMode.HUMAN_ONLY
+    assert normalized.criteria[0].viewport_ids == []
+    assert normalized.criteria[0].actions == []
+    assert normalized.criteria[1].mode is BehavioralVerificationMode.BROWSER
+    assert normalized.criteria[1].viewport_ids == ["desktop-1440"]
+
+
+def test_generated_behavioral_plan_invalid_workflow_shape_downgrades_locally() -> None:
+    raw = _proposal().model_dump(mode="json")
+    raw["criteria"][0]["viewport_ids"] = ["invented-viewport"]
+    normalized = normalize_generated_behavioral_plan(raw, _expected_acceptance())
+    assert normalized.criteria[0].mode is BehavioralVerificationMode.HUMAN_ONLY
+
+    missing_screenshot = _proposal().model_dump(mode="json")
+    missing_screenshot["criteria"][0]["actions"] = [
+        {"kind": "NAVIGATE", "path": "/"},
+        {
+            "kind": "ASSERT_VISIBLE",
+            "target_kind": "ROLE",
+            "target_value": "heading:Decision ledger",
+        },
+    ]
+    normalized_missing_screenshot = normalize_generated_behavioral_plan(
+        missing_screenshot,
+        _expected_acceptance(),
+    )
+    assert normalized_missing_screenshot.criteria[0].mode is BehavioralVerificationMode.HUMAN_ONLY
+
+
+def test_generated_behavioral_plan_identity_mode_and_structure_remain_fail_closed() -> None:
+    reordered = _proposal().model_dump(mode="json")
+    reordered["criteria"][0]["acceptance_id"] = "AC-02"
+    reordered["criteria"][1]["acceptance_id"] = "AC-01"
+    with pytest.raises(ValueError, match="exactly cover"):
+        normalize_generated_behavioral_plan(reordered, _expected_acceptance())
+
+    unknown_mode = _proposal().model_dump(mode="json")
+    unknown_mode["criteria"][1]["mode"] = "MODEL_DECIDES"
+    with pytest.raises(ValueError, match="invalid criterion mode"):
+        normalize_generated_behavioral_plan(unknown_mode, _expected_acceptance())
+
+    unknown_key = _proposal().model_dump(mode="json")
+    unknown_key["criteria"][0]["selector"] = "#unsafe"
+    with pytest.raises(ValueError, match="unknown criterion fields"):
+        normalize_generated_behavioral_plan(unknown_key, _expected_acceptance())
+
+    with pytest.raises(ValueError, match="invalid plan structure"):
+        normalize_generated_behavioral_plan(
+            {"criteria": _proposal().model_dump(mode="json")["criteria"], "extra": True},
+            _expected_acceptance(),
+        )
+
+
+def test_behavioral_plan_vocabulary_exposes_action_field_contracts_and_safe_default() -> None:
+    vocabulary = BehavioralVerificationPlanCoordinator.browser_vocabulary()
+    contracts = vocabulary["action_field_contracts"]
+
+    assert contracts["NAVIGATE"]["required"] == ["path"]
+    assert contracts["ASSERT_VISIBLE"]["required"] == ["target_kind", "target_value"]
+    assert contracts["FILL"]["required"] == ["target_kind", "target_value", "value"]
+    assert contracts["SCREENSHOT"]["required"] == ["checkpoint"]
+    assert any("choose HUMAN_ONLY" in rule for rule in vocabulary["rules"])
 
 
 def test_behavioral_plan_digest_is_canonical() -> None:

@@ -7,7 +7,7 @@ from hashlib import sha256
 import json
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticValidationError, model_validator
 
 from ..code.work_spec_binding import acceptance_map, work_specification_contract
 from ..models import WorkSpecification
@@ -22,11 +22,11 @@ from ..validation.browser import (
     SemanticTargetKind,
 )
 from .dspy_programs import build_lm
-from .router import ModelRouter, RoutingFailure, RoutingFailureKind
+from .router import ModelOutputValidationError, ModelRouter, RoutingFailure, RoutingFailureKind
 
 
 PLAN_SCHEMA_VERSION = 1
-PLAN_PROGRAM_VERSION = "behavioral-verification-plan-v0.23.47"
+PLAN_PROGRAM_VERSION = "behavioral-verification-plan-v0.23.48"
 MAX_PLAN_JSON_BYTES = 32_000
 _ACCEPTANCE_ID_RE = re.compile(r"^AC-[0-9]{2}$")
 _ASSERTION_KINDS = {
@@ -35,6 +35,8 @@ _ASSERTION_KINDS = {
     BrowserActionKind.ASSERT_PATH,
     BrowserActionKind.ASSERT_LAYOUT,
 }
+_PLAN_PROPOSAL_KEYS = frozenset({"criteria"})
+_CRITERION_PROPOSAL_KEYS = frozenset({"acceptance_id", "mode", "viewport_ids", "actions"})
 
 
 class BehavioralVerificationMode(StrEnum):
@@ -185,6 +187,76 @@ def validate_proposal_against_acceptance(
     )
 
 
+def normalize_generated_behavioral_plan(
+    payload: object,
+    expected_acceptance: list[dict[str, str]],
+) -> BehavioralPlanProposal:
+    """Reduce unsafe executable model suggestions without repairing authority-bearing identity."""
+
+    if not isinstance(payload, dict) or set(payload) != _PLAN_PROPOSAL_KEYS:
+        raise ValueError("behavioral verification model returned invalid plan structure")
+    raw_criteria = payload.get("criteria")
+    if not isinstance(raw_criteria, list):
+        raise ValueError("behavioral verification model returned invalid criteria")
+
+    expected_ids = tuple(item["id"] for item in expected_acceptance)
+    actual_ids: list[str] = []
+    for raw in raw_criteria:
+        if not isinstance(raw, dict):
+            raise ValueError("behavioral verification model returned invalid criterion")
+        unknown_keys = set(raw) - _CRITERION_PROPOSAL_KEYS
+        if unknown_keys:
+            raise ValueError("behavioral verification model returned unknown criterion fields")
+        if "acceptance_id" not in raw or "mode" not in raw:
+            raise ValueError("behavioral verification model omitted required criterion identity")
+        acceptance_id = raw.get("acceptance_id")
+        if not isinstance(acceptance_id, str) or _ACCEPTANCE_ID_RE.fullmatch(acceptance_id) is None:
+            raise ValueError("behavioral verification model returned invalid acceptance identity")
+        actual_ids.append(acceptance_id)
+
+    actual_ids_tuple = tuple(actual_ids)
+    if (
+        actual_ids_tuple != expected_ids
+        or len(set(actual_ids_tuple)) != len(actual_ids_tuple)
+    ):
+        raise ValueError("behavioral plan does not exactly cover the Work Specification acceptance map")
+
+    normalized: list[BehavioralCriterionProposal] = []
+    for raw, acceptance_id in zip(raw_criteria, actual_ids, strict=True):
+        mode = raw.get("mode")
+        if mode == BehavioralVerificationMode.HUMAN_ONLY.value:
+            normalized.append(
+                BehavioralCriterionProposal(
+                    acceptance_id=acceptance_id,
+                    mode=BehavioralVerificationMode.HUMAN_ONLY,
+                )
+            )
+            continue
+        if mode != BehavioralVerificationMode.BROWSER.value:
+            raise ValueError("behavioral verification model returned invalid criterion mode")
+
+        strict_candidate = {
+            "acceptance_id": acceptance_id,
+            "mode": BehavioralVerificationMode.BROWSER.value,
+            "viewport_ids": raw.get("viewport_ids", []),
+            "actions": raw.get("actions", []),
+        }
+        try:
+            normalized.append(BehavioralCriterionProposal.model_validate(strict_candidate))
+        except (PydanticValidationError, BrowserValidationError, TypeError, ValueError):
+            normalized.append(
+                BehavioralCriterionProposal(
+                    acceptance_id=acceptance_id,
+                    mode=BehavioralVerificationMode.HUMAN_ONLY,
+                )
+            )
+
+    proposal = BehavioralPlanProposal(criteria=normalized)
+    if not validate_proposal_against_acceptance(proposal, expected_acceptance):
+        raise ValueError("behavioral plan does not exactly cover the Work Specification acceptance map")
+    return proposal
+
+
 def compile_behavioral_plan(
     specification: WorkSpecification,
     proposal: BehavioralPlanProposal,
@@ -328,10 +400,11 @@ class DspyBehavioralVerificationPlanProgram:
 
             Use only the supplied Work Specification, exact acceptance map and fixed browser vocabulary.
             Return one criterion for every acceptance ID in the exact supplied order. Choose HUMAN_ONLY
-            whenever browser proof would be weak, unsafe or outside the vocabulary. BROWSER workflows
-            may use only the listed typed actions, semantic target kinds, relative paths and registered
-            viewports. Never invent JavaScript, shell, selectors, external URLs, headers, cookies,
-            credentials, provider operations, source edits or hidden reasoning.
+            whenever browser proof would be weak, unsafe, uncertain or outside the vocabulary; do not
+            guess executable details. BROWSER workflows may use only the listed typed actions and their
+            exact field contracts, semantic target kinds, relative paths and registered viewports. Never
+            invent JavaScript, shell, selectors, external URLs, headers, cookies, credentials, provider
+            operations, source edits or hidden reasoning.
             """
 
             work_specification: str = dspy.InputField()
@@ -355,6 +428,16 @@ class DspyBehavioralVerificationPlanProgram:
         acceptance_json: str,
         vocabulary_json: str,
     ) -> BehavioralPlanProposal:
+        try:
+            expected_acceptance = json.loads(acceptance_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("behavioral verification acceptance contract is invalid") from exc
+        if not isinstance(expected_acceptance, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("id"), str)
+            for item in expected_acceptance
+        ):
+            raise ValueError("behavioral verification acceptance contract is invalid")
+
         with self._dspy.context(lm=self._lm):
             prediction = self._program(
                 work_specification=specification_json,
@@ -363,9 +446,11 @@ class DspyBehavioralVerificationPlanProgram:
             )
         try:
             payload = json.loads(_strip_json_fence(str(prediction.plan_json)))
-        except json.JSONDecodeError as exc:
-            raise ValueError("behavioral verification model returned invalid JSON") from exc
-        return BehavioralPlanProposal.model_validate(payload)
+            return normalize_generated_behavioral_plan(payload, expected_acceptance)
+        except (json.JSONDecodeError, PydanticValidationError, BrowserValidationError, TypeError, ValueError) as exc:
+            raise ModelOutputValidationError(
+                "behavioral verification model output failed protected validation"
+            ) from exc
 
 
 class BehavioralVerificationPlanCoordinator:
@@ -379,10 +464,53 @@ class BehavioralVerificationPlanCoordinator:
             "viewport_ids": [item.viewport_id for item in DEFAULT_VIEWPORTS],
             "action_kinds": [item.value for item in BrowserActionKind],
             "semantic_target_kinds": [item.value for item in SemanticTargetKind],
+            "action_field_contracts": {
+                "NAVIGATE": {
+                    "required": ["path"],
+                    "forbidden": ["target_kind", "target_value", "value", "checkpoint"],
+                },
+                "ASSERT_PATH": {
+                    "required": ["path"],
+                    "forbidden": ["target_kind", "target_value", "value", "checkpoint"],
+                },
+                "WAIT_FOR": {
+                    "required": ["target_kind", "target_value"],
+                    "forbidden": ["path", "value", "checkpoint"],
+                },
+                "ASSERT_VISIBLE": {
+                    "required": ["target_kind", "target_value"],
+                    "forbidden": ["path", "value", "checkpoint"],
+                },
+                "ASSERT_ABSENT": {
+                    "required": ["target_kind", "target_value"],
+                    "forbidden": ["path", "value", "checkpoint"],
+                },
+                "CLICK": {
+                    "required": ["target_kind", "target_value"],
+                    "forbidden": ["path", "value", "checkpoint"],
+                },
+                "ASSERT_LAYOUT": {
+                    "required": ["target_kind", "target_value"],
+                    "forbidden": ["path", "value", "checkpoint"],
+                },
+                "FILL": {
+                    "required": ["target_kind", "target_value", "value"],
+                    "forbidden": ["path", "checkpoint"],
+                },
+                "SELECT": {
+                    "required": ["target_kind", "target_value", "value"],
+                    "forbidden": ["path", "checkpoint"],
+                },
+                "SCREENSHOT": {
+                    "required": ["checkpoint"],
+                    "forbidden": ["path", "target_kind", "target_value", "value"],
+                },
+            },
             "rules": [
                 "paths must be bounded relative paths",
                 "BROWSER requires at least one deterministic assertion and one screenshot",
                 "HUMAN_ONLY has empty viewport_ids and actions",
+                "when uncertain whether a browser workflow satisfies every field rule, choose HUMAN_ONLY",
                 "no arbitrary selectors, scripts, URLs, headers, cookies, credentials, HTTP or shell",
             ],
         }
@@ -442,6 +570,7 @@ __all__ = [
     "PLAN_PROGRAM_VERSION",
     "behavioral_plan_digest",
     "compile_behavioral_plan",
+    "normalize_generated_behavioral_plan",
     "validate_persisted_behavioral_plan",
     "validate_proposal_against_acceptance",
 ]
