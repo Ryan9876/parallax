@@ -244,6 +244,12 @@ class DurableAgentWorkerBridge:
                 health = self.recovery.health(run_id=run_id)
             except WorkerRecoveryError as health_exc:
                 raise AgenticRuntimeError("agentic worker lease conflict could not be resolved safely") from health_exc
+            if health.lease_status == "ACTIVE":
+                # A concurrent autonomy request must never turn the legitimate
+                # lease owner into candidate/IMPLEMENT failure. Preserve the
+                # repository concurrency signal so the API can return a bounded
+                # conflict without mutating Engineering Run or worker state.
+                raise exc
             if (
                 health.state is WorkerLifecycleState.STALLED
                 and health.next_recovery_action is RecoveryAction.REASSIGN
@@ -253,7 +259,7 @@ class DurableAgentWorkerBridge:
                 return self.recovery.reassign(run_id=run_id)
             if health.state is WorkerLifecycleState.RECOVERING and not health.human_required:
                 return self.recovery.reassign(run_id=run_id)
-            raise AgenticRuntimeError("competing or terminal agentic worker execution blocks dispatch") from exc
+            raise AgenticRuntimeError("terminal or incompatible agentic worker execution blocks dispatch") from exc
 
     def active_lease(self, *, run_id: str) -> WorkerLease:
         execution = self.recovery.executions.get_for_run(run_id)
