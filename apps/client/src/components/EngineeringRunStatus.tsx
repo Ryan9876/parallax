@@ -1,6 +1,6 @@
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { authenticatedRequest, type EngineeringRunDto } from '../lib/api';
+import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { api, authenticatedRequest, type EngineeringDeliveryDto, type EngineeringRunDto } from '../lib/api';
 import {
   getEngineeringRunFailure,
   subscribeEngineeringRunFailures,
@@ -232,6 +232,7 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
   const [deliveryMode, setDeliveryMode] = React.useState<DeliveryMode | null>(null);
   const [deliveryBusy, setDeliveryBusy] = React.useState(false);
   const [deliveryError, setDeliveryError] = React.useState<string | null>(null);
+  const [reviewDelivery, setReviewDelivery] = React.useState<EngineeringDeliveryDto | null>(null);
   const projectId = run.project_id;
   const canChangeDelivery = Boolean(projectId) && bound && DELIVERY_MUTABLE_STAGES.includes(run.state);
   const canDownloadSource = Boolean(projectId) && run.state === 'REVIEW' && deliveryMode === 'source-only' && Platform.OS === 'web';
@@ -255,6 +256,28 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
       });
     return () => { cancelled = true; };
   }, [projectId, run.state]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (run.state !== 'REVIEW' || deliveryMode !== 'vercel-preview') {
+      setReviewDelivery(null);
+      return () => { cancelled = true; };
+    }
+    void api.engineeringRunDelivery(run.id)
+      .then((status) => {
+        if (!cancelled) {
+          setReviewDelivery(status);
+          setDeliveryError(null);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setReviewDelivery(null);
+          setDeliveryError(cause instanceof Error ? cause.message : 'Preview delivery status is unavailable.');
+        }
+      });
+    return () => { cancelled = true; };
+  }, [deliveryMode, run.id, run.revision, run.state]);
 
   const chooseDelivery = React.useCallback(async (nextMode: DeliveryMode) => {
     if (!projectId || deliveryBusy || !canChangeDelivery || nextMode === deliveryMode) return;
@@ -281,6 +304,41 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
       setDeliveryBusy(false);
     }
   }, [canDownloadSource, deliveryBusy, projectId, run.id]);
+
+  const retryPreviewDelivery = React.useCallback(async () => {
+    if (
+      deliveryBusy
+      || run.state !== 'REVIEW'
+      || deliveryMode !== 'vercel-preview'
+      || reviewDelivery?.status === 'PUBLISHED'
+    ) return;
+    setDeliveryBusy(true);
+    setDeliveryError(null);
+    try {
+      const published = await api.retryEngineeringRunDelivery(
+        run,
+        `delivery-retry-${run.id}-${run.revision}`,
+      );
+      setReviewDelivery(published);
+    } catch (cause) {
+      setDeliveryError(
+        cause instanceof Error
+          ? cause.message
+          : 'Vercel Preview could not be published yet. The verified result is still saved.',
+      );
+    } finally {
+      setDeliveryBusy(false);
+    }
+  }, [deliveryBusy, deliveryMode, reviewDelivery?.status, run]);
+
+  const openDeliveryUrl = React.useCallback(async (url: string | null) => {
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setDeliveryError('The published review link could not be opened.');
+    }
+  }, []);
 
   return (
     <View style={styles.card} accessibilityLabel={`Progress: ${friendlyState(run)}`}>
@@ -372,6 +430,48 @@ export function EngineeringRunStatus({ run, busy, error, onPause, onResume, onCa
               <Text style={styles.downloadButtonText}>{deliveryBusy ? 'Preparing download…' : 'Download verified source'}</Text>
             </TouchableOpacity>
           ) : null}
+          {run.state === 'REVIEW' && deliveryMode === 'vercel-preview' ? (
+            reviewDelivery?.status === 'PUBLISHED' ? (
+              <View style={styles.previewPublished} accessibilityLabel="Vercel Preview published for review">
+                <Text style={styles.previewPublishedTitle}>Preview ready for review</Text>
+                <Text style={styles.deliveryHint}>This is a review Preview only. Nothing was merged or deployed to production.</Text>
+                <View style={styles.previewActions}>
+                  {reviewDelivery.preview_url ? (
+                    <TouchableOpacity
+                      accessibilityRole="link"
+                      accessibilityLabel="Open Vercel Preview"
+                      onPress={() => void openDeliveryUrl(reviewDelivery.preview_url)}
+                      style={[styles.downloadButton, styles.previewLinkButton]}
+                    >
+                      <Text style={styles.downloadButtonText}>Open Vercel Preview</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {reviewDelivery.pull_request_url ? (
+                    <TouchableOpacity
+                      accessibilityRole="link"
+                      accessibilityLabel="Open GitHub PR"
+                      onPress={() => void openDeliveryUrl(reviewDelivery.pull_request_url)}
+                      style={styles.secondaryDeliveryButton}
+                    >
+                      <Text style={styles.secondaryDeliveryButtonText}>Open GitHub PR</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Retry Vercel Preview"
+                disabled={deliveryBusy}
+                onPress={() => void retryPreviewDelivery()}
+                style={[styles.downloadButton, deliveryBusy && styles.disabledButton]}
+              >
+                <Text style={styles.downloadButtonText}>
+                  {deliveryBusy ? 'Publishing preview…' : 'Retry Vercel Preview'}
+                </Text>
+              </TouchableOpacity>
+            )
+          ) : null}
           {run.state === 'REVIEW' && deliveryMode === 'source-only' && Platform.OS !== 'web' ? (
             <Text style={styles.deliveryHint}>Open this project on web or desktop to download the verified source package.</Text>
           ) : null}
@@ -435,6 +535,12 @@ const styles = StyleSheet.create({
   deliveryChoiceMeta: { color: palette.charcoal600, fontSize: 11, lineHeight: 16, marginTop: 3 },
   downloadButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 12, paddingHorizontal: 15, borderRadius: 12, backgroundColor: palette.teal600 },
   downloadButtonText: { color: palette.ivory50, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  previewPublished: { marginTop: 10 },
+  previewPublishedTitle: { color: palette.olive700, fontSize: 13, lineHeight: 18, fontWeight: '800' },
+  previewActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  previewLinkButton: { marginTop: 8 },
+  secondaryDeliveryButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 8, paddingHorizontal: 15, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.borderStrong, backgroundColor: palette.ivory50 },
+  secondaryDeliveryButtonText: { color: palette.charcoal800, fontSize: 13, lineHeight: 18, fontWeight: '800' },
   disabledButton: { opacity: 0.62 },
   deliveryHint: { color: palette.charcoal600, fontSize: 12, lineHeight: 18, marginTop: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
