@@ -1,0 +1,76 @@
+{
+  "architecture_decisions": [
+    "- AC-01\n- AC-02\n- AC-03\n- AC-04\n- AC-05\n- AC-06\n- AC-07\n- AC-08\n- AC-09\n- AC-10"
+  ],
+  "work_items": [
+    "- P2-V0.23.47"
+  ],
+  "validations": [
+    "- No validation needed"
+  ],
+  "risks": [
+    "- No material risk and mitigation needed"
+  ],
+  "spec_id": "P2-V0.23.48",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Exact acceptance identity remains fail-closed",
+      "protected_requirement": "Generated acceptance IDs must exactly equal the server-derived acceptance IDs in exact order before criterion normalization. Missing, duplicated, invented, malformed or reordered IDs reject the whole generated proposal."
+    },
+    {
+      "id": "AC-02",
+      "title": "Valid BROWSER proposals remain unchanged",
+      "protected_requirement": "A BROWSER criterion that already satisfies the existing strict action, viewport, assertion, screenshot and workflow constructors remains BROWSER with the same bounded proposed fields."
+    },
+    {
+      "id": "AC-03",
+      "title": "Invalid BROWSER action shape downgrades locally",
+      "protected_requirement": "If a criterion explicitly proposed as BROWSER fails an existing protected action-shape rule, only that exact criterion becomes HUMAN_ONLY with empty executable fields; other valid criteria remain unchanged."
+    },
+    {
+      "id": "AC-04",
+      "title": "Invalid BROWSER workflow structure downgrades locally",
+      "protected_requirement": "Unregistered viewports, missing assertions, missing screenshots, invalid paths, invalid targets, invalid fixture requirements or other existing protected workflow-constructor failures cause only that BROWSER criterion to become HUMAN_ONLY."
+    },
+    {
+      "id": "AC-05",
+      "title": "HUMAN_ONLY strips executable fields",
+      "protected_requirement": "A criterion explicitly proposed as HUMAN_ONLY normalizes to the exact acceptance ID, mode HUMAN_ONLY, empty viewport_ids and empty actions even if the model supplied executable fields. Those fields never gain authority."
+    },
+    {
+      "id": "AC-06",
+      "title": "Unknown mode and malformed proposal still fail",
+      "protected_requirement": "Unknown mode values, non-object criteria, missing acceptance_id fields, unknown criterion keys, malformed top-level structure or unknown top-level keys remain whole-proposal validation failures."
+    },
+    {
+      "id": "AC-07",
+      "title": "Browser vocabulary exposes exact field contracts",
+      "protected_requirement": "The fixed server-owned browser vocabulary identifies action-specific required and forbidden fields for NAVIGATE, ASSERT_PATH, semantic target actions, FILL, SELECT and SCREENSHOT, while retaining only registered viewport and semantic-target vocabularies."
+    },
+    {
+      "id": "AC-08",
+      "title": "Generator guidance prefers HUMAN_ONLY over guessing",
+      "protected_requirement": "The generation contract explicitly instructs the model to choose HUMAN_ONLY when it cannot confidently express a criterion through the supplied bounded action-field contract, rather than inventing executable details."
+    },
+    {
+      "id": "AC-09",
+      "title": "Persistence and digest consume normalized output only",
+      "protected_requirement": "Only the normalized strict `BehavioralPlanProposal` is eligible for compile, canonical digest, persistence, read and explicit approval. Raw model output remains non-durable."
+    },
+    {
+      "id": "AC-10",
+      "title": "Authenticated production replay proves unchanged authority",
+      "protected_requirement": "Trusted production replay must successfully draft, read, approve and replay-approve a plan, independently verify exact acceptance text/ID coverage and digest, and prove the frozen Work Specification, Engineering Run and durable Engineering Run event evidence are unchanged."
+    }
+  ],
+  "critique": [
+    "AC-01: Generated acceptance IDs must exactly equal the server-derived acceptance IDs in exact order before criterion normalization\nAC-02: Valid BROWSER proposals remain unchanged: A BROWSER criterion that already satisfies the existing strict action, viewport, assertion, screenshot and workflow constructors remains BROWSER with\u2026\nAC-03: Invalid BROWSER action shape downgrades locally: If a criterion explicitly proposed as BROWSER fails an existing protected action-shape rule, only that exact criterion becomes HUMAN_ONLY with empty\u2026\nAC-04: Invalid BROWSER workflow structure downgrades locally: Unregistered viewports, missing assertions, missing screenshots, invalid paths, invalid targets, invalid fixture requirements or other existing\u2026\nAC-05: HUMAN_ONLY strips executable fields: A criterion explicitly proposed as HUMAN_ONLY normalizes to the exact acceptance ID, mode HUMAN_ONLY, empty viewport_ids and empty actions even if\u2026\nAC-06: Unknown mode and malformed proposal still fail: Unknown mode values, non-object criteria, missing acceptance_id fields, unknown criterion keys, malformed top-level structure or unknown top-level\u2026\nAC-07: Browser vocabulary exposes exact field contracts: The fixed server-owned browser vocabulary identifies action-specific required and forbidden fields for NAVIGATE, ASSERT_PATH, semantic target\u2026\nAC-08: Generator guidance prefers HUMAN_ONLY over guessing: The generation contract explicitly instructs the model to choose HUMAN_ONLY when it cannot confidently express a criterion through the supplied\u2026\nAC-09: Persistence and digest consume normalized output only: Only the normalized strict `BehavioralPlanProposal` is eligible for compile, canonical digest, persistence, read and explicit approval\nAC-10: Authenticated production replay proves unchanged authority: Trusted production replay must successfully draft, read, approve and replay-approve a plan, independently verify exact acceptance text/ID coverage\u2026"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}
