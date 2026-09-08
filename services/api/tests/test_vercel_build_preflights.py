@@ -84,4 +84,5 @@ def test_production_build_uses_project_runtime_for_service_canaries(monkeypatch,
         ("isolated", ("scripts/production_execution_snapshot_preflight.py",)),
         ("service", ("scripts/production_candidate_validation_canary.py",)),
         ("isolated", ("scripts/production_run_event_schema_guard.py",)),
+        ("isolated", ("scripts/production_behavioral_plan_schema_guard.py",)),
     ]
