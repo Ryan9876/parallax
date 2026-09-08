@@ -32,7 +32,7 @@ from ..code.runtime_credentials import runtime_vercel_oidc_token
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
 from ..code.state_machine import RevisionConflict, RunTransitionError
-from ..code.worker_recovery import WorkerRecoveryError
+from ..code.worker_recovery import WorkerLeaseConflict, WorkerRecoveryError
 from ..code.worker_service import WorkerExecutionNotFound, WorkerRecoveryService
 from ..db import get_session
 from ..models import EngineeringRun
@@ -172,6 +172,14 @@ def invoke(call):
         raise HTTPException(404, str(exc)) from exc
     except (RevisionConflict, RunEventConflict) as exc:
         raise HTTPException(409, str(exc)) from exc
+    except WorkerLeaseConflict as exc:
+        raise HTTPException(
+            409,
+            detail={
+                "message": "Parallax is already continuing this build. The current work is still in progress.",
+                "code": "AUTONOMY_IN_PROGRESS",
+            },
+        ) from exc
     except ProductionDeliveryConfigurationError as exc:
         record_bootstrap_failure(exc, default_stage="delivery-composition")
         raise HTTPException(503, str(exc)) from exc
