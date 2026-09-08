@@ -454,18 +454,19 @@ class CompetingRecovery:
     def health(self, *, run_id: str):
         return SimpleNamespace(
             state=WorkerLifecycleState.RUNNING,
+            lease_status="ACTIVE",
             next_recovery_action=None,
             human_required=False,
         )
 
 
-def test_active_competing_worker_fails_closed_instead_of_being_taken_over():
+def test_active_competing_worker_preserves_concurrency_conflict_without_takeover():
     bridge = DurableAgentWorkerBridge(
         SimpleNamespace(),
         recovery=CompetingRecovery(),
     )
 
-    with pytest.raises(AgenticRuntimeError):
+    with pytest.raises(WorkerLeaseConflict, match="active"):
         bridge.acquire(run_id="run-1")
 
 
