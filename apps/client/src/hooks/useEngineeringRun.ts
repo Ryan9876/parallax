@@ -11,6 +11,7 @@ import {
   autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
   isAuthoritativeAutonomyAdvance,
+  EngineeringRunContinuationSingleFlight,
   MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } from '../state/engineeringRunContinuation';
 import { subscribeApprovedWorkSpecification } from '../lib/workSpecEvents';
@@ -22,6 +23,9 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const manualAutonomyAttemptRef = React.useRef(0);
+  const autonomySingleFlightRef = React.useRef(
+    new EngineeringRunContinuationSingleFlight<EngineeringRunView>(),
+  );
 
   const clearFailure = React.useCallback(() => {
     setError(null);
@@ -40,7 +44,7 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
     }
   }, [conversationId]);
 
-  const applyAutonomyResult = React.useCallback(async (candidate: EngineeringRunDto, operationKey: string) => {
+  const applyAutonomyResultInternal = React.useCallback(async (candidate: EngineeringRunDto, operationKey: string) => {
     let current = candidate;
     let currentOperationKey = operationKey;
 
@@ -49,9 +53,35 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       try {
         result = await runEngineeringAutonomy(current, currentOperationKey);
       } catch (caught) {
-        // An HTTP/API failure is authoritative server truth. Only a transport
-        // exception without a response is ambiguous enough for read-only
-        // reconciliation against the latest canonical Engineering Run.
+        // A second request can race the same durable IMPLEMENT revision from a
+        // refresh, StrictMode pass, another mounted client, or another tab. The
+        // server keeps the active worker lease authoritative and returns a fixed
+        // conflict. Reconcile read-only; never turn valid in-flight ownership
+        // into Needs Attention and never start another request from this call.
+        if (
+          caught instanceof EngineeringAutonomyError
+          && caught.code === 'AUTONOMY_IN_PROGRESS'
+          && conversationId
+        ) {
+          const reconciled = await api.latestEngineeringRun(conversationId).catch(() => null);
+          if (
+            reconciled
+            && reconciled.id === current.id
+            && reconciled.revision >= current.revision
+          ) {
+            const inProgress: EngineeringRunView = {
+              ...reconciled,
+              autonomy_stop_reason: null,
+            };
+            setRun(inProgress);
+            clearFailure();
+            return inProgress;
+          }
+        }
+
+        // Other HTTP/API failures are authoritative server truth. Only a
+        // transport exception without a response is ambiguous enough for
+        // read-only reconciliation against the latest canonical Engineering Run.
         if (caught instanceof EngineeringAutonomyError || !conversationId) throw caught;
 
         let reconciled: EngineeringRunDto | null = null;
@@ -102,6 +132,15 @@ export function useEngineeringRun(conversationId: string | null, enabled: boolea
       'AUTONOMY_CONTINUATION_LIMIT',
     );
   }, [clearFailure, conversationId]);
+
+  const applyAutonomyResult = React.useCallback(
+    (candidate: EngineeringRunDto, operationKey: string) => (
+      autonomySingleFlightRef.current.run(
+        () => applyAutonomyResultInternal(candidate, operationKey),
+      )
+    ),
+    [applyAutonomyResultInternal],
+  );
 
   const continueAutomatically = React.useCallback(async (candidate: EngineeringRunDto) => {
     if (!canContinueEngineeringRunAutonomously(candidate)) return candidate;
