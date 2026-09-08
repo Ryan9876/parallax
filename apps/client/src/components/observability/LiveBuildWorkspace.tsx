@@ -329,7 +329,7 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
       )}
 
       {observer.view.readError ? <View style={styles.readError}><Text style={styles.readErrorText}>{observer.view.readError}</Text></View> : null}
-      <View style={[styles.body, focused && styles.bodyFocused]}>
+      <View style={[styles.body, !compact && styles.bodyDesktop, focused && styles.bodyFocused]}>
         <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>
         {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}
       </View>
@@ -404,7 +404,8 @@ const styles = StyleSheet.create({
   mobileSectionTabActive: { backgroundColor: palette.rust600, borderColor: palette.rust600 },
   mobileSectionText: { color: palette.charcoal600, fontSize: 9, fontWeight: '800' },
   mobileSectionTextActive: { color: palette.ivory50 },
-  body: { flexGrow: 1, flexShrink: 0, minHeight: 520, flexDirection: 'row', gap: 12, padding: 14 },
+  body: { flex: 1, minHeight: 0, flexDirection: 'row', gap: 12, padding: 14 },
+  bodyDesktop: { flexGrow: 1, flexShrink: 0, minHeight: 520 },
   bodyFocused: { padding: 10 },
   primary: { flex: 1, minWidth: 0, minHeight: 0 },
   contextRail: { width: 250, gap: 10 },
