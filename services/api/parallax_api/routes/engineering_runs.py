@@ -192,7 +192,7 @@ def invoke(call):
     except ProductionDeliveryConfigurationError as exc:
         record_bootstrap_failure(exc, default_stage="delivery-composition")
         raise HTTPException(503, str(exc)) from exc
-    except (RuntimeCompositionError, RunEventPersistenceError) as exc:
+    except (RuntimeCompositionError, RunEventPersistenceError, VerifiedDeliveryError) as exc:
         if isinstance(exc, RuntimeCompositionError) and is_repository_authorization_required(exc):
             raise HTTPException(
                 503,
