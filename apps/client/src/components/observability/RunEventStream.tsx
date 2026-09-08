@@ -176,7 +176,7 @@ export function RunEventStream({
               <Text style={styles.pausedText}>Observation is paused locally. Run execution and persisted event capture are unchanged.</Text>
             </View>
           ) : null}
-          <ScrollView ref={ref} style={styles.scroll} contentContainerStyle={styles.content} nestedScrollEnabled>
+          <ScrollView ref={ref} style={styles.scroll} contentContainerStyle={styles.content} nestedScrollEnabled testID="run-event-scroll">
             {events.length ? events.map((event) => <EventRow event={event} key={`${event.id}:${event.sequence}`} />) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>No persisted run events</Text>
