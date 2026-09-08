@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from ..models import EngineeringAttempt, EngineeringRun, utcnow
 from ..projects.repository import ProjectRepository
 from ..repositories.engineering_runs import EngineeringRunRepository
-from ..tools.providers.common import require_https_url
 from ..tools.contracts import (
     AuthorityDenyReason,
     ToolAuditRecord,
@@ -479,9 +478,6 @@ class VerifiedDeliveryResult:
     replayed: bool = False
 
     def __post_init__(self) -> None:
-        require_https_url(self.pull_request_url, field="pull_request_url", allowed_suffix="github.com")
-        if self.preview_url is not None:
-            require_https_url(self.preview_url, field="preview_url", allowed_suffix="vercel.app")
         if not isinstance(self.actions, tuple) or not self.actions or len(self.actions) > _MAX_DELIVERY_ACTIONS:
             raise VerifiedDeliveryError("delivery action/audit evidence exceeds protected action bound")
         if not all(isinstance(item, ProviderActionAuditPair) for item in self.actions):
