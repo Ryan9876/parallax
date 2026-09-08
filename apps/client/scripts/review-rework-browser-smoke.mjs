@@ -133,6 +133,8 @@ const correctedReviewRun = run('REVIEW', 4);
 let currentRun = reviewRun;
 let reviewRequests = [];
 let autonomyRequests = [];
+let deliveryRetryRequests = [];
+let deliveryPublished = false;
 
 function cors(response, origin) {
   response.setHeader('access-control-allow-origin', origin ?? '*');
@@ -174,6 +176,46 @@ function apiServer() {
     if (pathname === `/v1/conversations/${CONVERSATION_ID}/work-specifications/approved` && request.method === 'GET') return json(response, 200, specification, origin);
     if (pathname === `/v1/engineering-runs/conversation/${CONVERSATION_ID}/latest` && request.method === 'GET') return json(response, 200, currentRun, origin);
 
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/delivery` && request.method === 'GET') {
+      return json(response, 200, deliveryPublished ? {
+        run_id: RUN_ID,
+        delivery_mode: 'vercel-preview',
+        status: 'PUBLISHED',
+        preview_status: 'READY',
+        preview_url: 'https://review-rework-preview.vercel.app',
+        pull_request_url: 'https://github.com/Ryan9876/review-rework-smoke/pull/7',
+        preview_deployment_id: 'dpl_review_rework',
+        pull_request_number: 7,
+      } : {
+        run_id: RUN_ID,
+        delivery_mode: 'vercel-preview',
+        status: 'NOT_PUBLISHED',
+        preview_status: null,
+        preview_url: null,
+        pull_request_url: null,
+        preview_deployment_id: null,
+        pull_request_number: null,
+      }, origin);
+    }
+
+    if (pathname === `/v1/engineering-runs/${RUN_ID}/delivery/retry` && request.method === 'POST') {
+      const payload = await body(request);
+      deliveryRetryRequests.push(payload);
+      assert(payload.expected_revision === currentRun.revision, 'delivery retry was not bound to the exact REVIEW revision');
+      assert(payload.operation_key === `delivery-retry-${RUN_ID}-${currentRun.revision}`, 'delivery retry identity drifted');
+      deliveryPublished = true;
+      return json(response, 200, {
+        run_id: RUN_ID,
+        delivery_mode: 'vercel-preview',
+        status: 'PUBLISHED',
+        preview_status: 'READY',
+        preview_url: 'https://review-rework-preview.vercel.app',
+        pull_request_url: 'https://github.com/Ryan9876/review-rework-smoke/pull/7',
+        preview_deployment_id: 'dpl_review_rework',
+        pull_request_number: 7,
+      }, origin);
+    }
+
     if (pathname === `/v1/engineering-runs/${RUN_ID}/review-rework` && request.method === 'POST') {
       reviewRequests.push(await body(request));
       currentRun = planRun;
@@ -192,6 +234,29 @@ function apiServer() {
 
     return json(response, 404, { detail: 'not found' }, origin);
   });
+}
+
+async function exerciseDeliveryRetry(page) {
+  project.delivery_mode = 'vercel-preview';
+  currentRun = reviewRun;
+  reviewRequests = [];
+  autonomyRequests = [];
+  deliveryRetryRequests = [];
+  deliveryPublished = false;
+
+  await page.goto('http://127.0.0.1:8772', { waitUntil: 'networkidle' });
+  const retry = page.getByRole('button', { name: 'Retry Vercel Preview' });
+  await retry.waitFor({ timeout: 10000 });
+  await retry.click();
+  await page.getByText('Preview ready for review', { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByRole('link', { name: 'Open Vercel Preview' }).waitFor();
+  await page.getByRole('link', { name: 'Open GitHub PR' }).waitFor();
+
+  assert(deliveryRetryRequests.length === 1, `delivery retry issued ${deliveryRetryRequests.length} requests`);
+  assert(autonomyRequests.length === 0, 'delivery retry must not call autonomous continuation');
+  assert(reviewRequests.length === 0, 'delivery retry must not create REVIEW rework');
+  assert(currentRun.state === 'REVIEW' && currentRun.revision === 2, 'delivery retry changed protected REVIEW authority');
+  project.delivery_mode = 'source-only';
 }
 
 async function exercise(page, { mobile }) {
@@ -229,6 +294,10 @@ try {
   await Promise.all([listen(web, 8772), listen(api, 8010)]);
   browser = await chromium.launch({ headless: true });
 
+  const deliveryDesktop = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await exerciseDeliveryRetry(deliveryDesktop);
+  await deliveryDesktop.close();
+
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   await exercise(desktop, { mobile: false });
   await desktop.close();
@@ -237,7 +306,7 @@ try {
   await exercise(mobile, { mobile: true });
   await mobile.close();
 
-  console.log('PASS REVIEW rework desktop/mobile interaction and bounded autonomy handoff');
+  console.log('PASS REVIEW delivery-only retry plus rework desktop/mobile bounded autonomy handoff');
 } finally {
   if (browser) await browser.close();
   await Promise.all([close(web), close(api)]);
