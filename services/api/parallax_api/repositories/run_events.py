@@ -156,9 +156,14 @@ class RunEventRepository:
                     occurred_at=event.occurred_at,
                 )
                 self.session.add(row)
+                # Flush once so Python/ORM defaults are materialized, decode the
+                # immutable observation before commit expiration, then commit.
+                # P2-V0.23.50 refreshed the row after commit, adding an avoidable
+                # read round trip without adding authority.
+                self.session.flush()
+                decoded = self._decode(row)
                 self.session.commit()
-                self.session.refresh(row)
-                return RunEventAppendResult(event=self._decode(row), replayed=False)
+                return RunEventAppendResult(event=decoded, replayed=False)
             except RunEventConflict:
                 self.session.rollback()
                 raise
