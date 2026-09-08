@@ -16,6 +16,7 @@ from parallax_api.code.protected import (
 from parallax_api.code.sandbox_execution import ProtectedCommandRegistry
 from parallax_api.code.service import EngineeringRunService
 from parallax_api.code.state_machine import RevisionConflict
+from parallax_api.code.worker_recovery import WorkerLeaseConflict
 from parallax_api.db import Base, make_engine
 from parallax_api.intelligence.work_specification import WorkSpecificationDraft
 from parallax_api.repositories.conversations import ConversationRepository
@@ -273,6 +274,46 @@ def test_protected_registry_has_no_caller_supplied_command_surface():
 
     with pytest.raises(ExecutionPolicyError):
         registry.spec_for(WorkflowStage.IMPLEMENT, operation_key="not-allowed")
+
+
+class InProgressImplementationRuntime:
+    def execute(self, **_kwargs):
+        raise WorkerLeaseConflict("another protected worker owns the active lease")
+
+
+def test_active_worker_contention_does_not_fail_or_mutate_implementation_run(tmp_path):
+    session, service, conversations, work_specs = service_for(tmp_path, "implementation-concurrency.db")
+    try:
+        run = activated_run(service, conversations, work_specs)
+        plan = AutonomyCoordinator(service, FakeExecutor()).run(
+            run_id=run.id,
+            operation_key="plan-before-contention",
+            expected_revision=run.revision,
+        )
+        assert plan.run.state == "IMPLEMENT"
+        before_revision = plan.run.revision
+        before_attempt_ids = [item.id for item in plan.run.attempts]
+
+        with pytest.raises(WorkerLeaseConflict):
+            AutonomyCoordinator(
+                service,
+                FakeExecutor(),
+                implementation_runtime=InProgressImplementationRuntime(),
+            ).run(
+                run_id=run.id,
+                operation_key="competing-autonomy",
+                expected_revision=before_revision,
+            )
+
+        current = service.get(run.id)
+        assert current.state == "IMPLEMENT"
+        assert current.revision == before_revision
+        assert current.resume_stage is None
+        assert current.last_failure_code is None
+        assert [item.id for item in current.attempts] == before_attempt_ids
+        assert [item for item in current.attempts if item.stage == "IMPLEMENT"] == []
+    finally:
+        session.close()
 
 
 class FailingImplementationRuntime:
