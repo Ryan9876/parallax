@@ -41,6 +41,16 @@ class ImplementationRequest:
     patches: tuple[SourcePatch, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedImplementation:
+    """Side-effect-free, fully validated implementation plan."""
+
+    patches: tuple[PreparedPatch, ...]
+    total_source_bytes: int
+    total_patch_bytes: int
+    total_result_bytes: int
+
+
 class SafeImplementationEngine:
     """Validate and apply a bounded set of text patches as one logical operation."""
 
@@ -64,13 +74,14 @@ class SafeImplementationEngine:
     def validate(self, workspace_root: str | Path, request: ImplementationRequest) -> None:
         """Prove a proposal is admissible without mutating the workspace."""
 
-        self._prepare(workspace_root, request)
+        self.prepare(workspace_root, request)
 
-    def _prepare(
+    def prepare(
         self,
         workspace_root: str | Path,
         request: ImplementationRequest,
-    ) -> tuple[list[PreparedPatch], int, int, int]:
+    ) -> PreparedImplementation:
+        """Return an immutable validated plan without mutating the workspace."""
         patches = request.patches
         if not patches:
             raise ImplementationLimitError("implementation request must contain at least one patch")
@@ -108,13 +119,16 @@ class SafeImplementationEngine:
             if total_result_bytes > self.max_total_result_bytes:
                 raise ImplementationLimitError("implementation result exceeds the aggregate byte limit")
             prepared.append(candidate)
-        return prepared, total_source_bytes, total_patch_bytes, total_result_bytes
+        return PreparedImplementation(
+            patches=tuple(prepared),
+            total_source_bytes=total_source_bytes,
+            total_patch_bytes=total_patch_bytes,
+            total_result_bytes=total_result_bytes,
+        )
 
     def apply(self, workspace_root: str | Path, request: ImplementationRequest) -> dict[str, object]:
-        prepared, total_source_bytes, total_patch_bytes, total_result_bytes = self._prepare(
-            workspace_root,
-            request,
-        )
+        plan = self.prepare(workspace_root, request)
+        prepared = plan.patches
 
         committed: list[PreparedPatch] = []
         try:
@@ -148,9 +162,9 @@ class SafeImplementationEngine:
             "engine": "safe-source-implementation-v1",
             "workspace_digest": workspace_digest,
             "file_count": len(prepared),
-            "total_source_bytes": total_source_bytes,
-            "total_patch_bytes": total_patch_bytes,
-            "total_result_bytes": total_result_bytes,
+            "total_source_bytes": plan.total_source_bytes,
+            "total_patch_bytes": plan.total_patch_bytes,
+            "total_result_bytes": plan.total_result_bytes,
             "artifacts": artifacts,
             "patches": patch_evidence,
             "external_execution": False,
