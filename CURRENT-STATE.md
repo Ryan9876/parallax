@@ -1,22 +1,24 @@
 # Parallax 2.0 Current State
 
 Date: 2026-09-08
-Status: **P2-V0.23.50 PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.24.0 VALIDATED-CANDIDATE (NOT DEPLOYED)**
+Status: **P2-V0.24.0 PRODUCTION-DEPLOYMENT-VERIFIED / PRODUCTION-ACCEPTANCE-PENDING**
 Architecture: `ARCHITECTURE.md` v3.60
 
 ## Purpose of this record
 
 This file is the authoritative snapshot of Parallax's current validated state. It records current production truth, active authority boundaries, the latest accepted release, and material remaining work. Historical evidence remains in Git history, versioned specifications, compiled plans, pull requests, workflow runs, deployment records, and workstream issues.
 
-## P2-V0.24.0 — platform overhaul — VALIDATED CANDIDATE / NOT DEPLOYED
+## P2-V0.24.0 — platform overhaul — PRODUCTION-DEPLOYMENT-VERIFIED / PRODUCTION-ACCEPTANCE-PENDING
 
 - workstream: #601;
 - release PR: #602;
-- validated candidate source: `78c90bfbe8adccd1cbfb21a7536f310285e2c139`;
+- exact application merge: `06deab55e1a05585d8f76b224d3cec63a0b60f50`;
+- validated candidate source before merge: `78c90bfbe8adccd1cbfb21a7536f310285e2c139`;
 - exact starting baseline: `7b503876d3e2d9d42261235ff466f89432f37d5f` / P2-V0.23.50;
 - architecture: v3.60;
-- merge state at validation: PR ready and mergeable, not yet merged;
-- deployment state: **not deployed**; no production-accepted claim is authorized by this record.
+- merge state: **merged to main** on 2026-09-08;
+- deployment state: **production-deployment-verified**;
+- production acceptance: **pending an authenticated real product-path acceptance proof**; infrastructure health and deterministic gates are not being treated as equivalent to full product acceptance.
 
 P2-V0.24.0 modernizes the existing FastAPI/SQLAlchemy + Expo/React/Skia platform in place. It does not introduce the competing greenfield Next.js shell and does not change conversation-primary product hierarchy, Project/Work Specification/Engineering Run authority, exact source-lineage authority, worker lease/recovery semantics, Preview-only delivery ceiling, or human REVIEW completion authority.
 
@@ -29,26 +31,39 @@ Validated implementation:
 5. the existing exact VERIFY-bound source-only / Vercel Preview delivery stack remains authoritative and is regression-gated for exact lineage, replay, stale/unverified rejection, fixed provider actions, no merge/production authority and no Engineering Run lifecycle mutation from delivery;
 6. authenticated replayable SSE remains the preferred observability transport; the client adds bounded canonical REST reconciliation after stream failure, rejects non-advancing pages, deduplicates by durable sequence and treats its cursor as observation state only.
 
-Validation evidence at candidate `78c90bfb`:
+Validation and deployment evidence:
 
 - P2-V0.24.0 Release Validation workflow `34240080110`: **SUCCESS**;
 - release evidence artifact `10061591299`, digest `sha256:150fd5fcca70ee18e66715093b4a5edc16aa5fc5097135353864e0c4b0f9128f`;
 - focused API authority/regression slice: **51 passed**;
 - additive SQLite schema probe: **PASS**, existing sentinel data preserved;
 - additive PostgreSQL 16 schema probe: **PASS**, existing sentinel data preserved;
-- controlled transition benchmark against the exact P2-V0.23.50 `record()` path: baseline median `0.397272s` / `192` SQL statements versus candidate median `0.193603s` / `96` statements; measured latency improvement `51.27%`, statement reduction `50.0%`, both above the required `40%` gate. This is a controlled local round-trip benchmark, not a claim of production request latency;
-- ready-for-review P2 CI `34240240010`: **SUCCESS**, including Fast API + contract checks, Fast client checks, DSPy release evidence validation and Protected promotion evaluation;
-- ready-for-review Workstream Spec Validation `34240240015`: **SUCCESS**, including protected committed-plan validation;
-- exact-head Client Visual Validation `34240239903`: **SUCCESS** / Browser-Skia acceptance;
-- exact-head Bounded Autonomy `34240085876`: **SUCCESS**;
-- P2-V0.24.0 authentic DSPy compile workflow `34236133258`: **SUCCESS**; committed plan evidence remains separate from the deterministic offline development path.
+- controlled transition benchmark against the exact P2-V0.23.50 `record()` path: baseline median `0.397272s` / `192` SQL statements versus candidate median `0.193603s` / `96` statements; measured latency improvement `51.27%`, statement reduction `50.0%`, both above the required `40%` gate. This is a controlled round-trip benchmark, not a claim of production request latency;
+- pre-merge P2 CI `34240240010`: **SUCCESS**, including protected promotion evaluation and DSPy evidence validation;
+- post-merge main P2 CI `34241209279`: **SUCCESS**, including Fast API + contract checks, Fast client checks, fresh DSPy SpecCritic/SpecCompiler promotion-boundary compilation, and Protected promotion evaluation;
+- post-merge Workstream Spec Validation `34241209297`: **SUCCESS**;
+- post-merge Client Visual Validation `34241209257`: **SUCCESS**;
+- API production deployment: `dpl_hyFQJRQ5sN8AyiKP5Zjj2bveNHks`, exact source `06deab55e1a05585d8f76b224d3cec63a0b60f50`, **READY**;
+- API canonical alias: `parallax-api-tan.vercel.app`;
+- API `/health`: HTTP 200 / `{"status":"ok","service":"parallax-api","version":"0.1.0"}`;
+- API `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`, provider target count `1`;
+- API post-cutover probes confirm GET `/health` 200 and GET `/ready` 200 after the production migration;
+- client production deployment: `dpl_HFmjw42dU989cMwVsBT3gEHvJdQk`, exact source `06deab55e1a05585d8f76b224d3cec63a0b60f50`, **READY**;
+- client canonical alias remains `parallax-lew7.vercel.app`;
+- production database: Supabase `Parallax 2.0` / `kjyenifnfjqnzfgshpwg`, PostgreSQL 17;
+- production migration `20260908145730` / `p0240_persistence_indexes`: **APPLIED** through governed Supabase migration history;
+- exact production indexes verified after migration: `ix_engineering_runs_conversation_updated`, `ix_engineering_runs_binding_updated`, `ix_engineering_runs_project_updated`, and `ix_engineering_attempts_run_status_stage`;
+- post-migration `/ready`: HTTP 200 with database `ok` and providers `ok`;
+- Vercel post-cutover runtime error clusters: **none found** for either API or client in the bounded verification window.
+
+Production deployment build preflights passed on the exact application merge for provider registration, exact repository-scoped delivery permission, projected source, private Blob read/write, durable lineage composition, agentic runtime, projected bootstrap, execution snapshots, static-web candidate validation, Engineering Run event schema, and Behavioral Verification Plan schema before Vercel admitted the API deployment.
 
 Authoritative-record impact:
 
-- `ARCHITECTURE.md` advanced from v3.59 to v3.60 for modular persistence, transition hot-path behavior, pure implementation/cache boundaries, offline-intelligence separation and bounded observability reconciliation;
-- `DESIGN-SYSTEM.md` requires no change because the established Warm Editorial Observatory hierarchy, visual language, scrolling and accessibility rules are unchanged;
-- `PROJECT-CONSTITUTION.md` requires no change because no durable governance or authority ceiling changed;
-- this `CURRENT-STATE.md` entry records validated candidate truth only. A later merge, deployment, migration application or deployment verification must be recorded separately from evidence.
+- `ARCHITECTURE.md` is v3.60 for modular persistence, transition hot-path behavior, pure implementation/cache boundaries, offline-intelligence separation and bounded observability reconciliation;
+- `DESIGN-SYSTEM.md` remains unchanged because the established Warm Editorial Observatory hierarchy, visual language, scrolling and accessibility rules are unchanged;
+- `PROJECT-CONSTITUTION.md` remains unchanged because no durable governance or authority ceiling changed;
+- this `CURRENT-STATE.md` update records the confirmed merge and deployment-verification evidence. It deliberately does not claim full production acceptance without an authenticated real product-path acceptance proof.
 
 ## Current production truth
 
@@ -56,37 +71,38 @@ Authoritative-record impact:
 
 Current deployment-verified production API release:
 
-- active production release: `P2-V0.23.50`;
+- active production release: `P2-V0.24.0`;
 - latest fully production-accepted baseline: `P2-V0.23.48`;
-- P2-V0.23.50 release source: `945ba43c4f3f465a04792d7832a422b58f89d999`;
-- production deployment: `dpl_6NHLUEiNhUpkFczVekyyPmZqxGuT`;
+- P2-V0.24.0 release source: `06deab55e1a05585d8f76b224d3cec63a0b60f50`;
+- production deployment: `dpl_hyFQJRQ5sN8AyiKP5Zjj2bveNHks`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
 - deployment state: `READY`;
+- production migration: `20260908145730` / `p0240_persistence_indexes`, exact four additive indexes verified;
 - `/health`: HTTP 200 / `ok`;
 - `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`, provider target count 1;
 - unauthenticated REVIEW delivery-status route: HTTP 401 / `Authentication required`;
 - post-cutover API runtime-error scan: clean.
 
-The exact P2-V0.23.50 production API build passed production provider registration, exact repository-scoped delivery permission, projected-source, private Blob read/write, durable lineage composition, agentic runtime, projected bootstrap, execution-snapshot, static-web candidate-validation, Engineering Run event-schema, and Behavioral Verification Plan schema preflights before Vercel admitted the deployment.
+The exact P2-V0.24.0 production API build passed production provider registration, exact repository-scoped delivery permission, projected-source, private Blob read/write, durable lineage composition, agentic runtime, projected bootstrap, execution-snapshot, static-web candidate-validation, Engineering Run event-schema, and Behavioral Verification Plan schema preflights before Vercel admitted the deployment.
 
-Exact-head pre-merge and post-merge gates passed, including Workstream Spec Validation, protected compiled-plan validation, Bounded Autonomy, API regression, client checks, DSPy release compilation, protected promotion evaluation, and Browser/Skia acceptance. Post-merge main workflow evidence: P2 CI `34189149239`, Workstream Spec Validation `34189149255`, Client Visual Validation `34189149237` — all SUCCESS.
+Exact-head pre-merge and post-merge gates passed, including Workstream Spec Validation, protected compiled-plan validation, Bounded Autonomy, API regression, client checks, DSPy release compilation, protected promotion evaluation, cross-database schema probes, the transition-performance gate, and Browser/Skia acceptance. P2-V0.24.0 post-merge main workflow evidence: P2 CI `34241209279`, Workstream Spec Validation `34241209297`, Client Visual Validation `34241209257` — all SUCCESS.
 
-P2-V0.23.50 is deployment-verified but is not yet recorded as the latest fully production-accepted baseline because the production OT Time Engineering Run requires one explicit operator `Retry Vercel Preview` action to prove the new REVIEW-only recovery path against the real failed publication. Until that evidence exists, P2-V0.23.48 remains the latest fully production-accepted baseline.
+P2-V0.24.0 is production-deployment-verified but is not yet recorded as fully production-accepted because this record has no authenticated real product-path acceptance proof for the overhaul. Separately, the OT Time REVIEW delivery retry introduced in P2-V0.23.50 remains an explicit operator action. Until a trusted authenticated acceptance run succeeds, P2-V0.23.48 remains the latest fully production-accepted baseline.
 
 ### Client
 
 Current deployment-verified production client release:
 
-- release: `P2-V0.23.50`;
-- source: `945ba43c4f3f465a04792d7832a422b58f89d999`;
-- production deployment: `dpl_Dc7oLFBpF3MTKAxeXM8sa5qigK77`;
+- release: `P2-V0.24.0`;
+- source: `06deab55e1a05585d8f76b224d3cec63a0b60f50`;
+- production deployment: `dpl_HFmjw42dU989cMwVsBT3gEHvJdQk`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
 - canonical user URL: `https://parallax-lew7.vercel.app`;
 - deployment state: `READY`;
 - post-cutover client runtime-error scan: clean.
 
-P2-V0.23.50 adds two user-visible corrections without changing the established visual language:
+P2-V0.24.0 preserves the P2-V0.23.50 user-visible corrections and adds bounded canonical observability reconciliation without changing the established visual language:
 
 1. an explicit REVIEW delivery panel that reads canonical delivery status and exposes `Retry Vercel Preview` only when the exact verified lineage has not been published;
 2. a vertically scrollable desktop Live Build root while dense event/code/evidence panes retain bounded nested scrolling and mobile behavior remains unchanged.
@@ -327,7 +343,7 @@ Post-merge QA Harness CI `34176835888` succeeded. Trusted production replay `341
 
 ## Active governed work
 
-P2-V0.23.48 is the current fully production-accepted release.
+P2-V0.24.0 is the active production deployment and is deployment-verified. P2-V0.23.48 remains the current fully production-accepted release until an authenticated real product-path acceptance proof is recorded.
 
 The frozen W9-S1 replacement candidate remains available for human REVIEW. The Engineering Run is still `REVIEW` revision 12, and no source-publication blocker remains.
 
