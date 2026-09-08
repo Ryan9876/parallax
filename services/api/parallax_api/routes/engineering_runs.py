@@ -25,12 +25,20 @@ from ..code.run_events import (
 from ..code.runtime_composition import (
     DurableLineageAllocator,
     EngineeringRuntimeComposition,
+    ReviewDeliveryCoordinator,
     RuntimeCompositionError,
     production_durable_lineage_allocator,
 )
 from ..code.runtime_credentials import runtime_vercel_oidc_token
 from ..code.sandbox_execution import VercelSandboxExecutor
 from ..code.service import EngineeringRunNotFound, EngineeringRunService, RunOperationResult
+from ..code.source_delivery_composition import (
+    EngineeringAttemptDeliveryRecordStore,
+    VerifiedDeliveryError,
+    VerifiedDeliveryResult,
+    VerifiedLineageDelivery,
+)
+from ..code.workspace_lineage import ProjectRunIdentity
 from ..code.state_machine import RevisionConflict, RunTransitionError
 from ..code.worker_recovery import WorkerLeaseConflict, WorkerRecoveryError
 from ..code.worker_service import WorkerExecutionNotFound, WorkerRecoveryService
@@ -46,6 +54,7 @@ from ..schemas import (
     EngineeringAdvance,
     EngineeringAutonomyProbeRead,
     EngineeringAutonomyRead,
+    EngineeringDeliveryRead,
     EngineeringOperation,
     EngineeringOperationRead,
     EngineeringReviewRework,
@@ -221,6 +230,124 @@ def autonomy_probe():
         "timed_out": bool(evidence.get("timed_out")),
         "redacted": bool(evidence.get("redacted")),
     }
+
+
+def _review_delivery_context(
+    run_id: str,
+    svc: EngineeringRunService,
+    allocator: DurableLineageAllocator | None,
+):
+    run = svc.get(run_id)
+    if run.state != WorkflowStage.REVIEW.value:
+        raise RunTransitionError("Vercel Preview delivery is available only at operator REVIEW")
+    if not run.project_id:
+        raise RunTransitionError("Vercel Preview delivery requires a Project-bound Engineering Run")
+    project = ProjectRepository(svc.runs.session).get_for_owner(
+        run.project_id,
+        (svc.owner_subject or "").strip(),
+    )
+    if project is None or project.status != "active":
+        raise RunTransitionError("canonical owner-scoped Project is unavailable")
+    if project.delivery_mode != "vercel-preview":
+        raise RunTransitionError("canonical Project is not configured for Vercel Preview delivery")
+    if allocator is None:
+        raise RuntimeCompositionError("durable source lineage is unavailable for REVIEW delivery")
+
+    try:
+        lineage_id = VerifiedLineageDelivery.verified_lineage_id(run)
+        identity = ProjectRunIdentity(project_id=run.project_id, run_id=run.id)
+        current = allocator.current_lineage(identity)
+    except VerifiedDeliveryError:
+        raise
+    except Exception as exc:
+        raise RuntimeCompositionError("verified REVIEW source lineage is unavailable") from exc
+    if current.lineage_id != lineage_id:
+        raise VerifiedDeliveryError("current durable lineage moved after protected VERIFY")
+    return run, project, current
+
+
+def _review_delivery_status_payload(
+    run_id: str,
+    svc: EngineeringRunService,
+    allocator: DurableLineageAllocator | None,
+) -> dict[str, object]:
+    run, _project, current = _review_delivery_context(run_id, svc, allocator)
+    records = EngineeringAttemptDeliveryRecordStore(svc.runs)
+    payload = records.load(run_id=run.id, lineage_id=current.lineage_id)
+    if payload is None:
+        return {
+            "run_id": run.id,
+            "delivery_mode": "vercel-preview",
+            "status": "NOT_PUBLISHED",
+            "preview_status": None,
+            "preview_url": None,
+            "pull_request_url": None,
+            "preview_deployment_id": None,
+            "pull_request_number": None,
+        }
+
+    result = VerifiedDeliveryResult.from_record(payload, replayed=True)
+    if (
+        result.project_id != run.project_id
+        or result.run_id != run.id
+        or result.lineage_id != current.lineage_id
+        or result.content_digest != current.content_digest
+    ):
+        raise VerifiedDeliveryError("durable REVIEW delivery record does not match current verified lineage")
+    return {
+        "run_id": run.id,
+        "delivery_mode": "vercel-preview",
+        "status": "PUBLISHED",
+        "preview_status": result.preview_status,
+        "preview_url": result.preview_url,
+        "pull_request_url": result.pull_request_url,
+        "preview_deployment_id": result.preview_deployment_id,
+        "pull_request_number": result.pull_request_number,
+    }
+
+
+@router.get("/{run_id}/delivery", response_model=EngineeringDeliveryRead)
+def review_delivery_status(
+    run_id: str,
+    svc: EngineeringRunService = Depends(service),
+    allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
+):
+    return invoke(lambda: _review_delivery_status_payload(run_id, svc, allocator))
+
+
+@router.post("/{run_id}/delivery/retry", response_model=EngineeringDeliveryRead)
+def retry_review_delivery(
+    run_id: str,
+    payload: EngineeringOperation,
+    svc: EngineeringRunService = Depends(service),
+    allocator: DurableLineageAllocator | None = Depends(runtime_lineage_allocator),
+    oidc_token: str | None = Depends(runtime_oidc_token),
+):
+    run, project, _current = invoke(lambda: _review_delivery_context(run_id, svc, allocator))
+    if run.revision != payload.expected_revision:
+        raise HTTPException(
+            409,
+            f"stale engineering run revision: expected {payload.expected_revision}, current {run.revision}",
+        )
+    delivery_kwargs = {"oidc_token": oidc_token} if isinstance(oidc_token, str) else {}
+    source_delivery = invoke(
+        lambda: production_source_delivery(
+            svc.runs.session,
+            owner_subject=svc.owner_subject or "",
+            allocator=allocator,
+            project_id=project.id,
+            **delivery_kwargs,
+        )
+    )
+    coordinator = ReviewDeliveryCoordinator(svc, source_delivery)
+    invoke(
+        lambda: coordinator.retry(
+            run_id=run_id,
+            operation_key=payload.operation_key,
+            expected_revision=payload.expected_revision,
+        )
+    )
+    return invoke(lambda: _review_delivery_status_payload(run_id, svc, allocator))
 
 
 @router.get("/{run_id}", response_model=EngineeringRunRead)
