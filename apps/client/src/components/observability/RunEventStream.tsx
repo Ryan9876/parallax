@@ -195,7 +195,7 @@ export function RunEventStream({
 }
 
 const styles = StyleSheet.create({
-  dashboard: { flex: 1, minHeight: 520, gap: 12 },
+  dashboard: { flex: 1, minHeight: 520, maxHeight: 720, gap: 12 },
   summaryStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   summaryCard: { flexGrow: 1, flexBasis: 150, minHeight: 90, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(251,247,238,0.96)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   summaryLabel: { color: palette.charcoal600, fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
