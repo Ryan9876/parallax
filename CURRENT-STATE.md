@@ -1,8 +1,8 @@
 # Parallax 2.0 Current State
 
-Date: 2026-09-07
-Status: **P2-V0.23.48 PRODUCTION-ACCEPTED / W9-S1 HUMAN REVIEW REQUIRED**
-Architecture: `ARCHITECTURE.md` v3.57
+Date: 2026-09-08
+Status: **P2-V0.23.50 PRODUCTION-DEPLOYMENT-VERIFIED / OT TIME REVIEW DELIVERY RETRY READY**
+Architecture: `ARCHITECTURE.md` v3.59
 
 ## Purpose of this record
 
@@ -14,65 +14,96 @@ This file is the authoritative snapshot of Parallax's current validated state. I
 
 Current deployment-verified production API release:
 
-- release: `P2-V0.23.48`;
+- active production release: `P2-V0.23.50`;
 - latest fully production-accepted baseline: `P2-V0.23.48`;
-- release source: `925774ed35af0a0f66c9199626952f59f18c3ed9`;
-- production acceptance deployment: `dpl_ENo6k67tBwtk5GdH7tFfGsAY5zWS`;
+- P2-V0.23.50 release source: `945ba43c4f3f465a04792d7832a422b58f89d999`;
+- production deployment: `dpl_6NHLUEiNhUpkFczVekyyPmZqxGuT`;
 - Vercel project: `parallax-api` / `prj_4lhve1AXZntfauaGHvkuaGWC6KJX`;
 - canonical production alias: `parallax-api-tan.vercel.app`;
 - deployment state: `READY`;
 - `/health`: HTTP 200 / `ok`;
-- `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`;
-- post-cutover runtime-error scan: clean.
+- `/ready`: HTTP 200 / `ready`, database `ok`, providers `ok`, provider target count 1;
+- unauthenticated REVIEW delivery-status route: HTTP 401 / `Authentication required`;
+- post-cutover API runtime-error scan: clean.
 
-The exact P2-V0.23.48 production build passed provider registration, exact repository-scoped delivery permission, projected-source, private Blob read/write, lineage composition, agentic runtime, projected bootstrap, execution-snapshot, static-web candidate-validation, Engineering Run event-schema, and Behavioral Verification Plan schema preflights. The Behavioral Verification Plan schema guard explicitly confirmed `behavioral_verification_plans` before deployment admission.
+The exact P2-V0.23.50 production API build passed production provider registration, exact repository-scoped delivery permission, projected-source, private Blob read/write, durable lineage composition, agentic runtime, projected bootstrap, execution-snapshot, static-web candidate-validation, Engineering Run event-schema, and Behavioral Verification Plan schema preflights before Vercel admitted the deployment.
 
-Pre-merge exact-head Workstream Spec Validation, P2 CI, Bounded Autonomy, DSPy release compilation, protected promotion evaluation, API regression, and client checks passed. Post-merge main-branch Workstream Spec Validation and P2 CI also completed successfully on the exact merged source.
+Exact-head pre-merge and post-merge gates passed, including Workstream Spec Validation, protected compiled-plan validation, Bounded Autonomy, API regression, client checks, DSPy release compilation, protected promotion evaluation, and Browser/Skia acceptance. Post-merge main workflow evidence: P2 CI `34189149239`, Workstream Spec Validation `34189149255`, Client Visual Validation `34189149237` — all SUCCESS.
 
-Authenticated production acceptance succeeded through the trusted QA identity:
-
-- QA repository: `Ryan9876/parallax-qa`;
-- trusted workflow: `.github/workflows/production-replay.yml@refs/heads/main`;
-- audience: `parallax://qa-production`;
-- acceptance run: `34176835861`;
-- acceptance job: `101907806487`;
-- result: **SUCCESS**;
-- Work Specification: `6b24646e-79a8-4548-84d4-c5e6340de659`, revision 1, unchanged;
-- Engineering Run: `a64d56b7-ad42-42ad-9562-891783363f4a`, `REVIEW` revision 12, `last_failure_code=null`, unchanged;
-- approved Behavioral Verification Plan: `065879d7-300d-4b4f-941e-55b581d7dc45`, revision 2;
-- plan status: `APPROVED`;
-- plan digest: `0da28c23f0b92baecb3f15fe34bad6971c5f50029bb59e555731c1df68bc6544`;
-- generator: `behavioral-verification-plan-v0.23.48` / `openai/gpt-5.6-luna`;
-- acceptance coverage: 6/6 exact server-derived criteria;
-- approved plan classification: all six criteria `HUMAN_ONLY`; no executable browser workflow was admitted;
-- repeated approval: replay-safe / HTTP 200.
-
-Independent replay evidence proved the frozen artifacts were unchanged:
-
-- Work Specification response hash: `193ad7941ba27fe2ef49a2513160156040053e18194eb352810271df134d6b65`;
-- Engineering Run response hash: `d65c074da84356cb6c80584eb395b37bdf620f64606d012b04c1f80e9935d265`;
-- Engineering Run events response hash: `5dbd3c036ad9ef30ce3e008b76d92b7c878929f5a57c615533859537d062265a`;
-- approval replay hash: `49b205ff3497d0484c4728c4c63195ccdeaed82c54a217f2ce143c3fd6ee97f4`.
-
-Database read-back confirmed revision 1 of the plan is `SUPERSEDED`, revision 2 is `APPROVED`, the Work Specification remains `APPROVED` revision 1, and the Engineering Run remains `REVIEW` revision 12. Durable run-event state remains 32 events with maximum sequence 32.
+P2-V0.23.50 is deployment-verified but is not yet recorded as the latest fully production-accepted baseline because the production OT Time Engineering Run requires one explicit operator `Retry Vercel Preview` action to prove the new REVIEW-only recovery path against the real failed publication. Until that evidence exists, P2-V0.23.48 remains the latest fully production-accepted baseline.
 
 ### Client
 
-P2-V0.23.48 is an API behavioral-plan generation correction and introduces no client-code change. The production client remains the P2-V0.23.47 Build Plan UI release:
+Current deployment-verified production client release:
 
-- client source: `8fda8a96a0093dcfa12e10b85608f636c430ee30`;
-- production deployment: `dpl_7xe6W6bcFiSyzP8GeEGSxoqb8kGu`;
+- release: `P2-V0.23.50`;
+- source: `945ba43c4f3f465a04792d7832a422b58f89d999`;
+- production deployment: `dpl_Dc7oLFBpF3MTKAxeXM8sa5qigK77`;
 - Vercel project: `parallax` / `prj_wLXC5JjjetJf0H97kncRlqczD3OC`;
+- canonical user URL: `https://parallax-lew7.vercel.app`;
 - deployment state: `READY`;
-- post-cutover runtime-error scan for that client release: clean.
+- post-cutover client runtime-error scan: clean.
 
-The Build Plan continues to expose the separately governed Behavioral Verification Plan review surface. UI wording distinguishes `Automated browser check` from `Human review` and does not claim that an approved verification plan is behavioral acceptance evidence.
+P2-V0.23.50 adds two user-visible corrections without changing the established visual language:
+
+1. an explicit REVIEW delivery panel that reads canonical delivery status and exposes `Retry Vercel Preview` only when the exact verified lineage has not been published;
+2. a vertically scrollable desktop Live Build root while dense event/code/evidence panes retain bounded nested scrolling and mobile behavior remains unchanged.
+
+Successful delivery status exposes only bounded safe `Open Vercel Preview` and `Open GitHub PR` actions and explicitly does not imply merge or production deployment.
 
 ### Execution and authority
 
 Parallax retains governed Python, .NET, and marker-free `static-web-v1` execution. Candidate source cannot select commands, execution snapshots, provider credentials, source lineage, Git publication authority, Vercel Preview authority, lifecycle transitions, merge, default-branch application publication, or production promotion.
 
 Human `REVIEW` remains the completion boundary. The accepted source-delivery recovery chain does not authorize automatic review completion, PR merge, default-branch mutation, or production promotion.
+
+## OT Time production recovery — explicit operator retry pending
+
+Production Engineering Run:
+
+- run: `89f6db3f-7a56-4e18-8307-22e377b2766a`;
+- conversation: `8a444a1c-f60d-47d7-b02d-634cacf00596`;
+- Project: `9e898865-b98e-41d3-b000-bdc87bad377f`;
+- repository: `github:Ryan9876/ot-time`;
+- delivery mode: `vercel-preview`;
+- state: `REVIEW`;
+- revision: `6`;
+- `last_failure_code=null`;
+- protected PLAN/IMPLEMENT/BUILD/TEST/VERIFY attempts: 5, all preserved;
+- exact accepted and VERIFY-bound lineage: `src:cbc1721069780eb6ced2545d9a649f9e722caee0ce24d3775e0356e4d2051609`;
+- durable `SOURCE_DELIVERY` records before the P2-V0.23.50 retry: 0.
+
+The earlier autonomous request reached human REVIEW after IMPLEMENT, BUILD, TEST and VERIFY passed, but Vercel Preview readiness failed and emitted bounded `SOURCE_DELIVERY_FAILED` observation. That provider failure did not change protected run state or `last_failure_code`.
+
+P2-V0.23.50 now provides an explicit delivery-only recovery boundary. A retry:
+
+- requires exact REVIEW and the current run revision;
+- derives Project, repository, accepted lineage, branch, commit, pull request, Vercel Project and deployment identities on the server;
+- reuses the exact accepted IMPLEMENT + passed VERIFY lineage and current durable lineage head;
+- invokes only the existing replay-safe GitHub/Vercel delivery stack;
+- never reruns PLAN, IMPLEMENT, BUILD, TEST or VERIFY;
+- cannot merge a PR, publish to the production branch, complete REVIEW automatically, or authorize production promotion;
+- must preserve run state, revision, protected attempts, accepted lineage and `last_failure_code` on both success and failure.
+
+The remaining acceptance action is intentionally human-triggered: refresh the production client, return to the REVIEW delivery panel, and choose `Retry Vercel Preview`. Production acceptance of this recovery path requires provider and database read-back after that explicit action.
+
+## P2-V0.23.50 — REVIEW delivery recovery + desktop observability reachability — PRODUCTION-DEPLOYMENT-VERIFIED
+
+- workstream: #597;
+- release PR: #598;
+- merge source: `945ba43c4f3f465a04792d7832a422b58f89d999`;
+- Architecture: v3.59;
+- API deployment: `dpl_6NHLUEiNhUpkFczVekyyPmZqxGuT`, READY;
+- client deployment: `dpl_Dc7oLFBpF3MTKAxeXM8sa5qigK77`, READY;
+- main P2 CI: `34189149239` — SUCCESS;
+- main Workstream Spec Validation: `34189149255` — SUCCESS;
+- main Client Visual Validation: `34189149237` — SUCCESS.
+
+P2-V0.23.50 introduces a read-only REVIEW delivery-status API plus a REVIEW-only delivery-retry API. Retry uses the existing exact verified-lineage delivery contract directly rather than generic autonomous continuation. A successful retry may add/replay only the established `SOURCE_DELIVERY` durable record and bounded delivery event; protected lifecycle authority remains unchanged.
+
+The same release corrects desktop Run observability reachability. The workspace now owns an outer vertical scroll at desktop widths, while the Run Event Stream and other dense inspection panes retain bounded nested scroll behavior. Compact/mobile root scrolling remains unchanged.
+
+P2-V0.23.49, merge source `386a9a526b1bf3a12d9aafe65068660acc135b86`, remains the immediately preceding autonomy single-flight foundation: an unexpired active worker lease is treated as active concurrency and mapped to bounded `AUTONOMY_IN_PROGRESS` instead of durable IMPLEMENT failure. P2-V0.23.50 preserves that behavior.
 
 ## Frozen W9-S1 — current validated position
 
