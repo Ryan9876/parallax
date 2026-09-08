@@ -56,11 +56,20 @@ export class EngineeringRunContinuationSingleFlight<T> {
 
   run(factory: () => Promise<T>): Promise<T> {
     if (this.active) return this.active;
-    const promise = Promise.resolve().then(factory);
+
+    // Start the protected continuation synchronously. Deferring the factory to
+    // a later microtask creates a UI handoff window where REVIEW can still look
+    // settled before the PLAN continuation request has even been dispatched.
+    const promise = factory();
     this.active = promise;
-    void promise.finally(() => {
-      if (this.active === promise) this.active = null;
-    }).catch(() => undefined);
+    void promise.then(
+      () => {
+        if (this.active === promise) this.active = null;
+      },
+      () => {
+        if (this.active === promise) this.active = null;
+      },
+    );
     return promise;
   }
 
