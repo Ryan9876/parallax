@@ -165,6 +165,17 @@ export type EngineeringRunDto = {
   attempts: EngineeringAttemptDto[];
 };
 
+export type EngineeringDeliveryDto = {
+  run_id: string;
+  delivery_mode: 'vercel-preview';
+  status: 'NOT_PUBLISHED' | 'PUBLISHED';
+  preview_status: string | null;
+  preview_url: string | null;
+  pull_request_url: string | null;
+  preview_deployment_id: string | null;
+  pull_request_number: number | null;
+};
+
 export type SessionDto = {
   authenticated: boolean;
   expires_at?: string;
@@ -547,6 +558,13 @@ export const api = {
         acceptance_ids: acceptanceIds,
         finding,
       }),
+    }),
+  engineeringRunDelivery: (runId: string) =>
+    json<EngineeringDeliveryDto>(`/v1/engineering-runs/${runId}/delivery`),
+  retryEngineeringRunDelivery: (run: EngineeringRunDto, operationKey: string) =>
+    json<EngineeringDeliveryDto>(`/v1/engineering-runs/${run.id}/delivery/retry`, {
+      method: 'POST',
+      body: JSON.stringify({ operation_key: operationKey, expected_revision: run.revision }),
     }),
   cancelEngineeringRun: (run: EngineeringRunDto, operationKey: string) =>
     json<{ run: EngineeringRunDto }>(`/v1/engineering-runs/${run.id}/cancel`, {
