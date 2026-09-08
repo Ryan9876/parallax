@@ -122,7 +122,7 @@ from .validation_toolchains import (
 from .workspace_lineage import ProjectRunIdentity
 
 
-AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.9"
+AGENTIC_RUNTIME_VERSION = "agentic-runtime-v0.19.10"
 AGENTIC_PLAN_PROGRAM_ID = "agentic-plan-v0.19.8"
 _AGENT_POLICY_VERSION = "1.0.0"
 _SANDBOX_SOURCE_ROOT = "/vercel/sandbox"

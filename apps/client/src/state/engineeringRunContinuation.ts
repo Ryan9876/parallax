@@ -49,3 +49,31 @@ export function autonomyContinuationDisposition(
     ? 'LIMIT_REACHED'
     : 'CONTINUE';
 }
+
+
+export class EngineeringRunContinuationSingleFlight<T> {
+  private active: Promise<T> | null = null;
+
+  run(factory: () => Promise<T>): Promise<T> {
+    if (this.active) return this.active;
+
+    // Start the protected continuation synchronously. Deferring the factory to
+    // a later microtask creates a UI handoff window where REVIEW can still look
+    // settled before the PLAN continuation request has even been dispatched.
+    const promise = factory();
+    this.active = promise;
+    void promise.then(
+      () => {
+        if (this.active === promise) this.active = null;
+      },
+      () => {
+        if (this.active === promise) this.active = null;
+      },
+    );
+    return promise;
+  }
+
+  get inFlight(): boolean {
+    return this.active !== null;
+  }
+}
