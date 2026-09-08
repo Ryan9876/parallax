@@ -22,7 +22,7 @@ from ..validation.browser import (
     SemanticTargetKind,
 )
 from .dspy_programs import build_lm
-from .router import ModelRouter, RoutingFailure, RoutingFailureKind
+from .router import ModelOutputValidationError, ModelRouter, RoutingFailure, RoutingFailureKind
 
 
 PLAN_SCHEMA_VERSION = 1
@@ -428,6 +428,16 @@ class DspyBehavioralVerificationPlanProgram:
         acceptance_json: str,
         vocabulary_json: str,
     ) -> BehavioralPlanProposal:
+        try:
+            expected_acceptance = json.loads(acceptance_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("behavioral verification acceptance contract is invalid") from exc
+        if not isinstance(expected_acceptance, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("id"), str)
+            for item in expected_acceptance
+        ):
+            raise ValueError("behavioral verification acceptance contract is invalid")
+
         with self._dspy.context(lm=self._lm):
             prediction = self._program(
                 work_specification=specification_json,
@@ -436,15 +446,11 @@ class DspyBehavioralVerificationPlanProgram:
             )
         try:
             payload = json.loads(_strip_json_fence(str(prediction.plan_json)))
-            expected_acceptance = json.loads(acceptance_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError("behavioral verification model returned invalid JSON") from exc
-        if not isinstance(expected_acceptance, list) or not all(
-            isinstance(item, dict) and isinstance(item.get("id"), str)
-            for item in expected_acceptance
-        ):
-            raise ValueError("behavioral verification acceptance contract is invalid")
-        return normalize_generated_behavioral_plan(payload, expected_acceptance)
+            return normalize_generated_behavioral_plan(payload, expected_acceptance)
+        except (json.JSONDecodeError, PydanticValidationError, BrowserValidationError, TypeError, ValueError) as exc:
+            raise ModelOutputValidationError(
+                "behavioral verification model output failed protected validation"
+            ) from exc
 
 
 class BehavioralVerificationPlanCoordinator:
