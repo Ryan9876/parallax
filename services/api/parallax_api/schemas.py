@@ -210,6 +210,17 @@ class EngineeringAutonomyRead(BaseModel):
     steps: list[EngineeringAutonomyStepRead] = Field(default_factory=list)
 
 
+class EngineeringDeliveryRead(BaseModel):
+    run_id: str
+    delivery_mode: Literal["vercel-preview"]
+    status: Literal["NOT_PUBLISHED", "PUBLISHED"]
+    preview_status: str | None = None
+    preview_url: str | None = None
+    pull_request_url: str | None = None
+    preview_deployment_id: str | None = None
+    pull_request_number: int | None = None
+
+
 class EngineeringAutonomyProbeRead(BaseModel):
     ready: bool
     executor: str
