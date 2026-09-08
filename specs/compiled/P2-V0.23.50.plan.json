@@ -9,7 +9,7 @@
     "AC-02",
     "AC-04: validate protected requirement \u2014 Retry must reuse existing VerifiedLineageDelivery checks proving accepted IMPLEMENT and passed VERIFY refer to the same exact current lineage.",
     "AC-05: validate protected requirement \u2014 Retry reuses the existing canonical publication branch, exact lineage commit, matching open PR and exact Preview when already present. It may create only missing bounded publication artifacts.",
-    "AC-06: validate protected requirement \u2014 Success or failure leaves Engineering Run state REVIEW, run revision unchanged, attempts unchanged, and `last_failure_code` unchanged.",
+    "AC-06: validate protected requirement \u2014 Success or failure leaves Engineering Run state REVIEW, run revision unchanged, protected lifecycle attempt identities unchanged, and `last_failure_code` unchanged. A successful publication may add/replay only the existing durable `SOURCE_DELIVERY` record used by the accepted delivery contract.",
     "AC-07: validate protected requirement \u2014 Successful retry records/replays one SOURCE_DELIVERY success fact for the exact lineage. Failed retry may record bounded delivery failure evidence but cannot be presented as a run-stage failure.",
     "AC-08: validate protected requirement \u2014 At REVIEW with `vercel-preview`, the delivery panel shows current delivery status. When not published it exposes `Retry Vercel Preview`; on success it exposes safe `Open Vercel Preview` and `Open GitHub PR` links/actions without saying merged or deployed.",
     "AC-09: validate protected requirement \u2014 The delivery action calls only the delivery retry API. It does not call resume/autonomous continuation.",
@@ -50,7 +50,7 @@
     {
       "id": "AC-06",
       "title": "Run authority remains unchanged",
-      "protected_requirement": "Success or failure leaves Engineering Run state REVIEW, run revision unchanged, attempts unchanged, and `last_failure_code` unchanged."
+      "protected_requirement": "Success or failure leaves Engineering Run state REVIEW, run revision unchanged, protected lifecycle attempt identities unchanged, and `last_failure_code` unchanged. A successful publication may add/replay only the existing durable `SOURCE_DELIVERY` record used by the accepted delivery contract."
     },
     {
       "id": "AC-07",
