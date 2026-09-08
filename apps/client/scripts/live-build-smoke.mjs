@@ -281,6 +281,40 @@ try {
   await desktop.getByText(/PR #165/).waitFor();
   await desktop.getByText(/preview-wave4-165/).waitFor();
 
+  const desktopShort = await browser.newPage({ viewport: { width: 1440, height: 650 } });
+  await desktopShort.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
+  await desktopShort.getByRole('button', { name: 'Activity', exact: true }).click();
+  const outerScroll = desktopShort.getByTestId('live-build-desktop-scroll');
+  await outerScroll.waitFor({ timeout: 8000 });
+  const outerBefore = await outerScroll.evaluate((node) => ({
+    scrollTop: node.scrollTop,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+  }));
+  assert(
+    outerBefore.scrollHeight > outerBefore.clientHeight,
+    `Desktop Live Build root must overflow vertically when content exceeds the viewport: ${JSON.stringify(outerBefore)}`,
+  );
+  await outerScroll.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  const outerAfter = await outerScroll.evaluate((node) => node.scrollTop);
+  assert(outerAfter > 0, 'Desktop Live Build root did not scroll vertically');
+
+  const eventScroll = desktopShort.getByTestId('run-event-scroll');
+  await eventScroll.waitFor();
+  const nestedBefore = await eventScroll.evaluate((node) => ({
+    scrollTop: node.scrollTop,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+  }));
+  assert(
+    nestedBefore.scrollHeight > nestedBefore.clientHeight,
+    `Run Event Stream must retain bounded inner scrolling: ${JSON.stringify(nestedBefore)}`,
+  );
+  await eventScroll.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  const nestedAfter = await eventScroll.evaluate((node) => node.scrollTop);
+  assert(nestedAfter > 0, 'Run Event Stream inner scroll stopped working after desktop root scroll fix');
+  await desktopShort.close();
+
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto('http://127.0.0.1:8770', { waitUntil: 'networkidle' });
   await mobile.getByRole('tab', { name: 'Progress', exact: true }).click();
@@ -385,6 +419,8 @@ try {
   assert(await desktop.locator('[data-testid="live-build-workspace"]').count() === 1, 'Desktop Live Build workspace did not mount exactly once');
   console.log(JSON.stringify({
     desktopLiveBuild: true,
+    desktopRootVerticalScroll: true,
+    nestedEventScrollPreserved: true,
     persistedReviewBoundary: true,
     pauseViewObservationOnly: true,
     protectedCodeDiffEvidence: true,

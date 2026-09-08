@@ -148,7 +148,7 @@ export function RunEventStream({
   }, [events.length, followLive, viewPaused]);
 
   return (
-    <View style={styles.dashboard} accessibilityLabel="Run Event Stream" testID="observability-dashboard">
+    <View style={[styles.dashboard, !compact && styles.dashboardDesktop]} accessibilityLabel="Run Event Stream" testID="observability-dashboard">
       <SummaryStrip events={events} />
       <View style={[styles.dashboardBody, showSupportBesideStream && styles.dashboardBodyWide]}>
         <View style={styles.streamPanel}>
@@ -176,7 +176,7 @@ export function RunEventStream({
               <Text style={styles.pausedText}>Observation is paused locally. Run execution and persisted event capture are unchanged.</Text>
             </View>
           ) : null}
-          <ScrollView ref={ref} style={styles.scroll} contentContainerStyle={styles.content} nestedScrollEnabled>
+          <ScrollView ref={ref} style={styles.scroll} contentContainerStyle={styles.content} nestedScrollEnabled testID="run-event-scroll">
             {events.length ? events.map((event) => <EventRow event={event} key={`${event.id}:${event.sequence}`} />) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>No persisted run events</Text>
@@ -196,6 +196,7 @@ export function RunEventStream({
 
 const styles = StyleSheet.create({
   dashboard: { flex: 1, minHeight: 520, gap: 12 },
+  dashboardDesktop: { maxHeight: 720 },
   summaryStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   summaryCard: { flexGrow: 1, flexBasis: 150, minHeight: 90, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(251,247,238,0.96)', borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   summaryLabel: { color: palette.charcoal600, fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },

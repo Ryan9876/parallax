@@ -6,7 +6,8 @@ from uuid import uuid4
 import pytest
 
 from parallax_api.code.autonomy import AutonomyResult, AutonomyStopReason
-from parallax_api.code.runtime_composition import EngineeringRuntimeComposition, RuntimeCompositionError
+import parallax_api.code.runtime_composition as runtime_composition
+from parallax_api.code.runtime_composition import EngineeringRuntimeComposition, ReviewDeliveryCoordinator, RuntimeCompositionError
 from parallax_api.code.source_delivery_composition import SourceDeliveryComposition
 
 
@@ -196,3 +197,148 @@ def test_runtime_without_source_delivery_preserves_existing_wave2_behavior():
     assert result.stop_reason is AutonomyStopReason.REVIEW_REQUIRED
     assert [event[0] for event in events] == ["coordinator"]
     assert runtime.last_delivery_result is None
+
+
+class FakeVerifiedDelivery:
+    def __init__(self, run):
+        self.project_id = run.project_id
+        self.run_id = run.id
+        self.lineage_id = "src:" + "c" * 64
+        self.content_digest = "d" * 64
+        self.preview_deployment_id = "dpl_review_retry"
+        self.preview_status = "READY"
+        self.preview_url = "https://review-retry.vercel.app"
+        self.pull_request_url = "https://github.com/Ryan9876/example/pull/7"
+        self.pull_request_number = 7
+        self.branch_name = "parallax/review-retry"
+        self.commit_revision = "commit-review-retry"
+        self.actions = ()
+
+
+class RetryDelivery:
+    def __init__(self, service, *, fail=False, append_delivery_record=False):
+        self.service = service
+        self.fail = fail
+        self.append_delivery_record = append_delivery_record
+        self.calls = []
+
+    def deliver(self, run, *, operation_key):
+        self.calls.append((run.id, operation_key))
+        if self.fail:
+            raise RuntimeError("preview unavailable")
+        if self.append_delivery_record:
+            self.service.run.attempts = [
+                *self.service.run.attempts,
+                SimpleNamespace(
+                    id="delivery-record",
+                    stage="SOURCE_DELIVERY",
+                    attempt_number=1,
+                    status="RECORDED",
+                    failure_code=None,
+                ),
+            ]
+        return FakeVerifiedDelivery(run)
+
+
+def review_run():
+    project_id, run_id = str(uuid4()), str(uuid4())
+    return SimpleNamespace(
+        id=run_id,
+        project_id=project_id,
+        state="REVIEW",
+        revision=6,
+        last_failure_code=None,
+        updated_at=None,
+        attempts=[
+            SimpleNamespace(
+                id="implement-1",
+                stage="IMPLEMENT",
+                attempt_number=1,
+                status="PASSED",
+                failure_code=None,
+            ),
+            SimpleNamespace(
+                id="verify-1",
+                stage="VERIFY",
+                attempt_number=1,
+                status="PASSED",
+                failure_code=None,
+            ),
+        ],
+    )
+
+
+def test_review_delivery_retry_never_runs_lifecycle_and_preserves_run_authority(monkeypatch):
+    run = review_run()
+    service = FakeService(run)
+    service.event_sink = None
+    delivery = RetryDelivery(service, append_delivery_record=True)
+    source_delivery = SourceDeliveryComposition(
+        bootstrap=RecorderBootstrap([]),
+        delivery=delivery,
+    )
+    monkeypatch.setattr(runtime_composition, "VerifiedDeliveryResult", FakeVerifiedDelivery)
+
+    result = ReviewDeliveryCoordinator(service, source_delivery).retry(
+        run_id=run.id,
+        operation_key=f"delivery-retry-{run.id}-{run.revision}",
+        expected_revision=run.revision,
+    )
+
+    assert isinstance(result, FakeVerifiedDelivery)
+    assert delivery.calls == [(run.id, f"delivery-retry-{run.id}-6")]
+    assert run.state == "REVIEW"
+    assert run.revision == 6
+    assert run.last_failure_code is None
+    assert [(item.id, item.stage) for item in run.attempts if item.stage != "SOURCE_DELIVERY"] == [
+        ("implement-1", "IMPLEMENT"),
+        ("verify-1", "VERIFY"),
+    ]
+    assert [item.stage for item in run.attempts if item.stage == "SOURCE_DELIVERY"] == ["SOURCE_DELIVERY"]
+
+
+def test_review_delivery_retry_failure_preserves_review_and_protected_attempts(monkeypatch):
+    run = review_run()
+    service = FakeService(run)
+    service.event_sink = None
+    delivery = RetryDelivery(service, fail=True)
+    source_delivery = SourceDeliveryComposition(
+        bootstrap=RecorderBootstrap([]),
+        delivery=delivery,
+    )
+    monkeypatch.setattr(runtime_composition, "VerifiedDeliveryResult", FakeVerifiedDelivery)
+    before = [(item.id, item.stage, item.status) for item in run.attempts]
+
+    with pytest.raises(RuntimeCompositionError, match="verified source delivery retry failed"):
+        ReviewDeliveryCoordinator(service, source_delivery).retry(
+            run_id=run.id,
+            operation_key="delivery-retry-failure",
+            expected_revision=run.revision,
+        )
+
+    assert run.state == "REVIEW"
+    assert run.revision == 6
+    assert run.last_failure_code is None
+    assert [(item.id, item.stage, item.status) for item in run.attempts] == before
+
+
+def test_review_delivery_retry_rejects_non_review_before_provider_call(monkeypatch):
+    run = review_run()
+    run.state = "VERIFY"
+    service = FakeService(run)
+    service.event_sink = None
+    delivery = RetryDelivery(service)
+    source_delivery = SourceDeliveryComposition(
+        bootstrap=RecorderBootstrap([]),
+        delivery=delivery,
+    )
+    monkeypatch.setattr(runtime_composition, "VerifiedDeliveryResult", FakeVerifiedDelivery)
+
+    with pytest.raises(RuntimeCompositionError, match="only at operator REVIEW"):
+        ReviewDeliveryCoordinator(service, source_delivery).retry(
+            run_id=run.id,
+            operation_key="delivery-retry-forbidden",
+            expected_revision=run.revision,
+        )
+
+    assert delivery.calls == []

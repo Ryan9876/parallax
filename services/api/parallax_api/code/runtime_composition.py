@@ -125,6 +125,202 @@ def _source_delivery_failure_evidence(error: object) -> dict[str, str]:
     return {"error_class": error_class}
 
 
+def _delivery_event_time(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _emit_delivery_success(
+    service: EngineeringRunService,
+    result: VerifiedDeliveryResult | SourceOnlyDeliveryResult,
+    run: object,
+) -> None:
+    if getattr(service, "event_sink", None) is None:
+        return
+    project_id = getattr(run, "project_id", None)
+    run_id = getattr(run, "id", None)
+    updated_at = getattr(run, "updated_at", None)
+    if not isinstance(project_id, str) or not isinstance(run_id, str) or not isinstance(updated_at, datetime):
+        raise RuntimeCompositionError("verified delivery cannot be projected without canonical run identity")
+
+    if isinstance(result, SourceOnlyDeliveryResult):
+        event = RunEventAppend(
+            project_id=project_id,
+            run_id=run_id,
+            event_key=f"handoff:{result.lineage_id.removeprefix('src:')}",
+            event_type=RunEventType.SOURCE_DELIVERY,
+            stage="REVIEW",
+            outcome=RunEventOutcome.SUCCEEDED,
+            subsystem=RunEventSubsystem.SOURCE_LINEAGE,
+            source_lineage_ref=result.lineage_id,
+            evidence_ref=result.handoff_id,
+            summary="Verified accepted source lineage is ready for authenticated download or external deployment.",
+            metadata={
+                "content_digest": result.content_digest,
+                "delivery_action_count": 0,
+            },
+            occurred_at=_delivery_event_time(updated_at),
+        )
+    else:
+        event = RunEventAppend(
+            project_id=project_id,
+            run_id=run_id,
+            event_key=f"delivery:{result.lineage_id}",
+            event_type=RunEventType.SOURCE_DELIVERY,
+            stage="REVIEW",
+            outcome=RunEventOutcome.SUCCEEDED,
+            subsystem=RunEventSubsystem.VERCEL,
+            source_lineage_ref=result.lineage_id,
+            evidence_ref=f"delivery:{result.preview_deployment_id}",
+            summary="Verified accepted source lineage was published to GitHub and a bounded Vercel Preview.",
+            metadata={
+                "content_digest": result.content_digest,
+                "branch_name": result.branch_name,
+                "commit_revision": result.commit_revision,
+                "pull_request_number": result.pull_request_number,
+                "preview_deployment_id": result.preview_deployment_id,
+                "preview_status": result.preview_status,
+                "delivery_action_count": len(result.actions),
+            },
+            occurred_at=_delivery_event_time(updated_at),
+        )
+    service.emit_event(event)
+
+
+def _emit_delivery_failure(
+    service: EngineeringRunService,
+    source_delivery: SourceDeliveryComposition | None,
+    run: object,
+    error: object,
+) -> None:
+    if getattr(service, "event_sink", None) is None:
+        return
+    project_id = getattr(run, "project_id", None)
+    run_id = getattr(run, "id", None)
+    revision = getattr(run, "revision", None)
+    updated_at = getattr(run, "updated_at", None)
+    if (
+        not isinstance(project_id, str)
+        or not isinstance(run_id, str)
+        or not isinstance(revision, int)
+        or not isinstance(updated_at, datetime)
+    ):
+        return
+    failure_evidence = _source_delivery_failure_evidence(error)
+    metadata: dict[str, object] = {"run_revision": revision, "current_state": "REVIEW"}
+    metadata.update(failure_evidence)
+    source_only = bool(
+        source_delivery is not None
+        and isinstance(source_delivery.delivery, SourceOnlyLineageDelivery)
+    )
+    service.emit_event(
+        RunEventAppend(
+            project_id=project_id,
+            run_id=run_id,
+            event_key=f"delivery-failure:{run_id}:{revision}",
+            event_type=RunEventType.SOURCE_DELIVERY,
+            stage="REVIEW",
+            outcome=RunEventOutcome.FAILED,
+            subsystem=(RunEventSubsystem.SOURCE_LINEAGE if source_only else RunEventSubsystem.VERCEL),
+            failure_code="SOURCE_DELIVERY_FAILED",
+            summary=(
+                "Verified source handoff failed before accepted lineage was made downloadable."
+                if source_only
+                else "Verified source delivery failed before operator review publication completed."
+            ),
+            metadata=metadata,
+            occurred_at=_delivery_event_time(updated_at),
+        )
+    )
+
+
+class ReviewDeliveryCoordinator:
+    """Retry only REVIEW publication without invoking protected lifecycle execution."""
+
+    def __init__(
+        self,
+        service: EngineeringRunService,
+        source_delivery: SourceDeliveryComposition,
+    ) -> None:
+        self.service = service
+        self.source_delivery = source_delivery
+
+    @staticmethod
+    def _protected_attempts(run: object) -> tuple[tuple[object, ...], ...]:
+        attempts = getattr(run, "attempts", ())
+        return tuple(
+            (
+                getattr(item, "id", None),
+                getattr(item, "stage", None),
+                getattr(item, "attempt_number", None),
+                getattr(item, "status", None),
+                getattr(item, "failure_code", None),
+            )
+            for item in attempts
+            if getattr(item, "stage", None) != "SOURCE_DELIVERY"
+        )
+
+    def retry(
+        self,
+        *,
+        run_id: str,
+        operation_key: str,
+        expected_revision: int,
+    ) -> VerifiedDeliveryResult:
+        run = self.service.get(run_id)
+        if run.state != "REVIEW":
+            raise RuntimeCompositionError("verified source delivery may be retried only at operator REVIEW")
+        if run.revision != expected_revision:
+            raise RuntimeCompositionError("verified source delivery retry is bound to a stale Engineering Run revision")
+
+        protected_before = self._protected_attempts(run)
+        state_before = run.state
+        revision_before = run.revision
+        failure_before = run.last_failure_code
+
+        try:
+            result = self.source_delivery.delivery.deliver(
+                run,
+                operation_key=operation_key,
+            )
+        except Exception as exc:
+            logger.error(
+                "source_delivery_retry_failed error_class=%s reason=%s",
+                type(exc).__name__,
+                str(exc)[:240],
+            )
+            try:
+                _emit_delivery_failure(self.service, self.source_delivery, run, exc)
+            except Exception:
+                pass
+            refreshed = self.service.get(run_id)
+            if (
+                refreshed.state != state_before
+                or refreshed.revision != revision_before
+                or refreshed.last_failure_code != failure_before
+                or self._protected_attempts(refreshed) != protected_before
+            ):
+                raise RuntimeCompositionError(
+                    "failed REVIEW delivery retry changed protected Engineering Run authority"
+                ) from exc
+            raise RuntimeCompositionError("verified source delivery retry failed") from exc
+
+        if not isinstance(result, VerifiedDeliveryResult):
+            raise RuntimeCompositionError("Vercel Preview retry returned an incompatible delivery result")
+        _emit_delivery_success(self.service, result, run)
+
+        refreshed = self.service.get(run_id)
+        if (
+            refreshed.state != state_before
+            or refreshed.revision != revision_before
+            or refreshed.last_failure_code != failure_before
+            or self._protected_attempts(refreshed) != protected_before
+        ):
+            raise RuntimeCompositionError("REVIEW delivery retry changed protected Engineering Run authority")
+        return result
+
+
 @dataclass(frozen=True, slots=True)
 class _LeaseKey:
     project_ref: str
@@ -386,111 +582,15 @@ class EngineeringRuntimeComposition:
             max_steps=max_steps,
         )
 
-    @staticmethod
-    def _event_time(value: datetime) -> datetime:
-        if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
-
     def _emit_delivery_success(
         self,
         result: VerifiedDeliveryResult | SourceOnlyDeliveryResult,
         run: object,
     ) -> None:
-        if getattr(self.service, "event_sink", None) is None:
-            return
-        project_id = getattr(run, "project_id", None)
-        run_id = getattr(run, "id", None)
-        updated_at = getattr(run, "updated_at", None)
-        if not isinstance(project_id, str) or not isinstance(run_id, str) or not isinstance(updated_at, datetime):
-            raise RuntimeCompositionError("verified delivery cannot be projected without canonical run identity")
-
-        if isinstance(result, SourceOnlyDeliveryResult):
-            event = RunEventAppend(
-                project_id=project_id,
-                run_id=run_id,
-                event_key=f"handoff:{result.lineage_id.removeprefix('src:')}",
-                event_type=RunEventType.SOURCE_DELIVERY,
-                stage="REVIEW",
-                outcome=RunEventOutcome.SUCCEEDED,
-                subsystem=RunEventSubsystem.SOURCE_LINEAGE,
-                source_lineage_ref=result.lineage_id,
-                evidence_ref=result.handoff_id,
-                summary="Verified accepted source lineage is ready for authenticated download or external deployment.",
-                metadata={
-                    "content_digest": result.content_digest,
-                    "delivery_action_count": 0,
-                },
-                occurred_at=self._event_time(updated_at),
-            )
-        else:
-            event = RunEventAppend(
-                project_id=project_id,
-                run_id=run_id,
-                event_key=f"delivery:{result.lineage_id}",
-                event_type=RunEventType.SOURCE_DELIVERY,
-                stage="REVIEW",
-                outcome=RunEventOutcome.SUCCEEDED,
-                subsystem=RunEventSubsystem.VERCEL,
-                source_lineage_ref=result.lineage_id,
-                evidence_ref=f"delivery:{result.preview_deployment_id}",
-                summary="Verified accepted source lineage was published to GitHub and a bounded Vercel Preview.",
-                metadata={
-                    "content_digest": result.content_digest,
-                    "branch_name": result.branch_name,
-                    "commit_revision": result.commit_revision,
-                    "pull_request_number": result.pull_request_number,
-                    "preview_deployment_id": result.preview_deployment_id,
-                    "preview_status": result.preview_status,
-                    "delivery_action_count": len(result.actions),
-                },
-                occurred_at=self._event_time(updated_at),
-            )
-        self.service.emit_event(event)
-
-    def _source_only_delivery(self) -> bool:
-        return bool(
-            self.source_delivery is not None
-            and isinstance(self.source_delivery.delivery, SourceOnlyLineageDelivery)
-        )
+        _emit_delivery_success(self.service, result, run)
 
     def _emit_delivery_failure(self, run: object, error: object) -> None:
-        if getattr(self.service, "event_sink", None) is None:
-            return
-        project_id = getattr(run, "project_id", None)
-        run_id = getattr(run, "id", None)
-        revision = getattr(run, "revision", None)
-        updated_at = getattr(run, "updated_at", None)
-        if (
-            not isinstance(project_id, str)
-            or not isinstance(run_id, str)
-            or not isinstance(revision, int)
-            or not isinstance(updated_at, datetime)
-        ):
-            return
-        failure_evidence = _source_delivery_failure_evidence(error)
-        metadata: dict[str, object] = {"run_revision": revision, "current_state": "REVIEW"}
-        metadata.update(failure_evidence)
-        source_only = self._source_only_delivery()
-        self.service.emit_event(
-            RunEventAppend(
-                project_id=project_id,
-                run_id=run_id,
-                event_key=f"delivery-failure:{run_id}:{revision}",
-                event_type=RunEventType.SOURCE_DELIVERY,
-                stage="REVIEW",
-                outcome=RunEventOutcome.FAILED,
-                subsystem=(RunEventSubsystem.SOURCE_LINEAGE if source_only else RunEventSubsystem.VERCEL),
-                failure_code="SOURCE_DELIVERY_FAILED",
-                summary=(
-                    "Verified source handoff failed before accepted lineage was made downloadable."
-                    if source_only
-                    else "Verified source delivery failed before operator review publication completed."
-                ),
-                metadata=metadata,
-                occurred_at=self._event_time(updated_at),
-            )
-        )
+        _emit_delivery_failure(self.service, self.source_delivery, run, error)
 
     def run(
         self,
@@ -564,6 +664,7 @@ __all__ = [
     "AllocatorWorkspaceLineageGateway",
     "DurableLineageAllocator",
     "EngineeringRuntimeComposition",
+    "ReviewDeliveryCoordinator",
     "RuntimeCompositionError",
     "production_durable_lineage_allocator",
 ]

@@ -751,6 +751,12 @@ class VerifiedLineageDelivery:
             raise VerifiedDeliveryError("VERIFY did not succeed on the exact accepted lineage")
         return lineage_id
 
+    @classmethod
+    def verified_lineage_id(cls, run: EngineeringRun) -> str:
+        """Return the exact accepted REVIEW lineage after protected evidence checks."""
+        identity = cls._identity(run)
+        return cls._verified_lineage_id(run, identity)
+
     def _invocation(self, tool: str, action: str, operation_key: str) -> ProviderInvocation:
         return self.invocations.for_action(tool=tool, action=action, operation_key=operation_key)
 

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+from fastapi import HTTPException
+
 from parallax_api.code.autonomy import AutonomyStopReason
 from parallax_api.routes import engineering_runs
 from parallax_api.schemas import EngineeringOperation
@@ -133,3 +136,105 @@ def test_autonomous_route_preserves_fail_closed_legacy_composition_when_68_is_ab
     assert captured["init"] == (service, legacy, engineering_runs._AUTONOMY_REQUEST_MAX_STEPS)
     assert captured["run"]["run_id"] == "run-2"
     assert response["stop_reason"] == AutonomyStopReason.IMPLEMENTATION_REQUIRED.value
+
+
+def test_review_delivery_retry_route_calls_delivery_only_coordinator(monkeypatch):
+    run = SimpleNamespace(
+        id="run-review",
+        project_id="11111111-1111-4111-8111-111111111111",
+        state="REVIEW",
+        revision=6,
+    )
+    project = SimpleNamespace(id=run.project_id)
+    service = FakeService(run)
+    allocator = FakeAllocator()
+    source_delivery = object()
+    calls = []
+
+    monkeypatch.setattr(
+        engineering_runs,
+        "_review_delivery_context",
+        lambda run_id, svc, bound_allocator: (run, project, SimpleNamespace(lineage_id="src:" + "a" * 64)),
+    )
+    monkeypatch.setattr(
+        engineering_runs,
+        "production_source_delivery",
+        lambda session, *, owner_subject, allocator, project_id, **kwargs: (
+            calls.append(("compose", project_id, kwargs.get("oidc_token"))),
+            source_delivery,
+        )[1],
+    )
+
+    class DeliveryOnly:
+        def __init__(self, svc, delivery):
+            assert svc is service
+            assert delivery is source_delivery
+
+        def retry(self, *, run_id, operation_key, expected_revision):
+            calls.append(("retry", run_id, operation_key, expected_revision))
+            return object()
+
+    monkeypatch.setattr(engineering_runs, "ReviewDeliveryCoordinator", DeliveryOnly)
+    monkeypatch.setattr(
+        engineering_runs,
+        "_review_delivery_status_payload",
+        lambda run_id, svc, bound_allocator: {
+            "run_id": run_id,
+            "delivery_mode": "vercel-preview",
+            "status": "PUBLISHED",
+            "preview_status": "READY",
+            "preview_url": "https://review.vercel.app",
+            "pull_request_url": "https://github.com/Ryan9876/example/pull/7",
+            "preview_deployment_id": "dpl_review",
+            "pull_request_number": 7,
+        },
+    )
+
+    response = engineering_runs.retry_review_delivery(
+        run.id,
+        EngineeringOperation(operation_key="delivery-retry-run-review-6", expected_revision=6),
+        service,
+        allocator,
+        "request-oidc",
+    )
+
+    assert calls == [
+        ("compose", run.project_id, "request-oidc"),
+        ("retry", run.id, "delivery-retry-run-review-6", 6),
+    ]
+    assert response["status"] == "PUBLISHED"
+
+
+def test_review_delivery_retry_route_rejects_stale_revision_before_provider_composition(monkeypatch):
+    run = SimpleNamespace(
+        id="run-review-stale",
+        project_id="11111111-1111-4111-8111-111111111111",
+        state="REVIEW",
+        revision=6,
+    )
+    service = FakeService(run)
+    allocator = FakeAllocator()
+    monkeypatch.setattr(
+        engineering_runs,
+        "_review_delivery_context",
+        lambda run_id, svc, bound_allocator: (
+            run,
+            SimpleNamespace(id=run.project_id),
+            SimpleNamespace(lineage_id="src:" + "a" * 64),
+        ),
+    )
+    monkeypatch.setattr(
+        engineering_runs,
+        "production_source_delivery",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("provider composition must not run")),
+    )
+
+    with pytest.raises(HTTPException) as captured:
+        engineering_runs.retry_review_delivery(
+            run.id,
+            EngineeringOperation(operation_key="delivery-retry-stale", expected_revision=5),
+            service,
+            allocator,
+            "request-oidc",
+        )
+    assert captured.value.status_code == 409

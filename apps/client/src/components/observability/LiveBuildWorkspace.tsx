@@ -329,7 +329,7 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
       )}
 
       {observer.view.readError ? <View style={styles.readError}><Text style={styles.readErrorText}>{observer.view.readError}</Text></View> : null}
-      <View style={[styles.body, focused && styles.bodyFocused]}>
+      <View style={[styles.body, !compact && styles.bodyDesktop, focused && styles.bodyFocused]}>
         <View style={styles.primary}>{focused ? renderFocusedSection() : renderDesktopTab()}</View>
         {!focused && showContext ? <ContextRail observer={observer} run={run} /> : null}
       </View>
@@ -348,13 +348,25 @@ export function LiveBuildWorkspace({ run, onBack }: { run: EngineeringRunDto; on
         >
           {workspaceContent}
         </ScrollView>
-      ) : workspaceContent}
+      ) : (
+        <ScrollView
+          style={styles.desktopRootScroll}
+          contentContainerStyle={styles.desktopRootContent}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          testID="live-build-desktop-scroll"
+        >
+          {workspaceContent}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0, backgroundColor: 'rgba(251,247,238,0.76)' },
+  desktopRootScroll: { flex: 1, minHeight: 0 },
+  desktopRootContent: { flexGrow: 1 },
   mobileRootScroll: { flex: 1, minHeight: 0 },
   mobileRootContent: { flexGrow: 1, paddingBottom: 18 },
   header: { minHeight: 116, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18, paddingHorizontal: 26, paddingTop: 16, paddingBottom: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
@@ -393,6 +405,7 @@ const styles = StyleSheet.create({
   mobileSectionText: { color: palette.charcoal600, fontSize: 9, fontWeight: '800' },
   mobileSectionTextActive: { color: palette.ivory50 },
   body: { flex: 1, minHeight: 0, flexDirection: 'row', gap: 12, padding: 14 },
+  bodyDesktop: { flexGrow: 1, flexShrink: 0, minHeight: 520 },
   bodyFocused: { padding: 10 },
   primary: { flex: 1, minWidth: 0, minHeight: 0 },
   contextRail: { width: 250, gap: 10 },
