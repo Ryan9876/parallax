@@ -1,6 +1,6 @@
 import { RunEventCursor, type RunEventIdentity } from '../state/runEventCursor';
 
-export type RunTransportState = 'CONNECTING' | 'LIVE' | 'RECONNECTING' | 'CLOSED' | 'ERROR';
+export type RunTransportState = 'CONNECTING' | 'LIVE' | 'RECONNECTING' | 'RECONCILING' | 'CLOSED' | 'ERROR';
 
 export type RunEventDto = RunEventIdentity & {
   project_id: string;
@@ -125,18 +125,35 @@ export class RunObservabilityClient {
 
   constructor(private readonly request: AuthenticatedRunRequest) {}
 
-  async replay(runId: string, limit = 100): Promise<RunEventDto[]> {
-    const after = this.cursor.last(runId);
-    const response = await this.request(
-      `/v1/engineering-runs/${encode(runId)}/events?after_sequence=${after}&limit=${limit}`,
-      { method: 'GET' },
-    );
-    const page = await requireJson<RunEventPageDto>(response);
+  async reconcile(runId: string, limit = 100, maxPages = 4): Promise<RunEventDto[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+      throw new Error('Parallax observability reconciliation limit is invalid');
+    }
+    if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 8) {
+      throw new Error('Parallax observability reconciliation page bound is invalid');
+    }
+
     const accepted: RunEventDto[] = [];
-    for (const event of page.events) {
-      if (this.cursor.accept(runId, event)) accepted.push(event);
+    for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+      const after = this.cursor.last(runId);
+      const response = await this.request(
+        `/v1/engineering-runs/${encode(runId)}/events?after_sequence=${after}&limit=${limit}`,
+        { method: 'GET' },
+      );
+      const page = await requireJson<RunEventPageDto>(response);
+      for (const event of page.events) {
+        if (this.cursor.accept(runId, event)) accepted.push(event);
+      }
+      if (!page.has_more) break;
+      if (this.cursor.last(runId) <= after) {
+        throw new Error('Parallax observability reconciliation did not advance the durable cursor');
+      }
     }
     return accepted;
+  }
+
+  async replay(runId: string, limit = 100): Promise<RunEventDto[]> {
+    return this.reconcile(runId, limit, 1);
   }
 
   async stream(

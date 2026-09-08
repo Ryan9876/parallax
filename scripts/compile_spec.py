@@ -115,6 +115,7 @@ def main() -> int:
             build_spec_critic,
             plan_from_prediction,
         )
+        from parallax_api.intelligence.offline_intelligence import compile_spec_offline
         from parallax_api.intelligence.protected_metrics import (
             evaluate_compiled_plan,
             evaluate_spec_contract,
@@ -129,6 +130,7 @@ def main() -> int:
             build_spec_critic,
             plan_from_prediction,
         )
+        from parallax_api.intelligence.offline_intelligence import compile_spec_offline
         from parallax_api.intelligence.protected_metrics import (
             evaluate_compiled_plan,
             evaluate_spec_contract,
@@ -150,25 +152,31 @@ def main() -> int:
 
     model = os.getenv("DSPY_MODEL", "openai/gpt-5.6-sol")
     program_spec = development_spec_view(spec, acceptance_contract)
+    offline = os.getenv("PARALLAX_OFFLINE_INTELLIGENCE") == "1"
 
-    critic_dspy, critic_lm, critic_program = build_spec_critic(model)
-    with critic_dspy.context(lm=critic_lm):
-        critique_prediction = critic_program(specification=program_spec)
-    try:
-        critique = normalize_critique(critique_prediction)
-    except TypeError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
+    if offline:
+        offline_result = compile_spec_offline(spec, acceptance_contract)
+        plan = {key: list(value) for key, value in offline_result.plan.items()}
+        critique = list(offline_result.critique)
+    else:
+        critic_dspy, critic_lm, critic_program = build_spec_critic(model)
+        with critic_dspy.context(lm=critic_lm):
+            critique_prediction = critic_program(specification=program_spec)
+        try:
+            critique = normalize_critique(critique_prediction)
+        except TypeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
 
-    compiler_dspy, compiler_lm, compiler_program = build_spec_compiler(model)
-    with compiler_dspy.context(lm=compiler_lm):
-        prediction = compiler_program(specification=program_spec)
+        compiler_dspy, compiler_lm, compiler_program = build_spec_compiler(model)
+        with compiler_dspy.context(lm=compiler_lm):
+            prediction = compiler_program(specification=program_spec)
 
-    try:
-        plan = plan_from_prediction(prediction)
-    except (TypeError, ValueError) as exc:
-        print(f"DSPy compiler returned invalid typed output: {exc}", file=sys.stderr)
-        return 1
+        try:
+            plan = plan_from_prediction(prediction)
+        except (TypeError, ValueError) as exc:
+            print(f"DSPy compiler returned invalid typed output: {exc}", file=sys.stderr)
+            return 1
 
     ensure_acceptance_coverage(plan, acceptance_contract)
 
@@ -177,12 +185,23 @@ def main() -> int:
     artifact["spec_id"] = spec_id
     artifact["protected_acceptance_map"] = acceptance_contract
     artifact["critique"] = critique
-    artifact["dspy_run"] = {
-        "executed": True,
-        "model": model,
-        "api_base": os.getenv("DSPY_API_BASE") or "provider-default",
-        "local_development_view": os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1",
-    }
+    artifact["dspy_run"] = (
+        {
+            "executed": False,
+            "model": "offline/deterministic",
+            "api_base": "none",
+            "local_development_view": True,
+            "offline_development": True,
+            "program_version": offline_result.program_version,
+        }
+        if offline
+        else {
+            "executed": True,
+            "model": model,
+            "api_base": os.getenv("DSPY_API_BASE") or "provider-default",
+            "local_development_view": os.getenv("DSPY_LOCAL_DEVELOPMENT") == "1",
+        }
+    )
 
     protected = evaluate_compiled_plan(spec, artifact)
     if not protected.passed:

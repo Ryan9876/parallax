@@ -1,0 +1,116 @@
+{
+  "architecture_decisions": [
+    "5.1 Persistence The model refactor must produce one SQLAlchemy metadata graph. Focused modules may define domain groups, but imports through the historical `parallax_api.models` surface remain compatible until callers are deliberately migrated."
+  ],
+  "work_items": [
+    "5.1 Persistence The model refactor must produce one SQLAlchemy metadata graph. Focused modules may define domain groups, but imports through the historical `parallax_api.models` surface remain compatible until callers are deliberately migrated."
+  ],
+  "validations": [
+    "5.1 Persistence The model refactor must produce one SQLAlchemy metadata graph. Focused modules may define domain groups, but imports through the historical `parallax_api.models` surface remain compatible until callers are deliberately migrated.",
+    "AC-01: validate protected requirement \u2014 P2-V0.24.0 is implemented inside the existing FastAPI/SQLAlchemy API and Expo/React/Skia client. No greenfield Next.js replacement or competing application shell is introduced.",
+    "AC-02: validate protected requirement \u2014 Focused model modules share one canonical SQLAlchemy metadata graph, historical `parallax_api.models` imports remain compatible, and clean SQLite/PostgreSQL schema checks pass for the supported tables, constraints and indexes.",
+    "AC-03: validate protected requirement \u2014 Clean initialization creates required schema, while an existing database is never silently dropped, truncated or rebuilt. Any historical data cutover is explicit, separately validated and not inferred from code generation.",
+    "AC-04: validate protected requirement \u2014 Engineering Run transitions, run events and worker execution persistence preserve owner scope, expected revision, atomicity, monotonic sequence, exact lease ownership, replay safety and rollback/recovery semantics while reducing avoidable database round trips.",
+    "AC-05: validate protected requirement \u2014 A controlled benchmark against the exact P2-V0.23.50 baseline demonstrates at least 40% improvement for the defined Engineering Run transition/event persistence path with the same correctness assertions.",
+    "AC-06: validate protected requirement \u2014 Focused tests prove exact accepted-lineage checks, active-lease single-flight, expired-lease recovery, stale revision rejection and rollback/retry behavior are unchanged or stricter.",
+    "AC-07: validate protected requirement \u2014 Any new/refined cache uses deterministic keys plus bounded invalidation/TTL behavior and cannot bypass authentication, revision, lease, lineage, protected evidence, lifecycle or provider checks.",
+    "AC-08: validate protected requirement \u2014 Autonomy coordination, implementation/candidate execution and durable mutation responsibilities are separated enough that candidate/execution helpers cannot mutate unrelated Engineering Run lifecycle state or provider authority implicitly.",
+    "AC-09: validate protected requirement \u2014 DSPy programs/compiler code may be optimized, but protected evaluator implementations, thresholds, promotion rules and promotion-suite expected contracts are neither optimizer inputs nor optimizer-controlled outputs. Protected promotion gates remain deterministic.",
+    "AC-10: validate protected requirement \u2014 A provider-independent development/test intelligence path produces deterministic contract-valid outputs for covered compiler/program regression cases and records that it is an offline development path rather than provider-backed production intelligence.",
+    "AC-11: validate protected requirement \u2014 Source delivery consumes only exact verified accepted lineage under the canonical Project delivery mode. Delivery failure does not rewrite protected lifecycle success, and `vercel-preview` grants no merge, default-branch or production-promotion authority.",
+    "AC-12: validate protected requirement \u2014 The stream requires the same owner-scoped authentication as canonical reads, validates run ownership and cursor, replays durable events after the cursor in monotonic order, follows new durable events, and bounds replay/heartbeat behavior.",
+    "AC-13: validate protected requirement \u2014 Client reconnect preserves only an observation cursor, resumes without duplicate-authority assumptions, and reconciles through canonical read APIs after gaps/errors. Poll/read fallback remains safe when streaming is unavailable.",
+    "AC-14: validate protected requirement \u2014 The existing Warm Editorial Observatory visual language, conversation-primary hierarchy, desktop/mobile reachability, nested technical scrolling, keyboard operation, readable text, reduced motion and screen-reader state semantics pass client/browser validation.",
+    "AC-15: validate protected requirement \u2014 The candidate passes changed-spec validation, authentic DSPy compiled-plan validation, focused API/client tests, cross-database schema checks, performance gate, full relevant API/client/protected release gates and records generated, validated, deployed and deployment-verified states distinctly."
+  ],
+  "risks": [
+    "5.1 Persistence The model refactor must produce one SQLAlchemy metadata graph. Focused modules may define domain groups, but imports through the historical `parallax_api.models` surface remain compatible until callers are deliberately migrated."
+  ],
+  "spec_id": "P2-V0.24.0",
+  "protected_acceptance_map": [
+    {
+      "id": "AC-01",
+      "title": "Existing architecture is preserved",
+      "protected_requirement": "P2-V0.24.0 is implemented inside the existing FastAPI/SQLAlchemy API and Expo/React/Skia client. No greenfield Next.js replacement or competing application shell is introduced."
+    },
+    {
+      "id": "AC-02",
+      "title": "Model modularization preserves one schema contract",
+      "protected_requirement": "Focused model modules share one canonical SQLAlchemy metadata graph, historical `parallax_api.models` imports remain compatible, and clean SQLite/PostgreSQL schema checks pass for the supported tables, constraints and indexes."
+    },
+    {
+      "id": "AC-03",
+      "title": "Database initialization is non-destructive",
+      "protected_requirement": "Clean initialization creates required schema, while an existing database is never silently dropped, truncated or rebuilt. Any historical data cutover is explicit, separately validated and not inferred from code generation."
+    },
+    {
+      "id": "AC-04",
+      "title": "Repository hot paths retain protected semantics",
+      "protected_requirement": "Engineering Run transitions, run events and worker execution persistence preserve owner scope, expected revision, atomicity, monotonic sequence, exact lease ownership, replay safety and rollback/recovery semantics while reducing avoidable database round trips."
+    },
+    {
+      "id": "AC-05",
+      "title": "Transition latency improves by at least 40 percent",
+      "protected_requirement": "A controlled benchmark against the exact P2-V0.23.50 baseline demonstrates at least 40% improvement for the defined Engineering Run transition/event persistence path with the same correctness assertions."
+    },
+    {
+      "id": "AC-06",
+      "title": "Same-lineage, lease and rollback regressions remain green",
+      "protected_requirement": "Focused tests prove exact accepted-lineage checks, active-lease single-flight, expired-lease recovery, stale revision rejection and rollback/retry behavior are unchanged or stricter."
+    },
+    {
+      "id": "AC-07",
+      "title": "Cache cannot become authority",
+      "protected_requirement": "Any new/refined cache uses deterministic keys plus bounded invalidation/TTL behavior and cannot bypass authentication, revision, lease, lineage, protected evidence, lifecycle or provider checks."
+    },
+    {
+      "id": "AC-08",
+      "title": "Execution responsibilities are narrower",
+      "protected_requirement": "Autonomy coordination, implementation/candidate execution and durable mutation responsibilities are separated enough that candidate/execution helpers cannot mutate unrelated Engineering Run lifecycle state or provider authority implicitly."
+    },
+    {
+      "id": "AC-09",
+      "title": "DSPy optimization stays outside protected evaluation",
+      "protected_requirement": "DSPy programs/compiler code may be optimized, but protected evaluator implementations, thresholds, promotion rules and promotion-suite expected contracts are neither optimizer inputs nor optimizer-controlled outputs. Protected promotion gates remain deterministic."
+    },
+    {
+      "id": "AC-10",
+      "title": "Offline intelligence is deterministic",
+      "protected_requirement": "A provider-independent development/test intelligence path produces deterministic contract-valid outputs for covered compiler/program regression cases and records that it is an offline development path rather than provider-backed production intelligence."
+    },
+    {
+      "id": "AC-11",
+      "title": "Delivery remains isolated and Preview-bounded",
+      "protected_requirement": "Source delivery consumes only exact verified accepted lineage under the canonical Project delivery mode. Delivery failure does not rewrite protected lifecycle success, and `vercel-preview` grants no merge, default-branch or production-promotion authority."
+    },
+    {
+      "id": "AC-12",
+      "title": "Observability streaming is authenticated and replayable",
+      "protected_requirement": "The stream requires the same owner-scoped authentication as canonical reads, validates run ownership and cursor, replays durable events after the cursor in monotonic order, follows new durable events, and bounds replay/heartbeat behavior."
+    },
+    {
+      "id": "AC-13",
+      "title": "Streaming reconnect reconciles with canonical state",
+      "protected_requirement": "Client reconnect preserves only an observation cursor, resumes without duplicate-authority assumptions, and reconciles through canonical read APIs after gaps/errors. Poll/read fallback remains safe when streaming is unavailable."
+    },
+    {
+      "id": "AC-14",
+      "title": "Workspace behavior and accessibility do not regress",
+      "protected_requirement": "The existing Warm Editorial Observatory visual language, conversation-primary hierarchy, desktop/mobile reachability, nested technical scrolling, keyboard operation, readable text, reduced motion and screen-reader state semantics pass client/browser validation."
+    },
+    {
+      "id": "AC-15",
+      "title": "Release evidence stays truthful",
+      "protected_requirement": "The candidate passes changed-spec validation, authentic DSPy compiled-plan validation, focused API/client tests, cross-database schema checks, performance gate, full relevant API/client/protected release gates and records generated, validated, deployed and deployment-verified states distinctly."
+    }
+  ],
+  "critique": [
+    "The current architecture of the Parallax platform is preserved, with the following changes:\n\n- The model modularization preserves one schema contract: Focused model modules share one canonical SQLAlchemy metadata graph, historical `parallax_api.models` imports remain compatible, and clean SQLite and PostgreSQL databases.\n- The database initialization is non-destructive: Clean initialization creates required schema, while an existing database is never silently dropped, truncated or rebuilt.\n- The repository hot paths retain protected semantics: Engineering Run transitions, run events, and worker execution persistence preserve owner scope, expected revision, atomicity, monotonic sequence, and the ability to rollback/retry.\n- The transition latency improves by at least 40 percent: A controlled benchmark against the exact P2-V0.23.50 baseline demonstrates at least 40% improvement for the defined Engineering Run transition/event.\n- The same-lineage, lease, and rollback regressions remain green: Focused tests prove exact accepted-lineage checks, active-lease single-flight, expired-lease recovery, stale revision rejection, and rollback/retry.\n- The cache cannot become authority: Any new/refined cache uses deterministic keys plus bounded invalidation/TTL behavior and cannot bypass authentication, revision, lease, lineage.\n- The execution responsibilities are narrower: Autonomy coordination, implementation/candidate execution, and durable mutation responsibilities are separated enough that candidate/execution helpers, DSPy optimization, and protected evaluator implementations remain.\n- The DSPy optimization stays outside protected evaluation: DSPy programs/compiler code may be optimized, but protected evaluator implementations, thresholds, promotion rules, and promotion-suite expected.\n- The offline intelligence is deterministic: A provider-independent development/test intelligence path produces deterministic contract-valid outputs for covered compiler/program regression cases.\n- The delivery remains isolated and Preview-bounded: Source delivery consumes only exact verified accepted lineage under the canonical Project delivery mode.\n- The observability streaming"
+  ],
+  "dspy_run": {
+    "executed": true,
+    "model": "ollama_chat/qwen2.5:0.5b",
+    "api_base": "http://127.0.0.1:11434",
+    "local_development_view": true
+  }
+}

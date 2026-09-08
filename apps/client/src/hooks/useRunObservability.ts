@@ -97,7 +97,7 @@ export function useRunObservability(run: EngineeringRunDto | null, enabled: bool
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const replay = await client.replay(selectedRunId, 200);
+      const replay = await client.reconcile(selectedRunId, 200, 4);
       if (controller.signal.aborted || runId !== selectedRunId) return;
       appendEvents(replay);
       setUnavailable(false);
@@ -110,9 +110,25 @@ export function useRunObservability(run: EngineeringRunDto | null, enabled: bool
       }
     } catch (caught) {
       if (controller.signal.aborted || !mountedRef.current || runId !== selectedRunId) return;
-      setError(messageOf(caught));
-      setUnavailable(isUnavailable(caught));
-      setTransport('ERROR');
+
+      // SSE is an observer transport, not authority. When it fails, reconcile
+      // from the canonical durable read route using the same monotonic cursor
+      // before trying the stream again. This preserves liveness without adding
+      // a second lifecycle model or fabricating local events.
+      setTransport('RECONCILING');
+      try {
+        const reconciled = await client.reconcile(selectedRunId, 200, 4);
+        if (controller.signal.aborted || !mountedRef.current || runId !== selectedRunId) return;
+        appendEvents(reconciled);
+        setError(null);
+        setUnavailable(false);
+      } catch (reconcileError) {
+        if (controller.signal.aborted || !mountedRef.current || runId !== selectedRunId) return;
+        setError(messageOf(reconcileError));
+        setUnavailable(isUnavailable(reconcileError));
+        setTransport('ERROR');
+      }
+
       reconnectAttemptRef.current += 1;
       const delay = Math.min(8000, 1000 * reconnectAttemptRef.current);
       reconnectTimerRef.current = setTimeout(() => { void connect(selectedRunId); }, delay);

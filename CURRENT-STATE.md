@@ -1,12 +1,54 @@
 # Parallax 2.0 Current State
 
 Date: 2026-09-08
-Status: **P2-V0.23.50 PRODUCTION-DEPLOYMENT-VERIFIED / OT TIME REVIEW DELIVERY RETRY READY**
-Architecture: `ARCHITECTURE.md` v3.59
+Status: **P2-V0.23.50 PRODUCTION-DEPLOYMENT-VERIFIED / P2-V0.24.0 VALIDATED-CANDIDATE (NOT DEPLOYED)**
+Architecture: `ARCHITECTURE.md` v3.60
 
 ## Purpose of this record
 
 This file is the authoritative snapshot of Parallax's current validated state. It records current production truth, active authority boundaries, the latest accepted release, and material remaining work. Historical evidence remains in Git history, versioned specifications, compiled plans, pull requests, workflow runs, deployment records, and workstream issues.
+
+## P2-V0.24.0 — platform overhaul — VALIDATED CANDIDATE / NOT DEPLOYED
+
+- workstream: #601;
+- release PR: #602;
+- validated candidate source: `78c90bfbe8adccd1cbfb21a7536f310285e2c139`;
+- exact starting baseline: `7b503876d3e2d9d42261235ff466f89432f37d5f` / P2-V0.23.50;
+- architecture: v3.60;
+- merge state at validation: PR ready and mergeable, not yet merged;
+- deployment state: **not deployed**; no production-accepted claim is authorized by this record.
+
+P2-V0.24.0 modernizes the existing FastAPI/SQLAlchemy + Expo/React/Skia platform in place. It does not introduce the competing greenfield Next.js shell and does not change conversation-primary product hierarchy, Project/Work Specification/Engineering Run authority, exact source-lineage authority, worker lease/recovery semantics, Preview-only delivery ceiling, or human REVIEW completion authority.
+
+Validated implementation:
+
+1. core ORM definitions are organized under one compatibility-preserving `parallax_api.models` package sharing the existing `Base.metadata` graph; worker execution schema is no longer defined inside its repository;
+2. additive composite indexes target demonstrated Engineering Run/history/event reads, and Engineering Run/event persistence removes redundant post-commit reloads without weakening durable commit, revision, attempt, event or lease semantics;
+3. `SafeImplementationEngine.prepare()` is a pure immutable pre-mutation boundary, and `BoundedDerivedCache` is TTL/LRU derived-data acceleration only with no persistence, lifecycle, lease, lineage, credential or provider authority;
+4. deterministic offline specification compilation is available for provider-independent development/regression use but records `dspy_run.executed=false`; authentic DSPy evidence and protected deterministic evaluation remain required for release;
+5. the existing exact VERIFY-bound source-only / Vercel Preview delivery stack remains authoritative and is regression-gated for exact lineage, replay, stale/unverified rejection, fixed provider actions, no merge/production authority and no Engineering Run lifecycle mutation from delivery;
+6. authenticated replayable SSE remains the preferred observability transport; the client adds bounded canonical REST reconciliation after stream failure, rejects non-advancing pages, deduplicates by durable sequence and treats its cursor as observation state only.
+
+Validation evidence at candidate `78c90bfb`:
+
+- P2-V0.24.0 Release Validation workflow `34240080110`: **SUCCESS**;
+- release evidence artifact `10061591299`, digest `sha256:150fd5fcca70ee18e66715093b4a5edc16aa5fc5097135353864e0c4b0f9128f`;
+- focused API authority/regression slice: **51 passed**;
+- additive SQLite schema probe: **PASS**, existing sentinel data preserved;
+- additive PostgreSQL 16 schema probe: **PASS**, existing sentinel data preserved;
+- controlled transition benchmark against the exact P2-V0.23.50 `record()` path: baseline median `0.397272s` / `192` SQL statements versus candidate median `0.193603s` / `96` statements; measured latency improvement `51.27%`, statement reduction `50.0%`, both above the required `40%` gate. This is a controlled local round-trip benchmark, not a claim of production request latency;
+- ready-for-review P2 CI `34240240010`: **SUCCESS**, including Fast API + contract checks, Fast client checks, DSPy release evidence validation and Protected promotion evaluation;
+- ready-for-review Workstream Spec Validation `34240240015`: **SUCCESS**, including protected committed-plan validation;
+- exact-head Client Visual Validation `34240239903`: **SUCCESS** / Browser-Skia acceptance;
+- exact-head Bounded Autonomy `34240085876`: **SUCCESS**;
+- P2-V0.24.0 authentic DSPy compile workflow `34236133258`: **SUCCESS**; committed plan evidence remains separate from the deterministic offline development path.
+
+Authoritative-record impact:
+
+- `ARCHITECTURE.md` advanced from v3.59 to v3.60 for modular persistence, transition hot-path behavior, pure implementation/cache boundaries, offline-intelligence separation and bounded observability reconciliation;
+- `DESIGN-SYSTEM.md` requires no change because the established Warm Editorial Observatory hierarchy, visual language, scrolling and accessibility rules are unchanged;
+- `PROJECT-CONSTITUTION.md` requires no change because no durable governance or authority ceiling changed;
+- this `CURRENT-STATE.md` entry records validated candidate truth only. A later merge, deployment, migration application or deployment verification must be recorded separately from evidence.
 
 ## Current production truth
 

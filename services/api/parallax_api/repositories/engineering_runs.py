@@ -80,23 +80,27 @@ class EngineeringRunRepository:
         return tuple(rows)
 
     def latest_for_conversation(self, conversation_id: str) -> EngineeringRun | None:
-        run_id = self.session.scalar(
-            select(EngineeringRun.id)
+        return self.session.scalar(
+            select(EngineeringRun)
             .where(EngineeringRun.conversation_id == conversation_id)
+            .options(selectinload(EngineeringRun.attempts))
             .order_by(EngineeringRun.updated_at.desc(), EngineeringRun.created_at.desc())
+            .limit(1)
+            .execution_options(populate_existing=True)
         )
-        return self.get(run_id) if run_id else None
 
     def latest_for_binding(self, conversation_id: str, work_specification_id: str) -> EngineeringRun | None:
-        run_id = self.session.scalar(
-            select(EngineeringRun.id)
+        return self.session.scalar(
+            select(EngineeringRun)
             .where(
                 EngineeringRun.conversation_id == conversation_id,
                 EngineeringRun.work_specification_id == work_specification_id,
             )
+            .options(selectinload(EngineeringRun.attempts))
             .order_by(EngineeringRun.updated_at.desc(), EngineeringRun.created_at.desc())
+            .limit(1)
+            .execution_options(populate_existing=True)
         )
-        return self.get(run_id) if run_id else None
 
     def find_operation(self, run_id: str, operation_key: str) -> EngineeringAttempt | None:
         return self.session.scalar(
@@ -143,8 +147,9 @@ class EngineeringRunRepository:
         if len(payload) > 24_000:
             raise ValueError("engineering attempt evidence exceeds protected bound")
 
+        now = utcnow()
         attempt = EngineeringAttempt(
-            run_id=run.id,
+            run=run,
             stage=stage,
             attempt_number=self._next_attempt_number(run.id, stage),
             operation_key=operation_key,
@@ -154,19 +159,16 @@ class EngineeringRunRepository:
             program_id=program_id,
             model_id=model_id,
             tool_id=tool_id,
-            completed_at=utcnow(),
+            completed_at=now,
         )
         run.state = next_state
         run.resume_stage = resume_stage
         run.last_failure_code = failure_code
         run.revision += 1
-        run.updated_at = utcnow()
+        run.updated_at = now
         if next_state == "COMPLETE":
-            run.completed_at = utcnow()
+            run.completed_at = now
 
         self.session.add(attempt)
-        self.session.add(run)
         self.session.commit()
-        self.session.refresh(attempt)
-        refreshed = self.get(run.id) or run
-        return RecordedMutation(run=refreshed, attempt=attempt)
+        return RecordedMutation(run=run, attempt=attempt)

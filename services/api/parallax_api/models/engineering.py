@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+from datetime import datetime
+from uuid import uuid4
+
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from ..db import Base
+from .common import utcnow
+
+
+class EngineeringRun(Base):
+    __tablename__ = "engineering_runs"
+    __table_args__ = (
+        Index("ix_engineering_runs_conversation_updated", "conversation_id", "updated_at", "created_at"),
+        Index("ix_engineering_runs_binding_updated", "conversation_id", "work_specification_id", "updated_at", "created_at"),
+        Index("ix_engineering_runs_project_updated", "project_id", "updated_at", "created_at", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    spec_id: Mapped[str] = mapped_column(String(64), index=True)
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    work_specification_id: Mapped[str | None] = mapped_column(
+        ForeignKey("work_specifications.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    work_specification_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    work_specification_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    state: Mapped[str] = mapped_column(String(32), default="SPECIFY", index=True)
+    resume_stage: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    workspace_ref: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    last_failure_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def project_binding_status(self) -> str:
+        return "PROJECT_BOUND" if self.project_id else "HISTORICAL_UNBOUND"
+
+    attempts: Mapped[list["EngineeringAttempt"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by=lambda: (
+            EngineeringAttempt.started_at,
+            EngineeringAttempt.attempt_number,
+            EngineeringAttempt.id,
+        ),
+    )
+
+
+class EngineeringAttempt(Base):
+    __tablename__ = "engineering_attempts"
+    __table_args__ = (
+        UniqueConstraint("run_id", "operation_key", name="uq_engineering_attempt_run_operation"),
+        UniqueConstraint("run_id", "stage", "attempt_number", name="uq_engineering_attempt_stage_number"),
+        Index("ix_engineering_attempts_run_status_stage", "run_id", "status", "stage"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    run_id: Mapped[str] = mapped_column(ForeignKey("engineering_runs.id", ondelete="CASCADE"), index=True)
+    stage: Mapped[str] = mapped_column(String(32), index=True)
+    attempt_number: Mapped[int] = mapped_column(Integer)
+    operation_key: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(32))
+    program_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    tool_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    evidence_json: Mapped[str] = mapped_column(Text, default="{}")
+    failure_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    run: Mapped[EngineeringRun] = relationship(back_populates="attempts")
+
+
+class EngineeringRunEvent(Base):
+    """Append-only Wave 4 observation row; never an execution authority."""
+
+    __tablename__ = "engineering_run_events"
+    __table_args__ = (
+        UniqueConstraint("run_id", "sequence", name="uq_engineering_run_event_sequence"),
+        UniqueConstraint("run_id", "event_key", name="uq_engineering_run_event_key"),
+        CheckConstraint("sequence > 0", name="ck_engineering_run_event_sequence_positive"),
+        Index("ix_engineering_run_events_run_sequence", "run_id", "sequence"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    project_id: Mapped[str] = mapped_column(String(36), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("engineering_runs.id", ondelete="CASCADE"), index=True)
+    sequence: Mapped[int] = mapped_column(Integer)
+    event_key: Mapped[str] = mapped_column(String(160))
+    event_type: Mapped[str] = mapped_column(String(40), index=True)
+    stage: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    outcome: Mapped[str] = mapped_column(String(32), index=True)
+    subsystem: Mapped[str] = mapped_column(String(32), index=True)
+    attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    worker_execution_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    source_lineage_ref: Mapped[str | None] = mapped_column(String(68), nullable=True, index=True)
+    parent_source_lineage_ref: Mapped[str | None] = mapped_column(String(68), nullable=True)
+    operation_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    artifact_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    evidence_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    failure_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    summary: Mapped[str | None] = mapped_column(String(360), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
