@@ -84,6 +84,7 @@ def main() -> None:
         # disposable Vercel sandbox before production publication can succeed.
         _run_service_preflight("scripts/production_candidate_validation_canary.py")
         _run_isolated_preflight("scripts/production_run_event_schema_guard.py")
+        _run_isolated_preflight("scripts/production_behavioral_plan_schema_guard.py")
     else:
         print("Production lineage composition preflight: SKIP (non-production)")
         print("Production agentic runtime preflight: SKIP (non-production)")
@@ -91,6 +92,7 @@ def main() -> None:
         print("Production execution-snapshot preflight: SKIP (non-production)")
         print("Production candidate-validation canary: SKIP (non-production)")
         print("Production run-event schema guard: SKIP (non-production)")
+        print("Production behavioral-plan schema guard: SKIP (non-production)")
 
     public = Path("public")
     public.mkdir(parents=True, exist_ok=True)

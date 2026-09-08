@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { api, type WorkSpecificationDto } from '../lib/api';
+import { api, type BehavioralVerificationActionDto, type BehavioralVerificationPlanDto, type WorkSpecificationDto } from '../lib/api';
 import { palette } from '../theme';
 
 function Section({ label, items }: { label: string; items: string[] }) {
@@ -11,6 +11,147 @@ function Section({ label, items }: { label: string; items: string[] }) {
       {items.map((item, index) => (
         <Text selectable key={`${label}-${index}`} style={styles.item}>• {item}</Text>
       ))}
+    </View>
+  );
+}
+
+
+function verificationActionLabel(action: BehavioralVerificationActionDto): string {
+  if (action.kind === 'NAVIGATE' || action.kind === 'ASSERT_PATH') {
+    return `${action.kind === 'NAVIGATE' ? 'Open' : 'Confirm path'} ${action.path ?? '/'}`;
+  }
+  if (action.kind === 'SCREENSHOT') return `Capture ${action.checkpoint ?? 'checkpoint'}`;
+  const target = action.target ? `${action.target.kind.toLowerCase().replace('_', ' ')} “${action.target.value}”` : 'the protected target';
+  const verb: Record<string, string> = {
+    WAIT_FOR: 'Wait for',
+    ASSERT_VISIBLE: 'Confirm visible',
+    ASSERT_ABSENT: 'Confirm absent',
+    CLICK: 'Activate',
+    FILL: 'Fill',
+    SELECT: 'Select',
+    ASSERT_LAYOUT: 'Check layout of',
+  };
+  return `${verb[action.kind] ?? action.kind} ${target}`;
+}
+
+function VerificationPlanSection({ specification }: { specification: WorkSpecificationDto }) {
+  const [plan, setPlan] = React.useState<BehavioralVerificationPlanDto | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (specification.status !== 'APPROVED') {
+      setPlan(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    void api.latestBehavioralVerificationPlan(specification.id).then((value) => {
+      if (!cancelled) setPlan(value);
+    }).catch(() => {
+      if (!cancelled) setError('Verification plan could not be loaded.');
+    });
+    return () => { cancelled = true; };
+  }, [specification.id, specification.status]);
+
+  if (specification.status !== 'APPROVED') return null;
+
+  const createPlan = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setPlan(await api.draftBehavioralVerificationPlan(specification.id));
+    } catch {
+      setError('Parallax could not create a verification plan. The approved build plan is unchanged.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approvePlan = async () => {
+    if (!plan || plan.status !== 'DRAFT' || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setPlan(await api.approveBehavioralVerificationPlan(plan.id));
+    } catch {
+      setError('Parallax could not approve the verification plan. Nothing was marked verified.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={styles.verificationSection}>
+      <View style={styles.verificationHeader}>
+        <View style={styles.verificationHeaderCopy}>
+          <Text style={styles.sectionLabel}>HOW PARALLAX WILL VERIFY IT</Text>
+          <Text style={styles.verificationIntro}>
+            {plan
+              ? 'This is the reviewable contract for future behavioral checks. Approving it does not mean the app has passed verification.'
+              : 'Create a separate verification plan before Parallax is allowed to turn browser checks into behavioral evidence.'}
+          </Text>
+        </View>
+        {!plan ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Create verification plan"
+            disabled={busy}
+            onPress={() => void createPlan()}
+            style={styles.verificationAction}
+          >
+            <Text style={styles.verificationActionText}>{busy ? 'Creating…' : 'Create verification plan'}</Text>
+          </TouchableOpacity>
+        ) : plan.status === 'DRAFT' ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Approve verification plan"
+            disabled={busy}
+            onPress={() => void approvePlan()}
+            style={[styles.verificationAction, styles.verificationApprove]}
+          >
+            <Text style={styles.verificationApproveText}>{busy ? 'Approving…' : 'Approve verification plan'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View accessibilityLabel="Verification plan approved" style={styles.verificationApprovedPill}>
+            <Text style={styles.verificationApprovedText}>Verification plan approved</Text>
+          </View>
+        )}
+      </View>
+
+      {plan ? (
+        <View style={styles.verificationCriteria}>
+          {plan.criteria.map((criterion) => (
+            <View key={criterion.acceptance_id} style={styles.verificationCriterion}>
+              <View style={styles.verificationCriterionTop}>
+                <Text style={styles.verificationId}>{criterion.acceptance_id}</Text>
+                <View style={criterion.mode === 'BROWSER' ? styles.browserModePill : styles.humanModePill}>
+                  <Text style={criterion.mode === 'BROWSER' ? styles.browserModeText : styles.humanModeText}>
+                    {criterion.mode === 'BROWSER' ? 'Automated browser check' : 'Human review'}
+                  </Text>
+                </View>
+              </View>
+              <Text selectable style={styles.verificationCriterionText}>{criterion.acceptance_text}</Text>
+              {criterion.workflow ? (
+                <View style={styles.verificationSteps}>
+                  {criterion.workflow.actions.map((action, index) => (
+                    <Text key={`${criterion.acceptance_id}-action-${index}`} style={styles.verificationStep}>
+                      {index + 1}. {verificationActionLabel(action)}
+                    </Text>
+                  ))}
+                  <Text style={styles.verificationViewport}>
+                    Viewports: {criterion.workflow.viewport_ids.join(', ')}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.verificationHumanNote}>This criterion stays explicitly unverified until a person reviews it.</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
@@ -116,6 +257,7 @@ export function WorkSpecificationStatus({
         <Text selectable style={styles.objective}>{specification.objective}</Text>
       </View>
       <Section label="WHAT SUCCESS LOOKS LIKE" items={specification.acceptance_criteria} />
+      <VerificationPlanSection specification={specification} />
       <Section label="IMPORTANT LIMITS" items={specification.constraints} />
       <Section label="QUESTIONS TO RESOLVE" items={specification.open_questions} />
       <Section label="THINGS TO WATCH" items={specification.risks} />
@@ -283,6 +425,29 @@ const styles = StyleSheet.create({
   sectionLabel: { color: palette.olive700, fontSize: 12, lineHeight: 16, fontWeight: '800', letterSpacing: 0.7, marginBottom: 8 },
   objective: { color: palette.text, fontSize: 16, lineHeight: 25, maxWidth: 740 },
   item: { color: palette.textSecondary, fontSize: 15, lineHeight: 24, marginBottom: 5, maxWidth: 740 },
+  verificationSection: { marginBottom: 20, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(102,117,58,0.16)' },
+  verificationHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 14, marginBottom: 12 },
+  verificationHeaderCopy: { flex: 1, minWidth: 0 },
+  verificationIntro: { color: palette.textSecondary, fontSize: 13, lineHeight: 19, maxWidth: 620 },
+  verificationAction: { minHeight: 42, paddingHorizontal: 13, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,132,135,0.09)' },
+  verificationActionText: { color: palette.teal700, fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  verificationApprove: { backgroundColor: 'rgba(102,117,58,0.11)' },
+  verificationApproveText: { color: palette.olive700, fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  verificationApprovedPill: { minHeight: 34, paddingHorizontal: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(102,117,58,0.11)' },
+  verificationApprovedText: { color: palette.olive700, fontSize: 11, lineHeight: 15, fontWeight: '800' },
+  verificationCriteria: { gap: 9 },
+  verificationCriterion: { padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.34)' },
+  verificationCriterionTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' },
+  verificationId: { color: palette.textSoft, fontSize: 11, lineHeight: 15, fontFamily: mono, fontWeight: '700' },
+  browserModePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,132,135,0.09)' },
+  humanModePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(196,74,27,0.09)' },
+  browserModeText: { color: palette.teal700, fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  humanModeText: { color: palette.rust700, fontSize: 10, lineHeight: 14, fontWeight: '800' },
+  verificationCriterionText: { color: palette.text, fontSize: 14, lineHeight: 21 },
+  verificationSteps: { marginTop: 8, paddingLeft: 4 },
+  verificationStep: { color: palette.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 2 },
+  verificationViewport: { color: palette.textSoft, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  verificationHumanNote: { color: palette.rust700, fontSize: 11, lineHeight: 17, marginTop: 7 },
   technicalWrap: { marginTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border, paddingTop: 6 },
   technicalToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   technicalToggleText: { color: palette.teal700, fontSize: 13, lineHeight: 18, fontWeight: '800' },

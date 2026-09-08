@@ -58,6 +58,61 @@ class WorkSpecificationRead(BaseModel):
     approved_at: datetime | None
 
 
+class BehavioralVerificationTargetRead(BaseModel):
+    kind: Literal["ROLE", "LABEL", "TEST_ID", "TEXT"]
+    value: str
+
+
+class BehavioralVerificationActionRead(BaseModel):
+    kind: Literal[
+        "NAVIGATE",
+        "WAIT_FOR",
+        "ASSERT_VISIBLE",
+        "ASSERT_ABSENT",
+        "CLICK",
+        "FILL",
+        "SELECT",
+        "ASSERT_PATH",
+        "ASSERT_LAYOUT",
+        "SCREENSHOT",
+    ]
+    path: str | None = None
+    target: BehavioralVerificationTargetRead | None = None
+    value: str | None = None
+    checkpoint: str | None = None
+
+
+class BehavioralVerificationWorkflowRead(BaseModel):
+    workflow_id: str
+    version: int
+    viewport_ids: list[str]
+    timeout_ms: int
+    actions: list[BehavioralVerificationActionRead]
+
+
+class BehavioralVerificationCriterionRead(BaseModel):
+    acceptance_id: str
+    acceptance_text: str
+    mode: Literal["BROWSER", "HUMAN_ONLY"]
+    workflow: BehavioralVerificationWorkflowRead | None = None
+
+
+class BehavioralVerificationPlanRead(BaseModel):
+    id: str
+    work_specification_id: str
+    work_specification_revision: int
+    work_specification_digest: str
+    revision: int
+    status: Literal["DRAFT", "APPROVED", "SUPERSEDED"]
+    plan_digest: str
+    criteria: list[BehavioralVerificationCriterionRead]
+    program_version: str
+    model_id: str | None
+    created_at: datetime
+    updated_at: datetime
+    approved_at: datetime | None
+
+
 class ResponseRequest(BaseModel):
     content: str = Field(min_length=1, max_length=100_000)
     material_scope_change: bool = False

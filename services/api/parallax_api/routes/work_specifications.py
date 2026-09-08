@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 
 from ..auth import AccessPrincipal, access_principal
 from ..db import get_session
+from ..intelligence.behavioral_verification_plan import (
+    BehavioralVerificationPlanCoordinator,
+    BehavioralVerificationPlanGenerationFailure,
+)
 from ..intelligence.router import RoutingFailureKind
 from ..intelligence.work_specification import (
     WorkSpecificationCoordinator,
@@ -15,9 +19,11 @@ from ..intelligence.work_specification import (
 from ..models import WorkSpecification
 from ..intelligence.project_context import compose_project_capability_context
 from ..projects.repository import ProjectRepository
+from ..repositories.behavioral_verification_plans import BehavioralVerificationPlanRepository
 from ..repositories.conversations import ConversationRepository
 from ..repositories.work_specifications import WorkSpecificationRepository
-from ..schemas import ConversationRead, WorkSpecificationRead
+from ..schemas import BehavioralVerificationPlanRead, ConversationRead, WorkSpecificationRead
+from ..services.behavioral_verification_plans import BehavioralVerificationPlanService
 from ..services.work_specifications import WorkSpecificationService
 
 router = APIRouter(prefix="/v1", tags=["work-specifications"])
@@ -39,6 +45,22 @@ def coordinator() -> WorkSpecificationCoordinator:
     return WorkSpecificationCoordinator()
 
 
+def behavioral_plan_service(
+    session: Session = Depends(get_session),
+    principal: AccessPrincipal = Depends(access_principal),
+) -> BehavioralVerificationPlanService:
+    return BehavioralVerificationPlanService(
+        BehavioralVerificationPlanRepository(session),
+        WorkSpecificationRepository(session),
+        ConversationRepository(session),
+        owner_subject=principal.subject,
+    )
+
+
+def behavioral_plan_coordinator() -> BehavioralVerificationPlanCoordinator:
+    return BehavioralVerificationPlanCoordinator()
+
+
 def present(specification: WorkSpecification) -> dict:
     return {
         "id": specification.id,
@@ -57,6 +79,25 @@ def present(specification: WorkSpecification) -> dict:
         "created_at": specification.created_at,
         "updated_at": specification.updated_at,
         "approved_at": specification.approved_at,
+    }
+
+
+def present_behavioral_plan(plan, svc: BehavioralVerificationPlanService) -> dict:
+    payload = svc.validated_payload(plan)
+    return {
+        "id": plan.id,
+        "work_specification_id": plan.work_specification_id,
+        "work_specification_revision": plan.work_specification_revision,
+        "work_specification_digest": plan.work_specification_digest,
+        "revision": plan.revision,
+        "status": plan.status,
+        "plan_digest": plan.plan_digest,
+        "criteria": payload["criteria"],
+        "program_version": plan.program_version,
+        "model_id": plan.model_id,
+        "created_at": plan.created_at,
+        "updated_at": plan.updated_at,
+        "approved_at": plan.approved_at,
     }
 
 
@@ -152,3 +193,60 @@ def resume_approved_scope(
     svc: WorkSpecificationService = Depends(service),
 ):
     return svc.resume_approved_scope(conversation_id)
+
+@router.get(
+    "/work-specifications/{specification_id}/behavioral-verification-plan",
+    response_model=BehavioralVerificationPlanRead | None,
+)
+def latest_behavioral_verification_plan(
+    specification_id: str,
+    svc: BehavioralVerificationPlanService = Depends(behavioral_plan_service),
+):
+    plan = svc.latest(specification_id)
+    return present_behavioral_plan(plan, svc) if plan is not None else None
+
+
+@router.post(
+    "/work-specifications/{specification_id}/behavioral-verification-plan/draft",
+    response_model=BehavioralVerificationPlanRead,
+)
+async def draft_behavioral_verification_plan(
+    specification_id: str,
+    svc: BehavioralVerificationPlanService = Depends(behavioral_plan_service),
+    plan_coordinator: BehavioralVerificationPlanCoordinator = Depends(behavioral_plan_coordinator),
+):
+    specification = svc.approved_specification(specification_id)
+    try:
+        generation = await plan_coordinator.draft(specification)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except BehavioralVerificationPlanGenerationFailure as exc:
+        if exc.kind is RoutingFailureKind.RATE_LIMITED:
+            raise HTTPException(
+                status_code=429,
+                detail="Model capacity is temporarily unavailable. Retry verification-plan creation later.",
+            ) from exc
+        if exc.kind is RoutingFailureKind.VALIDATION_EXHAUSTED:
+            raise HTTPException(
+                status_code=503,
+                detail="Parallax could not validate a bounded behavioral verification plan.",
+            ) from exc
+        raise HTTPException(
+            status_code=503,
+            detail="The behavioral verification plan provider is temporarily unavailable.",
+        ) from exc
+    plan = svc.create_draft(specification_id, generation)
+    return present_behavioral_plan(plan, svc)
+
+
+@router.post(
+    "/behavioral-verification-plans/{plan_id}/approve",
+    response_model=BehavioralVerificationPlanRead,
+)
+def approve_behavioral_verification_plan(
+    plan_id: str,
+    svc: BehavioralVerificationPlanService = Depends(behavioral_plan_service),
+):
+    plan = svc.approve(plan_id)
+    return present_behavioral_plan(plan, svc)
+

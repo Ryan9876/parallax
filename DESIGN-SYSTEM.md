@@ -280,6 +280,19 @@ The canonical server object remains the Work Specification, but ordinary product
 - expansion/collapse preserves conversation rhythm;
 - mobile controls remain non-overlapping and touch-safe.
 
+### Behavioral verification plan
+
+For an approved Work Specification, the Build Plan may expose the separately governed Behavioral Verification Plan inside the same expanded surface rather than creating a parallel workspace.
+
+- the section explains that it defines **how Parallax intends to verify the approved plan later**; it must not imply that the application has already passed verification;
+- `Automated browser check` and `Human review` are the ordinary-language labels for canonical `BROWSER` and `HUMAN_ONLY` modes;
+- every acceptance criterion remains visible so human-only coverage cannot disappear behind automation;
+- browser-plan steps are concise summaries of the bounded typed workflow, not raw executable JSON, selectors, scripts, provider payloads or hidden reasoning;
+- `Create verification plan` and `Approve verification plan` are explicit accessible operator actions with distinct busy/error states;
+- approved-plan treatment communicates only that the verification contract is approved for future execution, never that behavioral acceptance evidence exists;
+- compact/mobile layouts preserve criterion text, mode, approval state and touch-safe controls through reflow/progressive disclosure rather than omission;
+- exact plan identity, revision, digest, generator metadata and canonical status remain technical evidence rather than primary product copy.
+
 ## Progress / Engineering Run surface
 
 The canonical Engineering Run continues to provide durable server truth. Ordinary mobile product copy presents that truth as **Progress** and groups low-level stages into a stable five-step user journey:
