@@ -5,6 +5,7 @@ const {
   autonomyContinuationDisposition,
   canContinueEngineeringRunAutonomously,
   isAuthoritativeAutonomyAdvance,
+  EngineeringRunContinuationSingleFlight,
   MAX_AUTONOMY_REQUESTS_PER_CONTINUATION,
 } = require('../.tmp-state/engineeringRunContinuation.js');
 
@@ -113,4 +114,39 @@ assert.throws(
   /request count is invalid/,
 );
 
-console.log('PASS engineering run continuation policy');
+async function proveSingleFlight() {
+  const singleFlight = new EngineeringRunContinuationSingleFlight();
+  let calls = 0;
+  let releaseFirst;
+  const first = singleFlight.run(() => {
+    calls += 1;
+    return new Promise((resolve) => { releaseFirst = resolve; });
+  });
+  const duplicate = singleFlight.run(() => {
+    calls += 1;
+    return Promise.resolve('duplicate');
+  });
+  assert.equal(first, duplicate, 'same-hook duplicate continuation must share one active promise');
+  await Promise.resolve();
+  assert.equal(calls, 1, 'same-hook duplicate continuation must invoke the network factory once');
+  assert.equal(singleFlight.inFlight, true);
+
+  releaseFirst('complete');
+  assert.equal(await first, 'complete');
+  await Promise.resolve();
+  assert.equal(singleFlight.inFlight, false, 'single-flight must release after completion');
+
+  const next = singleFlight.run(async () => {
+    calls += 1;
+    return 'next';
+  });
+  assert.equal(await next, 'next');
+  assert.equal(calls, 2, 'a later continuation may start after the first completes');
+}
+
+proveSingleFlight()
+  .then(() => console.log('PASS engineering run continuation policy'))
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
