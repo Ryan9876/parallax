@@ -49,3 +49,22 @@ export function autonomyContinuationDisposition(
     ? 'LIMIT_REACHED'
     : 'CONTINUE';
 }
+
+
+export class EngineeringRunContinuationSingleFlight<T> {
+  private active: Promise<T> | null = null;
+
+  run(factory: () => Promise<T>): Promise<T> {
+    if (this.active) return this.active;
+    const promise = Promise.resolve().then(factory);
+    this.active = promise;
+    void promise.finally(() => {
+      if (this.active === promise) this.active = null;
+    }).catch(() => undefined);
+    return promise;
+  }
+
+  get inFlight(): boolean {
+    return this.active !== null;
+  }
+}
