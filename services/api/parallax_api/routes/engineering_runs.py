@@ -39,6 +39,7 @@ from ..code.source_delivery_composition import (
     VerifiedLineageDelivery,
 )
 from ..code.workspace_lineage import ProjectRunIdentity
+from ..tools.providers.common import require_https_url
 from ..code.state_machine import RevisionConflict, RunTransitionError
 from ..code.worker_recovery import WorkerLeaseConflict, WorkerRecoveryError
 from ..code.worker_service import WorkerExecutionNotFound, WorkerRecoveryService
@@ -287,6 +288,12 @@ def _review_delivery_status_payload(
         }
 
     result = VerifiedDeliveryResult.from_record(payload, replayed=True)
+    try:
+        require_https_url(result.pull_request_url, field="pull_request_url", allowed_suffix="github.com")
+        if result.preview_url is not None:
+            require_https_url(result.preview_url, field="preview_url", allowed_suffix="vercel.app")
+    except ValueError as exc:
+        raise VerifiedDeliveryError("durable REVIEW delivery record contains an unsafe provider URL") from exc
     if (
         result.project_id != run.project_id
         or result.run_id != run.id
